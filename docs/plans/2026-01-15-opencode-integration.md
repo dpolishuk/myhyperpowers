@@ -4,9 +4,9 @@
 
 **Goal:** Add first-class OpenCode support with generated skills, commands, agents, plugin hooks, docs, and validation/CI.
 
-**Architecture:** Keep `skills/*/SKILL.md` as the source of truth and generate `.opencode/skill/*/SKILL.md` via a deterministic TypeScript sync script. Add OpenCode-specific commands, agents, plugin, and config under `.opencode/`, plus docs and CI validation at repo root.
+**Architecture:** Keep `skills/*/SKILL.md` as the source of truth and generate `.opencode/skill/*/SKILL.md` via a deterministic Node.js sync script. Add OpenCode-specific commands, agents, plugin, and config under `.opencode/`, plus docs and CI validation at repo root.
 
-**Tech Stack:** TypeScript (Node.js), Markdown, GitHub Actions.
+**Tech Stack:** Node.js, TypeScript (plugin), Markdown, GitHub Actions.
 
 ### Task 1: Add OpenCode project rules and config
 
