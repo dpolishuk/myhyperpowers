@@ -123,7 +123,7 @@ To update the plugin later:
 
 ## OpenCode
 
-See `docs/README.opencode.md` for OpenCode installation and usage.
+See [docs/README.opencode.md](docs/README.opencode.md) for OpenCode installation and usage.
 
 ## Usage
 
