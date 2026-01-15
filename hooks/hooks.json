@@ -13,23 +13,36 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Read|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-beads-direct-read.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use/01-block-pre-commit-edits.py"
-          }
-        ]
-      }
+         "matcher": "Read|Grep",
+         "hooks": [
+           {
+             "type": "command",
+             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-beads-direct-read.py"
+           }
+         ]
+       },
+       {
+         "matcher": "Edit|Write",
+         "hooks": [
+           {
+             "type": "command",
+             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use/01-block-pre-commit-edits.py"
+           }
+         ]
+       },
+       {
+         "matcher": "Bash",
+         "hooks": [
+           {
+             "type": "command",
+             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use/02-block-bd-cli.py"
+           },
+           {
+             "type": "command",
+             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use/03-block-gh-truncation.py"
+           }
+         ]
+       }
     ],
     "UserPromptSubmit": [
       {

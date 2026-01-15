@@ -120,22 +120,29 @@ Skills are invoked through slash commands that expand to prompts. The flow is:
 3. Claude uses the Skill tool to load `skills/writing-plans/SKILL.md`
 4. Claude follows the skill's detailed instructions
 
-### bd Integration
+### GitHub Projects Integration
 
-Many skills integrate with `bd` (a task management tool). The workflows expect:
+Many skills integrate with `gh project` (GitHub Projects CLI). The workflows expect:
 
-- **Epics** - High-level features/initiatives (created by writing-plans)
-- **Tasks** - Specific implementation steps (created by writing-plans, executed by executing-plans)
-- **Dependencies** - Task relationships (blocking, parent-child)
-- **Status tracking** - Open, in-progress, done, ready
+- **Epics** - High-level features/initiatives (created by writing-gh-plans)
+- **Tasks** - Specific implementation steps (created by writing-gh-plans, executed by executing-gh-plans)
+- **Epic Field** - Custom TEXT field linking tasks to their epic
+- **Status Field** - SINGLE_SELECT with options: To Do, In Progress, Blocked, Done
+- **Priority Field** - SINGLE_SELECT with options: P0, P1, P2, P3
+- **Project Context** - Cached in `hooks/context/gh-project.json` for fast ID access
 
-Common bd commands:
+**Project configuration:**
+- Each repository has ONE working GitHub Project
+- Run `/hyperpowers:set-gh-project` to configure project
+- Cache includes: repo, owner, projectNumber, projectId, field IDs, option IDs
+
+Common gh project commands:
 ```bash
-bd list --type epic --status open       # Find open epics
-bd ready                                 # Show ready tasks
-bd show bd-1                            # Show task details
-bd dep tree bd-1                        # Show task tree
-bd status bd-3 --status in-progress     # Update task status
+# Requires project context to be configured first
+gh project item-create <PROJECT_NUMBER> --owner <OWNER> --title "..." --body "..." --format json
+gh project item-edit --id <ITEM_ID> --project-id <PROJECT_ID> --field-id <FIELD_ID> --text "..."
+gh project item-list <PROJECT_NUMBER> --owner <OWNER> --format json | jq '.'
+gh project field-list <PROJECT_NUMBER> --owner <OWNER> --format json
 ```
 
 ### Agent System
@@ -167,8 +174,8 @@ Complete workflow from idea to PR:
 
 1. **Brainstorming** (`/hyperpowers:brainstorm`) - Socratic questioning to refine requirements
 2. **SRE Task Refinement** (optional) - Uses Opus 4.1 to identify corner cases
-3. **Writing Plans** (`/hyperpowers:write-plan`) - Creates detailed bd epic with tasks
-4. **Executing Plans** (`/hyperpowers:execute-plan`) - Implements tasks continuously, updating bd
+3. **Writing Plans** (`/hyperpowers:write-gh-plan`) - Creates GitHub Project epic with linked tasks
+4. **Executing Plans** (`/hyperpowers:execute-gh-plan`) - Implements tasks continuously, updating GitHub Project status
 5. **Review Implementation** (`/hyperpowers:review-implementation`) - Verifies against spec
 6. **Finishing Branch** - Creates PR, handles cleanup
 
@@ -188,17 +195,17 @@ The `test-driven-development` skill enforces this rigorously.
 
 Complete workflow for fixing bugs systematically:
 
-1. **Create bd Bug Issue** - Track the bug with reproduction steps
+1. **Create GitHub Project Task** - Track the bug with reproduction steps in GitHub Project
 2. **Debugging with Tools** - Use debuggers, internet-researcher, codebase-investigator to find root cause
 3. **Write Failing Test** (RED phase) - Reproduce the bug in a test
 4. **Implement Fix** (GREEN phase) - Minimal fix addressing root cause
 5. **Verify** - Run full test suite via test-runner agent, check for regressions
-6. **Close bd Issue** - Document fix and close
+6. **Close Task** - Document fix and mark as Done in GitHub Project
 
 **Key Skills:**
 - `debugging-with-tools` - Systematic investigation using debuggers, internet research, and agents
 - `root-cause-tracing` - Trace backward through call stack to find original trigger
-- `fixing-bugs` - Complete workflow from bug discovery to closure
+- `managing-gh-projects` - For creating/updating bug tasks
 
 **Critical:** Always use debugger and internet-researcher BEFORE attempting fixes. Never fix symptoms.
 
@@ -269,17 +276,15 @@ From `using-hyper` - watch for these rationalizations:
 
 ## Current Limitations
 
-From RECOMMENDATIONS.md:
-
 **Currently covered:**
 - ✅ Greenfield feature development (idea → design → implementation → PR)
 - ✅ Bug fixing and debugging workflows (systematic investigation, root cause tracing)
 - ✅ Refactoring workflows (test-preserving transformations)
 - ✅ Advanced task management (splitting, merging, dependencies, metrics)
 - ✅ Quality culture (TDD, verification, SRE review)
-- ✅ Clean bd integration
+- ✅ Clean GitHub Projects integration
 
-**Missing (see RECOMMENDATIONS.md for details):**
+**Missing:**
 - ❌ Incident response
 - ❌ Code review response (receiving reviews)
 - ❌ Merge conflict resolution

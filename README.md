@@ -12,8 +12,8 @@ Reusable workflows for common development tasks:
 
 **Feature Development:**
 - **brainstorming** - Interactive design refinement using Socratic method
-- **writing-plans** - Create detailed implementation plans (single task or multiple tasks)
-- **executing-plans** - Execute tasks continuously with optional per-task review
+- **writing-gh-plans** - Create detailed GitHub Project epics with linked tasks
+- **executing-gh-plans** - Execute GitHub Project tasks iteratively with status updates
 - **review-implementation** - Verify implementation matches requirements
 - **finishing-a-development-branch** - Complete workflow for PR creation and cleanup
 - **sre-task-refinement** - Ensure all corner cases and requirements are understood (uses Opus 4.1)
@@ -32,7 +32,7 @@ Reusable workflows for common development tasks:
 - **verification-before-completion** - Always verify before claiming success
 
 **Task & Project Management:**
-- **managing-bd-tasks** - Advanced bd operations: splitting tasks, merging duplicates, dependencies, metrics
+- **managing-gh-projects** - Advanced GitHub Projects operations: splitting tasks, merging duplicates, dependencies, metrics
 
 **Collaboration & Process:**
 - **dispatching-parallel-agents** - Investigate independent failures concurrently
@@ -47,8 +47,10 @@ Reusable workflows for common development tasks:
 Quick access to key workflows:
 
 - `/hyperpowers:brainstorm` - Start interactive design refinement
-- `/hyperpowers:write-plan` - Create detailed implementation plan
-- `/hyperpowers:execute-plan` - Execute plan with review checkpoints
+- `/hyperpowers:set-gh-project` - Configure GitHub Project for repository
+- `/hyperpowers:write-gh-plan` - Create detailed GitHub Project epic with tasks
+- `/hyperpowers:execute-gh-plan` - Execute GitHub Project tasks iteratively
+- `/hyperpowers:manage-gh-projects` - Advanced GitHub Project operations
 - `/hyperpowers:review-implementation` - Review completed implementation
 
 ### Specialized Agents
@@ -115,6 +117,22 @@ Install from the Claude Code plugin marketplace:
 
 Verify installation by running `/help` - you should see the hyperpowers slash commands listed.
 
+### Prerequisites
+
+For GitHub Projects integration, you need:
+
+1. **gh CLI installed** - Install from https://cli.github.com/
+2. **gh authenticated with project scope** - Run: `gh auth login -s project`
+3. **jq installed** - Required for JSON parsing in hooks
+
+Verify setup:
+```bash
+gh auth status  # Should show project scope
+jq --version  # Should show version
+```
+
+Before using GitHub Project features, run `/hyperpowers:set-gh-project` to configure.
+
 To update the plugin later:
 
 ```
@@ -134,6 +152,32 @@ The `using-hyper` skill automatically loads at the start of each conversation an
 
 ### Example Workflow
 
+```
+User: I need to add user authentication to my app
+
+Claude: I'm using brainstorming skill to refine your authentication requirements.
+
+[Socratic questioning to understand requirements]
+
+Claude: Now I'm using writing-gh-plans skill to create a detailed implementation plan.
+
+[Creates detailed GitHub Project epic with linked tasks]
+
+Claude: I'm using executing-gh-plans skill to implement tasks.
+
+[Works through ready tasks continuously, updating task status in GitHub Project]
+
+Claude: I'm using test-runner agent to verify all tests pass.
+
+[Agent runs tests, reports: "✓ 47 tests passed, 0 failed"]
+
+Claude: I'm using review-implementation skill to verify everything works.
+
+[Reviews implementation against requirements]
+
+Claude: I'm using the finishing-a-development-branch skill to wrap up.
+
+[Creates PR, cleans up]
 ```
 User: I need to add user authentication to my app
 

@@ -97,31 +97,34 @@
       ]
     }
   },
-  "writing-plans": {
+  "writing-gh-plans": {
     "type": "workflow",
     "enforcement": "suggest",
     "priority": "high",
     "promptTriggers": {
-      "keywords": ["expand", "enhance", "detailed steps", "implementation steps", "bd tasks"],
+      "keywords": ["write plan", "create plan", "epic", "tasks", "implementation plan", "gh plan", "GitHub plan"],
       "intentPatterns": [
-        "expand.*?(bd|task|plan)",
-        "enhance.*?with.*(steps|details)",
-        "add.*(implementation|detailed).*(steps|instructions)",
-        "write.*?plan"
+        "(write|create).*(plan|epic|tasks)",
+        "create.*?epic",
+        "write.*?gh.*?plan",
+        "plan.*?implementation",
+        "epic.*?tasks"
       ]
     }
   },
-  "executing-plans": {
+  "executing-gh-plans": {
     "type": "workflow",
     "enforcement": "suggest",
     "priority": "high",
     "promptTriggers": {
-      "keywords": ["execute", "implement", "start working", "begin implementation", "work on bd"],
+      "keywords": ["execute", "implement", "start working", "begin implementation", "work on task", "work on epic", "execute gh", "GitHub tasks"],
       "intentPatterns": [
-        "execute.*(plan|tasks|bd)",
-        "(start|begin).*(implementation|work|executing)",
-        "implement.*?bd-\\d+",
-        "work.*?on.*(tasks|bd|plan)"
+        "execute.*(plan|tasks|epic)",
+        "(start|begin).*(implementation|work)",
+        "implement.*?task",
+        "work.*?on.*(task|epic)",
+        "execute.*?gh",
+        "gh.*?execute"
       ]
     }
   },
@@ -165,17 +168,21 @@
       ]
     }
   },
-  "managing-bd-tasks": {
+  "managing-gh-projects": {
     "type": "workflow",
     "enforcement": "suggest",
     "priority": "low",
     "promptTriggers": {
-      "keywords": ["split task", "merge tasks", "bd dependencies", "archive epic"],
+      "keywords": ["split task", "merge tasks", "change status", "change priority", "archive epic", "query metrics", "retag", "GitHub Projects", "gh project", "status", "priority"],
       "intentPatterns": [
         "(split|divide).*?task",
         "merge.*?tasks",
-        "(change|add|remove).*?dependencies",
-        "(archive|query|metrics).*?bd"
+        "(change|update).*?(status|priority)",
+        "(archive|query|metrics).*?(epic|project)",
+        "retag.*?tasks",
+        "manage.*?github.*?projects",
+        "gh.*?project.*?(item|field)",
+        "query.*?(status|priority)"
       ]
     }
   },
