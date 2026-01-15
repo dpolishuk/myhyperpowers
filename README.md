@@ -121,6 +121,10 @@ To update the plugin later:
 /plugin update hyperpowers
 ```
 
+## OpenCode
+
+See `docs/README.opencode.md` for OpenCode installation and usage.
+
 ## Usage
 
 ### Getting Started
