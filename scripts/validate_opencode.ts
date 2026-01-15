@@ -13,7 +13,7 @@ const PLUGIN_PATH = path.join(OPENCODE_DIR, "plugin", "hyperpowers.ts");
 const SKILL_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
-const fileExists = async (filePath: string) => {
+const fileExists = async (filePath) => {
   try {
     await fs.access(filePath);
     return true;
@@ -28,7 +28,7 @@ const parseFrontmatter = (content: string) => {
     return null;
   }
 
-  const frontmatter = {} as Record<string, string>;
+  const frontmatter = {};
   const lines = match[1].split(/\r?\n/);
   for (const line of lines) {
     const entry = line.match(/^([a-zA-Z0-9_-]+):\s*(.*)$/);
@@ -42,11 +42,11 @@ const parseFrontmatter = (content: string) => {
   return frontmatter;
 };
 
-const collectErrors = (errors: string[], message: string) => {
+const collectErrors = (errors, message) => {
   errors.push(message);
 };
 
-const validateSkillFolders = async (errors: string[]) => {
+const validateSkillFolders = async (errors) => {
   if (!(await fileExists(SKILLS_DIR))) {
     collectErrors(errors, `Missing skills directory: ${SKILLS_DIR}`);
     return;
@@ -89,10 +89,10 @@ const validateSkillFolders = async (errors: string[]) => {
 };
 
 const validateFrontmatterFiles = async (
-  errors: string[],
-  label: string,
-  directory: string,
-  requiredKeys: string[]
+  errors,
+  label,
+  directory,
+  requiredKeys
 ) => {
   if (!(await fileExists(directory))) {
     collectErrors(errors, `Missing ${label} directory: ${directory}`);
@@ -133,7 +133,7 @@ const resolveTscPath = () => {
   return candidates.find((candidate) => fsSync.existsSync(candidate)) || null;
 };
 
-const validatePluginCompilation = (errors: string[], warnings: string[]) => {
+const validatePluginCompilation = (errors, warnings) => {
   if (!fsSync.existsSync(PLUGIN_PATH)) {
     collectErrors(errors, `Plugin file missing: ${PLUGIN_PATH}`);
     return;
@@ -165,7 +165,7 @@ const validatePluginCompilation = (errors: string[], warnings: string[]) => {
   }
 };
 
-const reportResults = (errors: string[], warnings: string[]) => {
+const reportResults = (errors, warnings) => {
   for (const warning of warnings) {
     console.warn(warning);
   }
@@ -183,8 +183,8 @@ const reportResults = (errors: string[], warnings: string[]) => {
 };
 
 const main = async () => {
-  const errors: string[] = [];
-  const warnings: string[] = [];
+  const errors = [];
+  const warnings = [];
 
   await validateSkillFolders(errors);
   await validateFrontmatterFiles(errors, "Command", COMMANDS_DIR, ["description"]);
@@ -194,7 +194,7 @@ const main = async () => {
   reportResults(errors, warnings);
 };
 
-main().catch((error: unknown) => {
+main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });
