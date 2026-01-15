@@ -3,5 +3,8 @@
   "private": true,
   "dependencies": {
     "@opencode-ai/plugin": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
   }
 }
