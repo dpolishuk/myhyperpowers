@@ -1,0 +1,20 @@
+{
+  "name": "@dpolishuk/hyperpowers-opencode",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.1.25"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}
