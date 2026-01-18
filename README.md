@@ -135,7 +135,7 @@ This enables:
 
 This is the fully local path: no `"plugin": [...]` in `opencode.json`.
 
-1. Copy the `.opencode/` directory into your project (or use this repo directly).
+1. Copy `opencode.json` and the `.opencode/` directory into your project.
 2. Install plugin dependencies locally:
 
 ```bash
@@ -154,6 +154,8 @@ Notes:
 - Skill tools are provided by the local skills loader plugin: `.opencode/plugin/hyperpowers-skills.ts`.
 - Safety guardrails are provided by: `.opencode/plugin/hyperpowers-safety.ts`.
 - `bun install` downloads dependencies (e.g. `@opencode-ai/plugin`, `gray-matter`, `zod`) but does not require installing any OpenCode plugins via npm.
+
+**Portability:** `.opencode/plugin/hyperpowers-safety.ts` and `.opencode/plugin/hyperpowers-skills.ts` are self-contained, so copying `.opencode/` to another repo works.
 
 **Option C: Install the safety plugin into any OpenCode project (npm)**
 
