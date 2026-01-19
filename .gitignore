@@ -1,0 +1,23 @@
+# bv (beads viewer) local config and caches
+.bv/
+
+# Claude Code local settings
+.claude/
+
+# MCP configuration with API keys
+.mcp.json
+
+# Serena memories and configs
+.serena/
+
+# Git worktrees
+.worktrees/
+
+# Beads local state
+.beads/last-touched
+
+# Node modules and build artifacts
+node_modules/
+dist/
+**/node_modules/
+**/dist/
