@@ -120,13 +120,13 @@ opencode
 ```
 
 This enables:
-- Commands from `.opencode/command/*.md` (invoked as `/<command>`, e.g. `/brainstorm`)
-- Agents from `.opencode/agent/*.md` (e.g. `@code-reviewer`, `@test-runner`)
+- Commands from `.opencode/commands/*.md` (invoked as `/<command>`, e.g. `/brainstorm`)
+- Agents from `.opencode/agents/*.md` (e.g. `@code-reviewer`, `@test-runner`)
 - Skills via local skill discovery from `.opencode/skills/`
-- Safety guardrails plugin from `.opencode/plugin/hyperpowers-safety.ts`
+- Safety guardrails plugin from `.opencode/plugins/hyperpowers-safety.ts`
 
 **Verify in OpenCode:**
-- Type `/brainstorm` and confirm OpenCode expands the prompt from `.opencode/command/brainstorm.md`
+- Type `/brainstorm` and confirm OpenCode expands the prompt from `.opencode/commands/brainstorm.md`
 - Invoke an agent like `@code-reviewer` and confirm it runs in subagent mode
 - Verify skills tools exist by running any Hyperpowers command (they reference tools like `skills_hyperpowers_brainstorming`)
 - Optional safety check: try reading `.env` (it should be blocked by the safety plugin)
@@ -151,11 +151,11 @@ opencode
 ```
 
 Notes:
-- Skill tools are provided by the local skills loader plugin: `.opencode/plugin/hyperpowers-skills.ts`.
-- Safety guardrails are provided by: `.opencode/plugin/hyperpowers-safety.ts`.
+- Skill tools are provided by the local skills loader plugin: `.opencode/plugins/hyperpowers-skills.ts`.
+- Safety guardrails are provided by: `.opencode/plugins/hyperpowers-safety.ts`.
 - `bun install` downloads dependencies (e.g. `@opencode-ai/plugin`, `gray-matter`, `zod`) but does not require installing any OpenCode plugins via npm.
 
-**Portability:** `.opencode/plugin/hyperpowers-safety.ts` and `.opencode/plugin/hyperpowers-skills.ts` are self-contained, so copying `.opencode/` to another repo works.
+**Portability:** `.opencode/plugins/hyperpowers-safety.ts` and `.opencode/plugins/hyperpowers-skills.ts` are self-contained, so copying `.opencode/` to another repo works.
 
 **Option C: Install the safety plugin into any OpenCode project (npm)**
 

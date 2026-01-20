@@ -22,14 +22,14 @@ Non-goals (initial):
 ### Commands
 
 - Source of truth in Hyperpowers: `commands/*.md`
-- Mirrored into OpenCode at: `.opencode/command/*.md`
+- Mirrored into OpenCode at: `.opencode/commands/*.md`
 - Command names are not prefixed (per decision) and are invoked as `/<filename>` in OpenCode.
 - Command templates call skill tools produced by opencode-skills (see Skills section), e.g.
   - `Use the skills_hyperpowers_brainstorming skill exactly as written`
 
 ### Agents
 
-- Agents are defined in `.opencode/agent/*.md`.
+- Agents are defined in `.opencode/agents/*.md`.
 - Canonical agent names are preserved (per decision):
   - `code-reviewer`, `test-runner`, `codebase-investigator`, `internet-researcher`, `test-effectiveness-analyst`
 - Models are pinned by explicit choice:
@@ -51,7 +51,7 @@ Non-goals (initial):
 
 ### Safety Guardrails Plugin
 
-- Local plugin file: `.opencode/plugin/hyperpowers-safety.ts`
+- Local plugin file: `.opencode/plugins/hyperpowers-safety.ts`
 - Implemented using `@opencode-ai/plugin` hook:
   - `tool.execute.before`
 - Current guardrails:
@@ -65,27 +65,27 @@ Non-goals (initial):
 - It includes:
   - MCP server definitions (perplexity-mcp, context7, serena)
   - `plugin: ["opencode-skills"]`
-- Root `opencode.json` is intended to be added separately as the canonical entry point for OpenCode users; it should NOT load the npm package by default (per decision). Instead it relies on in-repo `.opencode/plugin/*`.
+- Root `opencode.json` is intended to be added separately as the canonical entry point for OpenCode users; it should NOT load the npm package by default (per decision). Instead it relies on in-repo `.opencode/plugins/*`.
 
 ## Publishable Plugin Package
 
 - Location: `packages/opencode-plugin/`
 - Package name: `@dpolishuk/hyperpowers-opencode`
 - Exports a default OpenCode Plugin implementing the same `tool.execute.before` safety guardrails.
-- Project-level `.opencode/plugin/hyperpowers-safety.ts` imports this package source to avoid duplication.
+- Project-level `.opencode/plugins/hyperpowers-safety.ts` imports this package source to avoid duplication.
 
 ## Compatibility Notes
 
 - OpenCode loads plugins from:
-  - `.opencode/plugin/` (project)
-  - `~/.config/opencode/plugin/` (global)
+  - `.opencode/plugins/` (project)
+  - `~/.config/opencode/plugins/` (global)
   - npm packages listed in `opencode.json` via the `plugin` key
 - OpenCode loads commands from:
-  - `.opencode/command/*.md` (project)
-  - `~/.config/opencode/command/*.md` (global)
+  - `.opencode/commands/*.md` (project)
+  - `~/.config/opencode/commands/*.md` (global)
 - OpenCode loads agents from:
-  - `.opencode/agent/*.md` (project)
-  - `~/.config/opencode/agent/*.md` (global)
+  - `.opencode/agents/*.md` (project)
+  - `~/.config/opencode/agents/*.md` (global)
 - opencode-skills discovery order:
   - `.opencode/skills/` (project)
   - `~/.opencode/skills/` (global)
