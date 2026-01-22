@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "timeoutMs": 2500,
+  "maxRules": 5,
+  "maxWarnings": 5,
+  "maxChars": 1500,
+  "logLevel": "warn"
+}
