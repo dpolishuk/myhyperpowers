@@ -180,10 +180,11 @@ Local development (load the plugin straight from this repo):
 claude --plugin-dir .
 ```
 
-Install from the Claude Code plugin marketplace:
+Install this repo as a Claude Code plugin (local marketplace or git URL):
 
 ```text
-/plugin marketplace add withzombies/hyperpowers
+/plugin marketplace add /absolute/path/to/myhyperpowers
+# or: /plugin marketplace add dpolishuk/myhyperpowers
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
