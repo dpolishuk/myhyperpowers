@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@opencode-ai/plugin": "1.1.25",
+    "@opencode-ai/plugin": "1.1.29",
     "gray-matter": "^4.0.3",
     "zod": "^4.1.8"
   }
