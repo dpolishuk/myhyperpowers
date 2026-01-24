@@ -229,9 +229,9 @@ When creating or modifying skills, use the `writing-skills` skill which applies 
 
 The plugin is published to the Claude Code marketplace:
 
-```bash
-# In the marketplace system (not in this repo)
-claude-code plugins install withzombies-hyper/hyperpowers
+```text
+/plugin marketplace add withzombies/hyperpowers
+/plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
 Version is tracked in `.claude-plugin/plugin.json`.

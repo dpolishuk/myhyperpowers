@@ -174,19 +174,35 @@ Then restart OpenCode.
 
 ### Claude Code
 
+Local development (load the plugin straight from this repo):
+
+```text
+claude --plugin-dir .
+```
+
 Install from the Claude Code plugin marketplace:
 
 ```text
 /plugin marketplace add withzombies/hyperpowers
-/plugin install hyperpowers@hyperpowers
+/plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
-Verify installation by running `/help` - you should see the hyperpowers slash commands listed.
+Use `--scope project` or `--scope local` if you want the install scoped to a project or a single session.
+
+Verify installation by running `/help` - you should see the Hyperpowers slash commands listed.
 
 To update the plugin later:
 
 ```text
-/plugin update hyperpowers
+/plugin update myhyperpowers@myhyperpowers
+```
+
+If you previously installed a legacy name, uninstall and reinstall:
+
+```text
+/plugin uninstall hyperpowers@hyperpowers
+/plugin uninstall withzombies-hyper@withzombies-hyper
+/plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
 ## Usage
