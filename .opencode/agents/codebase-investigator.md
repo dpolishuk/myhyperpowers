@@ -1,7 +1,7 @@
 ---
 description: Explores the repo to verify patterns and file locations
 mode: subagent
-model: anthropic/claude-haiku-4-5
+model: inherit
 temperature: 0.0
 permission:
   edit: deny

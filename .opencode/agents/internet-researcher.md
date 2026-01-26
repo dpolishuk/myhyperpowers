@@ -1,7 +1,7 @@
 ---
 description: Researches external docs and best practices
 mode: subagent
-model: anthropic/claude-haiku-4-5
+model: inherit
 temperature: 0.1
 permission:
   edit: deny

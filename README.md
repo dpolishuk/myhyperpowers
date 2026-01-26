@@ -58,7 +58,43 @@ Domain-specific agents for complex tasks:
 - **code-reviewer** - Review implementations against plans and coding standards
 - **codebase-investigator** - Understand current codebase state and patterns
 - **internet-researcher** - Research APIs, libraries, and current best practices
-- **test-runner** - Run tests/pre-commit hooks/commits without context pollution (uses Haiku)
+- **test-runner** - Run tests/pre-commit hooks/commits without context pollution
+
+### Model Configuration
+
+All agents are configured with `model: inherit`, meaning they respect your current model choice in OpenCode or Claude Code settings. This gives you full control over which models each agent uses.
+
+**Recommended model choices by agent:**
+
+| Agent | Recommended Model | Reason |
+|-------|------------------|--------|
+| test-runner | Fast model (glm-4.5, haiku) | High-volume, low-complexity tasks |
+| codebase-investigator | Fast model | Scanning and searching operations |
+| internet-researcher | Fast model | External API lookups and summarization |
+| code-reviewer | Capable model (sonnet, glm-4.7) | Requires reasoning and analysis |
+| test-effectiveness-analyst | Capable model (sonnet, glm-4.7) | Complex analysis of test quality |
+
+**To customize agent models:**
+
+1. **OpenCode:** Edit `opencode.json` in your project:
+   ```json
+   {
+     "model": "provider/glm-4.7",
+     "agents": {
+       "test-runner": {
+         "model": "provider/glm-4.5"
+       }
+     }
+   }
+   ```
+
+2. **Claude Code:** Set your preferred model in settings, or edit agent frontmatter in `.opencode/agents/*.md`:
+   ```yaml
+   ---
+   model: glm-4.5
+   mode: subagent
+   ---
+   ```
 
 ### Hooks System
 

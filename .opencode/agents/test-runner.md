@@ -1,7 +1,7 @@
 ---
 description: Runs tests/commands and reports only summary + failures
 mode: subagent
-model: anthropic/claude-haiku-4-5
+model: inherit
 temperature: 0.0
 permission:
   edit: deny

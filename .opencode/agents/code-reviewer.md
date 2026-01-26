@@ -1,7 +1,7 @@
 ---
 description: Reviews code for best practices and plan alignment
 mode: subagent
-model: anthropic/claude-sonnet-4-5
+model: inherit
 temperature: 0.1
 permission:
   edit: deny
