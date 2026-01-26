@@ -1,0 +1,39 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "Minimal config - all agents inherit your chosen model",
+  "comment": "Simply set your preferred model below, and all agents will use it",
+  "model": "anthropic/claude-sonnet-4-5-20250514",
+  "mcp": {
+    "perplexity-mcp": {
+      "type": "local",
+      "command": ["perplexity-mcp", "--model", "sonar-pro", "--reasoning-model", "sonar-reasoning-pro"],
+      "environment": {
+        "PERPLEXITY_API_KEY": "{env:PERPLEXITY_API_KEY}"
+      }
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      }
+    }
+  },
+  "permission": {
+    "todowrite": "allow",
+    "todoread": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "question": "allow",
+    "read": "allow",
+    "edit": "allow",
+    "write": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "list": "allow",
+    "lsp": "allow",
+    "patch": "allow"
+  },
+  "comment": "No agents section needed - all agents use 'model: inherit' by default",
+  "comment": "Override specific agents by adding an 'agents' section if desired"
+}

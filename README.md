@@ -231,7 +231,22 @@ claude --plugin-dir .
 
 ### After Installation: Configure Models
 
-All agents use `model: inherit` by default, meaning they follow your current model selection. To customize:
+All agents use `model: inherit` by default, meaning they follow your current model selection.
+
+**Quick setup - copy an example config:**
+
+```bash
+# For Anthropic Claude
+cp docs/opencode.example.anthropic.json opencode.json
+
+# For GLM models
+cp docs/opencode.example.glm.json opencode.json
+
+# Or use the minimal inherit-based config
+cp docs/opencode.example.inherit.json opencode.json
+```
+
+**Or customize manually:**
 
 ```json
 // opencode.json (OpenCode)
@@ -243,9 +258,7 @@ All agents use `model: inherit` by default, meaning they follow your current mod
 }
 ```
 
-Or set your preferred model in Claude Code settings.
-
-See [Model Configuration](#model-configuration) for recommendations.
+See [docs/README.md](docs/README.md) for more example configurations.
 
 ### Troubleshooting
 

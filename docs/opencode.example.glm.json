@@ -1,0 +1,58 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "OpenCode config for GLM models (via compatible provider)",
+  "model": "glm/glm-4.7",
+  "mcp": {
+    "perplexity-mcp": {
+      "type": "local",
+      "command": ["perplexity-mcp", "--model", "sonar-pro", "--reasoning-model", "sonar-reasoning-pro"],
+      "environment": {
+        "PERPLEXITY_API_KEY": "{env:PERPLEXITY_API_KEY}"
+      }
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      }
+    }
+  },
+  "permission": {
+    "todowrite": "allow",
+    "todoread": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "question": "allow",
+    "read": "allow",
+    "edit": "allow",
+    "write": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "list": "allow",
+    "lsp": "allow",
+    "patch": "allow"
+  },
+  "agents": {
+    "test-runner": {
+      "model": "glm/glm-4.5",
+      "comment": "Fast model for high-volume test execution"
+    },
+    "codebase-investigator": {
+      "model": "glm/glm-4.5",
+      "comment": "Fast model for scanning and searching"
+    },
+    "internet-researcher": {
+      "model": "glm/glm-4.5",
+      "comment": "Fast model for API lookups and summarization"
+    },
+    "code-reviewer": {
+      "model": "glm/glm-4.7",
+      "comment": "Capable model for reasoning and analysis"
+    },
+    "test-effectiveness-analyst": {
+      "model": "glm/glm-4.7",
+      "comment": "Capable model for complex test analysis"
+    }
+  }
+}
