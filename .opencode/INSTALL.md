@@ -56,6 +56,7 @@ opencode reload
 | Skills | `~/.config/opencode/skills/` | `.opencode/skills/*/` |
 | Agents | `~/.config/opencode/agents/` | `.opencode/agents/*.md` |
 | Commands | `~/.config/opencode/commands/` | `.opencode/commands/*.md` |
+| Cass Memory | `~/.config/opencode/cass-memory/` | `.opencode/cass-memory/*` |
 
 ## How It Works
 
@@ -259,6 +260,7 @@ rm -rf ~/.config/opencode/plugins/hyperpowers-*.ts
 rm -rf ~/.config/opencode/skills/hyperpowers-*
 rm -rf ~/.config/opencode/agents/*
 rm -rf ~/.config/opencode/commands/*
+rm -rf ~/.config/opencode/cass-memory
 
 # Keep dependencies or clean all:
 rm -rf ~/.config/opencode/node_modules

@@ -63,7 +63,7 @@ backup_installation() {
     step "Backing up existing installation..."
     mkdir -p "$backup_path"
 
-    # Backup plugins, skills, agents, commands
+    # Backup plugins, skills, agents, commands, cass-memory
     if [[ -d "$PLUGIN_DIR" ]]; then
         cp -r "$PLUGIN_DIR" "$backup_path/" 2>/dev/null || true
     fi
@@ -76,6 +76,9 @@ backup_installation() {
     fi
     if [[ -d "$COMMANDS_DIR" ]]; then
         cp -r "$COMMANDS_DIR" "$backup_path/" 2>/dev/null || true
+    fi
+    if [[ -d "$CONFIG_DIR/cass-memory" ]]; then
+        cp -r "$CONFIG_DIR/cass-memory" "$backup_path/" 2>/dev/null || true
     fi
 
     # Save version info
@@ -123,6 +126,9 @@ remove_existing_installation() {
     for cmd in brainstorm write-plan execute-plan analyze-tests review-implementation beads-triage hyperpowers-version; do
         rm -f "$COMMANDS_DIR/${cmd}.md" 2>/dev/null || true
     done
+
+    # Remove cass-memory directory
+    rm -rf "$CONFIG_DIR/cass-memory" 2>/dev/null || true
 }
 
 check_bun() {
@@ -219,6 +225,17 @@ install_plugin() {
     else
         info "Copying commands..."
         cp "$OPENCODE_DIR/commands"/* "$COMMANDS_DIR/"
+    fi
+
+    # Install cass-memory directory (needed by cass-memory.ts plugin)
+    if [[ -d "$OPENCODE_DIR/cass-memory" ]]; then
+        if [[ "$mode" == "symlink" ]]; then
+            info "Symlinking cass-memory directory..."
+            ln -sf "$OPENCODE_DIR/cass-memory" "$CONFIG_DIR/cass-memory"
+        else
+            info "Copying cass-memory directory..."
+            cp -r "$OPENCODE_DIR/cass-memory" "$CONFIG_DIR/cass-memory"
+        fi
     fi
 
     # Install dependencies in the config directory
