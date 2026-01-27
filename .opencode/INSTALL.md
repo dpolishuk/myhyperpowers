@@ -182,6 +182,7 @@ All hyperpowers commands are auto-discovered from the cloned repository:
 - `/analyze-tests` - Audit test quality
 - `/review-implementation` - Verify implementation fidelity
 - `/beads-triage` - Run `bv --robot-triage` and return raw JSON
+- `/hyperpowers-version` - Show hyperpowers plugin version and installation status
 
 ## Beads Triage
 

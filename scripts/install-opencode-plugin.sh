@@ -120,7 +120,7 @@ remove_existing_installation() {
     done
 
     # Remove commands (only if they're from hyperpowers)
-    for cmd in brainstorm write-plan execute-plan analyze-tests review-implementation beads-triage; do
+    for cmd in brainstorm write-plan execute-plan analyze-tests review-implementation beads-triage hyperpowers-version; do
         rm -f "$COMMANDS_DIR/${cmd}.md" 2>/dev/null || true
     done
 }

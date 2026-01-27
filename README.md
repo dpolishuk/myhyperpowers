@@ -228,15 +228,15 @@ opencode
 That's it! Hyperpowers commands, agents, and skills are now available.
 
 **What you get:**
-- Commands: `/brainstorm`, `/write-plan`, `/execute-plan`, etc.
+- Commands: `/brainstorm`, `/write-plan`, `/execute-plan`, `/hyperpowers-version`, etc.
 - Agents: `@code-reviewer`, `@test-runner`, `@codebase-investigator`, `@internet-researcher`
 - Skills: All workflows auto-loaded via local discovery
 - Safety: `.env` and sensitive files are protected
 
 **Verify it works:**
 ```
-/brainstorm
-# Should expand the brainstorming command
+/hyperpowers-version
+# Should show plugin version and installation status
 ```
 
 ---
