@@ -1,5 +1,4 @@
 ---
-name: execute-ralph
 description: Execute entire epic autonomously with continuous review. No user checkpoints.
 ---
 
