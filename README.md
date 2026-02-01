@@ -956,7 +956,7 @@ MIT
 
 ## Author
 
-Ryan Stortz (ryan@withzombies.com)
+Ryan Stortz (ryan@withzombies.com) and Dmitry Polishuk
 
 ## Acknowledgments
 
