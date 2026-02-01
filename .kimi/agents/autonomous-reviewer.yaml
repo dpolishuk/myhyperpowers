@@ -1,0 +1,13 @@
+version: 1
+agent:
+  name: autonomous-reviewer
+  extend: default
+  system_prompt_path: ./autonomous-reviewer-system.md
+  tools:
+    - "kimi_cli.tools.file:ReadFile"
+    - "kimi_cli.tools.web:SearchWeb"
+    - "kimi_cli.tools.web:FetchURL"
+  exclude_tools:
+    - "kimi_cli.tools.file:WriteFile"
+    - "kimi_cli.tools.file:StrReplaceFile"
+    - "kimi_cli.tools.shell:Shell"

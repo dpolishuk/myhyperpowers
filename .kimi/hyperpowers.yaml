@@ -1,0 +1,36 @@
+version: 1
+agent:
+  name: hyperpowers
+  extend: default
+  system_prompt_path: ./hyperpowers-system.md
+  system_prompt_args:
+    SKILLS_DIR: "./skills"
+  tools:
+    - "kimi_cli.tools.multiagent:Task"
+    - "kimi_cli.tools.multiagent:CreateSubagent"
+    - "kimi_cli.tools.shell:Shell"
+    - "kimi_cli.tools.file:ReadFile"
+    - "kimi_cli.tools.file:WriteFile"
+    - "kimi_cli.tools.file:StrReplaceFile"
+    - "kimi_cli.tools.web:SearchWeb"
+    - "kimi_cli.tools.web:FetchURL"
+    - "kimi_cli.tools.todo:SetTodoList"
+  subagents:
+    codebase-investigator:
+      path: ./agents/codebase-investigator.yaml
+      description: "Explores repo to verify patterns and file locations"
+    code-reviewer:
+      path: ./agents/code-reviewer.yaml
+      description: "Reviews implementations against plans"
+    test-effectiveness-analyst:
+      path: ./agents/test-effectiveness-analyst.yaml
+      description: "Audits test quality with SRE scrutiny"
+    internet-researcher:
+      path: ./agents/internet-researcher.yaml
+      description: "Researches APIs, libraries, documentation"
+    autonomous-reviewer:
+      path: ./agents/autonomous-reviewer.yaml
+      description: "Ralph's autonomous code reviewer"
+    test-runner:
+      path: ./agents/test-runner.yaml
+      description: "Runs tests, returns only failures"
