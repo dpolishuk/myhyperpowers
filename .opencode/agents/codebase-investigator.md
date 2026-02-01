@@ -6,7 +6,7 @@ permission:
   edit: deny
   write: deny
   webfetch: deny
-  bash: ask
+  bash: allow
   read: allow
   grep: allow
   glob: allow
