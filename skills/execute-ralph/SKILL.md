@@ -46,12 +46,44 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 <the_process>
 
-## Phase 0: Load Epic Context
+## Phase 0: Smart Triage & Health Check
+
+### Step 0a: Get Smart Triage
 
 ```bash
-bd list --type epic --status open  # Find epic
-bd show bd-1                       # Load requirements
-bd dep tree bd-1                   # Understand task structure
+bv -robot-triage 2>/dev/null
+```
+
+Parse JSON to understand:
+- `triage.quick_ref.actionable_count` - How many items ready
+- `triage.quick_ref.top_picks` - Best items by score
+- `triage.blockers_to_clear` - High-impact blockers
+- `triage.project_health.graph.has_cycles` - Dependency health
+
+### Step 0b: Health Gate
+
+**STOP if any:**
+- `has_cycles: true` → Alert user about dependency cycles
+- `actionable_count: 0` → Nothing to work on
+
+### Step 0c: Load Top Pick Context
+
+```bash
+bv -robot-next 2>/dev/null  # Get optimal next task
+```
+
+Returns:
+```json
+{
+  "id": "bd-xxx",
+  "claim_command": "bd update bd-xxx --status=in_progress",
+  "show_command": "bd show bd-xxx"
+}
+```
+
+Run `show_command` to load full details. If type is "epic":
+```bash
+bd dep tree bd-xxx  # Understand task structure
 ```
 
 **Extract:**
@@ -69,11 +101,15 @@ bd dep tree bd-1                   # Understand task structure
 
 ## Phase 1: Execute Task
 
-For the next ready task:
+For the next ready task, use smart triage:
 
 ```bash
-bd ready                              # Find next ready task
-bd update bd-N --status in_progress   # Claim it
+bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
+```
+
+Then claim and load:
+```bash
+bd update bd-N --status in_progress   # Use claim_command from robot-next
 bd show bd-N                          # Load details
 ```
 
