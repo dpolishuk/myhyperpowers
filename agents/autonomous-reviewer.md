@@ -1,6 +1,12 @@
 ---
 name: autonomous-reviewer
 description: Use for autonomous code review during continuous execution. Validates task implementation against epic requirements, researches unclear patterns via web search, and returns structured verdicts (PASS/NEEDS_FIX/APPROVED/GAPS_FOUND). Configurable model via --reviewer-model argument (default opus).
+# Model Configuration:
+# - inherit: Use the parent's/current model (default)
+# - providerID/modelID: Explicit model selection (e.g., anthropic/claude-opus-4-5)
+# 
+# Recommended: Most capable model (opus, glm-4.7) for final validation and comprehensive review
+# See README.md "Model Configuration" section for details
 model: inherit
 ---
 

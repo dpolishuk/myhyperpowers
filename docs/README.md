@@ -37,6 +37,14 @@ GLM models with optimized agent assignments:
 - **Fast agents** (test-runner, investigator, researcher): GLM-4.5
 - **Capable agents** (code-reviewer, test-analyst): GLM-4.7
 
+#### `opencode.example.multi-provider.json`
+**Advanced:** Multiple providers with same model names. Shows how to:
+
+- Configure multiple API proxies simultaneously
+- Use `providerID/modelID` format to disambiguate
+- Assign different providers to different agents
+- Mix official and third-party providers
+
 ### How to Use (OpenCode)
 
 1. **Copy** the example that matches your provider:
@@ -45,15 +53,65 @@ GLM models with optimized agent assignments:
 cp docs/opencode.example.anthropic.json opencode.json
 # or
 cp docs/opencode.example.glm.json opencode.json
+# or for multi-provider
+cp docs/opencode.example.multi-provider.json opencode.json
 ```
 
-2. **Edit** the `model` field to use your preferred model IDs
+2. **Edit** the `model` field and provider configuration
 
 3. **Restart** OpenCode to apply changes
 
+### Agent Frontmatter Configuration
+
+You can also set the default model directly in agent files:
+
+**File location:** `.opencode/agents/<agent-name>.md` or `agents/<agent-name>.md`
+
+**Format:**
+
+```yaml
+---
+name: test-runner
+description: Runs tests without polluting context
+model: anthropic/claude-haiku-4-5  # Full providerID/modelID
+---
+```
+
+**Supported formats:**
+
+| Format | Example | Use Case |
+|--------|---------|----------|
+| `inherit` | `model: inherit` | Use parent's/current model (default) |
+| `providerID/modelID` | `model: proxy1/claude-haiku-4-5` | Explicit provider and model |
+| `modelID` (OpenCode only) | `model: claude-haiku-4-5` | Shorthand for built-in providers |
+
+**Precedence order:**
+
+1. `opencode.json` → `agents.<name>.model` (highest)
+2. Agent frontmatter → `model` field
+3. `opencode.json` → top-level `model`
+4. Provider default (lowest)
+
+### Understanding `providerID/modelID` Format
+
+OpenCode uses `providerID/modelID` format to uniquely identify models, especially when multiple providers have models with the same name:
+
+```
+anthropic/claude-sonnet-4-5
+├───┬───┘ └───┬───────────┘
+│   │         └── Model ID (specific to provider)
+│   └── Provider ID (defined in opencode.json)
+└── Separator (forward slash)
+```
+
+**Why this matters:**
+- You might have `claude-sonnet-4-5` from official Anthropic AND from a proxy service
+- The format eliminates ambiguity: `anthropic/claude-sonnet-4-5` vs `myproxy/claude-sonnet-4-5`
+- Always use full format when configuring multiple providers
+
 ### OpenCode Provider Configuration
 
-For custom providers (GLM, local models via Ollama/llama.cpp), add a `provider` section:
+For custom providers (GLM, API proxies, local models via Ollama/llama.cpp), add a `provider` section:
 
 ```json
 {

@@ -1,0 +1,159 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "Multi-provider setup: Using multiple API endpoints with same model names",
+  "theme": "opencode",
+  "autoupdate": false,
+  
+  "model": "proxy1/claude-sonnet-4-5",
+  "small_model": "proxy1/claude-haiku-4-5",
+  
+  "provider": {
+    "proxy1": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "API Proxy 1 (Primary)",
+      "options": {
+        "baseURL": "https://api.proxy1.com/v1",
+        "apiKey": "{env:PROXY1_API_KEY}",
+        "timeout": 300000,
+        "setCacheKey": true
+      },
+      "models": {
+        "claude-haiku-4-5": {
+          "name": "Claude Haiku 4.5 (Proxy 1)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "claude-sonnet-4-5": {
+          "name": "Claude Sonnet 4.5 (Proxy 1)",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "claude-opus-4-5": {
+          "name": "Claude Opus 4.5 (Proxy 1)",
+          "limit": {
+            "context": 200000,
+            "output": 32000
+          }
+        },
+        "gpt-4o": {
+          "name": "GPT-4o (Proxy 1)",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        },
+        "gpt-4o-mini": {
+          "name": "GPT-4o Mini (Proxy 1)",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        }
+      }
+    },
+    
+    "proxy2": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "API Proxy 2 (Backup)",
+      "options": {
+        "baseURL": "https://api.proxy2.com/v1",
+        "apiKey": "{env:PROXY2_API_KEY}",
+        "timeout": 600000
+      },
+      "models": {
+        "claude-haiku-4-5": {
+          "name": "Claude Haiku 4.5 (Proxy 2)",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "claude-sonnet-4-5": {
+          "name": "Claude Sonnet 4.5 (Proxy 2)",
+          "limit": {
+            "context": 200000,
+            "output": 64000
+          }
+        },
+        "deepseek-r1": {
+          "name": "DeepSeek R1 (Proxy 2)",
+          "limit": {
+            "context": 128000,
+            "output": 8192
+          }
+        }
+      }
+    },
+    
+    "anthropic": {
+      "comment": "Official Anthropic provider (optional fallback)",
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}",
+        "timeout": 300000
+      }
+    }
+  },
+  
+  "agents": {
+    "test-runner": {
+      "model": "proxy2/claude-haiku-4-5",
+      "comment": "Use proxy2 for test-runner (cheaper/faster)"
+    },
+    "codebase-investigator": {
+      "model": "proxy2/claude-haiku-4-5",
+      "comment": "Use proxy2 for investigation"
+    },
+    "internet-researcher": {
+      "model": "proxy1/gpt-4o-mini",
+      "comment": "GPT-4o-mini is great for research summaries"
+    },
+    "code-reviewer": {
+      "model": "proxy1/claude-sonnet-4-5",
+      "comment": "Primary provider for important code review"
+    },
+    "test-effectiveness-analyst": {
+      "model": "proxy1/claude-sonnet-4-5",
+      "comment": "Primary provider for analysis"
+    },
+    "autonomous-reviewer": {
+      "model": "anthropic/claude-opus-4-5",
+      "comment": "Use official Anthropic for final critical review"
+    }
+  },
+  
+  "disabled_providers": [
+    "openai",
+    "google",
+    "opencode-zen"
+  ],
+  
+  "mcp": {
+    "perplexity-mcp": {
+      "type": "local",
+      "command": ["perplexity-mcp", "--model", "sonar-pro"],
+      "environment": {
+        "PERPLEXITY_API_KEY": "{env:PERPLEXITY_API_KEY}"
+      }
+    }
+  },
+  
+  "permission": {
+    "todowrite": "allow",
+    "todoread": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "question": "allow",
+    "read": "allow",
+    "edit": "allow",
+    "write": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "list": "allow",
+    "lsp": "allow",
+    "patch": "allow"
+  }
+}

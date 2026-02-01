@@ -62,104 +62,434 @@ Domain-specific agents for complex tasks:
 
 ### Model Configuration
 
-All agents are configured with `model: inherit`, meaning they respect your current model choice in OpenCode or Claude Code settings. This gives you full control over which models each agent uses.
+Hyperpowers agents support per-agent model configuration using the `providerID/modelID` format. This allows you to:
+- Use different models for different agents (e.g., fast models for test-running, capable models for code review)
+- Configure multiple API providers simultaneously
+- Optimize costs by matching task complexity to model capability
 
 **Recommended model choices by agent:**
 
 | Agent | Recommended Model | Reason |
 |-------|------------------|--------|
-| test-runner | Fast model (glm-4.5, haiku) | High-volume, low-complexity tasks |
+| test-runner | Fast model (haiku, glm-4.5) | High-volume, low-complexity tasks |
 | codebase-investigator | Fast model | Scanning and searching operations |
 | internet-researcher | Fast model | External API lookups and summarization |
 | code-reviewer | Capable model (sonnet, glm-4.7) | Requires reasoning and analysis |
 | test-effectiveness-analyst | Capable model (sonnet, glm-4.7) | Complex analysis of test quality |
+| autonomous-reviewer | Most capable model (opus, glm-4.7) | Final validation and comprehensive review |
 
 ---
 
-#### OpenCode Model Resolution
+#### Understanding the `providerID/modelID` Format
 
-In OpenCode, models are resolved in this priority order:
+OpenCode uses a `providerID/modelID` format to specify exactly which provider and model to use:
 
 ```
-1. opencode.json → agents.agent-name.model (HIGHEST)
-2. opencode.json → model (top-level)
-3. Agent frontmatter → model: inherit
-4. Provider default (LOWEST)
+anthropic/claude-sonnet-4-5
+├───┬───┘ └───┬───────────┘
+│   │         └── Model ID
+│   └── Provider ID
+└── Separator (forward slash)
 ```
 
-**How `model: inherit` works:**
+This format eliminates ambiguity when multiple providers offer models with similar names.
+
+---
+
+#### Configuration Methods
+
+There are three ways to configure agent models, in order of precedence:
+
+1. **Agent Frontmatter** - Set default model in the agent definition
+2. **OpenCode Config** - Override per-agent models in `opencode.json`
+3. **Environment Variables** - Dynamic configuration via env vars
+
+---
+
+##### Method 1: Agent Frontmatter (Default Configuration)
+
+Each agent file has a YAML frontmatter section where you can specify the default model:
+
+**File locations:**
+- Claude Code: `agents/<agent-name>.md`
+- OpenCode: `.opencode/agents/<agent-name>.md`
+
+**Format:**
 
 ```yaml
-# .opencode/agents/test-runner.md
 ---
-model: inherit  # Uses opencode.json configuration
+name: test-runner
+description: Runs tests without polluting context
+model: anthropic/claude-haiku-4-5  # Full providerID/modelID format
 ---
 ```
 
-**Example configurations:**
+**Supported model values:**
+
+| Value | Description | Example |
+|-------|-------------|---------|
+| `inherit` | Use the parent's/current model | `model: inherit` |
+| `providerID/modelID` | Explicit provider and model | `model: anthropic/claude-sonnet-4-5` |
+| `modelID` (OpenCode only) | Shorthand for built-in providers | `model: claude-sonnet-4-5` |
+
+**Example agent configurations:**
+
+```yaml
+# agents/test-runner.md - Use fast, cheap model
+---
+name: test-runner
+model: anthropic/claude-haiku-4-5
+---
+```
+
+```yaml
+# agents/code-reviewer.md - Use capable model
+---
+name: code-reviewer
+model: anthropic/claude-sonnet-4-5
+---
+```
+
+```yaml
+# agents/autonomous-reviewer.md - Use most capable model
+---
+name: autonomous-reviewer
+model: anthropic/claude-opus-4-5
+---
+```
+
+---
+
+##### Method 2: OpenCode Configuration (Per-Agent Override)
+
+In OpenCode, you can override agent models in your `opencode.json` file without modifying agent files. This is useful for:
+- Project-specific model choices
+- Testing different models
+- User preferences that shouldn't be committed
+
+**Configuration precedence (highest to lowest):**
+
+```
+1. opencode.json → agents.<agent-name>.model
+2. opencode.json → model (top-level default)
+3. Agent frontmatter → model setting
+4. Provider default
+```
+
+**Basic configuration:**
 
 ```json
 {
-  "comment": "Option 1: All agents use same model",
-  "model": "glm/glm-4.7"
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "All agents use Sonnet by default",
+  "model": "anthropic/claude-sonnet-4-5"
 }
 ```
 
+**Per-agent override:**
+
 ```json
 {
-  "comment": "Option 2: Override specific agents",
-  "model": "glm/glm-4.7",
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "Optimize costs: fast models for simple tasks, capable for complex",
+  "model": "anthropic/claude-sonnet-4-5",
   "agents": {
-    "test-runner": { "model": "glm/glm-4.5" },
-    "codebase-investigator": { "model": "glm/glm-4.5" }
+    "test-runner": {
+      "model": "anthropic/claude-haiku-4-5"
+    },
+    "codebase-investigator": {
+      "model": "anthropic/claude-haiku-4-5"
+    },
+    "autonomous-reviewer": {
+      "model": "anthropic/claude-opus-4-5"
+    }
   }
 }
 ```
 
-**Provider format:**
+---
+
+##### Method 3: Multiple Providers with Same Models
+
+When using multiple providers (e.g., multiple API proxies or aggregation services), use the full `providerID/modelID` format to disambiguate:
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "Configure multiple providers with same model names",
+  
+  "model": "proxy1/claude-sonnet-4-5",
+  "small_model": "proxy1/claude-haiku-4-5",
+  
   "provider": {
-    "glm": {
+    "proxy1": {
       "npm": "@ai-sdk/openai-compatible",
-      "options": { "baseURL": "https://your-endpoint.com/v1" }
+      "name": "API Proxy 1",
+      "options": {
+        "baseURL": "https://api.proxy1.com/v1",
+        "apiKey": "{env:PROXY1_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-4-5": {
+          "name": "Claude Sonnet 4.5 (via Proxy 1)",
+          "limit": { "context": 200000, "output": 64000 }
+        },
+        "claude-haiku-4-5": {
+          "name": "Claude Haiku 4.5 (via Proxy 1)",
+          "limit": { "context": 200000, "output": 8192 }
+        }
+      }
+    },
+    "proxy2": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "API Proxy 2",
+      "options": {
+        "baseURL": "https://api.proxy2.com/v1",
+        "apiKey": "{env:PROXY2_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-4-5": {
+          "name": "Claude Sonnet 4.5 (via Proxy 2)",
+          "limit": { "context": 200000, "output": 64000 }
+        }
+      }
+    },
+    "anthropic": {
+      "comment": "Official Anthropic provider",
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
     }
   },
-  "model": "glm/glm-4.7"
+  
+  "agents": {
+    "test-runner": {
+      "model": "proxy2/claude-haiku-4-5"
+    },
+    "code-reviewer": {
+      "model": "anthropic/claude-opus-4-5"
+    }
+  },
+  
+  "disabled_providers": ["openai", "google"]
 }
 ```
 
+**Key points for multi-provider setup:**
+
+1. **Provider ID** must be unique (e.g., `proxy1`, `proxy2`, `anthropic`)
+2. **Model IDs** are scoped to each provider - same name can exist in multiple providers
+3. **Reference format** is always `providerID/modelID`
+4. **Disable unused providers** to avoid confusion in model selection
+
 ---
 
-#### Claude Code Model Resolution
+##### Method 4: Claude Code Configuration
 
-In Claude Code, models are resolved through environment variable mappings:
+Claude Code uses a different configuration approach. Models are resolved through settings files:
+
+**Global settings:** `~/.claude/settings.json`
+**Project settings:** `.claude/settings.json`
+
+**Configuration format:**
 
 ```json
 {
   "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7"
+    "ANTHROPIC_DEFAULT_MODEL": "claude-sonnet-4-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5"
   }
 }
 ```
 
-| Agent model field | Mapped to env var |
-|------------------|-------------------|
-| `model: haiku` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
-| `model: sonnet` | `ANTHROPIC_DEFAULT_SONNET_MODEL` |
-| `model: inherit` | Your current model selection |
+**Using third-party providers (e.g., GLM, OpenRouter):**
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.glm.ai/v1",
+    "ANTHROPIC_AUTH_TOKEN": "{env:GLM_API_KEY}",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7"
+  }
+}
+```
+
+**Note:** Claude Code's agent system doesn't support per-agent model overrides in configuration files. To set per-agent models in Claude Code, modify the agent file's frontmatter directly.
+
+---
+
+#### Complete Configuration Examples
+
+**Example 1: Minimal Setup (Inherit Current Model)**
+
+```json
+// opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5"
+}
+```
+
+All agents with `model: inherit` will use `claude-sonnet-4-5`.
+
+---
+
+**Example 2: Cost-Optimized Setup**
+
+```json
+// opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "agents": {
+    "test-runner": { "model": "anthropic/claude-haiku-4-5" },
+    "codebase-investigator": { "model": "anthropic/claude-haiku-4-5" },
+    "internet-researcher": { "model": "anthropic/claude-haiku-4-5" },
+    "code-reviewer": { "model": "anthropic/claude-sonnet-4-5" },
+    "autonomous-reviewer": { "model": "anthropic/claude-opus-4-5" }
+  }
+}
+```
+
+| Agent | Model | Estimated Cost |
+|-------|-------|----------------|
+| test-runner | Haiku | $ |
+| codebase-investigator | Haiku | $ |
+| code-reviewer | Sonnet | $$ |
+| autonomous-reviewer | Opus | $$$ |
+
+---
+
+**Example 3: Multi-Provider with API Proxy**
+
+```json
+// opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "myproxy/claude-sonnet-4-5",
+  "provider": {
+    "myproxy": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "My API Proxy",
+      "options": {
+        "baseURL": "https://api.myproxy.com/v1",
+        "apiKey": "{env:MYPROXY_API_KEY}",
+        "timeout": 300000
+      },
+      "models": {
+        "claude-haiku-4-5": {
+          "name": "Claude Haiku 4.5",
+          "limit": { "context": 200000, "output": 8192 }
+        },
+        "claude-sonnet-4-5": {
+          "name": "Claude Sonnet 4.5",
+          "limit": { "context": 200000, "output": 64000 }
+        },
+        "claude-opus-4-5": {
+          "name": "Claude Opus 4.5",
+          "limit": { "context": 200000, "output": 32000 }
+        }
+      }
+    }
+  },
+  "agents": {
+    "test-runner": { "model": "myproxy/claude-haiku-4-5" }
+  },
+  "disabled_providers": ["anthropic", "openai", "google"]
+}
+```
+
+---
+
+**Example 4: Local + Cloud Mix (OpenCode)**
+
+```json
+// opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local Ollama",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "qwen2.5-coder:32b": { "name": "Qwen 2.5 Coder 32B" }
+      }
+    }
+  },
+  "agents": {
+    "codebase-investigator": { "model": "ollama/qwen2.5-coder:32b" }
+  }
+}
+```
+
+---
+
+#### Switching Models at Runtime (OpenCode)
+
+In OpenCode's TUI, you can switch models dynamically:
+
+```
+/model
+```
+
+This shows all available `providerID/modelID` combinations. Select a different model to change the active model for the current session.
+
+For quick switching between modes:
+- Press `Tab` to toggle between Build and Plan agents (if configured)
+- Use `/agent <name>` to switch to a specific agent with its configured model
+
+---
+
+#### Troubleshooting Model Configuration
+
+**Issue: Model not found**
+
+```
+Error: Model 'myproxy/gpt-4o' not found
+```
+
+**Solutions:**
+1. Check that the provider is defined in `opencode.json`
+2. Verify the model ID exists in the provider's `models` section
+3. Ensure you're using the correct format: `providerID/modelID`
+
+**Issue: Agent using wrong model**
+
+**Solutions:**
+1. Check configuration precedence (agent config > top-level model > frontmatter)
+2. Verify the agent file's frontmatter doesn't have a hardcoded model
+3. Restart OpenCode/Claude Code after configuration changes
+
+**Issue: API key not recognized**
+
+**Solutions:**
+1. Use `{env:VARIABLE_NAME}` format in config, not hardcoded keys
+2. Verify the environment variable is set: `echo $VARIABLE_NAME`
+3. For OpenCode, use `/connect` command to authenticate
 
 ---
 
 **Quick setup - copy example configs:**
 
 ```bash
-# For OpenCode
+# For Anthropic (official)
+cp docs/opencode.example.anthropic.json opencode.json
+
+# For GLM models
 cp docs/opencode.example.glm.json opencode.json
 
-# For Claude Code
+# For multiple providers
+cp docs/opencode.example.multi-provider.json opencode.json
+
+# For Claude Code with third-party provider
 cat docs/claude-code.example.glm.json >> ~/.claude/settings.json
 ```
 
