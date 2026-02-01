@@ -12,7 +12,7 @@
     {
       "name": "myhyperpowers",
       "description": "Ryan's riff on obra/superpowers: strong guidance for Claude Code as a software development assistant",
-      "version": "2.10.0",
+      "version": "2.11.0",
       "source": "./",
       "author": {
         "name": "Ryan",
