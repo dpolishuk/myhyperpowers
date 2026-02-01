@@ -1,8 +1,22 @@
 # Hyperpowers
 
-Strong guidance for Claude Code as a software development assistant.
+Strong guidance for Claude Code and OpenCode as software development assistants.
 
-Hyperpowers is a Claude Code plugin that provides structured workflows, best practices, and specialized agents to help you build software more effectively. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Hyperpowers is a plugin that provides structured workflows, best practices, and specialized agents to help you build software more effectively. Think of it as a pair programming partner that ensures you follow proven development patterns.
+
+## Table of Contents
+
+- [Features](#features)
+  - [Skills](#skills)
+  - [Slash Commands](#slash-commands)
+  - [Specialized Agents](#specialized-agents)
+  - [Model Configuration](#model-configuration)
+- [How Ralph Works](#how-ralph-works)
+- [Key Benefits](#key-benefits)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Philosophy](#philosophy)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -10,55 +24,96 @@ Hyperpowers is a Claude Code plugin that provides structured workflows, best pra
 
 Reusable workflows for common development tasks:
 
-**Feature Development:**
-- **brainstorming** - Interactive design refinement using Socratic method
-- **writing-plans** - Create detailed implementation plans (single task or multiple tasks)
-- **executing-plans** - Execute tasks continuously with optional per-task review
-- **review-implementation** - Verify implementation matches requirements
-- **finishing-a-development-branch** - Complete workflow for PR creation and cleanup
-- **sre-task-refinement** - Ensure all corner cases and requirements are understood (uses Opus 4.1)
+#### Feature Development
 
-**Bug Fixing & Debugging:**
-- **debugging-with-tools** - Systematic investigation using debuggers, internet research, and agents
-- **root-cause-tracing** - Trace backward through call stack to find original trigger
-- **fixing-bugs** - Complete workflow from bug discovery to closure with bd tracking
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **brainstorming** | Interactive design refinement using Socratic questioning | Before writing any code |
+| **writing-plans** | Create detailed implementation plans with specific tasks | After brainstorming, before coding |
+| **executing-plans** | Execute tasks iteratively with user checkpoint reviews | When you want review between tasks |
+| **execute-ralph** | Execute entire epics autonomously without stopping | For well-defined epics you trust |
+| **review-implementation** | Verify implementation matches requirements | After completing tasks |
+| **finishing-a-development-branch** | Complete workflow for PR creation and cleanup | When feature is complete |
+| **sre-task-refinement** | Review plans with Google Fellow SRE scrutiny | Before starting implementation |
 
-**Refactoring & Maintenance:**
-- **refactoring-safely** - Test-preserving transformations in small steps with tests staying green
+#### Bug Fixing & Debugging
 
-**Quality & Testing:**
-- **test-driven-development** - Write tests first, ensure they fail, then implement
-- **testing-anti-patterns** - Prevent common testing mistakes
-- **verification-before-completion** - Always verify before claiming success
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **debugging-with-tools** | Systematic investigation using debuggers and agents | When tests fail or bugs appear |
+| **root-cause-tracing** | Trace backward through call stack to find original trigger | When errors occur deep in execution |
+| **fixing-bugs** | Complete workflow from discovery to closure | For any bug fix |
 
-**Task & Project Management:**
-- **managing-bd-tasks** - Advanced bd operations: splitting tasks, merging duplicates, dependencies, metrics
+#### Quality & Testing
 
-**Collaboration & Process:**
-- **dispatching-parallel-agents** - Investigate independent failures concurrently
-- **writing-skills** - TDD for process documentation itself
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **test-driven-development** | RED-GREEN-REFACTOR cycle enforcement | Writing new features or fixes |
+| **testing-anti-patterns** | Prevent common testing mistakes | When writing tests with mocks |
+| **analyzing-test-effectiveness** | Audit tests with SRE scrutiny (finds tautologies, coverage gaming) | When coverage is high but bugs still slip through |
+| **verification-before-completion** | Always verify before claiming success | Before saying "done" |
 
-**Infrastructure & Customization:**
-- **building-hooks** - Create custom hooks for automating quality checks and workflow enhancements
-- **skills-auto-activation** - Solve skills not activating reliably through better descriptions or custom hooks
+#### Refactoring & Maintenance
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **refactoring-safely** | Test-preserving transformations | When refactoring existing code |
+| **managing-bd-tasks** | Advanced operations: splitting, merging, dependencies, metrics | Complex project management |
+
+#### Collaboration & Process
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **dispatching-parallel-agents** | Investigate 3+ independent failures concurrently | Multiple unrelated failures |
+| **writing-skills** | TDD for process documentation | Creating new skills |
+| **building-hooks** | Create custom automation hooks | Extending IDE behavior |
+| **skills-auto-activation** | Fix skills not activating reliably | Troubleshooting skill discovery |
 
 ### Slash Commands
 
 Quick access to key workflows:
 
-- `/hyperpowers:brainstorm` - Start interactive design refinement
-- `/hyperpowers:write-plan` - Create detailed implementation plan
-- `/hyperpowers:execute-plan` - Execute plan with review checkpoints
-- `/hyperpowers:review-implementation` - Review completed implementation
+```
+/hyperpowers:brainstorm          - Start interactive design refinement
+/hyperpowers:write-plan          - Create detailed implementation plan
+/hyperpowers:execute-plan        - Execute plan with checkpoint reviews
+/hyperpowers:execute-ralph       - Execute epic autonomously (no stops)
+/hyperpowers:review-implementation - Review completed work
+/hyperpowers:analyze-tests       - Audit test effectiveness
+/hyperpowers:version             - Show plugin version
+```
 
 ### Specialized Agents
 
-Domain-specific agents for complex tasks:
+Domain-specific agents dispatched via the `Task` tool:
 
-- **code-reviewer** - Review implementations against plans and coding standards
-- **codebase-investigator** - Understand current codebase state and patterns
-- **internet-researcher** - Research APIs, libraries, and current best practices
-- **test-runner** - Run tests/pre-commit hooks/commits without context pollution
+#### Core Execution Agents
+
+| Agent | Purpose | Model | Use Case |
+|-------|---------|-------|----------|
+| **test-runner** | Run tests/commits without polluting context | Fast (haiku, glm-4.5) | High-volume, low-complexity verification |
+| **codebase-investigator** | Understand codebase state and patterns | Fast | Finding existing patterns, locating code |
+| **internet-researcher** | Research APIs, libraries, best practices | Fast | External documentation lookup |
+| **code-reviewer** | Review implementations against plans | Capable (sonnet, glm-4.7) | Implementation quality review |
+
+#### Multi-Agent Review Suite (Used by Ralph)
+
+These 5 agents run in parallel after each task during autonomous execution:
+
+| Agent | Focus Area | What They Find |
+|-------|------------|----------------|
+| **review-quality** | Bugs, security, race conditions, resource leaks | Logic errors, injection vulnerabilities, deadlocks |
+| **review-implementation** | Requirements match, completeness, correctness | Missing features, partial implementations |
+| **review-testing** | Coverage, test quality, edge cases | Untested code paths, weak assertions |
+| **review-simplification** | Over-engineering, premature abstraction | Unnecessary complexity, dead code |
+| **review-documentation** | Docs for API changes, config updates | Missing README updates, undocumented features |
+
+#### Advanced Analysis Agents
+
+| Agent | Purpose | Model | Specialization |
+|-------|---------|-------|----------------|
+| **test-effectiveness-analyst** | Audit test quality with SRE scrutiny | Capable | Identifies tautological tests, coverage gaming, weak assertions |
+| **autonomous-reviewer** | Final validation with web research | Most capable (opus, glm-4.7) | Comprehensive review with external research |
 
 ### Model Configuration
 
@@ -510,6 +565,113 @@ Intelligent hooks that provide context-aware assistance:
 
 See [HOOKS.md](HOOKS.md) for configuration, troubleshooting, and customization details.
 
+## How Ralph Works
+
+**Ralph** (`execute-ralph`) is the autonomous execution mode that completes entire epics without user intervention. It's like having a senior developer who:
+
+1. Executes tasks using TDD
+2. Reviews their own work with 5 specialized agents
+3. Fixes issues autonomously
+4. Commits after each task
+5. Only bothers you if something critical fails
+
+### Ralph's Execution Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 0: Setup                                                  │
+│  ├── Smart triage (bv -robot-triage)                            │
+│  ├── Create feature branch from epic name                       │
+│  └── Load epic requirements and tasks                           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 1: Execute Task                                           │
+│  ├── Claim next ready task (bv -robot-next)                     │
+│  ├── Implement using TDD skill                                  │
+│  └── Run tests via test-runner agent                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 2: Multi-Agent Parallel Review                            │
+│  ├── review-quality       → Bugs, security, race conditions     │
+│  ├── review-implementation → Requirements match                 │
+│  ├── review-testing       → Coverage, test quality              │
+│  ├── review-simplification → Over-engineering detection         │
+│  └── review-documentation → Doc update needs                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 3: Autonomous Fix (max 2 iterations)                      │
+│  ├── If issues found: fix autonomously                          │
+│  ├── Re-run affected reviewers only                             │
+│  └── Still issues after 2 tries? Flag for user review           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  More tasks?    │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+        ┌─────────┐                  ┌─────────────┐
+        │   Yes   │                  │     No      │
+        └────┬────┘                  └──────┬──────┘
+             │                              │
+             └──────────────┐               │
+                            ▼               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 4: Final Critical Review                                  │
+│  ├── review-quality (critical issues only)                      │
+│  ├── review-implementation (critical gaps only)                 │
+│  └── If issues: create remediation tasks and fix                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 5: Complete                                               │
+│  ├── Close epic                                                 │
+│  ├── Final commit                                               │
+│  └── Present comprehensive summary                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Ralph vs Execute-Plan
+
+| Aspect | `/hyperpowers:execute-plan` | `/hyperpowers:execute-ralph` |
+|--------|----------------------------|------------------------------|
+| **User Interaction** | Stops after each task for review | Only stops on critical failure |
+| **Review Points** | Final review only | Per-task (5 agents) + final (2 agents) |
+| **Auto-Commit** | Manual | After every task |
+| **Git Branch** | Manual | Auto-created from epic name |
+| **Best For** | Uncertain requirements, high-risk changes | Well-defined epics, trusted execution |
+
+### When to Use Ralph
+
+**Use Ralph when:**
+- ✅ Epic has clear success criteria and anti-patterns
+- ✅ Tasks are straightforward implementation
+- ✅ You trust autonomous execution
+- ✅ You want hands-off operation
+
+**Don't use Ralph when:**
+- ❌ Requirements are ambiguous
+- ❌ High-risk changes needing human oversight
+- ❌ Experimental/exploratory work
+- ❌ You want to review between tasks
+
+### Ralph's Safety Limits
+
+- **Max 2 fix iterations** per task (then flags for user)
+- **Max 3 remediation rounds** total (then completes with flags)
+- **Max 10 tasks** per execution (prevents runaway)
+- **Auto-branch creation** (never works on main)
+- **Epic requirements are immutable** (won't water down to make execution easier)
+
 ## Key Benefits
 
 ### Context Efficiency with test-runner Agent
@@ -735,6 +897,31 @@ Claude: I'm using the finishing-a-development-branch skill to wrap up.
 [Creates PR, cleans up]
 ```
 
+### Example: Using Ralph for Autonomous Execution
+
+```
+User: /hyperpowers:execute-ralph
+
+Claude: I'll execute the current epic autonomously with continuous review.
+
+[Creates feature branch]
+[Executes Task 1 with TDD]
+[5 review agents analyze Task 1]
+[Fixes 2 minor issues autonomously]
+[Commits Task 1]
+[Executes Task 2...]
+...
+[Final critical review]
+[Closes epic]
+
+Claude: Epic complete! Summary:
+- Branch: feature/user-authentication
+- Tasks completed: 5
+- Commits: 7 (including 2 fix commits)
+- Review iterations: 2
+- All success criteria met ✓
+```
+
 ## Philosophy
 
 Hyperpowers embodies several core principles:
@@ -744,6 +931,7 @@ Hyperpowers embodies several core principles:
 - **Explicit workflows over implicit assumptions** - Make the process visible
 - **Verification before completion** - Evidence over assertions
 - **Test-driven when possible** - Red, green, refactor
+- **Autonomous execution with guardrails** - Trust but verify with multi-agent review
 
 ## Contributing
 
@@ -752,9 +940,15 @@ Contributions are welcome! This plugin is inspired by [obra/superpowers](https:/
 ### Adding New Skills
 
 1. Create a new directory in `skills/`
-2. Add a `skill.md` file with the workflow
+2. Add a `SKILL.md` file with the workflow
 3. Follow the TDD approach in `writing-skills` skill
 4. Test with subagents before deployment
+
+### Adding New Agents
+
+1. Create `agents/<agent-name>.md` with YAML frontmatter
+2. Include `name`, `description`, and `model` fields
+3. Document the agent's purpose and usage patterns
 
 ## License
 
