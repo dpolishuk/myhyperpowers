@@ -116,25 +116,27 @@ alias kimi-hyper='kimi --agent-file ~/.config/agents/hyperpowers.yaml'
 
 ### Flow Skills
 
-Flow skills are automated multi-step workflows with Mermaid diagrams:
+Flow skills are automated multi-step workflows with Mermaid diagrams. They are invoked the same way as regular skills via `/skill:`:
 
 ```bash
-# Execute a flow skill (automated execution)
-/flow:execute-ralph
+# Execute Ralph (autonomous epic execution)
+/skill:execute-ralph
 
 # Execute TDD flow
-/flow:test-driven-development
+/skill:test-driven-development
 
 # Execute bug fixing flow
-/flow:fixing-bugs
+/skill:fixing-bugs
 ```
 
-Available flow skills:
+Flow skills (marked with `type: flow` in frontmatter):
 - `execute-ralph` - Autonomous epic execution
 - `test-driven-development` - RED-GREEN-REFACTOR cycle
 - `fixing-bugs` - Complete bug workflow
 - `executing-plans` - Task execution with checkpoints
 - `brainstorming` - Requirements refinement
+
+**Note:** The `type: flow` metadata indicates multi-step workflows with Mermaid diagrams but doesn't change the invocation syntax. All skills use `/skill:name`.
 
 ### Using Subagents
 

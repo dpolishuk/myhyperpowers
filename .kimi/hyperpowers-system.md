@@ -32,7 +32,8 @@ Skills are detailed workflow instructions in `${SKILLS_DIR}/`. Each skill has a 
 
 - `/skill:name` - Load skill content
 - `/skill:name task` - Load skill with specific task
-- `/flow:name` - Execute Flow skill (automated multi-step workflow)
+
+Flow skills (execute-ralph, test-driven-development, fixing-bugs, etc.) are invoked the same way via `/skill:name`.
 
 ## Available Subagents
 

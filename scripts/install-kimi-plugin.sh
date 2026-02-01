@@ -447,7 +447,7 @@ main() {
     info "  2. Or add to your shell alias: alias kimi-hyper='kimi --agent-file ~/.config/agents/hyperpowers.yaml'"
     info "  3. Use /skill:brainstorm to start brainstorming"
     info "  4. Use /skill:write-plan to create implementation plans"
-    info "  5. Use /flow:execute-ralph for autonomous execution"
+    info "  5. Use /skill:execute-ralph for autonomous execution"
 }
 
 main "$@"
