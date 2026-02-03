@@ -1,6 +1,6 @@
 ---
 name: execute-ralph
-description: Execute entire bd epic autonomously without user interruption. Multi-phase review (5 parallel agents + final critical review). Auto-commits after each task. Creates git branch from epic name.
+description: Execute entire bd epic autonomously without user interruption. Full pipeline: SRE refinement → TDD execution → multi-agent review → test effectiveness analysis → autonomous final review. Auto-commits, parallel debugging on failures, verification gates. Creates git branch from epic name.
 type: flow
 ---
 
@@ -14,40 +14,42 @@ flowchart TD
     BRANCH --> TODO[Create TodoWrite<br/>for ALL tasks]
     TODO --> CHECK{Tasks<br/>remaining?}
 
-    CHECK -->|No| FINAL[Final Critical Review<br/>2 agents: quality + implementation]
+    CHECK -->|No| TESTAUDIT[Test Suite Audit<br/>test-effectiveness-analyst]
+    TESTAUDIT --> FINAL[Final Autonomous Review<br/>autonomous-reviewer + web]
+    FINAL --> VERIFY[Verify Integration<br/>verification-before-completion]
+    VERIFY --> CLOSEEPIC[Close Epic<br/>finishing-a-development-branch]
+    
     CHECK -->|Yes| CLAIM[Claim Next Task<br/>bd update --status in_progress]
 
-    CLAIM --> TDD[Execute Task with TDD<br/>test-driven-development skill]
-    TDD --> CLOSE[Close Task<br/>bd close bd-N]
+    CLAIM --> REFINE[SRE Refinement<br/>sre-task-refinement skill]
+    REFINE --> TDD[Execute Task with TDD<br/>test-driven-development skill]
+    TDD --> VERIFYTASK[Verify Task<br/>verification-before-completion]
+    VERIFYTASK --> CLOSE[Close Task<br/>bd close bd-N]
     CLOSE --> COMMIT[Auto-Commit<br/>git commit]
     COMMIT --> REVIEW[5 Parallel Review Agents<br/>quality, implementation, testing,<br/>simplification, documentation]
 
-    REVIEW --> ISSUES{Issues<br/>found?}
+    REVIEW --> TESTEFF[Test Effectiveness<br/>test-effectiveness-analyst]
+    TESTEFF --> ISSUES{Issues<br/>found?}
     ISSUES -->|All PASS| CHECK
-    ISSUES -->|Issues Found| FIX[Autonomous Fix<br/>by severity]
+    ISSUES -->|Issues Found| DEBUG{Debug Required?}
+    
+    DEBUG -->|Yes| DEBUGTOOLS[Debug with Tools<br/>debugging-with-tools]
+    DEBUG -->|No| FIX[Autonomous Fix<br/>by severity]
+    DEBUGTOOLS --> FIX
 
     FIX --> FIXCOMMIT[Commit Fixes]
     FIXCOMMIT --> RECHECK{Iteration<br/>count?}
     RECHECK -->|< 2| REREVIEW[Re-run Affected<br/>Reviewers]
-    REREVIEW --> ISSUES
+    REREVIEW --> TESTEFF
     RECHECK -->|= 2| FLAG[Flag for User<br/>Continue to Next Task]
     FLAG --> CHECK
 
-    FINAL --> APPROVED{Both<br/>APPROVED?}
-    APPROVED -->|Yes| CLOSEEPIC[Close Epic<br/>bd close bd-1]
-    APPROVED -->|Critical Issues| REMEDIATE[Create Remediation Tasks]
-    REMEDIATE --> REMCOUNT{Remediation<br/>rounds?}
-    REMCOUNT -->|< 3| CLAIM
-    REMCOUNT -->|= 3| FLAGFINAL[Flag & Complete]
-
-    CLOSEEPIC --> SUMMARY[Present Summary<br/>Branch, Stats, Reviews]
-    FLAGFINAL --> SUMMARY
-    SUMMARY --> END([Complete])
-    ALERT --> END
+    ALERT --> END([Complete])
+    CLOSEEPIC --> END
 ```
 
 <skill_overview>
-Execute complete epic without STOP checkpoints. Creates feature branch from epic name. After each task: auto-commit + 5 parallel review agents. If issues found: fix autonomously (max 2 iterations). At end: 2-agent critical-only review. Only presents summary when all tasks complete or on critical failure.
+Execute complete epic without STOP checkpoints. Production-grade pipeline per task: SRE refinement → TDD execution → verification gates → auto-commit → 5 parallel review agents → test effectiveness analysis → autonomous fixes with debugging tools (max 2 iterations). At end: comprehensive test suite audit → autonomous final review with web research → verification → branch completion. Combines the rigor of execute-plans with full hyperpowers capabilities (debugging, root-cause tracing, test quality analysis, verification gates).
 </skill_overview>
 
 <rigidity_level>
@@ -59,17 +61,32 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 | Phase | Action | Outcome |
 |-------|--------|---------|
 | **0. Setup** | Smart triage + create branch | Branch created, epic loaded |
-| **1. Execute** | TDD per task, test-runner verification | Task implemented |
-| **1b. Commit** | Auto-commit completed task | Changes saved |
-| **2. Review** | 5 parallel review agents | Issues collected |
-| **3. Fix** | If issues: fix, re-review (max 2x) | Issue resolved or flagged |
-| **4. Loop** | Repeat 1-3 for all tasks | All tasks done |
-| **5. Final** | 2-agent critical-only review | APPROVED or GAPS_FOUND |
-| **6. Complete** | Close epic, archive | User sees summary |
+| **1. Refine** | SRE refinement per task | Task ready with edge cases covered |
+| **2. Execute** | TDD per task, test-runner verification | Task implemented |
+| **2b. Verify** | Verification-before-completion gate | Evidence-based completion |
+| **2c. Commit** | Auto-commit completed task | Changes saved |
+| **3. Review** | 5 parallel review agents | Issues collected |
+| **4. Test Audit** | Test effectiveness analysis | Tautologies, coverage gaming caught |
+| **5. Debug** | If needed: debugging-with-tools | Root cause identified |
+| **6. Fix** | If issues: fix, re-review (max 2x) | Issue resolved or flagged |
+| **7. Loop** | Repeat 1-6 for all tasks | All tasks done |
+| **8. Test Audit** | Full test suite effectiveness audit | Baseline quality assessment |
+| **9. Final** | Autonomous reviewer + web research | Comprehensive validation |
+| **10. Verify** | Final verification gate | All criteria met with evidence |
+| **11. Complete** | Branch completion with options | Merge/PR/keep/discard |
 
 **Review Agents:**
-- Phase 2: quality, implementation, testing, simplification, documentation (5 parallel)
-- Phase 5: quality, implementation only (2 critical)
+- Phase 3: quality, implementation, testing, simplification, documentation (5 parallel)
+- Phase 4: test-effectiveness-analyst (tautology detection, coverage gaming)
+- Phase 9: autonomous-reviewer with web research (most capable model)
+
+**Agent Model Configuration:**
+| Agent | Recommended Model | Reason |
+|-------|------------------|--------|
+| test-runner | Fast (haiku, glm-4.5) | High-volume, low-complexity |
+| review-quality, review-implementation | Capable (sonnet, glm-4.7) | Requires reasoning |
+| test-effectiveness-analyst | Capable (sonnet, glm-4.7) | Complex analysis |
+| autonomous-reviewer | Most capable (opus, glm-4.7) | Final validation with research |
 
 </quick_reference>
 
@@ -83,8 +100,8 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 **Do NOT use when:**
 - Epic has ambiguous requirements (use execute-plans instead)
-- User wants checkpoint reviews
-- High-risk changes needing human oversight
+- User wants checkpoint reviews between tasks
+- High-risk changes needing human oversight per task
 - Experimental/exploratory work
 
 </when_to_use>
@@ -146,9 +163,9 @@ Branch: feature/[epic-name]
 - bd-4: [title] (pending)
 ```
 
-## Phase 1: Execute Task
+## Phase 1: SRE Refinement (Per Task)
 
-For the next ready task, use smart triage:
+Before executing ANY task, run SRE refinement to ensure it's ready:
 
 ```bash
 bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
@@ -160,16 +177,52 @@ bd update bd-N --status in_progress   # Use claim_command from robot-next
 bd show bd-N                          # Load details
 ```
 
+**Run SRE Task Refinement:**
+```
+Use Skill tool: hyperpowers:sre-task-refinement
+```
+
+This ensures:
+- Task granularity is appropriate (4-8 hours)
+- Edge cases and failure modes are identified
+- Success criteria are specific and measurable
+- No placeholder text remains
+- Anti-patterns are specified
+- Test specifications catch real bugs
+
+If SRE refinement finds critical issues:
+- Update the task using `bd update --design`
+- Re-run SRE refinement if major changes made
+- Only proceed to execution when task passes review
+
+## Phase 2: Execute Task
+
 **Execute using TDD:**
 - Use `test-driven-development` skill for implementation
 - Use `test-runner` agent for verifications
 - Complete ALL substeps before closing
 
-```bash
-bd close bd-N  # After implementation complete
+### Step 2b: Verification Gate
+
+**REQUIRED: Use verification-before-completion skill**
+
+```
+Use Skill tool: hyperpowers:verification-before-completion
 ```
 
-### Step 1b: Auto-Commit
+Before closing task, verify:
+- All success criteria from bd task are met
+- Tests pass (fresh verification, not "should pass")
+- No TODOs, stubs, or placeholders remain
+- Pre-commit hooks pass
+
+**Iron Law:** NO completion claims without fresh verification evidence.
+
+```bash
+bd close bd-N  # After ALL verification passes
+```
+
+### Step 2c: Auto-Commit
 
 After each task completion, commit changes:
 
@@ -192,9 +245,9 @@ Commits: 1
 - bd-4: [title] (pending)
 ```
 
-→ Proceed to Phase 2
+→ Proceed to Phase 3
 
-## Phase 2: Multi-Agent Parallel Review
+## Phase 3: Multi-Agent Parallel Review
 
 Dispatch **5 review agents in parallel** for comprehensive coverage:
 
@@ -250,13 +303,91 @@ Issues to Address:
 
 ### If All PASS
 
-Log review result, continue to next task (Phase 1).
+→ Proceed to Phase 4 (Test Effectiveness Analysis)
 
 ### If Any ISSUES_FOUND
 
-→ Proceed to Phase 3
+→ Proceed to Phase 5 (Debug Assessment)
 
-## Phase 3: Autonomous Fix (Max 2 Iterations)
+## Phase 4: Test Effectiveness Analysis
+
+After 5-agent review, run **test-effectiveness-analyst** to catch quality issues the standard reviewers miss:
+
+```
+Dispatch test-effectiveness-analyst agent:
+"Analyze tests added/modified in task bd-N:
+
+Files to analyze: [list test files]
+Production code: [list production files tested]
+
+Check for:
+1. Tautological tests (pass by definition)
+2. Mock-testing-mock patterns (test mocks, not production)
+3. Line hitters (execute but don't assert)
+4. Weak assertions (!= nil instead of == expected)
+5. Coverage gaming (hits lines, doesn't verify behavior)
+
+For each test found:
+- What bug would this catch? (If none → RED flag)
+- Does it exercise PRODUCTION code or test utilities?
+- Could code break while test passes?
+
+Return: PASS or ISSUES_FOUND with specific test files and recommended fixes."
+```
+
+### Combine Results
+
+```
+Review Results for bd-N:
+- Quality: PASS
+- Implementation: PASS
+- Testing: ISSUES_FOUND (1 MAJOR)
+- Simplification: PASS
+- Documentation: ISSUES_FOUND (1 MINOR)
+- Test Effectiveness: ISSUES_FOUND (2 tautological tests)
+
+Issues to Address:
+1. [MAJOR/testing] No test for error case in handler.ts:45
+2. [MINOR/docs] New env var not documented in README
+3. [MAJOR/test-eff] test_builder_returns_value is tautological (tests non-optional return)
+4. [MINOR/test-eff] test_config_loads only asserts !== undefined (weak assertion)
+```
+
+→ Proceed to Phase 5
+
+## Phase 5: Debug Assessment
+
+For issues found, determine if systematic debugging is needed:
+
+**If issue is straightforward** (clear fix from reviewer):
+→ Proceed to Phase 6 (Autonomous Fix)
+
+**If issue requires investigation** (unclear root cause, deep stack trace, intermittent failure):
+
+```
+Use Skill tool: hyperpowers:debugging-with-tools
+```
+
+**debugging-with-tools will:**
+- Search internet for error patterns (via internet-researcher)
+- Investigate codebase context (via codebase-investigator)
+- Recommend debugger or instrumentation
+- Guide to root cause (not symptom)
+
+**For errors deep in execution:**
+```
+Use Skill tool: hyperpowers:root-cause-tracing
+```
+
+**root-cause-tracing will:**
+- Trace backward through call stack
+- Find where invalid data originated (not just where error appears)
+- Identify original trigger
+- Fix at source, not symptom
+
+→ Proceed to Phase 6 with debugging findings
+
+## Phase 6: Autonomous Fix (Max 2 Iterations)
 
 **Iteration tracking:**
 ```
@@ -265,8 +396,20 @@ Log review result, continue to next task (Phase 1).
 
 **Prioritize fixes by severity:**
 1. CRITICAL issues first
-2. MAJOR issues second
+2. MAJOR issues second  
 3. MINOR issues (best effort)
+4. Test effectiveness issues (tautologies, weak assertions)
+
+**For complex fixes (3+ independent issues):**
+```
+Use Skill tool: hyperpowers:dispatching-parallel-agents
+```
+
+Dispatch agents in parallel (one per independent domain):
+- Each agent fixes one issue category
+- Must verify independence first
+- Wait for all agents, check conflicts
+- Run full test suite before continuing
 
 **For each issue:**
 1. Read the specific file:line reference
@@ -281,14 +424,14 @@ git commit -m "Fix review issues for bd-N (iteration 1)
 - [List of issues fixed]"
 ```
 
-**Re-run affected reviewers only:**
-- If testing issue fixed → re-run review-testing
+**Re-run affected reviewers AND test-effectiveness-analyst:**
+- If testing issue fixed → re-run review-testing + test-effectiveness-analyst
 - If quality issue fixed → re-run review-quality
 - etc.
 
 **Outcomes:**
-- If all PASS: continue to next task
-- If still ISSUES_FOUND and iteration < 2: repeat Phase 3
+- If all PASS: continue to next task (Phase 1 - SRE Refinement)
+- If still ISSUES_FOUND and iteration < 2: repeat Phase 6
 - If still ISSUES_FOUND and iteration = 2: flag for user, continue to next task
 
 **Flagging format:**
@@ -302,9 +445,9 @@ FLAGGED FOR USER REVIEW:
 - Recommendation: [what user should check]
 ```
 
-## Phase 4: Task Loop
+## Phase 7: Task Loop
 
-Repeat Phases 1-3 until:
+Repeat Phases 1-6 until:
 - All tasks closed, OR
 - Critical blocker encountered
 
@@ -312,10 +455,30 @@ Repeat Phases 1-3 until:
 - Cannot compile after 2 fix iterations
 - Test suite completely broken
 - Epic anti-pattern unavoidable
+- Debugging tools cannot identify root cause
 
-If critical blocker: stop loop, proceed to summary with blocker documented.
+If critical blocker: stop loop, proceed to Phase 10 with blocker documented.
 
-## Phase 5: Final Critical-Only Review
+## Phase 8: Test Suite Audit
+
+After all tasks complete, run comprehensive test effectiveness audit:
+
+```
+Use Skill tool: hyperpowers:analyzing-test-effectiveness
+```
+
+**This will:**
+- Inventory all tests in the codebase
+- Read production code before categorizing
+- Identify RED tests (tautological, mock-testing, line hitters)
+- Identify YELLOW tests (weak assertions, coverage gaming)
+- Assess GREEN tests (meaningful, catch real bugs)
+- Find missing corner cases
+- Create bd epic with improvement tasks if needed
+
+**Purpose:** Establish baseline test quality for the epic.
+
+## Phase 9: Final Autonomous Review
 
 After all tasks complete, run **2-agent critical review** (quality + implementation only):
 
@@ -370,20 +533,54 @@ Execute remediation tasks (return to Phase 1).
 
 **Safety limit:** Max 3 remediation rounds. If still issues after 3 rounds, flag for user and complete.
 
-## Phase 6: Completion
+## Phase 10: Final Verification Gate
 
-Close epic:
-```bash
-bd close bd-1
+**REQUIRED: Use verification-before-completion skill**
+
 ```
+Use Skill tool: hyperpowers:verification-before-completion
+```
+
+Verify before claiming epic complete:
+- Run full test suite (not just task tests)
+- Check all success criteria from epic
+- Verify no anti-patterns used
+- Confirm all tasks closed: `bd list --status open --parent bd-1`
+- Check dependency tree: `bd dep tree bd-1`
+
+**Evidence required:** Show command output, not just claims.
+
+## Phase 11: Branch Completion
+
+**Use finishing-a-development-branch skill:**
+
+```
+Use Skill tool: hyperpowers:finishing-a-development-branch
+```
+
+This will:
+1. Close bd epic: `bd close bd-1`
+2. Verify tests pass (via test-runner)
+3. Determine base branch
+4. Present exactly 4 options:
+   - Merge locally
+   - Push and create PR
+   - Keep branch as-is
+   - Discard work (with confirmation)
+5. Execute chosen option
+6. Cleanup worktree appropriately
+
+**Wait for user choice on integration method.**
 
 Final commit (if any uncommitted changes):
 ```bash
 git add -A
 git commit -m "Complete epic bd-1: [epic title]
 
-All tasks completed and reviewed.
-Final review: APPROVED"
+All tasks completed, reviewed, and verified.
+Final review: APPROVED by autonomous-reviewer
+Test effectiveness: Audited
+Verification: All criteria met"
 ```
 
 Present comprehensive summary:
@@ -398,7 +595,11 @@ Present comprehensive summary:
 - Total tasks: N
 - Total commits: M
 - Fix iterations: X
-- Review agents invoked: Y
+- Review agents invoked: Y (5 standard + test-effectiveness-analyst per task)
+- Tests audited: Z (test effectiveness analysis)
+- Debug sessions: W (debugging-with-tools invocations)
+- Tautological tests caught: T
+- Root causes traced: R (via root-cause-tracing)
 
 ### Tasks Executed
 - bd-2: [title] ✓
@@ -406,27 +607,41 @@ Present comprehensive summary:
 - bd-4: [title] ✓
 
 ### Review Summary
-**Per-Task Reviews (5 agents each):**
-- bd-2: All PASS
-- bd-3: 2 issues found, fixed in 1 iteration
-- bd-4: All PASS
+**Per-Task Reviews (5 agents + test-effectiveness-analyst each):**
+- bd-2: All PASS (5 agents + test quality PASS)
+- bd-3: 3 issues found (2 standard + 1 tautological test), fixed in 1 iteration
+- bd-4: All PASS (5 agents + test quality PASS)
 
-**Final Review (2 agents):**
-- Quality: APPROVED
-- Implementation: APPROVED
+**Test Effectiveness Audit:**
+- RED tests removed: N
+- YELLOW tests strengthened: M
+- GREEN tests verified: X
+- Missing corner cases added: Y
+
+**Final Review (autonomous-reviewer with web research):**
+- Status: APPROVED
+- Security scan: No vulnerabilities found
+- Architecture: Coherent
+- Performance: Within expected parameters
 
 ### Issues Fixed Autonomously
 1. [MAJOR/testing] Missing error case test - added test
 2. [MINOR/docs] Undocumented env var - updated README
+3. [MAJOR/test-eff] Tautological test removed and replaced with meaningful test
+4. [MAJOR/debug] Root cause identified via debugging-with-tools - fixed at source
 
 ### Flagged for User Review
-- [Any items that couldn't be resolved]
+- [Any items that couldn't be resolved after 2 fix iterations]
 - [Or "None - all issues resolved autonomously"]
 
 ### Next Steps
-- Review branch `feature/[epic-name]`
-- Create PR when ready
-- [Or "Epic complete, no further action needed"]
+Branch completion options presented via finishing-a-development-branch:
+1. Merge locally to [base-branch]
+2. Push and create Pull Request
+3. Keep branch as-is
+4. Discard work
+
+[Or "Epic complete - awaiting user choice on integration method"]
 ```
 
 </the_process>
@@ -436,30 +651,43 @@ Present comprehensive summary:
 ## Rules That Have No Exceptions
 
 1. **Epic requirements are IMMUTABLE** - Never water down to make execution easier
-2. **Max 2 fix iterations per task** - After 2, flag and continue
-3. **Max 3 remediation rounds** - After 3, complete with flags
-4. **Max 10 tasks per execution** - Safety limit to prevent runaway
-5. **Always use test-runner** - Keep verbose output out of context
-6. **Always run all 5 reviewers** - Every task gets full review, no skipping
-7. **Always auto-commit** - Each task completion gets its own commit
-8. **Always create branch** - Never work directly on main
+2. **SRE refinement REQUIRED per task** - Never skip corner-case analysis before execution
+3. **Verification gate REQUIRED** - Use verification-before-completion before closing ANY task
+4. **Test effectiveness analysis REQUIRED** - Run test-effectiveness-analyst after 5-agent review
+5. **Debug systematically** - Use debugging-with-tools when root cause unclear
+6. **Max 2 fix iterations per task** - After 2, flag and continue
+7. **Max 3 remediation rounds** - After 3, complete with flags
+8. **Max 10 tasks per execution** - Safety limit to prevent runaway
+9. **Always use test-runner** - Keep verbose output out of context
+10. **Always run all 5 reviewers + test-effectiveness-analyst** - Full review coverage
+11. **Always auto-commit** - Each task completion gets its own commit
+12. **Always create branch** - Never work directly on main
+13. **Final verification REQUIRED** - verification-before-completion before epic close
 
 ## What Triggers User Notification
 
 Only these situations stop autonomous execution:
-- Critical blocker (can't compile, tests completely broken)
+- Critical blocker (can't compile, tests completely broken, debugging can't find root cause)
 - 10 task limit reached
 - 3 remediation rounds exhausted
 
 Everything else: fix autonomously and continue.
 
+**Special case - Debug loop:**
+If debugging-with-tools or root-cause-tracing cannot identify root cause after thorough investigation, alert user with findings so far.
+
 ## Anti-Patterns for This Skill
 
+- Skipping SRE refinement "task looks straightforward"
+- Skipping verification-before-completion gates
+- Skipping test-effectiveness-analyst "tests look fine"
+- Skipping debugging tools "I'll just guess the fix"
 - Skipping reviewers "because task was simple"
 - Skipping TDD "to save time"
 - Ignoring reviewer feedback
 - Continuing past critical blockers
 - Not using web search when uncertain
+- Not using root-cause-tracing for deep errors
 - Working on main branch instead of feature branch
 - Not committing after task completion
 
@@ -468,13 +696,22 @@ Everything else: fix autonomously and continue.
 <integration>
 
 **This skill calls:**
+- sre-task-refinement (REQUIRED before executing each task)
 - test-driven-development (for implementing each task)
+- verification-before-completion (REQUIRED gates)
 - test-runner (for running tests without output pollution)
 - review-quality (parallel reviewer)
 - review-implementation (parallel reviewer)
 - review-testing (parallel reviewer)
 - review-simplification (parallel reviewer)
 - review-documentation (parallel reviewer)
+- test-effectiveness-analyst (tautology/coverage gaming detection)
+- debugging-with-tools (systematic debugging)
+- root-cause-tracing (deep error tracing)
+- dispatching-parallel-agents (for 3+ independent fixes)
+- analyzing-test-effectiveness (final test suite audit)
+- autonomous-reviewer (final review with web research)
+- finishing-a-development-branch (branch completion)
 
 **This skill is called by:**
 - User via `/hyperpowers:execute-ralph`
@@ -485,19 +722,33 @@ Everything else: fix autonomously and continue.
 | Aspect | execute-plans | execute-ralph |
 |--------|---------------|---------------|
 | Checkpoints | STOP after each task | No stops |
+| SRE Refinement | Per new task | **Per every task** |
+| Verification gates | Per task | **Per task + final gate** |
+| Debug tools | On failure | **Systematic debugging** |
+| Test effectiveness | Not included | **Per task + final audit** |
+| Parallel fixes | Not included | **For 3+ independent issues** |
+| Final review | review-implementation | **autonomous-reviewer + web** |
+| Branch completion | Manual | **finishing-a-development-branch** |
 | User interaction | Required between tasks | Only on failure |
-| Review | Final only | 5 agents per task + 2 final |
+| Review | Final only | 5 agents + test-effectiveness per task |
 | Git workflow | Manual | Auto-branch + auto-commit |
-| Best for | Uncertain requirements | Well-defined epics |
+| Best for | Uncertain requirements | Well-defined epics with full hyperpowers pipeline |
 
 **Comparison to ralphex:**
 
 | Aspect | ralphex | execute-ralph |
 |--------|---------|---------------|
-| Multi-agent review | Yes 5 parallel | Yes 5 parallel |
+| Multi-agent review | Yes 5 parallel | Yes 5 + test-effectiveness-analyst |
+| Test quality analysis | No | **Yes - per task + final audit** |
+| Debug tools integration | No | **Yes - debugging-with-tools** |
+| Root cause tracing | No | **Yes - root-cause-tracing** |
+| Verification gates | No | **Yes - verification-before-completion** |
+| Parallel fix dispatch | No | **Yes - dispatching-parallel-agents** |
+| Autonomous reviewer | No | **Yes - with web research** |
+| Branch completion | Basic | **finishing-a-development-branch** |
 | Git branch | Yes Auto | Yes Auto |
 | Auto-commit | Yes | Yes |
-| Final review | Yes 2 agents | Yes 2 agents |
+| Final review | Yes 2 agents | Yes autonomous-reviewer |
 | Smart triage | No | Yes bv robot-* |
 | bd integration | No | Yes Full |
 | Web dashboard | Yes | No CLI only |
