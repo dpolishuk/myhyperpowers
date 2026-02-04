@@ -60,20 +60,14 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 | Phase | Action | Outcome |
 |-------|--------|---------|
-| **0. Setup** | Smart triage + create branch | Branch created, epic loaded |
+| **0. Setup** | Smart triage + create branch + permission check | Ready for autonomous execution |
 | **1. Refine** | SRE refinement per task | Task ready with edge cases covered |
-| **2. Execute** | TDD per task, test-runner verification | Task implemented |
-| **2b. Verify** | Verification-before-completion gate | Evidence-based completion |
-| **2c. Commit** | Auto-commit completed task | Changes saved |
-| **3. Review** | 5 parallel review agents | Issues collected |
-| **4. Test Audit** | Test effectiveness analysis | Tautologies, coverage gaming caught |
-| **5. Debug** | If needed: debugging-with-tools | Root cause identified |
-| **6. Fix** | If issues: fix, re-review (max 2x) | Issue resolved or flagged |
-| **7. Loop** | Repeat 1-6 for all tasks | All tasks done |
-| **8. Test Audit** | Full test suite effectiveness audit | Baseline quality assessment |
-| **9. Final** | Autonomous reviewer + web research | Comprehensive validation |
-| **10. Verify** | Final verification gate | All criteria met with evidence |
-| **11. Complete** | Branch completion with options | Merge/PR/keep/discard |
+| **2. Execute** | TDD per task → auto-commit | Task implemented and committed |
+| **3. Review** | 5 parallel review agents + test effectiveness | Issues collected |
+| **4. Fix** | Autonomous fix with debugging (max 2 iterations) | Issue resolved or flagged |
+| **5. Loop** | Repeat 1-4 for all tasks | All tasks done |
+| **6. Audit** | Test suite audit + autonomous review | Final validation |
+| **7. Complete** | Branch completion | Epic closed |
 
 **Review Agents:**
 - Phase 3: quality, implementation, testing, simplification, documentation (5 parallel)
@@ -108,54 +102,9 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 <the_process>
 
-## Phase 0: Smart Triage & Permission Setup
+## Phase 0: Smart Triage & Branch Setup
 
-### Step 0a: Permission Check (OpenCode)
-
-**CRITICAL for OpenCode users:** Ralph requires access to external directories.
-
-**Test external directory access:**
-```bash
-# Check if we can access common directories
-ls ~/.config/ 2>&1 | head -3 || echo "NEEDS PERMISSION: ~/.config"
-ls ~ 2>&1 | head -3 || echo "NEEDS PERMISSION: ~"
-```
-
-**If permission denied:**
-
-1. **Option A - Quick fix (recommended for single session):**
-   When OpenCode prompts for permission, select **`always`** instead of `once`
-
-2. **Option B - Permanent fix in opencode.json:**
-   Create or edit `opencode.json` in project root:
-   ```json
-   {
-     "permissions": {
-       "external_directory": {
-         "resolution": "allow",
-         "paths": [
-           "~/.config",
-           "~/projects",
-           "/tmp"
-         ]
-       }
-     }
-   }
-   ```
-
-3. **Option C - Global config:**
-   Edit `~/.config/opencode/opencode.json`:
-   ```json
-   {
-     "permissions": {
-       "external_directory": "allow"
-     }
-   }
-   ```
-
-**After fixing permissions, restart OpenCode session and re-run execute-ralph.**
-
-### Step 0b: Get Smart Triage
+### Step 0a: Get Smart Triage
 
 ```bash
 bv -robot-triage 2>/dev/null
@@ -167,14 +116,15 @@ Parse JSON to understand:
 - `triage.blockers_to_clear` - High-impact blockers
 - `triage.project_health.graph.has_cycles` - Dependency health
 
-### Step 0c: Health Gate
+### Step 0b: Health Gate
 
-**STOP if any:**
-- `has_cycles: true` → Alert user about dependency cycles
+**STOP and alert user only if:**
+- `has_cycles: true` → Dependency cycles detected
 - `actionable_count: 0` → Nothing to work on
-- Permission issues persist after attempting fix → Guide user to Option B/C above
 
-### Step 0d: Load Top Pick & Create Branch
+**Otherwise:** Continue autonomously
+
+### Step 0c: Load Top Pick & Create Branch
 
 ```bash
 bv -robot-next 2>/dev/null  # Get optimal next task
@@ -245,30 +195,17 @@ If SRE refinement finds critical issues:
 
 **Execute using TDD:**
 - Use `test-driven-development` skill for implementation
-- Use `test-runner` agent for verifications
+- Use `test-runner` agent for verifications (keeps context clean)
 - Complete ALL substeps before closing
 
-### Step 2b: Verification Gate
-
-**REQUIRED: Use verification-before-completion skill**
-
-```
-Use Skill tool: hyperpowers:verification-before-completion
-```
-
-Before closing task, verify:
-- All success criteria from bd task are met
-- Tests pass (fresh verification, not "should pass")
-- No TODOs, stubs, or placeholders remain
-- Pre-commit hooks pass
-
-**Iron Law:** NO completion claims without fresh verification evidence.
-
+**Auto-close task after verification:**
 ```bash
-bd close bd-N  # After ALL verification passes
+# Run verification commands internally
+# Then auto-close
+bd close bd-N
 ```
 
-### Step 2c: Auto-Commit
+### Step 2b: Auto-Commit
 
 After each task completion, commit changes:
 
@@ -291,7 +228,7 @@ Commits: 1
 - bd-4: [title] (pending)
 ```
 
-→ Proceed to Phase 3
+→ Proceed to Phase 3 (NO STOP, continue autonomously)
 
 ## Phase 3: Multi-Agent Parallel Review
 
@@ -349,91 +286,27 @@ Issues to Address:
 
 ### If All PASS
 
-→ Proceed to Phase 4 (Test Effectiveness Analysis)
+→ Continue to next task (Phase 1) autonomously
 
 ### If Any ISSUES_FOUND
 
-→ Proceed to Phase 5 (Debug Assessment)
+→ Proceed to Phase 4 (Autonomous Fix)
 
-## Phase 4: Test Effectiveness Analysis
+## Phase 4: Autonomous Fix (Max 2 Iterations)
 
-After 5-agent review, run **test-effectiveness-analyst** to catch quality issues the standard reviewers miss:
-
-```
-Dispatch test-effectiveness-analyst agent:
-"Analyze tests added/modified in task bd-N:
-
-Files to analyze: [list test files]
-Production code: [list production files tested]
-
-Check for:
-1. Tautological tests (pass by definition)
-2. Mock-testing-mock patterns (test mocks, not production)
-3. Line hitters (execute but don't assert)
-4. Weak assertions (!= nil instead of == expected)
-5. Coverage gaming (hits lines, doesn't verify behavior)
-
-For each test found:
-- What bug would this catch? (If none → RED flag)
-- Does it exercise PRODUCTION code or test utilities?
-- Could code break while test passes?
-
-Return: PASS or ISSUES_FOUND with specific test files and recommended fixes."
-```
-
-### Combine Results
+**Run test-effectiveness-analyst in parallel with other reviewers:**
 
 ```
-Review Results for bd-N:
-- Quality: PASS
-- Implementation: PASS
-- Testing: ISSUES_FOUND (1 MAJOR)
-- Simplification: PASS
-- Documentation: ISSUES_FOUND (1 MINOR)
-- Test Effectiveness: ISSUES_FOUND (2 tautological tests)
-
-Issues to Address:
-1. [MAJOR/testing] No test for error case in handler.ts:45
-2. [MINOR/docs] New env var not documented in README
-3. [MAJOR/test-eff] test_builder_returns_value is tautological (tests non-optional return)
-4. [MINOR/test-eff] test_config_loads only asserts !== undefined (weak assertion)
+Dispatch IN PARALLEL:
+1. review-quality
+2. review-implementation
+3. review-testing
+4. review-simplification
+5. review-documentation
+6. test-effectiveness-analyst
 ```
 
-→ Proceed to Phase 5
-
-## Phase 5: Debug Assessment
-
-For issues found, determine if systematic debugging is needed:
-
-**If issue is straightforward** (clear fix from reviewer):
-→ Proceed to Phase 6 (Autonomous Fix)
-
-**If issue requires investigation** (unclear root cause, deep stack trace, intermittent failure):
-
-```
-Use Skill tool: hyperpowers:debugging-with-tools
-```
-
-**debugging-with-tools will:**
-- Search internet for error patterns (via internet-researcher)
-- Investigate codebase context (via codebase-investigator)
-- Recommend debugger or instrumentation
-- Guide to root cause (not symptom)
-
-**For errors deep in execution:**
-```
-Use Skill tool: hyperpowers:root-cause-tracing
-```
-
-**root-cause-tracing will:**
-- Trace backward through call stack
-- Find where invalid data originated (not just where error appears)
-- Identify original trigger
-- Fix at source, not symptom
-
-→ Proceed to Phase 6 with debugging findings
-
-## Phase 6: Autonomous Fix (Max 2 Iterations)
+**If issues found, fix autonomously without user interaction:**
 
 **Iteration tracking:**
 ```
@@ -579,24 +452,7 @@ Execute remediation tasks (return to Phase 1).
 
 **Safety limit:** Max 3 remediation rounds. If still issues after 3 rounds, flag for user and complete.
 
-## Phase 10: Final Verification Gate
-
-**REQUIRED: Use verification-before-completion skill**
-
-```
-Use Skill tool: hyperpowers:verification-before-completion
-```
-
-Verify before claiming epic complete:
-- Run full test suite (not just task tests)
-- Check all success criteria from epic
-- Verify no anti-patterns used
-- Confirm all tasks closed: `bd list --status open --parent bd-1`
-- Check dependency tree: `bd dep tree bd-1`
-
-**Evidence required:** Show command output, not just claims.
-
-## Phase 11: Branch Completion
+## Phase 7: Branch Completion
 
 **Use finishing-a-development-branch skill:**
 
@@ -604,32 +460,16 @@ Verify before claiming epic complete:
 Use Skill tool: hyperpowers:finishing-a-development-branch
 ```
 
-This will:
-1. Close bd epic: `bd close bd-1`
-2. Verify tests pass (via test-runner)
-3. Determine base branch
-4. Present exactly 4 options:
-   - Merge locally
-   - Push and create PR
-   - Keep branch as-is
-   - Discard work (with confirmation)
-5. Execute chosen option
-6. Cleanup worktree appropriately
+**This skill:**
+1. Closes bd epic: `bd close bd-1`
+2. Verifies tests pass
+3. Determines base branch
+4. Executes merge/PR automatically (or presents options if ambiguous)
+5. Cleans up worktree
 
-**Wait for user choice on integration method.**
+**NO WAITING** - Execute completion autonomously unless merge conflicts detected.
 
-Final commit (if any uncommitted changes):
-```bash
-git add -A
-git commit -m "Complete epic bd-1: [epic title]
-
-All tasks completed, reviewed, and verified.
-Final review: APPROVED by autonomous-reviewer
-Test effectiveness: Audited
-Verification: All criteria met"
-```
-
-Present comprehensive summary:
+Present summary:
 
 ```markdown
 ## Epic bd-1 Complete - Autonomous Execution
