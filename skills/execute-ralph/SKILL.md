@@ -108,9 +108,54 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 <the_process>
 
-## Phase 0: Smart Triage & Branch Setup
+## Phase 0: Smart Triage & Permission Setup
 
-### Step 0a: Get Smart Triage
+### Step 0a: Permission Check (OpenCode)
+
+**CRITICAL for OpenCode users:** Ralph requires access to external directories.
+
+**Test external directory access:**
+```bash
+# Check if we can access common directories
+ls ~/.config/ 2>&1 | head -3 || echo "NEEDS PERMISSION: ~/.config"
+ls ~ 2>&1 | head -3 || echo "NEEDS PERMISSION: ~"
+```
+
+**If permission denied:**
+
+1. **Option A - Quick fix (recommended for single session):**
+   When OpenCode prompts for permission, select **`always`** instead of `once`
+
+2. **Option B - Permanent fix in opencode.json:**
+   Create or edit `opencode.json` in project root:
+   ```json
+   {
+     "permissions": {
+       "external_directory": {
+         "resolution": "allow",
+         "paths": [
+           "~/.config",
+           "~/projects",
+           "/tmp"
+         ]
+       }
+     }
+   }
+   ```
+
+3. **Option C - Global config:**
+   Edit `~/.config/opencode/opencode.json`:
+   ```json
+   {
+     "permissions": {
+       "external_directory": "allow"
+     }
+   }
+   ```
+
+**After fixing permissions, restart OpenCode session and re-run execute-ralph.**
+
+### Step 0b: Get Smart Triage
 
 ```bash
 bv -robot-triage 2>/dev/null
@@ -122,13 +167,14 @@ Parse JSON to understand:
 - `triage.blockers_to_clear` - High-impact blockers
 - `triage.project_health.graph.has_cycles` - Dependency health
 
-### Step 0b: Health Gate
+### Step 0c: Health Gate
 
 **STOP if any:**
 - `has_cycles: true` → Alert user about dependency cycles
 - `actionable_count: 0` → Nothing to work on
+- Permission issues persist after attempting fix → Guide user to Option B/C above
 
-### Step 0c: Load Top Pick & Create Branch
+### Step 0d: Load Top Pick & Create Branch
 
 ```bash
 bv -robot-next 2>/dev/null  # Get optimal next task
