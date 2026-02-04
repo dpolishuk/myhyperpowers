@@ -770,6 +770,20 @@ opencode
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
+**Note for legacy installs:**
+
+If you previously installed this plugin under the legacy name `withzombies-hyper`, you should uninstall it first:
+
+```text
+/plugin uninstall withzombies-hyper@withzombies-hyper
+```
+
+Then install with the new name:
+
+```text
+/plugin install myhyperpowers@myhyperpowers --scope user
+```
+
 **Local development** (if you're contributing):
 
 ```text

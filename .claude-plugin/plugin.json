@@ -9,5 +9,10 @@
   "homepage": "https://github.com/dpolishuk/myhyperpowers",
   "repository": "https://github.com/dpolishuk/myhyperpowers",
   "license": "MIT",
-  "keywords": ["skills", "tdd", "debugging", "collaboration", "best-practices", "workflows"]
+  "keywords": ["skills", "tdd", "debugging", "collaboration", "best-practices", "workflows"],
+  "commands": "./commands",
+  "agents": "./agents",
+  "skills": "./skills",
+  "hooks": "./hooks",
+  "mcpServers": "./.mcp.json"
 }
