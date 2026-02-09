@@ -1,6 +1,6 @@
 ---
 name: codex-skill-skills-auto-activation
-description: Use when the original skill 'skills-auto-activation' applies. Use when skills aren't activating reliably - covers official solutions (better descriptions) and custom hook system for deterministic skill activation
+description: "Use when the original skill 'skills-auto-activation' applies. Use when skills aren't activating reliably - covers official solutions (better descriptions) and custom hook system for deterministic skill activation"
 ---
 
 <!-- Generated from skills/skills-auto-activation/SKILL.md -->

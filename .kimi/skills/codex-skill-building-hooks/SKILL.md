@@ -1,6 +1,6 @@
 ---
 name: codex-skill-building-hooks
-description: Use when the original skill 'building-hooks' applies. Use when creating Claude Code hooks - covers hook patterns, composition, testing, progressive enhancement from simple to advanced
+description: "Use when the original skill 'building-hooks' applies. Use when creating Claude Code hooks - covers hook patterns, composition, testing, progressive enhancement from simple to advanced"
 ---
 
 <!-- Generated from skills/building-hooks/SKILL.md -->

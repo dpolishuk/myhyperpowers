@@ -37,6 +37,7 @@ test("parseCli fails when output root value is missing", () => {
   assert.throws(() => parseCli(["--output-root"]), /--output-root requires a value/)
   assert.throws(() => parseCli(["--output-root", "--check"]), /--output-root requires a value/)
   assert.throws(() => parseCli(["--project-root", "--check"]), /--project-root requires a value/)
+  assert.throws(() => parseCli(["--output-root", "   "]), /--output-root requires a value/)
 })
 
 test("syncCodexSkills rejects output roots outside project", () => {

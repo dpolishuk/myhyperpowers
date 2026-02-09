@@ -44,6 +44,10 @@ bd sync                     # Sync issues with git
 # Testing
 node --test tests/*.test.js # Run Node.js tests
 
+# Codex skill wrapper sync
+node scripts/sync-codex-skills.js --write  # Regenerate codex-* wrappers
+node scripts/sync-codex-skills.js --check  # Verify wrappers are in sync
+
 # OpenCode plugin (in .opencode/ directory)
 cd .opencode && bun install # Install dependencies
 bun run build               # Build TypeScript
@@ -86,6 +90,8 @@ bun run typecheck           # Type-check without emitting
 │   ├── commands/          # OpenCode command definitions
 │   ├── skills/            # Symlinked to ../skills
 │   └── package.json       # Bun dependencies
+├── .agents/               # Codex-compatible generated wrappers (skills)
+│   └── skills/            # Generated codex-* SKILL.md directories
 ├── .claude-plugin/        # Claude Code plugin metadata
 │   └── plugin.json
 ├── tests/                 # Test files
@@ -311,6 +317,16 @@ Located in `.beads/config.yaml`. Key settings:
 2. Add YAML frontmatter with name, description, model
 3. Include detailed instructions in body
 4. Test with Task tool
+
+### Updating Codex Wrappers
+
+When changing `skills/*/SKILL.md`, `commands/*.md`, or `agents/*.md`:
+
+1. Regenerate wrappers: `node scripts/sync-codex-skills.js --write`
+2. Verify no drift: `node scripts/sync-codex-skills.js --check`
+3. Commit generated `codex-*` wrapper updates together with source changes
+
+Do not hand-edit generated `codex-*` directories directly.
 
 ## Security Considerations
 

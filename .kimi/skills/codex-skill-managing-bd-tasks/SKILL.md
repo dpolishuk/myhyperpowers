@@ -1,6 +1,6 @@
 ---
 name: codex-skill-managing-bd-tasks
-description: Use when the original skill 'managing-bd-tasks' applies. Use for advanced bd operations - splitting tasks mid-flight, merging duplicates, changing dependencies, archiving epics, querying metrics, cross-epic dependencies
+description: "Use when the original skill 'managing-bd-tasks' applies. Use for advanced bd operations - splitting tasks mid-flight, merging duplicates, changing dependencies, archiving epics, querying metrics, cross-epic dependencies"
 ---
 
 <!-- Generated from skills/managing-bd-tasks/SKILL.md -->

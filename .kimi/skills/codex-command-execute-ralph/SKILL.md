@@ -1,6 +1,6 @@
 ---
 name: codex-command-execute-ralph
-description: Use when task intent matches command 'execute-ralph'. Do not use for unrelated workflows.
+description: "Use when task intent matches command 'execute-ralph'. Do not use for unrelated workflows."
 ---
 
 # Codex Command Wrapper

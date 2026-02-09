@@ -1,6 +1,6 @@
 ---
 name: codex-agent-autonomous-reviewer
-description: Use when delegating to agent 'autonomous-reviewer' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'autonomous-reviewer' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

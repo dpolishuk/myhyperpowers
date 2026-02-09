@@ -964,6 +964,28 @@ Contributions are welcome! This plugin is inspired by [obra/superpowers](https:/
 2. Include `name`, `description`, and `model` fields
 3. Document the agent's purpose and usage patterns
 
+### Codex Skill Sync Pipeline
+
+Codex-compatible wrappers are generated artifacts. The source of truth remains:
+
+- `skills/*/SKILL.md`
+- `commands/*.md`
+- `agents/*.md`
+
+Generated output is written to `.agents/skills/**` (in this repo it maps to `.kimi/skills` via symlink).
+
+Run these commands after changing skills/commands/agents:
+
+```bash
+# Regenerate codex wrappers
+node scripts/sync-codex-skills.js --write
+
+# Verify generated wrappers are up to date (CI-friendly)
+node scripts/sync-codex-skills.js --check
+```
+
+Do not hand-edit generated `codex-*` skill directories; they are overwritten by sync.
+
 ## License
 
 MIT

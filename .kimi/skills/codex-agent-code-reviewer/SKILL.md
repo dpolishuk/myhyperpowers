@@ -1,6 +1,6 @@
 ---
 name: codex-agent-code-reviewer
-description: Use when delegating to agent 'code-reviewer' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'code-reviewer' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

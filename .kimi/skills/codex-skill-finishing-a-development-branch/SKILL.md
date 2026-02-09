@@ -1,6 +1,6 @@
 ---
 name: codex-skill-finishing-a-development-branch
-description: Use when the original skill 'finishing-a-development-branch' applies. Use when implementation complete and tests pass - closes bd epic, presents integration options (merge/PR/keep/discard), executes choice
+description: "Use when the original skill 'finishing-a-development-branch' applies. Use when implementation complete and tests pass - closes bd epic, presents integration options (merge/PR/keep/discard), executes choice"
 ---
 
 <!-- Generated from skills/finishing-a-development-branch/SKILL.md -->

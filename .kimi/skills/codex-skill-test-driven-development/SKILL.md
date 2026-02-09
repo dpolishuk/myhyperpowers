@@ -1,6 +1,6 @@
 ---
 name: codex-skill-test-driven-development
-description: Use when the original skill 'test-driven-development' applies. Use when implementing features or fixing bugs - enforces RED-GREEN-REFACTOR cycle requiring tests to fail before writing code
+description: "Use when the original skill 'test-driven-development' applies. Use when implementing features or fixing bugs - enforces RED-GREEN-REFACTOR cycle requiring tests to fail before writing code"
 ---
 
 <!-- Generated from skills/test-driven-development/SKILL.md -->

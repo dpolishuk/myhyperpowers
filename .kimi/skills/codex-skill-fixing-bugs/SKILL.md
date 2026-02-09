@@ -1,6 +1,6 @@
 ---
 name: codex-skill-fixing-bugs
-description: Use when the original skill 'fixing-bugs' applies. Use when encountering a bug - complete workflow from discovery through debugging, bd issue, test-driven fix, verification, and closure
+description: "Use when the original skill 'fixing-bugs' applies. Use when encountering a bug - complete workflow from discovery through debugging, bd issue, test-driven fix, verification, and closure"
 ---
 
 <!-- Generated from skills/fixing-bugs/SKILL.md -->

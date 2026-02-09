@@ -1,6 +1,6 @@
 ---
 name: codex-skill-verification-before-completion
-description: Use when the original skill 'verification-before-completion' applies. Use before claiming work complete, fixed, or passing - requires running verification commands and confirming output; evidence before assertions always
+description: "Use when the original skill 'verification-before-completion' applies. Use before claiming work complete, fixed, or passing - requires running verification commands and confirming output; evidence before assertions always"
 ---
 
 <!-- Generated from skills/verification-before-completion/SKILL.md -->

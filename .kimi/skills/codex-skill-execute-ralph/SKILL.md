@@ -1,6 +1,6 @@
 ---
 name: codex-skill-execute-ralph
-description: Use when the original skill 'execute-ralph' applies. Execute entire bd epic autonomously without user interruption. Full pipeline: SRE refinement, TDD execution, multi-agent review, test effectiveness analysis, autonomous final review. Auto-commits, parallel debugging on failures, verification gates. Creates git branch from epic name.
+description: "Use when the original skill 'execute-ralph' applies. Execute entire bd epic autonomously without user interruption. Full pipeline: SRE refinement, TDD execution, multi-agent review, test effectiveness analysis, autonomous final review. Auto-commits, parallel debugging on failures, verification gates. Creates git branch from epic name."
 ---
 
 <!-- Generated from skills/execute-ralph/SKILL.md -->

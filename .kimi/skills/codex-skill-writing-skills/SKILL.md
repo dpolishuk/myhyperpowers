@@ -1,6 +1,6 @@
 ---
 name: codex-skill-writing-skills
-description: Use when the original skill 'writing-skills' applies. Use when creating new skills, editing existing skills, or verifying skills work - applies TDD to documentation by testing with subagents before writing
+description: "Use when the original skill 'writing-skills' applies. Use when creating new skills, editing existing skills, or verifying skills work - applies TDD to documentation by testing with subagents before writing"
 ---
 
 <!-- Generated from skills/writing-skills/SKILL.md -->

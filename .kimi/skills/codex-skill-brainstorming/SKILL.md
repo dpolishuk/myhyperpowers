@@ -1,6 +1,6 @@
 ---
 name: codex-skill-brainstorming
-description: Use when the original skill 'brainstorming' applies. Use when creating or developing anything, before writing code - refines rough ideas into bd epics with immutable requirements
+description: "Use when the original skill 'brainstorming' applies. Use when creating or developing anything, before writing code - refines rough ideas into bd epics with immutable requirements"
 ---
 
 <!-- Generated from skills/brainstorming/SKILL.md -->

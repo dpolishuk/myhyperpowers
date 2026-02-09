@@ -1,6 +1,6 @@
 ---
 name: codex-skill-root-cause-tracing
-description: Use when the original skill 'root-cause-tracing' applies. Use when errors occur deep in execution - traces bugs backward through call stack to find original trigger, not just symptom
+description: "Use when the original skill 'root-cause-tracing' applies. Use when errors occur deep in execution - traces bugs backward through call stack to find original trigger, not just symptom"
 ---
 
 <!-- Generated from skills/root-cause-tracing/SKILL.md -->

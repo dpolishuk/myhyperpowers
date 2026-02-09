@@ -1,6 +1,6 @@
 ---
 name: codex-command-brainstorm
-description: Use when task intent matches command 'brainstorm'. Do not use for unrelated workflows.
+description: "Use when task intent matches command 'brainstorm'. Do not use for unrelated workflows."
 ---
 
 # Codex Command Wrapper

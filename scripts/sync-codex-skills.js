@@ -9,6 +9,8 @@ const ensureTrailingNewline = (input) => (input.endsWith("\n") ? input : `${inpu
 
 const toPosixPath = (input) => input.replace(/\\/g, "/")
 
+const quoteYamlScalar = (value) => `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`
+
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/
 
 const parseFrontmatter = (rawContent, filePath, options = {}) => {
@@ -92,10 +94,30 @@ const listFiles = (dirPath, extension) => {
     .sort((a, b) => a.localeCompare(b))
 }
 
+const resolvePathWithSymlinkAwareAncestor = (absolutePath) => {
+  let current = absolutePath
+  while (!fs.existsSync(current)) {
+    const parent = path.dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
+
+  const currentReal = fs.existsSync(current) ? fs.realpathSync(current) : current
+  const remainder = path.relative(current, absolutePath)
+  return path.resolve(currentReal, remainder)
+}
+
+const isWithinRoot = (absolutePath, rootAbsolutePath) => {
+  const resolved = resolvePathWithSymlinkAwareAncestor(absolutePath)
+  return resolved === rootAbsolutePath || resolved.startsWith(`${rootAbsolutePath}${path.sep}`)
+}
+
 const createWrapperContent = ({ wrapperName, wrapperDescription, sourcePath, originalContent, wrapperType }) => {
   return ensureTrailingNewline(`---
 name: ${wrapperName}
-description: ${wrapperDescription}
+description: ${quoteYamlScalar(wrapperDescription)}
 ---
 
 # Codex ${wrapperType} Wrapper
@@ -150,7 +172,7 @@ const collectCanonicalEntries = (projectRoot) => {
       generatedDescription: wrapperDescription,
       generatedContent: ensureTrailingNewline(`---
 name: ${wrapperName}
-description: ${wrapperDescription}
+description: ${quoteYamlScalar(wrapperDescription)}
 ---
 
 <!-- Generated from ${path.relative(projectRoot, sourcePath)} -->
@@ -287,6 +309,7 @@ const buildPlan = (projectRoot) => {
 
 const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRootRelative = ".agents/skills" } = {}) => {
   const projectRootResolved = path.resolve(projectRoot)
+  const projectRootReal = fs.realpathSync(projectRootResolved)
   const outputRootDisplay = toPosixPath(path.normalize(outputRootRelative))
 
   if (path.isAbsolute(outputRootRelative)) {
@@ -302,6 +325,14 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRo
     return {
       ok: false,
       errors: [`output root escapes project root: ${outputRootRelative}`],
+      updatedCount: 0,
+    }
+  }
+
+  if (!isWithinRoot(outputRoot, projectRootReal)) {
+    return {
+      ok: false,
+      errors: [`output root resolves outside project root: ${outputRootRelative}`],
       updatedCount: 0,
     }
   }
@@ -354,12 +385,27 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRo
 
   for (const update of updates) {
     if (update.type === "remove") {
-      fs.rmSync(path.join(outputRoot, update.slug), { recursive: true, force: true })
+      const removePath = path.join(outputRoot, update.slug)
+      if (!isWithinRoot(removePath, projectRootReal)) {
+        return {
+          ok: false,
+          errors: [`unsafe remove path resolves outside project root: ${outputRootDisplay}/${update.slug}`],
+          updatedCount: 0,
+        }
+      }
+      fs.rmSync(removePath, { recursive: true, force: true })
       continue
     }
 
     const targetDir = path.join(outputRoot, update.slug)
     const targetFile = path.join(targetDir, "SKILL.md")
+    if (!isWithinRoot(targetFile, projectRootReal)) {
+      return {
+        ok: false,
+        errors: [`unsafe write path resolves outside project root: ${outputRootDisplay}/${update.slug}/SKILL.md`],
+        updatedCount: 0,
+      }
+    }
     fs.mkdirSync(targetDir, { recursive: true })
     fs.writeFileSync(targetFile, update.content)
   }
@@ -391,7 +437,7 @@ const parseCli = (argv) => {
     }
     if (arg === "--project-root") {
       const next = argv[index + 1]
-      if (!next || next.startsWith("-")) {
+      if (!next || next.startsWith("-") || next.trim().length === 0) {
         throw new Error("--project-root requires a value")
       }
       options.projectRoot = path.resolve(next)
@@ -400,7 +446,7 @@ const parseCli = (argv) => {
     }
     if (arg === "--output-root") {
       const next = argv[index + 1]
-      if (!next || next.startsWith("-")) {
+      if (!next || next.startsWith("-") || next.trim().length === 0) {
         throw new Error("--output-root requires a value")
       }
       options.outputRootRelative = next
@@ -422,7 +468,13 @@ const runCli = () => {
     process.exit(1)
   }
 
-  const result = syncCodexSkills(options)
+  let result
+  try {
+    result = syncCodexSkills(options)
+  } catch (error) {
+    process.stderr.write(`sync-codex-skills: ${error.message}\n`)
+    process.exit(1)
+  }
   if (!result.ok) {
     for (const message of result.errors) {
       process.stderr.write(`sync-codex-skills: ${message}\n`)

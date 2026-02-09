@@ -1,6 +1,6 @@
 ---
 name: codex-skill-writing-plans
-description: Use when the original skill 'writing-plans' applies. Use to expand bd tasks with detailed implementation steps - adds exact file paths, complete code, verification commands assuming zero context
+description: "Use when the original skill 'writing-plans' applies. Use to expand bd tasks with detailed implementation steps - adds exact file paths, complete code, verification commands assuming zero context"
 ---
 
 <!-- Generated from skills/writing-plans/SKILL.md -->

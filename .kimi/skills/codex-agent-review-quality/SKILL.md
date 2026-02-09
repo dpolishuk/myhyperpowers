@@ -1,6 +1,6 @@
 ---
 name: codex-agent-review-quality
-description: Use when delegating to agent 'review-quality' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'review-quality' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

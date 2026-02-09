@@ -1,6 +1,6 @@
 ---
 name: codex-skill-refactoring-safely
-description: Use when the original skill 'refactoring-safely' applies. Use when refactoring code - test-preserving transformations in small steps, running tests between each change
+description: "Use when the original skill 'refactoring-safely' applies. Use when refactoring code - test-preserving transformations in small steps, running tests between each change"
 ---
 
 <!-- Generated from skills/refactoring-safely/SKILL.md -->

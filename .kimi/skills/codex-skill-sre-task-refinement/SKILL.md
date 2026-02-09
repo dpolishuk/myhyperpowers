@@ -1,6 +1,6 @@
 ---
 name: codex-skill-sre-task-refinement
-description: Use when the original skill 'sre-task-refinement' applies. Use when you have to refine subtasks into actionable plans ensuring that all corner cases are handled and we understand all the requirements.
+description: "Use when the original skill 'sre-task-refinement' applies. Use when you have to refine subtasks into actionable plans ensuring that all corner cases are handled and we understand all the requirements."
 ---
 
 <!-- Generated from skills/sre-task-refinement/SKILL.md -->

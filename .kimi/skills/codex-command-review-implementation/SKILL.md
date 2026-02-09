@@ -1,6 +1,6 @@
 ---
 name: codex-command-review-implementation
-description: Use when task intent matches command 'review-implementation'. Do not use for unrelated workflows.
+description: "Use when task intent matches command 'review-implementation'. Do not use for unrelated workflows."
 ---
 
 # Codex Command Wrapper

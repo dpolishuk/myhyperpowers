@@ -1,6 +1,6 @@
 ---
 name: codex-skill-analyzing-test-effectiveness
-description: Use when the original skill 'analyzing-test-effectiveness' applies. Use to audit test quality with Google Fellow SRE scrutiny - identifies tautological tests, coverage gaming, weak assertions, missing corner cases. Creates bd epic with tasks for improvements, then runs SRE task refinement on each.
+description: "Use when the original skill 'analyzing-test-effectiveness' applies. Use to audit test quality with Google Fellow SRE scrutiny - identifies tautological tests, coverage gaming, weak assertions, missing corner cases. Creates bd epic with tasks for improvements, then runs SRE task refinement on each."
 ---
 
 <!-- Generated from skills/analyzing-test-effectiveness/SKILL.md -->

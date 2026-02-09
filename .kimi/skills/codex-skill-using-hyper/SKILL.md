@@ -1,6 +1,6 @@
 ---
 name: codex-skill-using-hyper
-description: Use when the original skill 'using-hyper' applies. Use when starting any conversation - establishes mandatory workflows for finding and using skills
+description: "Use when the original skill 'using-hyper' applies. Use when starting any conversation - establishes mandatory workflows for finding and using skills"
 ---
 
 <!-- Generated from skills/using-hyper/SKILL.md -->

@@ -1,6 +1,6 @@
 ---
 name: codex-agent-codebase-investigator
-description: Use when delegating to agent 'codebase-investigator' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'codebase-investigator' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

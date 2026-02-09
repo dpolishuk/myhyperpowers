@@ -1,6 +1,6 @@
 ---
 name: codex-agent-test-effectiveness-analyst
-description: Use when delegating to agent 'test-effectiveness-analyst' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'test-effectiveness-analyst' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

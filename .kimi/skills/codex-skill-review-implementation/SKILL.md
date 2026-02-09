@@ -1,6 +1,6 @@
 ---
 name: codex-skill-review-implementation
-description: Use when the original skill 'review-implementation' applies. Use after hyperpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided
+description: "Use when the original skill 'review-implementation' applies. Use after hyperpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided"
 ---
 
 <!-- Generated from skills/review-implementation/SKILL.md -->

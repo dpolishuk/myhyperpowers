@@ -1,6 +1,6 @@
 ---
 name: codex-agent-review-simplification
-description: Use when delegating to agent 'review-simplification' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'review-simplification' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

@@ -1,6 +1,6 @@
 ---
 name: codex-command-execute-plan
-description: Use when task intent matches command 'execute-plan'. Do not use for unrelated workflows.
+description: "Use when task intent matches command 'execute-plan'. Do not use for unrelated workflows."
 ---
 
 # Codex Command Wrapper

@@ -1,6 +1,6 @@
 ---
 name: codex-skill-executing-plans
-description: Use when the original skill 'executing-plans' applies. Use to execute bd tasks iteratively - executes one task, reviews learnings, creates/refines next task, then STOPS for user review before continuing
+description: "Use when the original skill 'executing-plans' applies. Use to execute bd tasks iteratively - executes one task, reviews learnings, creates/refines next task, then STOPS for user review before continuing"
 ---
 
 <!-- Generated from skills/executing-plans/SKILL.md -->

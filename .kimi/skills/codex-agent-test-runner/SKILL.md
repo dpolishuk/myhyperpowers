@@ -1,6 +1,6 @@
 ---
 name: codex-agent-test-runner
-description: Use when delegating to agent 'test-runner' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'test-runner' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper

@@ -1,6 +1,6 @@
 ---
 name: codex-skill-testing-anti-patterns
-description: Use when the original skill 'testing-anti-patterns' applies. Use when writing or changing tests, adding mocks - prevents testing mock behavior, production pollution with test-only methods, and mocking without understanding dependencies
+description: "Use when the original skill 'testing-anti-patterns' applies. Use when writing or changing tests, adding mocks - prevents testing mock behavior, production pollution with test-only methods, and mocking without understanding dependencies"
 ---
 
 <!-- Generated from skills/testing-anti-patterns/SKILL.md -->

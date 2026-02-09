@@ -1,6 +1,6 @@
 ---
 name: codex-skill-debugging-with-tools
-description: Use when the original skill 'debugging-with-tools' applies. Use when encountering bugs or test failures - systematic debugging using debuggers, internet research, and agents to find root cause before fixing
+description: "Use when the original skill 'debugging-with-tools' applies. Use when encountering bugs or test failures - systematic debugging using debuggers, internet research, and agents to find root cause before fixing"
 ---
 
 <!-- Generated from skills/debugging-with-tools/SKILL.md -->

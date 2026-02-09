@@ -1,6 +1,6 @@
 ---
 name: codex-agent-internet-researcher
-description: Use when delegating to agent 'internet-researcher' is needed. Avoid for direct implementation tasks.
+description: "Use when delegating to agent 'internet-researcher' is needed. Avoid for direct implementation tasks."
 ---
 
 # Codex Agent Wrapper
