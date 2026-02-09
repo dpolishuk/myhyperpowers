@@ -812,6 +812,24 @@ claude --plugin-dir .
 # Should show /hyperpowers:* commands
 ```
 
+### Codex CLI
+
+Use Codex wrappers from this repo in two steps:
+
+```bash
+# 1) Generate/update wrappers from canonical sources
+node scripts/sync-codex-skills.js --write
+
+# 2) Install globally (~/.agents/skills)
+bash scripts/install-codex-plugin.sh --global
+```
+
+For local project install:
+
+```bash
+bash scripts/install-codex-plugin.sh --local --target /path/to/project
+```
+
 ### After Installation: Configure Models
 
 All agents use `model: inherit` by default, meaning they follow your current model selection.
