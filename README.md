@@ -820,7 +820,7 @@ Use Codex wrappers from this repo in two steps:
 # 1) Generate/update wrappers from canonical sources
 node scripts/sync-codex-skills.js --write
 
-# 2) Install globally (~/.agents/skills)
+# 2) Install globally (~/.codex/skills)
 bash scripts/install-codex-plugin.sh --global
 ```
 
@@ -829,6 +829,16 @@ For local project install:
 ```bash
 bash scripts/install-codex-plugin.sh --local --target /path/to/project
 ```
+
+Explicit invocation in Codex uses skill names (not custom slash-command registration):
+
+```text
+$codex-command-write-plan Draft a plan for feature X.
+$codex-command-execute-plan Execute task bd-123.
+$codex-skill-executing-plans Continue from current bd ready task.
+```
+
+You can also use `/skills` in Codex UI to discover and select the same wrappers.
 
 ### After Installation: Configure Models
 
@@ -1020,24 +1030,28 @@ Do not hand-edit generated `codex-*` skill directories; they are overwritten by 
 
 ### Codex Installer
 
-Use the installer to copy generated Codex wrappers into local or global `.agents/skills` paths:
+Use the installer to copy generated Codex wrappers into local or global `.codex/skills` paths:
 
 ```bash
-# Global install (~/.agents/skills)
+# Global install (~/.codex/skills)
 bash scripts/install-codex-plugin.sh --global
 
-# Local install (<target>/.agents/skills)
+# Local install (<target>/.codex/skills)
 bash scripts/install-codex-plugin.sh --local --target /path/to/project
 
 # Status and version
 bash scripts/install-codex-plugin.sh --status
 bash scripts/install-codex-plugin.sh --version
+
+# Custom Codex home override
+bash scripts/install-codex-plugin.sh --codex-home /custom/.codex
 ```
 
 Installer behavior:
 - Keeps a timestamped backup when replacing existing `codex-*` wrappers.
 - Retains only the 3 newest backups.
 - Is idempotent for already-installed same-version wrappers unless `--force` is used.
+- If “commands are not available”, invoke wrappers explicitly via `$codex-*` or select them in `/skills`.
 
 For a focused Codex setup guide, see `.codex/INSTALL.md`.
 

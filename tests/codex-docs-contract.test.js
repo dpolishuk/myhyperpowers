@@ -10,7 +10,37 @@ test("README documents codex sync write/check workflow", () => {
 
   assert.equal(readme.includes("node scripts/sync-codex-skills.js --write"), true)
   assert.equal(readme.includes("node scripts/sync-codex-skills.js --check"), true)
-  assert.equal(readme.includes(".agents/skills"), true)
+  assert.equal(readme.includes(".codex/skills"), true)
+})
+
+test("Codex docs include explicit $codex-* invocation examples", () => {
+  const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8")
+  const codexInstall = fs.readFileSync(path.join(repoRoot, ".codex", "INSTALL.md"), "utf8")
+
+  assert.equal(readme.includes("$codex-command-write-plan"), true)
+  assert.equal(readme.includes("$codex-command-execute-plan"), true)
+  assert.equal(readme.includes("$codex-skill-executing-plans"), true)
+
+  assert.equal(codexInstall.includes("$codex-command-write-plan"), true)
+  assert.equal(codexInstall.includes("$codex-command-execute-plan"), true)
+  assert.equal(codexInstall.includes("$codex-skill-executing-plans"), true)
+})
+
+test("Codex docs define skills identity and /skills discovery path", () => {
+  const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8")
+  const codexInstall = fs.readFileSync(path.join(repoRoot, ".codex", "INSTALL.md"), "utf8")
+
+  assert.equal(readme.includes("/skills"), true)
+  assert.equal(codexInstall.includes("/skills"), true)
+  assert.equal(codexInstall.includes("wrappers are skills"), true)
+})
+
+test("Codex docs do not claim custom slash-command registration", () => {
+  const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8")
+  const codexInstall = fs.readFileSync(path.join(repoRoot, ".codex", "INSTALL.md"), "utf8")
+
+  assert.equal(codexInstall.includes("not custom slash-command registrations"), true)
+  assert.equal(readme.includes("not custom slash-command registration"), true)
 })
 
 test("AGENTS guide documents codex wrapper regeneration contract", () => {
