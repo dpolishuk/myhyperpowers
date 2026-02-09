@@ -7,6 +7,8 @@ const normalizeNewlines = (input) => input.replace(/\r\n/g, "\n")
 
 const ensureTrailingNewline = (input) => (input.endsWith("\n") ? input : `${input}\n`)
 
+const toPosixPath = (input) => input.replace(/\\/g, "/")
+
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/
 
 const parseFrontmatter = (rawContent, filePath, options = {}) => {
@@ -132,7 +134,16 @@ const collectCanonicalEntries = (projectRoot) => {
       errors.push(String(error.message || error))
       continue
     }
-    const wrapperName = `codex-skill-${parsed.frontmatter.name}`
+
+    let canonicalSkillSlug
+    try {
+      canonicalSkillSlug = slugifyName(parsed.frontmatter.name)
+    } catch {
+      errors.push(`invalid canonical skill name: ${sourcePath} ('${parsed.frontmatter.name}')`)
+      continue
+    }
+
+    const wrapperName = `codex-skill-${canonicalSkillSlug}`
     const wrapperDescription = `Use when the original skill '${parsed.frontmatter.name}' applies. ${parsed.frontmatter.description}`
     entries.push({
       generatedName: wrapperName,
@@ -162,7 +173,15 @@ ${parsed.body.trimStart()}`),
     }
 
     const commandName = parsed.frontmatter.name || path.basename(fileName, ".md")
-    const wrapperName = `codex-command-${commandName}`
+    let commandSlug
+    try {
+      commandSlug = slugifyName(commandName)
+    } catch {
+      errors.push(`invalid canonical command name: ${sourcePath} ('${commandName}')`)
+      continue
+    }
+
+    const wrapperName = `codex-command-${commandSlug}`
     const wrapperDescription = `Use when task intent matches command '${commandName}'. Do not use for unrelated workflows.`
     entries.push({
       generatedName: wrapperName,
@@ -192,7 +211,16 @@ ${parsed.body.trimStart()}`),
       errors.push(String(error.message || error))
       continue
     }
-    const wrapperName = `codex-agent-${parsed.frontmatter.name}`
+
+    let agentSlug
+    try {
+      agentSlug = slugifyName(parsed.frontmatter.name)
+    } catch {
+      errors.push(`invalid canonical agent name: ${sourcePath} ('${parsed.frontmatter.name}')`)
+      continue
+    }
+
+    const wrapperName = `codex-agent-${agentSlug}`
     const wrapperDescription = `Use when delegating to agent '${parsed.frontmatter.name}' is needed. Avoid for direct implementation tasks.`
     entries.push({
       generatedName: wrapperName,
@@ -257,9 +285,28 @@ const buildPlan = (projectRoot) => {
   return { errors: [], expected }
 }
 
-const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write" } = {}) => {
-  const outputRoot = path.join(projectRoot, ".agents", "skills")
-  const plan = buildPlan(projectRoot)
+const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRootRelative = ".agents/skills" } = {}) => {
+  const projectRootResolved = path.resolve(projectRoot)
+  const outputRootDisplay = toPosixPath(path.normalize(outputRootRelative))
+
+  if (path.isAbsolute(outputRootRelative)) {
+    return {
+      ok: false,
+      errors: [`output root must be project-relative: ${outputRootRelative}`],
+      updatedCount: 0,
+    }
+  }
+
+  const outputRoot = path.resolve(projectRootResolved, outputRootRelative)
+  if (!(outputRoot === projectRootResolved || outputRoot.startsWith(`${projectRootResolved}${path.sep}`))) {
+    return {
+      ok: false,
+      errors: [`output root escapes project root: ${outputRootRelative}`],
+      updatedCount: 0,
+    }
+  }
+
+  const plan = buildPlan(projectRootResolved)
   if (plan.errors.length > 0) {
     return { ok: false, errors: plan.errors, updatedCount: 0 }
   }
@@ -271,7 +318,7 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write" } = {}) =
 
   for (const slug of existingSlugs) {
     if (!expectedSlugs.has(slug)) {
-      driftMessages.push(`orphan generated directory: .agents/skills/${slug}`)
+      driftMessages.push(`orphan generated directory: ${outputRootDisplay}/${slug}`)
       updates.push({ type: "remove", slug })
     }
   }
@@ -282,14 +329,14 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write" } = {}) =
     const expectedContent = ensureTrailingNewline(normalizeNewlines(entry.generatedContent))
 
     if (!fs.existsSync(targetFile)) {
-      driftMessages.push(`missing generated skill file: .agents/skills/${slug}/SKILL.md`)
+      driftMessages.push(`missing generated skill file: ${outputRootDisplay}/${slug}/SKILL.md`)
       updates.push({ type: "write", slug, content: expectedContent })
       continue
     }
 
     const actual = ensureTrailingNewline(normalizeNewlines(fs.readFileSync(targetFile, "utf8")))
     if (actual !== expectedContent) {
-      driftMessages.push(`stale generated content: .agents/skills/${slug}/SKILL.md`)
+      driftMessages.push(`stale generated content: ${outputRootDisplay}/${slug}/SKILL.md`)
       updates.push({ type: "write", slug, content: expectedContent })
     }
   }
@@ -329,6 +376,7 @@ const parseCli = (argv) => {
   const options = {
     mode: "write",
     projectRoot: process.cwd(),
+    outputRootRelative: ".agents/skills",
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -343,10 +391,19 @@ const parseCli = (argv) => {
     }
     if (arg === "--project-root") {
       const next = argv[index + 1]
-      if (!next) {
+      if (!next || next.startsWith("-")) {
         throw new Error("--project-root requires a value")
       }
       options.projectRoot = path.resolve(next)
+      index += 1
+      continue
+    }
+    if (arg === "--output-root") {
+      const next = argv[index + 1]
+      if (!next || next.startsWith("-")) {
+        throw new Error("--output-root requires a value")
+      }
+      options.outputRootRelative = next
       index += 1
       continue
     }
@@ -380,6 +437,7 @@ const runCli = () => {
 
 module.exports = {
   parseFrontmatter,
+  parseCli,
   slugifyName,
   buildPlan,
   syncCodexSkills,

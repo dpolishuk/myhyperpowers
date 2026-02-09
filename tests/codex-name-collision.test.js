@@ -29,6 +29,9 @@ test("syncCodexSkills fails fast on slug collisions", () => {
     const result = syncCodexSkills({ projectRoot: root, mode: "write" })
     assert.equal(result.ok, false)
     assert.equal(result.errors.some((x) => x.includes("slug collision")), true)
+    assert.equal(result.errors.some((x) => x.includes("skills/one/SKILL.md")), true)
+    assert.equal(result.errors.some((x) => x.includes("skills/two/SKILL.md")), true)
+    assert.equal(fs.existsSync(path.join(root, ".agents", "skills")), false)
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
