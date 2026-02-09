@@ -58,6 +58,8 @@ Reusable workflows for common development tasks:
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
+| **refactoring-diagnosis** | Identify code/design smells and refactor targets | When code quality risk is increasing |
+| **refactoring-design** | Plan safe refactors with composition and test strategy | Before large structural code changes |
 | **refactoring-safely** | Test-preserving transformations | When refactoring existing code |
 | **managing-bd-tasks** | Advanced operations: splitting, merging, dependencies, metrics | Complex project management |
 
@@ -77,9 +79,12 @@ Quick access to key workflows:
 ```
 /hyperpowers:brainstorm          - Start interactive design refinement
 /hyperpowers:write-plan          - Create detailed implementation plan
-/hyperpowers:execute-plan        - Execute plan with checkpoint reviews
+/hyperpowers:execute-plan        - Execute plan with review checkpoints
 /hyperpowers:execute-ralph       - Execute epic autonomously (no stops)
 /hyperpowers:review-implementation - Review completed work
+/hyperpowers:refactor-diagnose   - Diagnose code/design smells and refactor targets
+/hyperpowers:refactor-design     - Design refactor with composition, DI, and test strategy
+/hyperpowers:refactor-execute    - Execute refactor safely with tests staying green
 /hyperpowers:analyze-tests       - Audit test effectiveness
 /hyperpowers:version             - Show plugin version
 ```

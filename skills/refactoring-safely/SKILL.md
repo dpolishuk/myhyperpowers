@@ -14,6 +14,7 @@ MEDIUM FREEDOM - Follow the change→test→commit cycle strictly, but adapt the
 <quick_reference>
 | Step | Action | Verify |
 |------|--------|--------|
+| 0 | Confirm diagnosis + design exist | Required inputs present |
 | 1 | Run full test suite | ALL pass |
 | 2 | Create bd refactoring task | Track work |
 | 3 | Make ONE small change | Compiles |
@@ -40,6 +41,14 @@ MEDIUM FREEDOM - Follow the change→test→commit cycle strictly, but adapt the
 </when_to_use>
 
 <the_process>
+## 0. Required Inputs (No Exceptions)
+
+You must have:
+- A diagnosis report from `refactoring-diagnosis`
+- A refactor design spec from `refactoring-design`
+
+If either is missing, stop and complete them first.
+
 ## 1. Verify Tests Pass
 
 **BEFORE any refactoring:**
