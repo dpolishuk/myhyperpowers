@@ -797,6 +797,14 @@ claude --plugin-dir .
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
+**Migration from legacy plugin names:**
+
+```text
+/plugin uninstall withzombies-hyper@hyperpowers --scope user
+/plugin uninstall hyperpowers@hyperpowers --scope user
+/plugin install myhyperpowers@myhyperpowers --scope user
+```
+
 **Verify installation:**
 
 ```text
@@ -984,7 +992,36 @@ node scripts/sync-codex-skills.js --write
 node scripts/sync-codex-skills.js --check
 ```
 
+Description quality is validated during both `--write` and `--check`:
+
+- Minimum quality bar: at least 20 characters and 5 words.
+- Trigger/boundary wording required (for example: `use when`, `use to`, `if`, `before`, `after`, `do not`).
+- Vague wording such as `helper`, `generic`, `misc`, or `stuff` is rejected.
+
 Do not hand-edit generated `codex-*` skill directories; they are overwritten by sync.
+
+### Codex Installer
+
+Use the installer to copy generated Codex wrappers into local or global `.agents/skills` paths:
+
+```bash
+# Global install (~/.agents/skills)
+bash scripts/install-codex-plugin.sh --global
+
+# Local install (<target>/.agents/skills)
+bash scripts/install-codex-plugin.sh --local --target /path/to/project
+
+# Status and version
+bash scripts/install-codex-plugin.sh --status
+bash scripts/install-codex-plugin.sh --version
+```
+
+Installer behavior:
+- Keeps a timestamped backup when replacing existing `codex-*` wrappers.
+- Retains only the 3 newest backups.
+- Is idempotent for already-installed same-version wrappers unless `--force` is used.
+
+For a focused Codex setup guide, see `.codex/INSTALL.md`.
 
 ## License
 

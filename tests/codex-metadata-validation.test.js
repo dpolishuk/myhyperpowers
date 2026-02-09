@@ -51,7 +51,7 @@ test("syncCodexSkills rejects output roots outside project", () => {
   try {
     write(
       path.join(root, "skills", "ok", "SKILL.md"),
-      "---\nname: ok\ndescription: Good skill metadata.\n---\n\nbody\n",
+      "---\nname: ok\ndescription: Use when validating canonical skill metadata.\n---\n\nbody\n",
     )
 
     const absolute = syncCodexSkills({
@@ -80,7 +80,7 @@ test("syncCodexSkills fails on missing description in canonical agent", () => {
   try {
     write(
       path.join(root, "skills", "ok", "SKILL.md"),
-      "---\nname: ok\ndescription: Good skill metadata.\n---\n\nbody\n",
+      "---\nname: ok\ndescription: Use when validating canonical skill metadata.\n---\n\nbody\n",
     )
     write(path.join(root, "agents", "bad.md"), "---\nname: bad\n---\n\nbody\n")
 
@@ -98,7 +98,7 @@ test("syncCodexSkills falls back to command filename when command name is absent
   try {
     write(
       path.join(root, "skills", "ok", "SKILL.md"),
-      "---\nname: ok\ndescription: Good skill metadata.\n---\n\nbody\n",
+      "---\nname: ok\ndescription: Use when validating canonical skill metadata.\n---\n\nbody\n",
     )
     write(
       path.join(root, "commands", "analyze-tests.md"),
@@ -165,6 +165,41 @@ test("syncCodexSkills writes slug-safe wrapper frontmatter names", () => {
     assert.equal(fs.readFileSync(expected.skill, "utf8").includes("name: codex-skill-foo-bar"), true)
     assert.equal(fs.readFileSync(expected.command, "utf8").includes("name: codex-command-run-plan"), true)
     assert.equal(fs.readFileSync(expected.agent, "utf8").includes("name: codex-agent-review-quality-plus"), true)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("syncCodexSkills rejects vague canonical skill descriptions", () => {
+  const root = mkTmpRoot()
+
+  try {
+    write(
+      path.join(root, "skills", "vague", "SKILL.md"),
+      "---\nname: vague-skill\ndescription: general helper for things\n---\n\nbody\n",
+    )
+
+    const result = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(result.ok, false)
+    assert.equal(result.errors.some((message) => message.includes("description is too vague")), true)
+    assert.equal(result.errors.some((message) => message.includes("canonical skill")), true)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("syncCodexSkills enforces quality checks in check mode", () => {
+  const root = mkTmpRoot()
+
+  try {
+    write(
+      path.join(root, "skills", "short", "SKILL.md"),
+      "---\nname: short\ndescription: Use when needed\n---\n\nbody\n",
+    )
+
+    const result = syncCodexSkills({ projectRoot: root, mode: "check" })
+    assert.equal(result.ok, false)
+    assert.equal(result.errors.some((message) => message.includes("description too short")), true)
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

@@ -326,6 +326,11 @@ When changing `skills/*/SKILL.md`, `commands/*.md`, or `agents/*.md`:
 2. Verify no drift: `node scripts/sync-codex-skills.js --check`
 3. Commit generated `codex-*` wrapper updates together with source changes
 
+Description quality checks are enforced by the sync tool:
+- At least 20 characters and 5 words
+- Must include trigger/boundary language (for example: `use when`, `use to`, `if`, `before`, `after`, `do not`)
+- Vague wording (`helper`, `generic`, `misc`, `stuff`, etc.) fails the sync
+
 Do not hand-edit generated `codex-*` directories directly.
 
 ## Security Considerations

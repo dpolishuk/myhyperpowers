@@ -160,6 +160,31 @@ test("syncCodexSkills blocks unsafe remove path for orphan codex symlinks", () =
   }
 })
 
+test("syncCodexSkills rejects orphan symlink removals even when symlink points inside project", () => {
+  const root = mkTmpRoot()
+
+  try {
+    write(
+      path.join(root, "skills", "alpha", "SKILL.md"),
+      "---\nname: alpha\ndescription: Alpha skill for symlink orphan remove guard test.\n---\n\nbody\n",
+    )
+
+    const firstWrite = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(firstWrite.ok, true)
+
+    const insideTarget = path.join(root, "inside-target")
+    fs.mkdirSync(insideTarget, { recursive: true })
+    const orphanLink = path.join(root, ".agents", "skills", "codex-orphan-inside")
+    fs.symlinkSync(insideTarget, orphanLink, "dir")
+
+    const rewrite = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(rewrite.ok, false)
+    assert.equal(rewrite.errors.some((message) => message.includes("remove target is symlink")), true)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test("syncCodexSkills blocks unsafe write path when expected slug dir is symlinked outside", () => {
   const root = mkTmpRoot()
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "codex-outside-write-"))
@@ -176,10 +201,72 @@ test("syncCodexSkills blocks unsafe write path when expected slug dir is symlink
 
     const result = syncCodexSkills({ projectRoot: root, mode: "write" })
     assert.equal(result.ok, false)
-    assert.equal(result.errors.some((message) => message.includes("unsafe write path resolves outside project root")), true)
+    assert.equal(
+      result.errors.some(
+        (message) =>
+          message.includes("unsafe write target directory is symlink") ||
+          message.includes("unsafe write path resolves outside project root"),
+      ),
+      true,
+    )
     assert.equal(fs.existsSync(path.join(outside, "SKILL.md")), false)
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
     fs.rmSync(outside, { recursive: true, force: true })
+  }
+})
+
+test("syncCodexSkills rejects symlinked target files at write time", () => {
+  const root = mkTmpRoot()
+
+  try {
+    write(
+      path.join(root, "skills", "alpha", "SKILL.md"),
+      "---\nname: alpha\ndescription: Alpha skill for symlinked target file guard.\n---\n\nbody\n",
+    )
+
+    const firstWrite = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(firstWrite.ok, true)
+
+    const generatedFile = path.join(root, ".agents", "skills", "codex-skill-alpha", "SKILL.md")
+    const linkedTarget = path.join(root, "linked-target.md")
+    fs.writeFileSync(linkedTarget, "linked")
+    fs.rmSync(generatedFile, { force: true })
+    fs.symlinkSync(linkedTarget, generatedFile)
+
+    const rewrite = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(rewrite.ok, false)
+    assert.equal(rewrite.errors.some((message) => message.includes("target file is symlink")), true)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("syncCodexSkills writes via temp file and atomic rename", () => {
+  const root = mkTmpRoot()
+  const originalRenameSync = fs.renameSync
+  let renameCalls = 0
+
+  try {
+    write(
+      path.join(root, "skills", "alpha", "SKILL.md"),
+      "---\nname: alpha\ndescription: Alpha skill for atomic write verification test.\n---\n\nbody\n",
+    )
+
+    fs.renameSync = (...args) => {
+      renameCalls += 1
+      return originalRenameSync(...args)
+    }
+
+    const result = syncCodexSkills({ projectRoot: root, mode: "write" })
+    assert.equal(result.ok, true)
+    assert.equal(renameCalls > 0, true)
+
+    const generatedDir = path.join(root, ".agents", "skills", "codex-skill-alpha")
+    const leftovers = fs.readdirSync(generatedDir).filter((name) => name.includes(".tmp-"))
+    assert.equal(leftovers.length, 0)
+  } finally {
+    fs.renameSync = originalRenameSync
+    fs.rmSync(root, { recursive: true, force: true })
   }
 })

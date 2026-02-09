@@ -11,7 +11,40 @@ const toPosixPath = (input) => input.replace(/\\/g, "/")
 
 const quoteYamlScalar = (value) => `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`
 
+const DESCRIPTION_MIN_LENGTH = 20
+const DESCRIPTION_MIN_WORDS = 5
+const DESCRIPTION_TRIGGER_RE = /\b(use when|use to|use for|when|if|before|after|during|matches|only|avoid|do not|not for)\b/i
+const VAGUE_DESCRIPTION_RE = /\b(helper|generic|general|misc|various|things|stuff|whatever)\b/i
+
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/
+
+const validateDescriptionQuality = ({ description, contextLabel, requireTrigger = true }) => {
+  const normalized = String(description || "").trim().replace(/\s+/g, " ")
+  const qualityErrors = []
+
+  if (normalized.length < DESCRIPTION_MIN_LENGTH) {
+    qualityErrors.push(
+      `${contextLabel} description too short (${normalized.length} chars, min ${DESCRIPTION_MIN_LENGTH})`,
+    )
+  }
+
+  const wordCount = normalized.length === 0 ? 0 : normalized.split(" ").length
+  if (wordCount < DESCRIPTION_MIN_WORDS) {
+    qualityErrors.push(`${contextLabel} description too short (${wordCount} words, min ${DESCRIPTION_MIN_WORDS})`)
+  }
+
+  if (requireTrigger && !DESCRIPTION_TRIGGER_RE.test(normalized)) {
+    qualityErrors.push(
+      `${contextLabel} description missing trigger/boundary language (include phrases like 'use when', 'use to', or explicit boundaries)`,
+    )
+  }
+
+  if (VAGUE_DESCRIPTION_RE.test(normalized)) {
+    qualityErrors.push(`${contextLabel} description is too vague (avoid helper/generic wording)`)
+  }
+
+  return qualityErrors
+}
 
 const parseFrontmatter = (rawContent, filePath, options = {}) => {
   const requireName = options.requireName !== false
@@ -114,6 +147,13 @@ const isWithinRoot = (absolutePath, rootAbsolutePath) => {
   return resolved === rootAbsolutePath || resolved.startsWith(`${rootAbsolutePath}${path.sep}`)
 }
 
+const isSymlink = (absolutePath) => {
+  if (!fs.existsSync(absolutePath)) {
+    return false
+  }
+  return fs.lstatSync(absolutePath).isSymbolicLink()
+}
+
 const createWrapperContent = ({ wrapperName, wrapperDescription, sourcePath, originalContent, wrapperType }) => {
   return ensureTrailingNewline(`---
 name: ${wrapperName}
@@ -165,8 +205,22 @@ const collectCanonicalEntries = (projectRoot) => {
       continue
     }
 
+    errors.push(
+      ...validateDescriptionQuality({
+        description: parsed.frontmatter.description,
+        contextLabel: `canonical skill ${path.relative(projectRoot, sourcePath)}`,
+        requireTrigger: false,
+      }),
+    )
+
     const wrapperName = `codex-skill-${canonicalSkillSlug}`
     const wrapperDescription = `Use when the original skill '${parsed.frontmatter.name}' applies. ${parsed.frontmatter.description}`
+    errors.push(
+      ...validateDescriptionQuality({
+        description: wrapperDescription,
+        contextLabel: `generated wrapper ${wrapperName}`,
+      }),
+    )
     entries.push({
       generatedName: wrapperName,
       generatedDescription: wrapperDescription,
@@ -205,6 +259,12 @@ ${parsed.body.trimStart()}`),
 
     const wrapperName = `codex-command-${commandSlug}`
     const wrapperDescription = `Use when task intent matches command '${commandName}'. Do not use for unrelated workflows.`
+    errors.push(
+      ...validateDescriptionQuality({
+        description: wrapperDescription,
+        contextLabel: `generated wrapper ${wrapperName}`,
+      }),
+    )
     entries.push({
       generatedName: wrapperName,
       generatedDescription: wrapperDescription,
@@ -244,6 +304,12 @@ ${parsed.body.trimStart()}`),
 
     const wrapperName = `codex-agent-${agentSlug}`
     const wrapperDescription = `Use when delegating to agent '${parsed.frontmatter.name}' is needed. Avoid for direct implementation tasks.`
+    errors.push(
+      ...validateDescriptionQuality({
+        description: wrapperDescription,
+        contextLabel: `generated wrapper ${wrapperName}`,
+      }),
+    )
     entries.push({
       generatedName: wrapperName,
       generatedDescription: wrapperDescription,
@@ -401,12 +467,33 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRo
           updatedCount: 0,
         }
       }
+      if (isSymlink(removePath)) {
+        return {
+          ok: false,
+          errors: [`unsafe remove target is symlink: ${outputRootDisplay}/${update.slug}`],
+          updatedCount: 0,
+        }
+      }
       fs.rmSync(removePath, { recursive: true, force: true })
       continue
     }
 
     const targetDir = path.join(outputRoot, update.slug)
     const targetFile = path.join(targetDir, "SKILL.md")
+    if (isSymlink(targetDir)) {
+      return {
+        ok: false,
+        errors: [`unsafe write target directory is symlink: ${outputRootDisplay}/${update.slug}`],
+        updatedCount: 0,
+      }
+    }
+    if (isSymlink(targetFile)) {
+      return {
+        ok: false,
+        errors: [`unsafe write target file is symlink: ${outputRootDisplay}/${update.slug}/SKILL.md`],
+        updatedCount: 0,
+      }
+    }
     if (!isWithinRoot(targetFile, projectRootReal)) {
       return {
         ok: false,
@@ -415,7 +502,40 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRo
       }
     }
     fs.mkdirSync(targetDir, { recursive: true })
-    fs.writeFileSync(targetFile, update.content)
+
+    if (isSymlink(targetDir) || isSymlink(targetFile)) {
+      return {
+        ok: false,
+        errors: [`unsafe write target changed to symlink during operation: ${outputRootDisplay}/${update.slug}/SKILL.md`],
+        updatedCount: 0,
+      }
+    }
+
+    const tempName = `.SKILL.md.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const tempFile = path.join(targetDir, tempName)
+    if (!isWithinRoot(tempFile, projectRootReal)) {
+      return {
+        ok: false,
+        errors: [`unsafe temp write path resolves outside project root: ${outputRootDisplay}/${update.slug}/${tempName}`],
+        updatedCount: 0,
+      }
+    }
+
+    try {
+      fs.writeFileSync(tempFile, update.content)
+      if (isSymlink(targetFile)) {
+        return {
+          ok: false,
+          errors: [`unsafe write target changed to symlink during operation: ${outputRootDisplay}/${update.slug}/SKILL.md`],
+          updatedCount: 0,
+        }
+      }
+      fs.renameSync(tempFile, targetFile)
+    } finally {
+      if (fs.existsSync(tempFile)) {
+        fs.rmSync(tempFile, { force: true })
+      }
+    }
   }
 
   return {

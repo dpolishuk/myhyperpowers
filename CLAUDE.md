@@ -215,7 +215,21 @@ The `verification-before-completion` skill makes this mandatory.
 
 ## Development Commands
 
-This is a plugin repository with no build system - it's pure markdown files. There are no tests, linters, or build commands.
+This repository includes scripts and tests. Use these commands for Codex parity verification:
+
+```bash
+# Codex sync and parity tests
+node --test tests/codex-*.test.js
+
+# Full test suite
+node --test tests/*.test.js
+
+# Ensure generated wrappers are in sync
+node scripts/sync-codex-skills.js --check
+
+# Installer behavior tests
+node --test tests/codex-installer.test.js
+```
 
 ### Testing Skills
 
@@ -230,7 +244,15 @@ When creating or modifying skills, use the `writing-skills` skill which applies 
 The plugin is published to the Claude Code marketplace:
 
 ```text
-/plugin marketplace add withzombies/hyperpowers
+/plugin marketplace add dpolishuk/myhyperpowers
+/plugin install myhyperpowers@myhyperpowers --scope user
+```
+
+If you have a legacy install, migrate to the current name:
+
+```text
+/plugin uninstall withzombies-hyper@hyperpowers --scope user
+/plugin uninstall hyperpowers@hyperpowers --scope user
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
