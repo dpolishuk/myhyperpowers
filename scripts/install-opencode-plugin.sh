@@ -110,6 +110,7 @@ remove_existing_installation() {
     # Remove plugins
     rm -f "$PLUGIN_DIR/hyperpowers-skills.ts"
     rm -f "$PLUGIN_DIR/cass-memory.ts"
+    rm -f "$PLUGIN_DIR/task-context-orchestrator.ts"
     rm -f "$PLUGIN_DIR/hyperpowers-safety.ts"
 
     # Remove skills
@@ -184,11 +185,13 @@ install_plugin() {
         info "Creating symlinks for development..."
         ln -sf "$OPENCODE_DIR/plugins/hyperpowers-skills.ts" "$PLUGIN_DIR/"
         ln -sf "$OPENCODE_DIR/plugins/cass-memory.ts" "$PLUGIN_DIR/"
+        ln -sf "$OPENCODE_DIR/plugins/task-context-orchestrator.ts" "$PLUGIN_DIR/"
         ln -sf "$OPENCODE_DIR/plugins/hyperpowers-safety.ts" "$PLUGIN_DIR/"
     else
         info "Copying plugin files..."
         cp "$OPENCODE_DIR/plugins/hyperpowers-skills.ts" "$PLUGIN_DIR/"
         cp "$OPENCODE_DIR/plugins/cass-memory.ts" "$PLUGIN_DIR/"
+        cp "$OPENCODE_DIR/plugins/task-context-orchestrator.ts" "$PLUGIN_DIR/"
         cp "$OPENCODE_DIR/plugins/hyperpowers-safety.ts" "$PLUGIN_DIR/"
     fi
 

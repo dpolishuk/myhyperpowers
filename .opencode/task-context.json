@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "timeoutMs": 2500,
+  "retries": 1,
+  "maxItems": 8,
+  "maxChars": 1500,
+  "maxSummaryCount": 50,
+  "maxSummaryAgeHours": 72,
+  "logLevel": "warn"
+}

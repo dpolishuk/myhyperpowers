@@ -37,7 +37,7 @@ git clone https://github.com/dpolishuk/hyperpowers.git ~/.config/opencode/hyperp
 # 2. Register plugin
 mkdir -p ~/.config/opencode/plugins
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-skills.ts ~/.config/opencode/plugins/
-ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/cass-memory.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-safety.ts ~/.config/opencode/plugins/
 
 # 3. Install dependencies
@@ -56,7 +56,7 @@ opencode reload
 | Skills | `~/.config/opencode/skills/` | `.opencode/skills/*/` |
 | Agents | `~/.config/opencode/agents/` | `.opencode/agents/*.md` |
 | Commands | `~/.config/opencode/commands/` | `.opencode/commands/*.md` |
-| Cass Memory | `~/.config/opencode/cass-memory/` | `.opencode/cass-memory/*` |
+| Task Context Cache | `~/.config/opencode/cache/task-context/` | `.opencode/plugins/task-context-orchestrator.ts` |
 
 ## How It Works
 
@@ -66,6 +66,16 @@ The hyperpowers plugin for OpenCode:
 2. **Exposes tools** for each skill discovered
 3. **Loads skill content** when invoked via tool calls
 4. **Integrates with agents** for specialized tasks
+
+### Active Task Context Workflow
+
+`task-context-orchestrator.ts` is the active OpenCode task-context plugin for this workflow:
+
+- Pre-task: fetches and merges Serena + Supermemory context (Serena precedence)
+- Post-task: writes JSON + narrative summaries to Serena + Supermemory
+- Failure mode: non-blocking, with structured logs in `.opencode/cache/task-context/errors.log`
+
+`cass-memory.ts` is legacy/reference only and is not the active default for per-task context in this workflow.
 
 ### Skill Discovery Order
 
@@ -81,7 +91,7 @@ Skills are loaded in this order (later overrides earlier):
 .opencode/
 ├── plugins/
 │   ├── hyperpowers-skills.ts    # Main skill discovery plugin
-│   ├── cass-memory.ts           # Cass memory integration
+│   ├── task-context-orchestrator.ts # Serena+Supermemory task context orchestration
 │   └── hyperpowers-safety.ts    # Safety checks
 ├── skills/                       # Skill definitions (SKILL.md)
 ├── agents/                       # Agent prompts
