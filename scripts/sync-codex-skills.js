@@ -77,7 +77,7 @@ const listDirectories = (dirPath) => {
 
   return fs
     .readdirSync(dirPath, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b))
 }
@@ -358,6 +358,14 @@ const syncCodexSkills = ({ projectRoot = process.cwd(), mode = "write", outputRo
     const targetDir = path.join(outputRoot, slug)
     const targetFile = path.join(targetDir, "SKILL.md")
     const expectedContent = ensureTrailingNewline(normalizeNewlines(entry.generatedContent))
+
+    if (fs.existsSync(targetFile) && !isWithinRoot(targetFile, projectRootReal)) {
+      return {
+        ok: false,
+        errors: [`unsafe read path resolves outside project root: ${outputRootDisplay}/${slug}/SKILL.md`],
+        updatedCount: 0,
+      }
+    }
 
     if (!fs.existsSync(targetFile)) {
       driftMessages.push(`missing generated skill file: ${outputRootDisplay}/${slug}/SKILL.md`)

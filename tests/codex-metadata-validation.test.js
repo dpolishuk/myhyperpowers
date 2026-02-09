@@ -31,6 +31,10 @@ test("parseCli accepts explicit output root and mode", () => {
   const parsed = parseCli(["--output-root", ".kimi/skills", "--check"])
   assert.equal(parsed.outputRootRelative, ".kimi/skills")
   assert.equal(parsed.mode, "check")
+
+  const parsedWithProjectRoot = parseCli(["--project-root", "/tmp/project", "--check"])
+  assert.equal(parsedWithProjectRoot.projectRoot, path.resolve("/tmp/project"))
+  assert.equal(parsedWithProjectRoot.mode, "check")
 })
 
 test("parseCli fails when output root value is missing", () => {
@@ -38,6 +42,7 @@ test("parseCli fails when output root value is missing", () => {
   assert.throws(() => parseCli(["--output-root", "--check"]), /--output-root requires a value/)
   assert.throws(() => parseCli(["--project-root", "--check"]), /--project-root requires a value/)
   assert.throws(() => parseCli(["--output-root", "   "]), /--output-root requires a value/)
+  assert.throws(() => parseCli(["--bogus"]), /unknown option/)
 })
 
 test("syncCodexSkills rejects output roots outside project", () => {
