@@ -2,6 +2,11 @@
   "name": "myhyperpowers",
   "description": "Ryan's riff on obra/superpowers: strong guidance for Claude Code as a software development assistant",
   "version": "2.12.0",
+  "commands": "./commands",
+  "agents": "./agents",
+  "skills": "./skills",
+  "hooks": "./hooks",
+  "mcpServers": "./.mcp.json",
   "author": {
     "name": "Ryan Stortz",
     "email": "ryan@withzombies.com"
