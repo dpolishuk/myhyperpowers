@@ -12,8 +12,8 @@ const errorPath = path.join(repoRoot, "hooks", "context", "cass-errors.log")
 
 const createTempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "cass-hook-"))
 
-const writeStub = (dir, script) => {
-  const filePath = path.join(dir, "cm")
+const writeStub = (dir, command, script) => {
+  const filePath = path.join(dir, command)
   fs.writeFileSync(filePath, script, { mode: 0o755 })
   return filePath
 }
@@ -35,41 +35,39 @@ const cleanupHookArtifacts = () => {
 test("hook_injects_additional_context", () => {
   const tempDir = createTempDir()
   const payload = JSON.stringify({
-    success: true,
-    data: {
-      relevantBullets: [
-        {
-          id: "b-1",
-          content: "Use hooks for prompt context",
-          relevanceScore: 1,
-          maturity: "proven",
-        },
-      ],
-      antiPatterns: [],
-    },
+    entries: [
+      {
+        id: "s-1",
+        content: "Use hooks for prompt context",
+        score: 1,
+      },
+    ],
   })
-  const script = `#!/bin/sh\nprintf '%s' '${payload}'\n`
+  const serenaScript = `#!/bin/sh\nprintf '%s' '${payload}'\n`
+  const supermemoryScript = "#!/bin/sh\nprintf '%s' '{\"entries\":[]}'\n"
 
   try {
-    writeStub(tempDir, script)
+    writeStub(tempDir, "serena-memory", serenaScript)
+    writeStub(tempDir, "supermemory-memory", supermemoryScript)
     const output = runHook(tempDir, "hook test")
     const parsed = JSON.parse(output)
 
     assert.ok(parsed.additionalContext)
     assert.ok(parsed.additionalContext.includes("Cass Memory (rules)"))
-    assert.ok(parsed.additionalContext.includes("b-1"))
+    assert.ok(parsed.additionalContext.includes("s-1"))
   } finally {
     cleanupHookArtifacts()
     fs.rmSync(tempDir, { recursive: true, force: true })
   }
 })
 
-test("hook_returns_empty_on_cm_failure", () => {
+test("hook_returns_empty_on_context_failure", () => {
   const tempDir = createTempDir()
   const script = "#!/bin/sh\nexit 1\n"
 
   try {
-    writeStub(tempDir, script)
+    writeStub(tempDir, "serena-memory", script)
+    writeStub(tempDir, "supermemory-memory", script)
     const output = runHook(tempDir, "hook test")
     const parsed = JSON.parse(output)
 
