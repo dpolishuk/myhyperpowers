@@ -13,27 +13,115 @@ A Gemini CLI extension that brings structured development workflows to Gemini CL
 
 ### Prerequisites
 
-- [Gemini CLI](https://geminicli.com/) installed
-- bd (beads) CLI installed (for issue tracking)
-- Node.js (for MCP servers)
+Before installing the hyperpowers extension, ensure you have:
 
-### Install from GitHub
+1. **Gemini CLI** installed
+   ```bash
+   # Install via npm
+   npm install -g @google/gemini-cli
+   
+   # Or download from https://geminicli.com/
+   ```
+
+2. **Node.js** (v18 or higher) for MCP servers
+   ```bash
+   node --version  # Should show v18.x.x or higher
+   ```
+
+3. **bd (beads) CLI** (optional, for issue tracking)
+   ```bash
+   # Install bd CLI
+   npm install -g @dmpol/beads
+   
+   # Or use npx
+   npx @dmpol/beads
+   ```
+
+### Install to Gemini CLI
+
+#### Option 1: Install from GitHub (Recommended)
 
 ```bash
+# Install the extension
 gemini extensions install https://github.com/dmpol/hyperpowers --ref main
+
+# The extension will be installed to:
+# ~/.config/gemini/extensions/hyperpowers/
 ```
 
-Or install from a specific subdirectory if needed.
+#### Option 2: Install from Local Directory
+
+If you've cloned the repository:
+
+```bash
+# Navigate to the repository
+cd /path/to/hyperpowers
+
+# Link the extension for local development
+gemini extensions link .gemini-extension
+
+# Or install it
+gemini extensions install .gemini-extension
+```
+
+#### Option 3: Install with Auto-Update
+
+```bash
+# Install with auto-update enabled
+gemini extensions install https://github.com/dmpol/hyperpowers --auto-update
+```
+
+### Verify Installation
+
+After installation, verify the extension is working:
+
+```bash
+# List installed extensions
+gemini extensions list
+
+# You should see:
+# hyperpowers 1.0.0
+
+# Check available tools
+gemini tools
+
+# You should see hyperpowers tools like:
+# - skills_brainstorming
+# - skills_test_driven_development
+# - agent_test_runner
+# - bd_ready
+```
+
+### Update the Extension
+
+```bash
+# Update to latest version
+gemini extensions update hyperpowers
+
+# Or update all extensions
+gemini extensions update --all
+```
+
+### Uninstall
+
+```bash
+gemini extensions uninstall hyperpowers
+```
 
 ### Local Development
+
+For contributing or customizing:
 
 ```bash
 # Clone the repository
 git clone https://github.com/dmpol/hyperpowers.git
 cd hyperpowers
 
-# Link for local development
+# Link for local development (changes reflect immediately)
 gemini extensions link .gemini-extension
+
+# To unlink:
+gemini extensions unlink hyperpowers
 ```
 
 ## Usage
