@@ -12,6 +12,8 @@ disallowedTools:
   - WebFetch
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 # Simplification Review Agent
 
 You are a simplification reviewer detecting unnecessary complexity.

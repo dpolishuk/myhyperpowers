@@ -12,6 +12,8 @@ disallowedTools:
   - WebFetch
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 # Testing Review Agent
 
 You are a testing reviewer evaluating test coverage and quality.

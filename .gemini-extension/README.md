@@ -2,6 +2,8 @@
 
 A Gemini CLI extension that brings structured development workflows to Gemini CLI users.
 
+> 📚 **Looking for the main hyperpowers documentation?** See the [Global README](../README.md)
+
 ## Features
 
 - **Skills**: Access 24+ hyperpowers skills (brainstorming, TDD, planning, etc.)
