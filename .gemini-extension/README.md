@@ -41,36 +41,30 @@ Before installing the hyperpowers extension, ensure you have:
 
 ### Install to Gemini CLI
 
-#### Option 1: Install from GitHub (Recommended)
+#### Option 1: Clone and Install (Recommended)
+
+Since the extension is located in a subdirectory, you need to clone first:
 
 ```bash
-# Install the extension
-gemini extensions install https://github.com/dmpol/hyperpowers --ref main
+# Clone the repository
+git clone https://github.com/dpolishuk/myhyperpowers.git
+cd myhyperpowers
 
-# The extension will be installed to:
-# ~/.config/gemini/extensions/hyperpowers/
-```
-
-#### Option 2: Install from Local Directory
-
-If you've cloned the repository:
-
-```bash
-# Navigate to the repository
-cd /path/to/hyperpowers
-
-# Link the extension for local development
-gemini extensions link .gemini-extension
-
-# Or install it
+# Install the extension from the local directory
 gemini extensions install .gemini-extension
+
+# Or link for development (changes reflect immediately)
+gemini extensions link .gemini-extension
 ```
 
-#### Option 3: Install with Auto-Update
+#### Option 2: Install with Auto-Update
 
 ```bash
+# Clone first
+git clone https://github.com/dpolishuk/myhyperpowers.git
+
 # Install with auto-update enabled
-gemini extensions install https://github.com/dmpol/hyperpowers --auto-update
+gemini extensions install ./myhyperpowers/.gemini-extension --auto-update
 ```
 
 ### Verify Installation
@@ -116,7 +110,7 @@ For contributing or customizing:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dmpol/hyperpowers.git
+git clone https://github.com/dpolishuk/myhyperpowers.git
 cd hyperpowers
 
 # Link for local development (changes reflect immediately)
