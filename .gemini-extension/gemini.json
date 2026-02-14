@@ -1,0 +1,54 @@
+{
+  "name": "hyperpowers",
+  "version": "1.0.0",
+  "description": "Structured development workflows for Gemini CLI - brings hyperpowers skills, agents, and issue tracking to Gemini CLI users",
+  "author": "Dmitry Polishuk",
+  "license": "MIT",
+  "mcpServers": {
+    "skills": {
+      "command": "node",
+      "args": ["./mcp/skills-server.js"],
+      "description": "Exposes hyperpowers skills as Gemini CLI tools"
+    },
+    "agents": {
+      "command": "node",
+      "args": ["./mcp/agents-server.js"],
+      "description": "Exposes specialized agents as sub-agents"
+    },
+    "bd": {
+      "command": "node",
+      "args": ["./mcp/bd-server.js"],
+      "description": "Integrates with bd (beads) issue tracking system"
+    }
+  },
+  "commands": {
+    "brainstorm": {
+      "description": "Start a brainstorming session to refine an idea into a design",
+      "prompt": "Use the hyperpowers-brainstorming skill to help the user refine their idea. Ask clarifying questions one at a time, research existing patterns, and guide them through creating an epic with immutable requirements."
+    },
+    "write-plan": {
+      "description": "Create a detailed implementation plan for a task",
+      "prompt": "Use the hyperpowers-writing-plans skill to expand the current task with detailed implementation steps. Add exact file paths, complete code examples, and verification commands."
+    },
+    "execute-plan": {
+      "description": "Execute a plan iteratively with checkpoint reviews",
+      "prompt": "Use the hyperpowers-executing-plans skill to work through the current epic's tasks. Execute one task, review learnings, create/refine next task, then stop at a checkpoint for user review."
+    },
+    "review-implementation": {
+      "description": "Review implementation against requirements",
+      "prompt": "Use the hyperpowers-review-implementation skill to verify the implementation matches the bd spec, all success criteria are met, and anti-patterns are avoided."
+    }
+  },
+  "settings": {
+    "bd-path": {
+      "description": "Path to the bd (beads) CLI executable",
+      "type": "string",
+      "default": "bd"
+    },
+    "skills-path": {
+      "description": "Path to hyperpowers skills directory",
+      "type": "string",
+      "default": "./skills"
+    }
+  }
+}
