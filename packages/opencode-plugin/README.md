@@ -1,6 +1,8 @@
 # @dpolishuk/hyperpowers-opencode
 
-OpenCode plugin that adds Hyperpowers-style safety guardrails.
+OpenCode package for Hyperpowers that adds safety guardrails in `opencode`.
+
+> Note: this is the OpenCode install path. Gemini CLI users should install from `.gemini-extension/` (Gemini extension), and Claude Code users should use the marketplace plugin.
 
 ## Install
 

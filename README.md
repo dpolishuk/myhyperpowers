@@ -1,8 +1,8 @@
 # Hyperpowers
 
-Strong guidance for Claude Code and OpenCode as software development assistants.
+Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants.
 
-Hyperpowers is a plugin that provides structured workflows, best practices, and specialized agents to help you build software more effectively. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Hyperpowers is a multi-host plugin for Claude Code, OpenCode, and Gemini CLI, providing structured workflows, best practices, and specialized agents to help you build software more effectively. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
 ## Table of Contents
 
@@ -14,6 +14,7 @@ Hyperpowers is a plugin that provides structured workflows, best practices, and 
 - [How Ralph Works](#how-ralph-works)
 - [Key Benefits](#key-benefits)
 - [Installation](#installation)
+  - [Gemini CLI](#gemini-cli)
 - [Usage](#usage)
 - [Philosophy](#philosophy)
 - [Contributing](#contributing)
@@ -811,6 +812,49 @@ claude --plugin-dir .
 /help
 # Should show /hyperpowers:* commands
 ```
+
+### Gemini CLI
+
+The Gemini CLI extension lives in `.gemini-extension/` and is installed from that folder.
+
+From the repo root:
+
+```bash
+# Install or link the extension
+gemini extensions install .gemini-extension
+
+# Reinstall with auto-update enabled
+gemini extensions install .gemini-extension --auto-update
+
+# Development workflow (loads edits immediately)
+gemini extensions link .gemini-extension
+```
+
+If you had a prior local install, uninstall first:
+
+```bash
+gemini extensions uninstall hyperpowers
+```
+
+Verify installation:
+
+```bash
+gemini extensions list
+gemini tools
+```
+
+You should see `hyperpowers` and the tools/commands in this list.
+
+Try these commands in Gemini:
+
+```text
+/hyperpowers:brainstorm
+/hyperpowers:write-plan
+/hyperpowers:execute-plan
+/hyperpowers:review-implementation
+```
+
+For full extension-specific installation and troubleshooting, see `.gemini-extension/README.md`.
 
 ### Codex CLI
 

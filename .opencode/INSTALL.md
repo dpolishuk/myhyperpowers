@@ -1,5 +1,8 @@
 # Installing Hyperpowers for OpenCode
 
+This is the OpenCode install path for the multi-host Hyperpowers project.
+For Gemini CLI, install from `.gemini-extension/`, and for Claude Code, use the Claude marketplace plugin.
+
 ## Prerequisites
 
 - [OpenCode.ai](https://opencode.ai) installed
@@ -60,7 +63,7 @@ opencode reload
 
 ## How It Works
 
-The hyperpowers plugin for OpenCode:
+The Hyperpowers OpenCode plugin does the following:
 
 1. **Discovers skills** from XDG/config directories
 2. **Exposes tools** for each skill discovered

@@ -4,7 +4,7 @@ This document provides essential information for AI coding agents working with t
 
 ## Project Overview
 
-**Hyperpowers** is a Claude Code and OpenCode plugin that provides structured workflows, best practices, and specialized agents for software development. Think of it as a pair programming partner that ensures proven development patterns are followed.
+**Hyperpowers** supports multiple developer hosts (Claude Code, OpenCode, and Gemini CLI), providing structured workflows, best practices, and specialized agents for software development. Think of it as a pair programming partner that ensures proven development patterns are followed.
 
 ### Key Components
 
@@ -12,15 +12,15 @@ This document provides essential information for AI coding agents working with t
 2. **Agents** (`agents/*.md`) - Specialized subagent prompts for domain-specific tasks
 3. **Commands** (`commands/*.md`) - Slash command definitions for quick workflow access
 4. **Hooks** (`hooks/`) - Automatic behaviors triggered by IDE events
-5. **Plugins** (`.opencode/plugins/`, `.claude-plugin/`) - Platform-specific plugin implementations
+5. **Plugins** (`.gemini-extension/`, `.opencode/plugins/`, `.claude-plugin/`) - Platform-specific plugin implementations
 
 ### Technology Stack
 
-- **Runtime**: Node.js/Bun for OpenCode plugins (TypeScript)
+- **Runtime**: Node.js/Bun for OpenCode plugins and the Gemini extension MCP servers (TypeScript)
 - **Hooks**: Bash, Python, JavaScript
 - **Tests**: Node.js built-in test runner
 - **Issue Tracking**: **bd** (beads) CLI tool
-- **Package Manager**: Bun (for OpenCode), npm (for published plugin)
+- **Package Manager**: Bun (for OpenCode), npm (for published plugin), npm/pip (for Gemini tools)
 - **Configuration**: JSON, YAML
 
 ## Quick Start
@@ -49,9 +49,15 @@ node scripts/sync-codex-skills.js --write  # Regenerate codex-* wrappers
 node scripts/sync-codex-skills.js --check  # Verify wrappers are in sync
 
 # OpenCode plugin (in .opencode/ directory)
-cd .opencode && bun install # Install dependencies
-bun run build               # Build TypeScript
-bun run typecheck           # Type-check without emitting
+cd .opencode               # from repo root
+bun install                # Install dependencies
+bun run build             # Build TypeScript
+bun run typecheck         # Type-check without emitting
+
+# Gemini extension (in .gemini-extension/ directory)
+cd ../.gemini-extension
+python3 -m pip --version >/dev/null 2>&1 || true  # Optional: ensure CLI deps are present
+
 ```
 
 ## Project Structure
@@ -90,6 +96,11 @@ bun run typecheck           # Type-check without emitting
 │   ├── commands/          # OpenCode command definitions
 │   ├── skills/            # Symlinked to ../skills
 │   └── package.json       # Bun dependencies
+├── .gemini-extension/      # Gemini CLI extension files
+│   ├── agents/            # Gemini agent definitions
+│   ├── commands/          # Gemini command definitions
+│   ├── mcp/               # MCP servers for Gemini tools
+│   └── tests/             # Extension-focused tests
 ├── .agents/               # Codex-compatible generated wrappers (skills)
 │   └── skills/            # Generated codex-* SKILL.md directories
 ├── .claude-plugin/        # Claude Code plugin metadata
