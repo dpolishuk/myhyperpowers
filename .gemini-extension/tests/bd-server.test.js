@@ -73,12 +73,82 @@ test('bd-server returns list of tools', async () => {
     
     assert.equal(response.jsonrpc, '2.0');
     assert.ok(Array.isArray(response.result.tools));
-    assert.ok(response.result.tools.length >= 3, 'Should have at least 3 bd tools');
+    assert.ok(response.result.tools.length >= 4, 'Should have at least 4 bd tools');
     
     const toolNames = response.result.tools.map(t => t.name);
     assert.ok(toolNames.includes('bd_ready'), 'Should have bd_ready');
     assert.ok(toolNames.includes('bd_show'), 'Should have bd_show');
+    assert.ok(toolNames.includes('bd_close'), 'Should have bd_close');
     assert.ok(toolNames.includes('bd_update'), 'Should have bd_update');
+  } finally {
+    server.kill();
+  }
+});
+
+test('bd-server handles missing tools/call params as invalid', async () => {
+  const server = spawn('node', [SERVER_PATH]);
+
+  try {
+    await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {}
+    });
+
+    const response = await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call'
+    });
+
+    assert.equal(response.jsonrpc, '2.0');
+    assert.equal(response.id, 2);
+    assert.ok(response.error);
+    assert.equal(response.error.code, -32602);
+  } finally {
+    server.kill();
+  }
+});
+
+test('bd-server validates required parameters for bd tools', async () => {
+  const server = spawn('node', [SERVER_PATH]);
+
+  try {
+    await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {}
+    });
+
+    const responseShowMissingId = await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'bd_show' }
+    });
+
+    const responseCloseMissingId = await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'bd_close', arguments: {} }
+    });
+
+    const responseUpdateMissingStatus = await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: { name: 'bd_update', arguments: { id: 'bd-1' } }
+    });
+
+    for (const response of [responseShowMissingId, responseCloseMissingId, responseUpdateMissingStatus]) {
+      assert.equal(response.jsonrpc, '2.0');
+      assert.ok(response.error);
+      assert.equal(response.error.code, -32602);
+      assert.equal(response.error.message.includes('Missing required argument'), true);
+    }
   } finally {
     server.kill();
   }

@@ -9,7 +9,7 @@
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-const BD_CMD = 'bd';
+const BD_CMD = process.env.BD_PATH || 'bd';
 
 /**
  * Execute a bd command and return output
@@ -66,6 +66,13 @@ class BdMCPServer {
 
   handleRequest(request) {
     const { method, id, params } = request;
+    if (!method) {
+      return null;
+    }
+
+    if (method.startsWith('notifications/')) {
+      return null;
+    }
 
     switch (method) {
       case 'initialize':
@@ -80,7 +87,7 @@ class BdMCPServer {
       default:
         return {
           jsonrpc: '2.0',
-          id,
+          id: id ?? null,
           error: {
             code: -32601,
             message: `Method not found: ${method}`
@@ -93,7 +100,7 @@ class BdMCPServer {
     this.initialized = true;
     return {
       jsonrpc: '2.0',
-      id,
+      id: id ?? null,
       result: {
         protocolVersion: '2024-11-05',
         capabilities: {
@@ -130,6 +137,17 @@ class BdMCPServer {
         }
       },
       {
+        name: 'bd_close',
+        description: 'Close an issue (bd close <id>)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Issue ID' }
+          },
+          required: ['id']
+        }
+      },
+      {
         name: 'bd_update',
         description: 'Update issue status (bd update <id> --status <status>)',
         inputSchema: {
@@ -145,14 +163,59 @@ class BdMCPServer {
 
     return {
       jsonrpc: '2.0',
-      id,
+      id: id ?? null,
       result: { tools }
     };
   }
 
   async handleToolsCall(id, params) {
-    const { name, arguments: args } = params;
-    
+    const { name, arguments: args = {} } = params || {};
+
+    if (!name) {
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        error: {
+          code: -32602,
+          message: 'Missing required argument: name'
+        }
+      };
+    }
+
+    if (typeof args !== 'object' || args === null) {
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        error: {
+          code: -32602,
+          message: 'Invalid arguments payload'
+        }
+      };
+    }
+
+    const requiresId = ['bd_show', 'bd_update', 'bd_close'].includes(name);
+    if (requiresId && (!args.id || typeof args.id !== 'string' || args.id.trim() === '')) {
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        error: {
+          code: -32602,
+          message: 'Missing required argument: id'
+        }
+      };
+    }
+
+    if (name === 'bd_update' && (!args.status || typeof args.status !== 'string' || args.status.trim() === '')) {
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        error: {
+          code: -32602,
+          message: 'Missing required argument: status'
+        }
+      };
+    }
+
     try {
       let result;
       
@@ -162,23 +225,21 @@ class BdMCPServer {
           break;
         
         case 'bd_show':
-          if (!args?.id) {
-            throw new Error('Missing required argument: id');
-          }
           result = await execBd(['show', args.id]);
+          break;
+
+        case 'bd_close':
+          result = await execBd(['close', args.id]);
           break;
         
         case 'bd_update':
-          if (!args?.id || !args?.status) {
-            throw new Error('Missing required arguments: id and status');
-          }
           result = await execBd(['update', args.id, '--status', args.status]);
           break;
         
         default:
           return {
             jsonrpc: '2.0',
-            id,
+            id: id ?? null,
             error: {
               code: -32602,
               message: `Tool not found: ${name}`
@@ -186,11 +247,11 @@ class BdMCPServer {
           };
       }
 
-      return {
-        jsonrpc: '2.0',
-        id,
-        result: {
-          content: [
+    return {
+      jsonrpc: '2.0',
+      id: id ?? null,
+      result: {
+        content: [
             {
               type: 'text',
               text: result
@@ -201,10 +262,13 @@ class BdMCPServer {
     } catch (err) {
       return {
         jsonrpc: '2.0',
-        id,
-        error: {
-          code: -32603,
-          message: err.message
+        id: id ?? null,
+        result: {
+          isError: true,
+          content: [{
+            type: 'text',
+            text: err.message
+          }]
         }
       };
     }
@@ -228,7 +292,9 @@ async function main() {
     try {
       const request = JSON.parse(line);
       const response = await server.handleRequest(request);
-      console.log(JSON.stringify(response));
+      if (response) {
+        console.log(JSON.stringify(response));
+      }
     } catch (err) {
       console.error('Error handling request:', err.message);
       console.log(JSON.stringify({

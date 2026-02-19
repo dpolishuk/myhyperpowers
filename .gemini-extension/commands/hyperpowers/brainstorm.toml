@@ -1,0 +1,7 @@
+description = "Start a hyperpowers brainstorming workflow"
+
+prompt = """
+Use your hyperpowers:brainstorming skill.
+
+{{args}}
+"""

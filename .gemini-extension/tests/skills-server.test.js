@@ -160,3 +160,29 @@ test('skills-server returns error for unknown tool', async () => {
     server.kill();
   }
 });
+
+test('skills-server handles missing tools/call params as invalid', async () => {
+  const server = spawn('node', [SERVER_PATH]);
+
+  try {
+    await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {}
+    });
+
+    const response = await sendRequest(server, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call'
+    });
+
+    assert.equal(response.jsonrpc, '2.0');
+    assert.equal(response.id, 2);
+    assert.ok(response.error);
+    assert.equal(response.error.code, -32602);
+  } finally {
+    server.kill();
+  }
+});

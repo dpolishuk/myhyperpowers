@@ -9,7 +9,7 @@ A Gemini CLI extension that brings structured development workflows to Gemini CL
 - **Skills**: Access 24+ hyperpowers skills (brainstorming, TDD, planning, etc.)
 - **Agents**: Invoke specialized agents (test-runner, code-reviewer, etc.)
 - **Issue Tracking**: Full bd (beads) integration
-- **Slash Commands**: Quick access to common workflows (/brainstorm, /write-plan, etc.)
+- **Slash Commands**: Quick access to namespaced workflows (`/hyperpowers:brainstorm`, `/hyperpowers:write-plan`, etc.)
 
 ## Installation
 
@@ -126,10 +126,10 @@ gemini extensions unlink hyperpowers
 
 Once installed, use these commands in Gemini CLI:
 
-- `/brainstorm` - Start a brainstorming session
-- `/write-plan` - Create implementation plans
-- `/execute-plan` - Execute plans iteratively
-- `/review-implementation` - Review code
+- `/hyperpowers:brainstorm` - Start a brainstorming session
+- `/hyperpowers:write-plan` - Create implementation plans
+- `/hyperpowers:execute-plan` - Execute plans iteratively
+- `/hyperpowers:review-implementation` - Review code
 
 ### Skills as Tools
 
@@ -154,7 +154,7 @@ bd close <id>         # Complete work
 
 ```
 .gemini-extension/
-├── gemini.json          # Extension manifest
+├── gemini-extension.json # Extension manifest
 ├── GEMINI.md            # Context instructions for Gemini
 ├── mcp/
 │   ├── skills-server.js # MCP server for skills
@@ -186,15 +186,16 @@ Skills are defined in `../skills/*/SKILL.md`. The extension automatically discov
 Run tests for MCP servers:
 
 ```bash
-node --test tests/gemini-extension/*.test.js
+node --test .gemini-extension/tests/*.test.js
 ```
 
 ## Configuration
 
-Configure settings during installation or via Gemini CLI:
+Server paths are controlled through runtime environment (extension defaults are deterministic):
 
-- `bd-path`: Path to bd executable (default: "bd")
-- `skills-path`: Path to skills directory (default: "./skills")
+- `BD_PATH`: Path to bd executable (default: `bd`)
+- `SKILLS_PATH`: Path to skills directory (default: extension `skills/` target)
+- `AGENTS_PATH`: Path to agents directory (default: extension `agents/`, fallback: extension parent `agents/`)
 
 ## License
 

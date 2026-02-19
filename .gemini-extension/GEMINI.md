@@ -15,10 +15,10 @@ Hyperpowers is a workflow system that provides:
 
 Use these commands to quickly access hyperpowers workflows:
 
-- `/brainstorm` - Start refining an idea into a design
-- `/write-plan` - Create detailed implementation plans
-- `/execute-plan` - Execute plans iteratively
-- `/review-implementation` - Review code against requirements
+- `/hyperpowers:brainstorm` - Start refining an idea into a design
+- `/hyperpowers:write-plan` - Create detailed implementation plans
+- `/hyperpowers:execute-plan` - Execute plans iteratively
+- `/hyperpowers:review-implementation` - Review code against requirements
 
 ### Using Skills
 
@@ -57,11 +57,11 @@ The bd (beads) integration provides:
 
 The typical hyperpowers workflow:
 
-1. **Brainstorm** - Use `/brainstorm` or the brainstorming skill to refine ideas
-2. **Plan** - Use `/write-plan` to create detailed implementation plans
+1. **Brainstorm** - Use `/hyperpowers:brainstorm` or the brainstorming skill to refine ideas
+2. **Plan** - Use `/hyperpowers:write-plan` to create detailed implementation plans
 3. **Refine** - Run SRE refinement on tasks before execution
-4. **Execute** - Use `/execute-plan` or TDD skill to implement
-5. **Review** - Use `/review-implementation` for validation
+4. **Execute** - Use `/hyperpowers:execute-plan` or TDD skill to implement
+5. **Review** - Use `/hyperpowers:review-implementation` for validation
 6. **Verify** - Run verification-before-completion gates
 7. **Complete** - Close tasks and epic
 
@@ -76,15 +76,16 @@ The typical hyperpowers workflow:
 
 ## Configuration
 
-Settings can be configured during installation or in your Gemini CLI config:
+Settings are resolved by extension startup and environment:
 
-- `bd-path`: Path to bd executable (default: "bd")
-- `skills-path`: Path to skills directory (default: "./skills")
+- `BD_PATH`: Path to bd executable (default: `bd`)
+- `SKILLS_PATH`: Path to skills directory (default: extension-local `skills` target)
+- `AGENTS_PATH`: Path to agents directory (default: extension-local `agents` target; `AGENTS_PATH` env overrides this, with workspace `agents/` as fallback)
 
 ## Learn More
 
 - Skills are in `./skills/*/SKILL.md`
 - Agents are in `./agents/*.md`
-- Commands are in `./commands/*.md`
+- Commands are in `./commands/<namespace>/*.toml`
 
 Happy coding with structured workflows!

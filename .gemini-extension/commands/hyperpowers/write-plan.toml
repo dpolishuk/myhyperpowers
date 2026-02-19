@@ -1,0 +1,7 @@
+description = "Create a detailed implementation plan"
+
+prompt = """
+Use your hyperpowers:writing-plans skill.
+
+{{args}}
+"""

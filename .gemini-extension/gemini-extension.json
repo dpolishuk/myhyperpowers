@@ -1,0 +1,23 @@
+{
+  "name": "hyperpowers",
+  "version": "1.0.0",
+  "description": "Structured development workflows for Gemini CLI",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "skills": {
+      "command": "node",
+      "args": ["${extensionPath}${/}mcp${/}skills-server.js"],
+      "cwd": "${extensionPath}"
+    },
+    "agents": {
+      "command": "node",
+      "args": ["${extensionPath}${/}mcp${/}agents-server.js"],
+      "cwd": "${extensionPath}"
+    },
+    "bd": {
+      "command": "node",
+      "args": ["${extensionPath}${/}mcp${/}bd-server.js"],
+      "cwd": "${extensionPath}"
+    }
+  }
+}

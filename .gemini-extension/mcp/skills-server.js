@@ -10,7 +10,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
 
-const SKILLS_DIR = path.join(__dirname, '..', 'skills');
+const SKILLS_DIR = process.env.SKILLS_PATH || path.join(__dirname, '..', 'skills');
 
 /**
  * Parse YAML frontmatter from markdown content
@@ -107,6 +107,13 @@ class SkillsMCPServer {
 
   handleRequest(request) {
     const { method, id, params } = request;
+    if (!method) {
+      return null;
+    }
+
+    if (method.startsWith('notifications/')) {
+      return null;
+    }
 
     switch (method) {
       case 'initialize':
@@ -121,7 +128,7 @@ class SkillsMCPServer {
       default:
         return {
           jsonrpc: '2.0',
-          id,
+          id: id ?? null,
           error: {
             code: -32601,
             message: `Method not found: ${method}`
@@ -134,7 +141,7 @@ class SkillsMCPServer {
     this.initialized = true;
     return {
       jsonrpc: '2.0',
-      id,
+      id: id ?? null,
       result: {
         protocolVersion: '2024-11-05',
         capabilities: {
@@ -161,13 +168,13 @@ class SkillsMCPServer {
 
     return {
       jsonrpc: '2.0',
-      id,
+      id: id ?? null,
       result: { tools }
     };
   }
 
   handleToolsCall(id, params) {
-    const { name } = params;
+    const { name } = params || {};
     const skill = this.skills.find(s => s.toolName === name);
     
     if (!skill) {
@@ -183,7 +190,7 @@ class SkillsMCPServer {
 
     return {
       jsonrpc: '2.0',
-      id,
+      id: id ?? null,
       result: {
         content: [
           {
@@ -213,7 +220,9 @@ async function main() {
     try {
       const request = JSON.parse(line);
       const response = server.handleRequest(request);
-      console.log(JSON.stringify(response));
+      if (response) {
+        console.log(JSON.stringify(response));
+      }
     } catch (err) {
       console.error('Error handling request:', err.message);
       console.log(JSON.stringify({
