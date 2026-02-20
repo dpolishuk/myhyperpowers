@@ -9,7 +9,7 @@ A Gemini CLI extension that brings structured development workflows to Gemini CL
 - **Skills**: Access 24+ hyperpowers skills (brainstorming, TDD, planning, etc.)
 - **Agents**: Invoke specialized agents (test-runner, code-reviewer, etc.)
 - **Issue Tracking**: Full bd (beads) integration
-- **Slash Commands**: Quick access to namespaced workflows (`/hyperpowers:brainstorm`, `/hyperpowers:write-plan`, etc.)
+- **Slash Commands**: Quick access to namespaced workflows (`/hyperpowers:brainstorm`, `/hyperpowers:write-plan`, `/hyperpowers:refactor-design`, etc.)
 
 ## Installation
 
@@ -130,6 +130,9 @@ Once installed, use these commands in Gemini CLI:
 - `/hyperpowers:write-plan` - Create implementation plans
 - `/hyperpowers:execute-plan` - Execute plans iteratively
 - `/hyperpowers:review-implementation` - Review code
+- `/hyperpowers:refactor-design` - Design safe refactors and test strategy
+- `/hyperpowers:refactor-diagnose` - Identify refactor targets and technical debt
+- `/hyperpowers:refactor-execute` - Execute refactors with controlled rollout
 
 ### Skills as Tools
 

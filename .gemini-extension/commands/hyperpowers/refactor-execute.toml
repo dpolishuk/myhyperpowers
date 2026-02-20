@@ -1,0 +1,7 @@
+description = "Execute a refactor safely with tests staying green"
+
+prompt = """
+Use your hyperpowers:refactoring-safely skill.
+
+{{args}}
+"""

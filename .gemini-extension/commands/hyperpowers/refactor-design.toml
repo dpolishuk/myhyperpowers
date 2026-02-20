@@ -1,0 +1,7 @@
+description = "Design a refactor with composition, DI, and test strategy"
+
+prompt = """
+Use your hyperpowers:refactoring-design skill.
+
+{{args}}
+"""
