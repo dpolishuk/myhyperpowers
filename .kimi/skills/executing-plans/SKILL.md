@@ -1,59 +1,20 @@
 ---
 name: executing-plans
 description: Use to execute bd tasks iteratively - executes one task, reviews learnings, creates/refines next task, then STOPS for user review before continuing
-type: flow
 ---
+
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
 
 <skill_overview>
 Execute bd tasks one at a time with mandatory checkpoints: Load epic → Execute task → Review learnings → Create next task → Run SRE refinement → STOP. User clears context, reviews implementation, then runs command again to continue. Epic requirements are immutable, tasks adapt to reality.
 </skill_overview>
-
-<flow_diagram>
-
-```mermaid
-flowchart TD
-    Start([Start Execution]) --> LoadEpic[Load Epic Context<br/>bd show epic-id]
-    LoadEpic --> GetTask[Get Next Task<br/>bd ready]
-
-    GetTask --> TaskAvailable{Task<br/>Available?}
-    TaskAvailable -->|No| CheckCriteria{All Success<br/>Criteria Met?}
-    TaskAvailable -->|Yes| ClaimTask[Claim Task<br/>bd update --status in_progress]
-
-    CheckCriteria -->|Yes| FinalReview[Run review-implementation<br/>skill]
-    CheckCriteria -->|No| CreateTask[Create New Task<br/>Based on Gaps]
-    CreateTask --> SRERefine[Run SRE Task<br/>Refinement]
-    SRERefine --> GetTask
-
-    FinalReview --> Complete([Epic Complete])
-
-    ClaimTask --> ExecuteTask[Execute Task<br/>Create TodoWrite substeps]
-    ExecuteTask --> Verify{Verification<br/>Passed?}
-
-    Verify -->|No| FixIssues[Fix Issues<br/>Check anti-patterns]
-    FixIssues --> ExecuteTask
-
-    Verify -->|Yes| DocumentLearnings[Document Learnings<br/>Review against epic]
-    DocumentLearnings --> CloseTask[Close bd Task<br/>bd close task-id]
-
-    CloseTask --> ReviewNext[Review & Create<br/>Next Task if Needed]
-    ReviewNext --> SRERefineNew[Run SRE Refinement<br/>on New Tasks]
-    SRERefineNew --> Checkpoint{User<br/>Checkpoint?}
-
-    Checkpoint -->|Yes - Always| Pause([STOP - Present Summary<br/>Wait for User])
-    Checkpoint -->|No| GetTask
-
-    Pause -.->|User runs command again| GetTask
-
-    style Start fill:#90EE90
-    style Complete fill:#90EE90
-    style Pause fill:#FFB6C1
-    style TaskAvailable fill:#87CEEB
-    style CheckCriteria fill:#87CEEB
-    style Verify fill:#87CEEB
-    style Checkpoint fill:#87CEEB
-```
-
-</flow_diagram>
 
 <rigidity_level>
 LOW FREEDOM - Follow exact process: load epic, execute ONE task, review, create next task with SRE refinement, STOP.

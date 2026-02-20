@@ -3,6 +3,15 @@ name: sre-task-refinement
 description: Use when you have to refine subtasks into actionable plans ensuring that all corner cases are handled and we understand all the requirements.
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Review bd task plans with Google Fellow SRE perspective to ensure junior engineer can execute without questions; catch edge cases, verify granularity, strengthen criteria, prevent production issues before implementation.
 </skill_overview>

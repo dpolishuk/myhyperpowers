@@ -3,6 +3,15 @@ name: managing-bd-tasks
 description: Use for advanced bd operations - splitting tasks mid-flight, merging duplicates, changing dependencies, archiving epics, querying metrics, cross-epic dependencies
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Advanced bd operations for managing complex task structures; bd is single source of truth, keep it accurate.
 </skill_overview>

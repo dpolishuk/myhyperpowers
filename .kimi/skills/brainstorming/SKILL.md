@@ -1,59 +1,16 @@
 ---
 name: brainstorming
-type: flow
 description: Use when creating or developing anything, before writing code - refines rough ideas into bd epics with immutable requirements
 ---
 
-```mermaid
-flowchart TD
-    Start([Start Brainstorm]) --> HasTopic{Topic provided?}
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
 
-    HasTopic -->|No| AskTopic[Ask user for topic/idea]
-    AskTopic --> HasTopic
-    HasTopic -->|Yes| Announce[Announce brainstorming skill]
-
-    Announce --> Research[Research: codebase-investigator & internet-researcher]
-    Research --> Q1[Question 1: Clarify scope<br/>What problem are we solving?]
-
-    Q1 --> A1[User answers scope]
-    A1 --> CaptureQ1[Capture decision in Key Decisions table]
-    CaptureQ1 --> Q2[Question 2: Identify constraints<br/>Technical/business requirements?]
-
-    Q2 --> A2[User answers constraints]
-    A2 --> CaptureQ2[Capture decision in Key Decisions table]
-    CaptureQ2 --> Q3[Question 3: Define success criteria<br/>How will we know it works?]
-
-    Q3 --> A3[User answers success criteria]
-    A3 --> CaptureQ3[Capture decision in Key Decisions table]
-    CaptureQ3 --> MoreQuestions{More refinement needed?}
-
-    MoreQuestions -->|Yes| FollowUp[Ask follow-up questions<br/>One at a time, multiple choice]
-    FollowUp --> CaptureFollowUp[Capture decisions]
-    CaptureFollowUp --> MoreQuestions
-
-    MoreQuestions -->|No| ProposeApproaches[Propose 2-3 approaches<br/>with trade-offs]
-    ProposeApproaches --> UserChooses[User selects approach]
-    UserChooses --> PresentDesign[Present design in sections<br/>200-300 words each]
-
-    PresentDesign --> ValidateSection{Section validated?}
-    ValidateSection -->|No| ReviseSection[Revise based on feedback]
-    ReviseSection --> PresentDesign
-    ValidateSection -->|Yes| MoreSections{More sections?}
-    MoreSections -->|Yes| PresentDesign
-
-    MoreSections -->|No| Summarize[Summarize requirements<br/>including anti-patterns]
-    Summarize --> CreateEpic{Create bd epic?}
-
-    CreateEpic -->|No| ManualHandoff[Provide epic template<br/>for manual creation]
-    ManualHandoff --> Complete
-
-    CreateEpic -->|Yes| BdEpic[bd create epic with:<br/>- IMMUTABLE requirements<br/>- Success criteria<br/>- Anti-patterns<br/>- Design rationale<br/>- Design discovery]
-    BdEpic --> CreateFirstTask[Create ONLY first task<br/>Link to epic]
-
-    CreateFirstTask --> SRERefine[Run SRE refinement<br/>hyperpowers:sre-task-refinement]
-    SRERefine --> Handoff[Announce handoff to<br/>executing-plans skill]
-    Handoff --> Complete([Complete])
-```
 
 <skill_overview>
 Turn rough ideas into validated designs stored as bd epics with immutable requirements; tasks created iteratively as you learn, not upfront.

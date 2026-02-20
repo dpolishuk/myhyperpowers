@@ -3,6 +3,15 @@ name: refactoring-safely
 description: Use when refactoring code - test-preserving transformations in small steps, running tests between each change
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Refactoring changes code structure without changing behavior; tests must stay green throughout or you're rewriting, not refactoring.
 </skill_overview>

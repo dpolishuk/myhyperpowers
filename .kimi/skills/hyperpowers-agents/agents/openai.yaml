@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyperpowers Agents"
+  short_description: "Help with Hyperpowers Agents tasks"
+  default_prompt: "Use $hyperpowers-agents to run this workflow."

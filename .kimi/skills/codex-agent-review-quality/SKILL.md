@@ -30,6 +30,8 @@ disallowedTools:
   - Bash
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 # Quality Review Agent
 
 You are a quality-focused code reviewer specializing in finding defects.

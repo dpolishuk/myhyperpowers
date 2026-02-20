@@ -30,6 +30,8 @@ disallowedTools:
   - WebFetch
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 # Implementation Review Agent
 
 You are an implementation reviewer verifying code achieves its stated goals.

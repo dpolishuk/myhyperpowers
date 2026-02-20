@@ -3,6 +3,15 @@ name: using-hyper
 description: Use when starting any conversation - establishes mandatory workflows for finding and using skills
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <EXTREMELY_IMPORTANT>
 If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST read the skill.
 
@@ -16,7 +25,7 @@ Skills are proven workflows; if one exists for your task, using it is mandatory,
 </skill_overview>
 
 <rigidity_level>
-HIGH FREEDOM - The meta-process (check for skills, use Skill tool, announce usage) is rigid, but each individual skill defines its own rigidity level.
+HIGH FREEDOM - The meta-process (check for skills, read the skill file, announce usage) is rigid, but each individual skill defines its own rigidity level.
 </rigidity_level>
 
 <quick_reference>
@@ -24,11 +33,11 @@ HIGH FREEDOM - The meta-process (check for skills, use Skill tool, announce usag
 
 1. List available skills mentally
 2. Ask: "Does ANY skill match this request?"
-3. If yes → Use Skill tool to load the skill file
+3. If yes → Read the skill's `SKILL.md` file from disk
 4. Announce which skill you're using
 5. Follow the skill exactly as written
 
-**Skill has checklist?** Create TodoWrite for every item.
+**Skill has checklist?** Create a checklist section in your response and track each item.
 
 **Finding a relevant skill = mandatory to use it.**
 </quick_reference>
@@ -55,7 +64,7 @@ Before responding to ANY user message, complete this checklist:
 
 1. ☐ List available skills in your mind
 2. ☐ Ask yourself: "Does ANY skill match this request?"
-3. ☐ If yes → Use the Skill tool to read and run the skill file
+3. ☐ If yes → Read the skill's `SKILL.md` file from disk
 4. ☐ Announce which skill you're using
 5. ☐ Follow the skill exactly
 
@@ -63,17 +72,23 @@ Before responding to ANY user message, complete this checklist:
 
 ---
 
-## 2. Execute Skills with the Skill Tool
+## 2. Execute Skills by Reading SKILL.md
 
-**Always use the Skill tool to load skills.** Never rely on memory.
+**Always read the skill file from disk.** Never rely on memory.
 
+Example path:
 ```
-Skill tool: "hyperpowers:test-driven-development"
+.agents/skills/test-driven-development/SKILL.md
+```
+
+If the repo doesn't have `.agents/skills`, check user-level skills:
+```
+~/.agents/skills/test-driven-development/SKILL.md
 ```
 
 **Why:**
 - Skills evolve - you need the current version
-- Using the tool ensures you get the full skill content
+- Reading the file ensures you get the full skill content
 - Confirms to user you're following the skill
 
 ---
@@ -112,9 +127,9 @@ Before using a skill, announce it:
 
 ---
 
-## 5. Create TodoWrite for Skill Checklists
+## 5. Create a Checklist for Skill Checklists
 
-If a skill has a checklist, YOU MUST create TodoWrite todos for EACH item.
+If a skill has a checklist, YOU MUST create a checklist section in your response for EACH item.
 
 **Don't:**
 - Work through checklist mentally
@@ -122,7 +137,7 @@ If a skill has a checklist, YOU MUST create TodoWrite todos for EACH item.
 - Batch multiple items into one todo
 - Mark complete without doing them
 
-**Why:** Checklists without TodoWrite tracking = steps get skipped. Every time. The overhead is tiny compared to missing steps.
+**Why:** Checklists without explicit tracking = steps get skipped. Every time. The overhead is tiny compared to missing steps.
 
 **Example:**
 
@@ -132,7 +147,7 @@ Skill has verification checklist:
 - [ ] No linter warnings
 - [ ] bd task updated
 
-TodoWrite todos:
+Checklist items:
 1. Run all tests and verify they pass
 2. Run linter and verify no warnings
 3. Update bd task with completion status
@@ -164,18 +179,18 @@ Claude (without using-hyper):
 
 Claude: "I'm using hyperpowers:brainstorming to refine your requirements into a complete design."
 
-[Skill tool loads brainstorming]
+[Read `.agents/skills/brainstorming/SKILL.md`]
 [Asks Socratic questions about avatar size limits, formats, storage, etc.]
 [Creates refined requirements]
 
 Claude: "Now I'm using hyperpowers:writing-plans to create a detailed implementation plan."
 
-[Skill tool loads writing-plans]
+[Read `.agents/skills/writing-plans/SKILL.md`]
 [Creates bd epic with tasks]
 
 Claude: "Now I'm using hyperpowers:executing-plans to implement the tasks iteratively."
 
-[Skill tool loads executing-plans]
+[Read `.agents/skills/executing-plans/SKILL.md`]
 [Implements with TDD, commits incrementally]
 
 **What you gain:**
@@ -211,13 +226,13 @@ Claude (without using-hyper):
 
 Claude: "I'm using hyperpowers:debugging-with-tools to investigate this systematically."
 
-[Skill tool loads debugging-with-tools]
+[Read `.agents/skills/debugging-with-tools/SKILL.md`]
 [Uses debugger, checks logs, searches internet for known issues]
 [Identifies root cause: token invalidation timing issue]
 
 Claude: "Now I'm using hyperpowers:fixing-bugs to implement a complete fix."
 
-[Skill tool loads fixing-bugs]
+[Read `.agents/skills/fixing-bugs/SKILL.md`]
 [Creates bd bug issue]
 [Writes failing test reproducing bug (RED)]
 [Implements minimal fix (GREEN)]
@@ -259,7 +274,7 @@ Claude (without using-hyper):
 
 Claude: "I'm using hyperpowers:refactoring-safely to extract this validation logic incrementally."
 
-[Skill tool loads refactoring-safely]
+[Read `.agents/skills/refactoring-safely/SKILL.md`]
 
 Step 1: Verify tests pass BEFORE refactoring
 Step 2: Create bd refactoring task
@@ -282,10 +297,10 @@ Step 6: Final verification → close bd task
 ## Rules That Have No Exceptions
 
 1. **Check for relevant skills BEFORE any task** → If skill exists, use it (not optional)
-2. **Use Skill tool to load skills** → Never rely on memory (skills evolve)
+2. **Read skill files from disk** → Never rely on memory (skills evolve)
 3. **Announce skill usage** → Transparency helps catch errors early
 4. **Follow mandatory workflows** → brainstorming before coding, TDD for implementation, verification before claiming done
-5. **Create TodoWrite for checklists** → Mental tracking = skipped steps
+5. **Create a checklist for checklists** → Mental tracking = skipped steps
 
 ## Common Rationalizations
 
@@ -295,7 +310,7 @@ All of these mean: **STOP. Check for and use the relevant skill.**
 - "I can check git/files quickly" (Files lack context. Check for skills.)
 - "Let me gather information first" (Skills tell you HOW to gather. Check for skills.)
 - "This doesn't need a formal skill" (If skill exists, use it. Not optional.)
-- "I remember this skill" (Skills evolve. Use Skill tool to load current version.)
+- "I remember this skill" (Skills evolve. Read the skill file to load the current version.)
 - "This doesn't count as a task" (Taking action = task. Check for skills.)
 - "The skill is overkill for this" (Skills exist because "simple" becomes complex.)
 - "I'll just do this one thing first" (Check for skills BEFORE doing anything.)
@@ -351,10 +366,10 @@ These have HIGH FREEDOM - adapt core principles to context:
 Before completing ANY task:
 
 - [ ] Did I check for relevant skills before starting?
-- [ ] Did I use Skill tool to load skills (not rely on memory)?
+- [ ] Did I read skill files from disk (not rely on memory)?
 - [ ] Did I announce which skill I'm using?
 - [ ] Did I follow the skill's process exactly?
-- [ ] Did I create TodoWrite for any skill checklists?
+- [ ] Did I create a checklist section for any skill checklists?
 - [ ] Did I follow mandatory workflows (brainstorming, TDD, verification)?
 
 **Can't check all boxes?** You skipped critical steps. Review and fix.
@@ -376,7 +391,7 @@ Before completing ANY task:
 
 <resources>
 **Available skills:**
-- See skill descriptions in Skill tool's "Available Commands" section
+- See skill descriptions in each SKILL.md frontmatter or list the `.agents/skills` directory
 - Each skill's description shows when to use it
 
 **When unsure if skill applies:**

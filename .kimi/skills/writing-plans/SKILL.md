@@ -3,6 +3,15 @@ name: writing-plans
 description: Use to expand bd tasks with detailed implementation steps - adds exact file paths, complete code, verification commands assuming zero context
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Enhance bd tasks with comprehensive implementation details for engineers with zero codebase context. Expand checklists into explicit steps: which files, complete code examples, exact commands, verification steps.
 </skill_overview>

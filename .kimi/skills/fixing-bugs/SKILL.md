@@ -1,43 +1,23 @@
 ---
 name: fixing-bugs
-type: flow
 description: Use when encountering a bug - complete workflow from discovery through debugging, bd issue, test-driven fix, verification, and closure
 ---
+
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
 
 <skill_overview>
 Bug fixing is a complete workflow: reproduce, track in bd, debug systematically, write test, fix, verify, close. Every bug gets a bd issue and regression test.
 </skill_overview>
 
-<flow>
-```mermaid
-flowchart TD
-    A[Bug Discovered] --> B[Create bd Bug Issue]
-    B --> C[Debug with Tools]
-    C --> D{Root Cause Found?}
-    D -->|No| E[Use internet-researcher]
-    E --> F[Use codebase-investigator]
-    F --> C
-    D -->|Yes| G[Write Failing Test]
-    G --> H{Test Fails?}
-    H -->|No| I[Rewrite Test to Reproduce Bug]
-    I --> G
-    H -->|Yes| J[Implement Fix]
-    J --> K{Test Passes?}
-    K -->|No| L[Revise Fix]
-    L --> J
-    K -->|Yes| M[Run Full Test Suite]
-    M --> N{All Tests Pass?}
-    N -->|No| O[Fix Regressions]
-    O --> M
-    N -->|Yes| P[Update bd Issue with Fix Details]
-    P --> Q[Close bd Issue]
-    Q --> R[Commit with bd Reference]
-    R --> S[Complete]
-```
-</flow>
-
 <rigidity_level>
-LOW FREEDOM - Follow exact workflow: create bd issue -> debug with tools -> write failing test -> fix -> verify -> close.
+LOW FREEDOM - Follow exact workflow: create bd issue → debug with tools → write failing test → fix → verify → close.
 
 Never skip tracking or regression test. Use debugging-with-tools for investigation, test-driven-development for fix.
 </rigidity_level>
@@ -233,9 +213,9 @@ bd close bd-123
 ```
 
 **If status is not FIXED:**
-- **PARTIALLY_FIXED** -> Document remaining work, create follow-up bd issue, keep original open
-- **NOT_ADDRESSED** -> Return to Step 2 (debugging), do not close
-- **CANNOT_DETERMINE** -> Gather more reproduction info before closing
+- **PARTIALLY_FIXED** → Document remaining work, create follow-up bd issue, keep original open
+- **NOT_ADDRESSED** → Return to Step 2 (debugging), do not close
+- **CANNOT_DETERMINE** → Gather more reproduction info before closing
 
 **Commit with bd reference:**
 ```bash
@@ -505,25 +485,25 @@ void registrationRequiresEmail() {
 
 ## Rules That Have No Exceptions
 
-1. **Every bug gets a bd issue** -> Track from discovery to closure
+1. **Every bug gets a bd issue** → Track from discovery to closure
    - Create bd issue before fixing
    - Document reproduction steps
    - Update with investigation findings
    - Close only after verified
 
-2. **Use debugging-with-tools skill** -> Systematic investigation required
+2. **Use debugging-with-tools skill** → Systematic investigation required
    - Never guess at fixes
    - Use internet-researcher for errors
    - Use debugger/instrumentation for state
    - Find root cause, not symptom
 
-3. **Write failing test first (RED)** -> Regression prevention
+3. **Write failing test first (RED)** → Regression prevention
    - Test must fail before fix
    - Test must reproduce the bug
    - Test must pass after fix
    - If test passes immediately, it doesn't test the bug
 
-4. **Verify complete fix** -> Use verification-before-completion
+4. **Verify complete fix** → Use verification-before-completion
    - Regression test passes
    - Full test suite passes
    - No new warnings
@@ -578,9 +558,9 @@ Before claiming bug fixed:
 <resources>
 
 **When stuck:**
-- Don't understand bug -> Use debugging-with-tools skill
-- Tempted to skip tracking -> Create bd issue first, always
-- Test passes immediately -> Not testing the bug, rewrite test
-- Fix doesn't work -> Return to debugging-with-tools, find actual root cause
+- Don't understand bug → Use debugging-with-tools skill
+- Tempted to skip tracking → Create bd issue first, always
+- Test passes immediately → Not testing the bug, rewrite test
+- Fix doesn't work → Return to debugging-with-tools, find actual root cause
 
 </resources>

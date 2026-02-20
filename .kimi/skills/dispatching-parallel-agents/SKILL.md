@@ -1,7 +1,16 @@
 ---
 name: dispatching-parallel-agents
-description: Use when facing 3+ independent failures that can be investigated without shared state or dependencies - dispatches multiple Claude agents to investigate and fix independent problems concurrently
+description: Use when facing 3+ independent failures that can be investigated without shared state or dependencies - dispatches multiple agents to investigate and fix independent problems concurrently
 ---
+
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
 
 <skill_overview>
 When facing 3+ independent failures, dispatch one agent per problem domain to investigate concurrently; verify independence first, dispatch all in single message, wait for all agents, check conflicts, verify integration.
@@ -16,14 +25,14 @@ MEDIUM FREEDOM - Follow the 6-step process (identify, create tasks, dispatch, mo
 |------|--------|---------------|
 | 1. Identify Domains | Test independence (fix A doesn't affect B) | 3+ independent domains required |
 | 2. Create Agent Tasks | Write focused prompts (scope, goal, constraints, output) | One prompt per domain |
-| 3. Dispatch Agents | Launch all agents in SINGLE message | Multiple Task() calls in parallel |
+| 3. Dispatch Agents | Launch all agents in SINGLE message | Multiple spawn_agent calls in parallel |
 | 4. Monitor Progress | Track completions, don't integrate until ALL done | Wait for all agents |
 | 5. Review Results | Read summaries, check conflicts | Manual conflict resolution |
 | 6. Verify Integration | Run full test suite | Use verification-before-completion |
 
 **Why 3+?** With only 2 failures, coordination overhead often exceeds sequential time.
 
-**Critical:** Dispatch all agents in single message with multiple Task() calls, or they run sequentially.
+**Critical:** Dispatch all agents in a single parallel tool call, or they run sequentially.
 </quick_reference>
 
 <when_to_use>
@@ -50,7 +59,7 @@ Don't use when:
 
 **Announce:** "I'm using hyperpowers:dispatching-parallel-agents to investigate these independent failures concurrently."
 
-**Create TodoWrite tracker:**
+**Create checklist tracker:**
 ```
 - Identify independent domains (3+ domains identified)
 - Create agent tasks (one prompt per domain drafted)
@@ -151,24 +160,41 @@ Return: Summary of what you found and what you fixed.
 
 ## Step 3: Dispatch All Agents in Parallel
 
-**CRITICAL:** You must dispatch all agents in a SINGLE message with multiple Task() calls.
+**CRITICAL:** Dispatch all agents in a SINGLE parallel tool call. Use `spawn_agent` inside `multi_tool_use.parallel` so they run concurrently.
 
-```typescript
-// ✅ CORRECT - Single message with multiple parallel tasks
-Task("Fix agent-tool-abort.test.ts failures", prompt1)
-Task("Fix batch-completion-behavior.test.ts failures", prompt2)
-Task("Fix tool-approval-race-conditions.test.ts failures", prompt3)
-// All three run concurrently
-
-// ❌ WRONG - Sequential messages
-Task("Fix agent-tool-abort.test.ts failures", prompt1)
-// Wait for response
-Task("Fix batch-completion-behavior.test.ts failures", prompt2)
-// This is sequential, not parallel!
+```json
+{
+  "tool": "multi_tool_use.parallel",
+  "tool_uses": [
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix agent-tool-abort.test.ts failures. Return summary of root cause and changes."
+      }
+    },
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix batch-completion-behavior.test.ts failures. Return summary of root cause and changes."
+      }
+    },
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix tool-approval-race-conditions.test.ts failures. Return summary of root cause and changes."
+      }
+    }
+  ]
+}
 ```
 
+**Avoid:** sequentially calling `spawn_agent` in separate messages. That runs agents one at a time.
+
 **After dispatch:**
-- Mark "Dispatch agents in parallel" as completed in TodoWrite
+- Mark "Dispatch agents in parallel" as completed in the checklist
 - Mark "Monitor agent progress" as in_progress
 - Wait for all agents to complete before integration
 
@@ -243,15 +269,15 @@ npm test  # or cargo test, pytest, etc.
 # Creates 3 agent prompts
 
 # Dispatches first agent
-Task("Fix agent-tool-abort.test.ts failures", prompt1)
+spawn_agent(prompt1)
 # Waits for response from agent 1
 
 # Then dispatches second agent
-Task("Fix batch-completion-behavior.test.ts failures", prompt2)
+spawn_agent(prompt2)
 # Waits for response from agent 2
 
 # Then dispatches third agent
-Task("Fix tool-approval-race-conditions.test.ts failures", prompt3)
+spawn_agent(prompt3)
 
 # Total time: Sum of all three agents (sequential)
 </code>
@@ -268,24 +294,33 @@ Task("Fix tool-approval-race-conditions.test.ts failures", prompt3)
 <correction>
 **Dispatch all agents in SINGLE message:**
 
-```typescript
-// Single message with multiple Task() calls
-Task("Fix agent-tool-abort.test.ts failures", `
-Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
-[prompt 1 content]
-`)
-
-Task("Fix batch-completion-behavior.test.ts failures", `
-Fix the 2 failing tests in src/agents/batch-completion-behavior.test.ts:
-[prompt 2 content]
-`)
-
-Task("Fix tool-approval-race-conditions.test.ts failures", `
-Fix the 1 failing test in src/agents/tool-approval-race-conditions.test.ts:
-[prompt 3 content]
-`)
-
-// All three run concurrently - THIS IS THE KEY
+```json
+{
+  "tool": "multi_tool_use.parallel",
+  "tool_uses": [
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts: [prompt 1 content]"
+      }
+    },
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix the 2 failing tests in src/agents/batch-completion-behavior.test.ts: [prompt 2 content]"
+      }
+    },
+    {
+      "recipient_name": "functions.spawn_agent",
+      "parameters": {
+        "agent_type": "worker",
+        "message": "Fix the 1 failing test in src/agents/tool-approval-race-conditions.test.ts: [prompt 3 content]"
+      }
+    }
+  ]
+}
 ```
 
 **What happens:**
@@ -567,11 +602,11 @@ npm test
 
 1. **Verify independence first** → Test with questions before dispatching
 2. **3+ domains required** → 2 failures: overhead exceeds benefit, do sequentially
-3. **Single message dispatch** → All agents in one message with multiple Task() calls
+3. **Single message dispatch** → All agents in one parallel tool call with multiple `spawn_agent` uses
 4. **Wait for ALL agents** → Don't integrate until all complete
 5. **Check conflicts manually** → Read summaries, verify no contradictions
 6. **Verify integration** → Run full suite yourself, don't trust agents
-7. **TodoWrite tracking** → Track agent progress explicitly
+7. **Checklist tracking** → Track agent progress explicitly
 
 ## Common Excuses
 
@@ -582,7 +617,7 @@ All of these mean: **STOP. Follow the process.**
 - "Can dispatch sequentially to save syntax" (WRONG - must dispatch in single message)
 - "Agent failed, but others succeeded - ship it" (All agents must succeed or re-investigate)
 - "Conflicts are minor, can ignore" (Resolve all conflicts explicitly)
-- "Don't need TodoWrite for just tracking agents" (Use TodoWrite, track properly)
+- "Don't need a checklist for just tracking agents" (Use a checklist, track properly)
 - "Can skip verification, agents ran tests" (Agents can make mistakes, YOU verify)
 </critical_rules>
 
@@ -592,7 +627,7 @@ Before completing parallel agent work:
 - [ ] Verified independence with 3 questions (fix A affects B? same code? same error pattern?)
 - [ ] 3+ independent domains identified (not 2 or fewer)
 - [ ] Created focused agent prompts (scope, goal, constraints, output)
-- [ ] Dispatched all agents in single message (multiple Task() calls)
+- [ ] Dispatched all agents in a single parallel tool call (multiple `spawn_agent` uses)
 - [ ] Waited for ALL agents to complete (didn't integrate early)
 - [ ] Read all agent summaries carefully
 - [ ] Checked for conflicts (same files, contradictory assumptions)
@@ -616,7 +651,7 @@ Before completing parallel agent work:
 **This skill uses:**
 - Task tool (dispatch parallel agents)
 - AgentOutput tool (monitor stuck agents)
-- TodoWrite (track agent progress)
+- Checklist (track agent progress)
 
 **Workflow integration:**
 ```

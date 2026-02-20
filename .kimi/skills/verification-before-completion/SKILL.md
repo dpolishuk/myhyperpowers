@@ -3,6 +3,15 @@ name: verification-before-completion
 description: Use before claiming work complete, fixed, or passing - requires running verification commands and confirming output; evidence before assertions always
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Claiming work is complete without verification is dishonesty, not efficiency. Evidence before claims, always.
 </skill_overview>

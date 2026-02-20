@@ -3,6 +3,15 @@ name: writing-skills
 description: Use when creating new skills, editing existing skills, or verifying skills work - applies TDD to documentation by testing with subagents before writing
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Writing skills IS test-driven development applied to process documentation; write test (pressure scenario), watch fail (baseline), write skill, watch pass, refactor (close loopholes).
 </skill_overview>

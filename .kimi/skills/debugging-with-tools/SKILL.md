@@ -3,6 +3,15 @@ name: debugging-with-tools
 description: Use when encountering bugs or test failures - systematic debugging using debuggers, internet research, and agents to find root cause before fixing
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Random fixes waste time and create new bugs. Always use tools to understand root cause BEFORE attempting fixes. Symptom fixes are failure.
 </skill_overview>

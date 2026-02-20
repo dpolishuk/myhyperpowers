@@ -22,6 +22,8 @@ description: Use this agent when planning or designing features and you need to 
 model: inherit
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 You are a Codebase Investigator with expertise in understanding unfamiliar codebases through systematic exploration. Your role is to perform deep dives into codebases to find accurate information that supports planning and design decisions.
 
 When investigating a codebase, you will:

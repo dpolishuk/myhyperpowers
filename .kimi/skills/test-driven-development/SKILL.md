@@ -1,56 +1,20 @@
 ---
 name: test-driven-development
-type: flow
 description: Use when implementing features or fixing bugs - enforces RED-GREEN-REFACTOR cycle requiring tests to fail before writing code
 ---
+
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
 
 <skill_overview>
 Write the test first, watch it fail, write minimal code to pass. If you didn't watch the test fail, you don't know if it tests the right thing.
 </skill_overview>
-
-<flow>
-```mermaid
-flowchart TD
-    Start([Start: New Feature/Bug Fix]) --> WriteTest
-
-    subgraph RED["RED Phase"]
-        WriteTest[Write failing test<br/>- One behavior only<br/>- Clear name<br/>- Real code, no mocks]
-        WriteTest --> RunTestRed[Run test]
-        RunTestRed --> CheckFail{Test fails?}
-        CheckFail -->|No - passes| FixTest[Fix test or delete code<br/>Test must fail first]
-        FixTest --> RunTestRed
-        CheckFail -->|Errors - syntax| FixSyntax[Fix syntax error]
-        FixSyntax --> RunTestRed
-        CheckFail -->|Yes - expected failure| VerifyFailure{Failure message<br/>expected?}
-        VerifyFailure -->|No - wrong reason| FixTest
-        VerifyFailure -->|Yes - feature missing| GREEN
-    end
-
-    subgraph GREEN["GREEN Phase"]
-        WriteCode[Write minimal code<br/>- Simplest to pass<br/>- Nothing extra<br/>- No refactoring yet]
-        WriteCode --> RunTestGreen[Run all tests]
-        RunTestGreen --> CheckPass{All tests pass?}
-        CheckPass -->|No - new test fails| FixCode[Fix implementation<br/>NOT the test]
-        FixCode --> RunTestGreen
-        CheckPass -->|No - other tests fail| FixRegression[Fix regression now<br/>before proceeding]
-        FixRegression --> RunTestGreen
-        CheckPass -->|Yes| REFACTOR
-    end
-
-    subgraph REFACTOR["REFACTOR Phase"]
-        Clean[Clean up code<br/>- Remove duplication<br/>- Improve names<br/>- Extract helpers]
-        Clean --> RunTestRefactor[Run all tests]
-        RunTestRefactor --> StillGreen{Tests still pass?}
-        StillGreen -->|No| UndoRefactor[Undo refactoring<br/>Keep tests green]
-        UndoRefactor --> Clean
-        StillGreen -->|Yes| MoreWork
-    end
-
-    MoreWork{More to<br/>implement?}
-    MoreWork -->|Yes| WriteTest
-    MoreWork -->|No| Complete([Complete: All tests pass])
-```
-</flow>
 
 <rigidity_level>
 LOW FREEDOM - Follow these exact steps in order. Do not adapt.
@@ -105,9 +69,9 @@ See [resources/language-examples.md](resources/language-examples.md) for Rust, S
 **MANDATORY. Never skip.**
 
 Run the test and confirm:
-- Test **fails** (not errors with syntax issues)
-- Failure message is expected ("function not found" or assertion fails)
-- Fails because feature missing (not typos)
+- ✓ Test **fails** (not errors with syntax issues)
+- ✓ Failure message is expected ("function not found" or assertion fails)
+- ✓ Fails because feature missing (not typos)
 
 **If test passes:** You're testing existing behavior. Fix the test.
 **If test errors:** Fix syntax error, re-run until it fails correctly.
@@ -123,9 +87,9 @@ Write simplest code to pass the test. Nothing more.
 **MANDATORY.**
 
 Run tests and confirm:
-- New test passes
-- All other tests still pass
-- No errors or warnings
+- ✓ New test passes
+- ✓ All other tests still pass
+- ✓ No errors or warnings
 
 **If test fails:** Fix code, not test.
 **If other tests fail:** Fix now before proceeding.
@@ -307,20 +271,20 @@ func testCreatesAccountFromRequest() {
 
 ## Rules That Have No Exceptions
 
-1. **Write code before test?** -> Delete it. Start over.
+1. **Write code before test?** → Delete it. Start over.
    - Never keep as "reference"
    - Never "adapt" while writing tests
    - Delete means delete
 
-2. **Test passes immediately?** -> Not TDD. Fix the test or delete the code.
+2. **Test passes immediately?** → Not TDD. Fix the test or delete the code.
    - Passing immediately proves nothing
    - You're testing existing behavior, not required behavior
 
-3. **Can't explain why test failed?** -> Fix until failure makes sense.
+3. **Can't explain why test failed?** → Fix until failure makes sense.
    - "function not found" = good (feature doesn't exist)
    - Weird error = bad (fix test, re-run)
 
-4. **Want to skip "just this once"?** -> That's rationalization. Stop.
+4. **Want to skip "just this once"?** → That's rationalization. Stop.
    - TDD is faster than debugging in production
    - "Too simple to test" = test takes 30 seconds
    - "Already manually tested" = not systematic, not repeatable
@@ -374,8 +338,8 @@ Before marking work complete:
 - [Language-specific test commands](resources/language-examples.md#verification-commands-by-language)
 
 **When stuck:**
-- Test too complicated? -> Design too complicated, simplify interface
-- Must mock everything? -> Code too coupled, use dependency injection
-- Test setup huge? -> Extract helpers, or simplify design
+- Test too complicated? → Design too complicated, simplify interface
+- Must mock everything? → Code too coupled, use dependency injection
+- Test setup huge? → Extract helpers, or simplify design
 
 </resources>

@@ -3,6 +3,15 @@ name: testing-anti-patterns
 description: Use when writing or changing tests, adding mocks - prevents testing mock behavior, production pollution with test-only methods, and mocking without understanding dependencies
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Tests must verify real behavior, not mock behavior; mocks are tools to isolate, not things to test.
 </skill_overview>

@@ -3,6 +3,15 @@ name: root-cause-tracing
 description: Use when errors occur deep in execution - traces bugs backward through call stack to find original trigger, not just symptom
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Bugs manifest deep in the call stack; trace backward until you find the original trigger, then fix at source, not where error appears.
 </skill_overview>

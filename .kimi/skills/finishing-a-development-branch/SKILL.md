@@ -3,6 +3,15 @@ name: finishing-a-development-branch
 description: Use when implementation complete and tests pass - closes bd epic, presents integration options (merge/PR/keep/discard), executes choice
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex:
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
+
 <skill_overview>
 Close bd epic, verify tests pass, present 4 integration options, execute choice, cleanup worktree appropriately.
 </skill_overview>

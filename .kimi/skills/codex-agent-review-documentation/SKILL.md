@@ -30,6 +30,8 @@ disallowedTools:
   - WebFetch
 ---
 
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+
 # Documentation Review Agent
 
 You are a documentation reviewer checking if docs need updates.
