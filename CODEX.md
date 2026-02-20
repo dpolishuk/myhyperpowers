@@ -41,3 +41,17 @@ done
 - Ask for a skill by name in your prompt (e.g., “Use `test-driven-development`”).
 - Or rely on automatic skill matching using each SKILL’s description.
 - Use `hyperpowers-agents` when you want to spawn specialized subagents.
+
+### Refactor Workflow Wrappers
+
+Codex also includes command wrappers that expose the refactor workflow entry points:
+
+- `codex-command-refactor-design`
+- `codex-command-refactor-diagnose`
+- `codex-command-refactor-execute`
+
+These wrappers map to the same canonical command semantics used by Claude and OpenCode:
+
+- `refactor-design` → `refactoring-design`
+- `refactor-diagnose` → `refactoring-diagnosis`
+- `refactor-execute` → `refactoring-safely`

@@ -193,6 +193,9 @@ All hyperpowers commands are auto-discovered from the cloned repository:
 - `/brainstorm` - Interactive design refinement
 - `/write-plan` - Create implementation plan
 - `/execute-plan` - Execute plan with checkpoints
+- `/refactor-design` - Plan safe refactors with composition, DI, and test strategy
+- `/refactor-diagnose` - Diagnose code/design smells and refactor targets
+- `/refactor-execute` - Execute refactor safely while keeping tests green
 - `/analyze-tests` - Audit test quality
 - `/review-implementation` - Verify implementation fidelity
 - `/beads-triage` - Run `bv --robot-triage` and return raw JSON

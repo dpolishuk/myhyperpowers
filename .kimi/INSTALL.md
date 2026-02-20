@@ -50,7 +50,7 @@ cp .kimi/mcp.json ~/.config/kimi/mcp.json
 
 ## What Gets Installed
 
-### Skills (21 total)
+### Skills (24+ total)
 
 Located in `~/.config/agents/skills/`:
 
@@ -66,6 +66,9 @@ Located in `~/.config/agents/skills/`:
 | `verification-before-completion` | Evidence-based verification |
 | `review-implementation` | Verify against spec |
 | `refactoring-safely` | Safe refactoring with tests |
+| `codex-command-refactor-design` | Command entry point for refactor design |
+| `codex-command-refactor-diagnose` | Command entry point for refactor diagnosis |
+| `codex-command-refactor-execute` | Command entry point for safe refactor execution |
 | `analyzing-test-effectiveness` | Audit test quality |
 | `sre-task-refinement` | Corner case analysis |
 | ... and more |
