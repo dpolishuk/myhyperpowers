@@ -2,11 +2,6 @@
   "name": "myhyperpowers",
   "description": "Ryan's riff on obra/superpowers: strong guidance for Claude Code as a software development assistant",
   "version": "2.12.1",
-  "commands": "./commands",
-  "agents": "./agents",
-  "skills": "./skills",
-  "hooks": "./hooks",
-  "mcpServers": "./.mcp.json",
   "author": {
     "name": "Ryan Stortz",
     "email": "ryan@withzombies.com"
@@ -15,9 +10,4 @@
   "repository": "https://github.com/dpolishuk/myhyperpowers",
   "license": "MIT",
   "keywords": ["skills", "tdd", "debugging", "collaboration", "best-practices", "workflows"],
-  "commands": "./commands",
-  "agents": "./agents",
-  "skills": "./skills",
-  "hooks": "./hooks",
-  "mcpServers": "./.mcp.json"
 }
