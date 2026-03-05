@@ -31,6 +31,8 @@ type TaskSummaryRecord = {
   timestamp: string
 }
 
+type CommandIntent = "execute-ralph" | "execute-plan" | null
+
 const DEFAULT_CONFIG: Required<TaskContextConfig> = {
   enabled: true,
   timeoutMs: 2500,
@@ -222,6 +224,53 @@ const formatContextPack = (entries: TaskMemoryEntry[], maxChars: number) => {
   return applyTruncation(lines.join("\n"), maxChars)
 }
 
+const detectCommandIntent = (prompt: string): CommandIntent => {
+  const normalized = prompt.toLowerCase()
+  if (/(?:\/hyperpowers:)?execute-ralph\b/.test(normalized) || /\bexecute-ralph\b/.test(normalized)) {
+    return "execute-ralph"
+  }
+  if (/(?:\/hyperpowers:)?execute-plan\b/.test(normalized) || /\bexecute-plan\b/.test(normalized)) {
+    return "execute-plan"
+  }
+  return null
+}
+
+const filterEntriesForIntent = (entries: TaskMemoryEntry[], intent: CommandIntent): TaskMemoryEntry[] => {
+  if (!intent) return entries
+  return entries.filter((entry) => {
+    const normalized = `${entry.key} ${entry.content}`.toLowerCase()
+    if (
+      intent === "execute-ralph" &&
+      normalized.includes("execute-plan") &&
+      (normalized.includes("stop checkpoint") ||
+        normalized.includes("stop after each task") ||
+        normalized.includes("checkpoint"))
+    ) {
+      return false
+    }
+    if (intent === "execute-plan" && normalized.includes("execute-ralph") && normalized.includes("no checkpoint")) {
+      return false
+    }
+    return true
+  })
+}
+
+const formatIntentLock = (intent: CommandIntent) => {
+  if (!intent) return null
+  if (intent === "execute-ralph") {
+    return [
+      "Task Command Intent Lock",
+      "- execute-ralph intent is authoritative",
+      "- do not downgrade to execute-plan checkpoint semantics",
+    ].join("\n")
+  }
+  return [
+    "Task Command Intent Lock",
+    "- execute-plan intent is authoritative",
+    "- preserve STOP-after-each-task checkpoint semantics",
+  ].join("\n")
+}
+
 const readSummaryCache = async (filePath: string): Promise<TaskSummaryRecord[]> => {
   if (!existsSync(filePath)) return []
   try {
@@ -286,6 +335,8 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       const prompt = typeof args.prompt === "string" ? args.prompt : ""
       if (!prompt.trim()) return
       if (prompt.startsWith("Task Context Pack")) return
+
+      const commandIntent = detectCommandIntent(prompt)
 
       const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`
       ;(output.args as any).__taskContextRunId = runId
@@ -396,12 +447,22 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       serenaEntries.push(...summariesToEntries(cachedSummaries))
 
       const merged = mergeEntries(serenaEntries, supermemoryEntries, config.maxItems)
-      await writeJsonFile(lastContextPath, { run_id: runId, entries: merged })
+      const intentScopedEntries = filterEntriesForIntent(merged, commandIntent)
+      await writeJsonFile(lastContextPath, {
+        run_id: runId,
+        intent: commandIntent,
+        entries: intentScopedEntries,
+      })
 
-      const contextPack = formatContextPack(merged, config.maxChars)
-      if (!contextPack) return
+      const contextPack = formatContextPack(intentScopedEntries, config.maxChars)
+      const intentLock = formatIntentLock(commandIntent)
 
-      output.args.prompt = `${contextPack}\n\n${prompt}`
+      if (!contextPack && !intentLock) return
+      if (contextPack && intentLock) {
+        output.args.prompt = `${intentLock}\n\n${contextPack}\n\n${prompt}`
+        return
+      }
+      output.args.prompt = `${contextPack ?? intentLock}\n\n${prompt}`
     },
     "tool.execute.after": async (input, output) => {
       if (!config.enabled) return

@@ -19,11 +19,13 @@ description: Execute entire epic autonomously with continuous review. No user ch
 Executes a complete bd epic without stopping for user review:
 
 1. Loads epic and all tasks
-2. Executes each task using TDD
-3. Reviews each task with autonomous-reviewer (uses web search)
-4. Fixes issues autonomously (max 2 iterations per task)
-5. Runs comprehensive final review
-6. Presents summary only at completion
+2. Executes each task using TDD and verification gates
+3. Re-checks epic success criteria after every task
+4. If criteria are unmet and no task is ready, auto-creates the next task, runs SRE refinement, and continues
+5. Reviews and fixes issues autonomously in a sequential loop
+6. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED
+7. Max autonomous no-progress retries: 50
+8. Presents summary only at completion
 
 ## When to Use
 
@@ -36,6 +38,28 @@ Executes a complete bd epic without stopping for user review:
 - Ambiguous requirements → use `/hyperpowers:execute-plan` instead
 - High-risk changes needing human oversight
 - You want to review between tasks
+
+## Contract Guardrails
+
+- Do not delegate to `/hyperpowers:execute-plan` checkpoint semantics unless the ambiguity gate is explicitly triggered.
+- Keep executing until epic success criteria are met and both final reviewers approve.
+
+## Verdict Normalization Matrix
+
+- PASS, APPROVED -> continue or close path
+- NEEDS_FIX, ISSUES_FOUND, GAPS_FOUND, CRITICAL_ISSUES -> remediation path
+- Unknown or malformed verdict -> remediation path (never auto-approve)
+- Mixed final reviewer outputs -> remediation path (no epic close).
+
+## Quality Gate Sequence (pre-commit-equivalent for this repo)
+
+Run these verification commands as evidence before claiming epic success criteria are met:
+In guarded environments, direct .git/hooks/pre-commit execution may be blocked by safety guardrails.
+
+- `node --test tests/execute-ralph-contract.test.js`
+- `node --test tests/codex-*.test.js`
+- `node --test tests/*.test.js`
+- `node scripts/sync-codex-skills.js --check`
 
 ---
 

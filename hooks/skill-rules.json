@@ -125,6 +125,19 @@
       ]
     }
   },
+  "execute-ralph": {
+    "type": "workflow",
+    "enforcement": "suggest",
+    "priority": "critical",
+    "promptTriggers": {
+      "keywords": ["execute-ralph", "ralph", "autonomous epic", "no checkpoints", "run full epic autonomously"],
+      "intentPatterns": [
+        "(execute|run|start).*?(ralph|execute-ralph)",
+        "(autonomous|hands-off).*(epic|execution|workflow)",
+        "(complete|finish).*?(epic).*(without|no).*(checkpoint|stop)"
+      ]
+    }
+  },
   "review-implementation": {
     "type": "workflow",
     "enforcement": "suggest",

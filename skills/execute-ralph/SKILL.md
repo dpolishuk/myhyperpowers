@@ -366,9 +366,55 @@ FLAGGED FOR USER REVIEW:
 
 ## Phase 7: Task Loop
 
-Repeat Phases 1-6 until:
-- All tasks closed, OR
-- Critical blocker encountered
+Repeat Phases 1-6 until epic success criteria are met and final gate approvals succeed.
+
+Before each loop iteration, evaluate current work state against epic criteria:
+
+1. Query active work:
+```bash
+bd list --status in_progress
+bd ready
+bd show bd-1
+```
+
+2. If an in-progress task exists, continue it.
+
+3. If a ready task exists, claim and execute it.
+
+4. If no ready or in-progress tasks exist and epic success criteria are still unmet, do not stop - create and execute the next task.
+
+### Auto-create next task from unmet criterion
+
+When criteria are unmet and no executable task exists, create the next task directly from the unmet criterion:
+
+```bash
+bd create "Task: [criterion gap]" \
+  --type feature \
+  --priority 1 \
+  --design "## Goal
+[Close the unmet criterion gap]
+
+## Context
+- Epic: bd-1
+- Gap: [exact unmet criterion]
+
+## Implementation
+- [Concrete steps]
+
+## Success Criteria
+- [ ] Criterion gap closed with verifiable evidence
+- [ ] Tests passing"
+
+bd dep add bd-NEW bd-1 --type parent-child
+```
+
+Immediately refine before execution:
+
+```
+Use Skill tool: hyperpowers:sre-task-refinement
+```
+
+Then return to Phase 1 and execute the refined task.
 
 **Critical blocker criteria:**
 - Cannot compile after 2 fix iterations
@@ -397,32 +443,20 @@ Use Skill tool: hyperpowers:analyzing-test-effectiveness
 
 **Purpose:** Establish baseline test quality for the epic.
 
-## Phase 9: Final Autonomous Review
+## Phase 9: Final Autonomous Review Gate
 
-After all tasks complete, run **2-agent critical review** (quality + implementation only):
+After epic criteria are apparently met, run dual final approval gate:
 
 ```
 Dispatch IN PARALLEL:
 
-1. review-quality:
+1. autonomous-reviewer:
    "FINAL REVIEW for epic bd-1.
-   Focus: CRITICAL and MAJOR issues only.
-   Scope: All changes in this epic.
-
-   Epic: [title]
-   All tasks completed: [list]
-
-   Look for:
-   - Security vulnerabilities across the full implementation
-   - Integration issues between tasks
-   - Race conditions in combined code paths
-
-   Return: APPROVED or CRITICAL_ISSUES with specific fixes needed."
+   Validate all integrated work and run web-backed checks where uncertain.
+   Return: APPROVED or GAPS_FOUND with concrete remediation tasks."
 
 2. review-implementation:
    "FINAL REVIEW for epic bd-1.
-   Focus: CRITICAL gaps only.
-
    Epic requirements: [full list]
    Completed tasks: [list]
 
@@ -431,14 +465,37 @@ Dispatch IN PARALLEL:
    - No requirements were lost between tasks
    - Integration is complete
 
-   Return: APPROVED or CRITICAL_ISSUES with missing requirements."
+   Return: APPROVED or GAPS_FOUND with missing requirements."
 ```
+
+Only close epic when BOTH final reviewers approve.
+
+### Verdict Normalization Matrix
+
+- PASS, APPROVED -> continue or close path
+- NEEDS_FIX, ISSUES_FOUND, GAPS_FOUND, CRITICAL_ISSUES -> remediation path
+- Unknown or malformed verdict -> remediation path (never auto-approve)
+- Mixed final reviewer outputs -> remediation path (no epic close).
+
+Mixed final reviewer outputs are non-approval.
+Do not close the epic unless both final reviewers return APPROVED.
+Unknown or malformed verdict must create a remediation task and continue the loop.
+
+### Quality Gate Sequence (pre-commit-equivalent for this repo)
+
+Run these verification commands and keep output as epic-closure evidence:
+In guarded environments, direct .git/hooks/pre-commit execution may be blocked by safety guardrails.
+
+- `node --test tests/execute-ralph-contract.test.js`
+- `node --test tests/codex-*.test.js`
+- `node --test tests/*.test.js`
+- `node scripts/sync-codex-skills.js --check`
 
 ### If Both APPROVED
 
-→ Proceed to Phase 6
+→ Proceed to Phase 7 (Branch Completion)
 
-### If CRITICAL_ISSUES
+### If Any Non-Approval (GAPS_FOUND, NEEDS_FIX, CRITICAL_ISSUES)
 
 Create remediation tasks:
 ```bash
@@ -450,7 +507,10 @@ bd dep add bd-NEW bd-1 --type parent-child
 
 Execute remediation tasks (return to Phase 1).
 
-**Safety limit:** Max 3 remediation rounds. If still issues after 3 rounds, flag for user and complete.
+Track no-progress rounds (same unresolved findings with no material diff):
+
+- Keep generating alternative remediation tasks and continue autonomously.
+- Escalate to user only after max 50 no-progress remediation cycles.
 
 ## Phase 7: Branch Completion
 
@@ -542,8 +602,8 @@ Branch completion options presented via finishing-a-development-branch:
 4. **Test effectiveness analysis REQUIRED** - Run test-effectiveness-analyst after 5-agent review
 5. **Debug systematically** - Use debugging-with-tools when root cause unclear
 6. **Max 2 fix iterations per task** - After 2, flag and continue
-7. **Max 3 remediation rounds** - After 3, complete with flags
-8. **Max 10 tasks per execution** - Safety limit to prevent runaway
+7. **No-progress remediation retries are bounded** - Escalate only after max 50 no-progress remediation cycles
+8. **Criteria-driven continuation is mandatory** - Task list exhaustion alone is never a stop condition
 9. **Always use test-runner** - Keep verbose output out of context
 10. **Always run all 5 reviewers + test-effectiveness-analyst** - Full review coverage
 11. **Always auto-commit** - Each task completion gets its own commit
@@ -554,8 +614,7 @@ Branch completion options presented via finishing-a-development-branch:
 
 Only these situations stop autonomous execution:
 - Critical blocker (can't compile, tests completely broken, debugging can't find root cause)
-- 10 task limit reached
-- 3 remediation rounds exhausted
+- max 50 no-progress remediation cycles reached
 
 Everything else: fix autonomously and continue.
 
