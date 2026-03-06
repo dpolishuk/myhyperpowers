@@ -21,3 +21,7 @@ node_modules/
 dist/
 **/node_modules/
 **/dist/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
