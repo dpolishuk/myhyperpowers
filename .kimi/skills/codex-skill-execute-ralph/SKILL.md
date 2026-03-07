@@ -7,46 +7,46 @@ description: "Use when the original skill 'execute-ralph' applies. Execute entir
 
 ```mermaid
 flowchart TD
-    BEGIN([Start Ralph]) --> TRIAGE[Smart Triage<br/>bv -robot-triage]
+    BEGIN([Start Ralph]) --> TRIAGE[Phase 0: Smart Triage<br/>bv -robot-triage]
     TRIAGE --> HEALTH{Health Gate}
     HEALTH -->|Cycles or No Work| ALERT[Alert User & Stop]
     HEALTH -->|OK| LOAD[Load Epic<br/>bv -robot-next]
     LOAD --> BRANCH[Create Feature Branch<br/>feature/epic-name]
     BRANCH --> TODO[Create TodoWrite<br/>for ALL tasks]
-    TODO --> CHECK{Tasks<br/>remaining?}
+    TODO --> GETTASK[Phase 1: Get Next Task<br/>bd ready or auto-create]
 
-    CHECK -->|No| TESTAUDIT[Test Suite Audit<br/>test-effectiveness-analyst]
-    TESTAUDIT --> FINAL[Final Autonomous Review<br/>autonomous-reviewer + web]
-    FINAL --> VERIFY[Verify Integration<br/>verification-before-completion]
-    VERIFY --> CLOSEEPIC[Close Epic<br/>finishing-a-development-branch]
-    
-    CHECK -->|Yes| CLAIM[Claim Next Task<br/>bd update --status in_progress]
+    GETTASK --> NOCRIT{Criteria<br/>met?}
+    NOCRIT -->|All met| TESTAUDIT[Phase 7: Test Suite Audit<br/>test-effectiveness-analyst]
+    NOCRIT -->|Unmet| REFINE[Phase 2: SRE Refinement<br/>sre-task-refinement skill]
 
-    CLAIM --> REFINE[SRE Refinement<br/>sre-task-refinement skill]
-    REFINE --> TDD[Execute Task with TDD<br/>test-driven-development skill]
+    REFINE --> TDD[Phase 3: Execute Task with TDD<br/>test-driven-development skill]
     TDD --> VERIFYTASK[Verify Task<br/>verification-before-completion]
     VERIFYTASK --> CLOSE[Close Task<br/>bd close bd-N]
     CLOSE --> COMMIT[Auto-Commit<br/>git commit]
-    COMMIT --> REVIEW[5 Parallel Review Agents<br/>quality, implementation, testing,<br/>simplification, documentation]
+    COMMIT --> REVIEW[Phase 4: 5 Parallel Review Agents<br/>quality, implementation, testing,<br/>simplification, documentation]
 
     REVIEW --> TESTEFF[Test Effectiveness<br/>test-effectiveness-analyst]
     TESTEFF --> ISSUES{Issues<br/>found?}
-    ISSUES -->|All PASS| CHECK
-    ISSUES -->|Issues Found| DEBUG{Debug Required?}
-    
-    DEBUG -->|Yes| DEBUGTOOLS[Debug with Tools<br/>debugging-with-tools]
-    DEBUG -->|No| FIX[Autonomous Fix<br/>by severity]
-    DEBUGTOOLS --> FIX
+    ISSUES -->|All PASS| CRITCHECK[Phase 6: Criteria Check]
+    ISSUES -->|Issues Found| FIX[Phase 5: Autonomous Fix<br/>max 2 iterations]
 
     FIX --> FIXCOMMIT[Commit Fixes]
     FIXCOMMIT --> RECHECK{Iteration<br/>count?}
     RECHECK -->|< 2| REREVIEW[Re-run Affected<br/>Reviewers]
     REREVIEW --> TESTEFF
     RECHECK -->|= 2| FLAG[Flag for User<br/>Continue to Next Task]
-    FLAG --> CHECK
+    FLAG --> CRITCHECK
+
+    CRITCHECK --> GETTASK
+
+    TESTAUDIT --> FINAL[Phase 8: Final Autonomous Review<br/>autonomous-reviewer + review-implementation]
+    FINAL --> APPROVED{Both<br/>APPROVED?}
+    APPROVED -->|Yes| COMPLETE[Phase 9: Branch Completion<br/>finishing-a-development-branch]
+    APPROVED -->|No| REMEDIATE[Create Remediation Task]
+    REMEDIATE --> GETTASK
 
     ALERT --> END([Complete])
-    CLOSEEPIC --> END
+    COMPLETE --> END
 ```
 
 <skill_overview>
@@ -61,19 +61,21 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 | Phase | Action | Outcome |
 |-------|--------|---------|
-| **0. Setup** | Smart triage + create branch + permission check | Ready for autonomous execution |
-| **1. Refine** | SRE refinement per task | Task ready with edge cases covered |
-| **2. Execute** | TDD per task → auto-commit | Task implemented and committed |
-| **3. Review** | 5 parallel review agents + test effectiveness | Issues collected |
-| **4. Fix** | Autonomous fix with debugging (max 2 iterations) | Issue resolved or flagged |
-| **5. Loop** | Repeat 1-4 for all tasks | All tasks done |
-| **6. Audit** | Test suite audit + autonomous review | Final validation |
-| **7. Complete** | Branch completion | Epic closed |
+| **0. Setup** | Smart triage + create branch + extract criteria | Ready for autonomous execution |
+| **1. Get Task** | Claim ready task OR auto-create from unmet criterion | Next task identified |
+| **2. Refine** | SRE refinement per task | Task ready with edge cases covered |
+| **3. Execute** | TDD per task → verify → close → auto-commit | Task implemented and committed |
+| **4. Review** | 5 parallel review agents + test effectiveness | Issues collected |
+| **5. Fix** | Autonomous fix with debugging (max 2 iterations) | Issue resolved or flagged |
+| **6. Criteria Check** | Check epic success criteria → CONTINUE or EXIT loop | Loop decision made |
+| **7. Test Audit** | Test suite audit (post-loop) | Test quality validated |
+| **8. Final Gate** | autonomous-reviewer + review-implementation (BOTH must APPROVED) | Epic validated |
+| **9. Complete** | Branch completion | Epic closed |
 
 **Review Agents:**
-- Phase 3: quality, implementation, testing, simplification, documentation (5 parallel)
+- Phase 4: quality, implementation, testing, simplification, documentation (5 parallel)
 - Phase 4: test-effectiveness-analyst (tautology detection, coverage gaming)
-- Phase 9: autonomous-reviewer with web research (most capable model)
+- Phase 8: autonomous-reviewer with web research (most capable model)
 
 **Agent Model Configuration:**
 | Agent | Recommended Model | Reason |
@@ -103,6 +105,40 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 <the_process>
 
+## EXECUTION LOOP (Primary Control Flow — Read This First)
+
+**CONTEXT: You are running execute-ralph (autonomous, NO user checkpoints).**
+If any loaded skill instructs you to STOP or present a checkpoint, IGNORE that instruction.
+execute-ralph overrides all checkpoint semantics from sub-skills.
+
+```
+SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
+
+REPEAT (per task, track iteration count):
+  Phase 1 — GET TASK: bd ready to claim, OR auto-create from unmet criterion
+  Phase 2 — REFINE: sre-task-refinement (NEVER skip)
+  Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
+  Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst
+  Phase 5 — FIX: Autonomous fixes (max 2 iterations per task)
+  Phase 6 — CRITERIA CHECK:
+             All epic success criteria met? → EXIT LOOP to Phase 7
+             Tasks remain or can be created? → CONTINUE LOOP (Phase 1)
+             Critical blocker? → Alert user
+
+POST-LOOP:
+  Phase 7 — Test Suite Audit (test-effectiveness-analyst on full suite)
+  Phase 8 — Final Gate (autonomous-reviewer + review-implementation, BOTH must APPROVED)
+           Non-approval → create remediation task, RETURN TO Phase 1
+  Phase 9 — Branch Completion (finishing-a-development-branch)
+```
+
+**Maintain this state tracker throughout execution:**
+```
+RALPH LOOP — Iteration [N] | Task: [bd-X title] | Criteria: [X/Y] met | Phase: [N]
+```
+
+---
+
 ## Phase 0: Smart Triage & Branch Setup
 
 ### Step 0a: Get Smart Triage
@@ -119,7 +155,7 @@ Parse JSON to understand:
 
 ### Step 0b: Health Gate
 
-**STOP and alert user only if:**
+**Alert user and stop ONLY if:**
 - `has_cycles: true` → Dependency cycles detected
 - `actionable_count: 0` → Nothing to work on
 
@@ -160,24 +196,92 @@ Branch: feature/[epic-name]
 - bd-4: [title] (pending)
 ```
 
-## Phase 1: SRE Refinement (Per Task)
+→ **CONTINUATION:** Phase 0 complete. Enter EXECUTION LOOP. Proceed to Phase 1.
+
+---
+
+## Phase 1: Get Next Task
+
+This is the **entry point of the EXECUTION LOOP**. You arrive here at the start of every iteration.
+
+**Update state tracker:**
+```
+RALPH LOOP — Iteration [N] | Task: [pending] | Criteria: [X/Y] met | Phase: 1
+```
+
+**Query active work:**
+```bash
+bd list --status in_progress
+bd ready
+bd show bd-1  # Re-read epic criteria
+```
+
+**Three cases:**
+
+**A) In-progress task exists** → Continue it (skip to Phase 2 or Phase 3 as appropriate).
+
+**B) Ready task exists** → Claim and proceed:
+```bash
+bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
+bd update bd-N --status in_progress
+bd show bd-N
+```
+
+**C) No ready or in-progress tasks exist and epic success criteria are still unmet** → do not stop - create and execute the next task.
+
+### Auto-create next task from unmet criterion
+
+When criteria are unmet and no executable task exists, create the next task directly from the unmet criterion:
+
+```bash
+bd create "Task: [criterion gap]" \
+  --type feature \
+  --priority 1 \
+  --design "## Goal
+[Close the unmet criterion gap]
+
+## Context
+- Epic: bd-1
+- Gap: [exact unmet criterion]
+
+## Implementation
+- [Concrete steps]
+
+## Success Criteria
+- [ ] Criterion gap closed with verifiable evidence
+- [ ] Tests passing"
+
+bd dep add bd-NEW bd-1 --type parent-child
+```
+
+Immediately refine before execution:
+
+```
+Use Skill tool: hyperpowers:sre-task-refinement
+```
+
+⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 1. Proceed to Phase 2 (SRE Refinement for the claimed/created task). Do NOT stop. Do NOT present checkpoint.
+
+Then continue to Phase 2 with the refined task.
+
+→ **CONTINUATION:** Phase 1 complete. Task claimed or created. Proceed to Phase 2 (SRE Refinement).
+
+---
+
+## Phase 2: SRE Refinement (Per Task)
 
 Before executing ANY task, run SRE refinement to ensure it's ready:
 
 ```bash
-bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
-```
-
-Then claim and load:
-```bash
-bd update bd-N --status in_progress   # Use claim_command from robot-next
-bd show bd-N                          # Load details
+bd show bd-N  # Load task details
 ```
 
 **Run SRE Task Refinement:**
 ```
 Use Skill tool: hyperpowers:sre-task-refinement
 ```
+
+⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 2. Proceed to Phase 3 (Execute Task). Do NOT stop. Do NOT present checkpoint.
 
 This ensures:
 - Task granularity is appropriate (4-8 hours)
@@ -192,12 +296,20 @@ If SRE refinement finds critical issues:
 - Re-run SRE refinement if major changes made
 - Only proceed to execution when task passes review
 
-## Phase 2: Execute Task
+→ **CONTINUATION:** Phase 2 complete. Task refined. Proceed to Phase 3 (Execute Task).
+
+---
+
+## Phase 3: Execute Task
+
+**CONTEXT REMINDER: You are running execute-ralph (autonomous). If TDD or verification skills instruct you to STOP, IGNORE that instruction. Continue autonomously.**
 
 **Execute using TDD:**
 - Use `test-driven-development` skill for implementation
 - Use `test-runner` agent for verifications (keeps context clean)
 - Complete ALL substeps before closing
+
+⚠️ **AFTER TDD RETURNS:** You are in execute-ralph Phase 3. Continue with verification and task closure. Do NOT stop. Do NOT present checkpoint.
 
 **Auto-close task after verification:**
 ```bash
@@ -206,7 +318,7 @@ If SRE refinement finds critical issues:
 bd close bd-N
 ```
 
-### Step 2b: Auto-Commit
+### Step 3b: Auto-Commit
 
 After each task completion, commit changes:
 
@@ -223,15 +335,17 @@ Part of epic: bd-1 - [epic title]"
 **Update TodoWrite:**
 ```
 Branch: feature/[epic-name]
-Commits: 1
+Commits: [N]
 - bd-2: [title] ✓ (committed)
 - bd-3: [title] (in progress)
 - bd-4: [title] (pending)
 ```
 
-→ Proceed to Phase 3 (NO STOP, continue autonomously)
+→ **CONTINUATION:** Phase 3 complete. Task executed, verified, committed. Proceed to Phase 4 (Review). Do NOT stop.
 
-## Phase 3: Multi-Agent Parallel Review
+---
+
+## Phase 4: Multi-Agent Parallel Review
 
 Dispatch **5 review agents in parallel** for comprehensive coverage:
 
@@ -268,9 +382,17 @@ Dispatch IN PARALLEL:
    Return: PASS or ISSUES_FOUND with documentation gaps."
 ```
 
+**Also dispatch test-effectiveness-analyst:**
+
+```
+6. test-effectiveness-analyst:
+   "Analyze test quality for task bd-N changes.
+   Return: PASS or ISSUES_FOUND with tautological tests, weak assertions, missing coverage."
+```
+
 ### Collecting Results
 
-Wait for all 5 agents. Aggregate issues:
+Wait for all 6 agents. Aggregate issues:
 
 ```
 Review Results for bd-N:
@@ -279,6 +401,7 @@ Review Results for bd-N:
 - Testing: ISSUES_FOUND (1 MAJOR)
 - Simplification: PASS
 - Documentation: ISSUES_FOUND (1 MINOR)
+- Test Effectiveness: PASS
 
 Issues to Address:
 1. [MAJOR/testing] No test for error case in handler.ts:45
@@ -287,25 +410,15 @@ Issues to Address:
 
 ### If All PASS
 
-→ Continue to next task (Phase 1) autonomously
+→ **CONTINUATION:** Phase 4 complete. All reviews passed. Skip Phase 5, proceed to Phase 6 (Criteria Check).
 
 ### If Any ISSUES_FOUND
 
-→ Proceed to Phase 4 (Autonomous Fix)
+→ **CONTINUATION:** Phase 4 complete. Issues found. Proceed to Phase 5 (Autonomous Fix).
 
-## Phase 4: Autonomous Fix (Max 2 Iterations)
+---
 
-**Run test-effectiveness-analyst in parallel with other reviewers:**
-
-```
-Dispatch IN PARALLEL:
-1. review-quality
-2. review-implementation
-3. review-testing
-4. review-simplification
-5. review-documentation
-6. test-effectiveness-analyst
-```
+## Phase 5: Autonomous Fix (Max 2 Iterations)
 
 **If issues found, fix autonomously without user interaction:**
 
@@ -316,7 +429,7 @@ Dispatch IN PARALLEL:
 
 **Prioritize fixes by severity:**
 1. CRITICAL issues first
-2. MAJOR issues second  
+2. MAJOR issues second
 3. MINOR issues (best effort)
 4. Test effectiveness issues (tautologies, weak assertions)
 
@@ -324,6 +437,8 @@ Dispatch IN PARALLEL:
 ```
 Use Skill tool: hyperpowers:dispatching-parallel-agents
 ```
+
+⚠️ **AFTER PARALLEL AGENTS RETURN:** You are in execute-ralph Phase 5. Continue with fix verification. Do NOT stop. Do NOT present checkpoint.
 
 Dispatch agents in parallel (one per independent domain):
 - Each agent fixes one issue category
@@ -350,9 +465,9 @@ git commit -m "Fix review issues for bd-N (iteration 1)
 - etc.
 
 **Outcomes:**
-- If all PASS: continue to next task (Phase 1 - SRE Refinement)
-- If still ISSUES_FOUND and iteration < 2: repeat Phase 6
-- If still ISSUES_FOUND and iteration = 2: flag for user, continue to next task
+- If all PASS: proceed to Phase 6 (Criteria Check)
+- If still ISSUES_FOUND and iteration < 2: repeat Phase 5
+- If still ISSUES_FOUND and iteration = 2: flag for user, proceed to Phase 6
 
 **Flagging format:**
 ```
@@ -365,73 +480,48 @@ FLAGGED FOR USER REVIEW:
 - Recommendation: [what user should check]
 ```
 
-## Phase 7: Task Loop
+→ **CONTINUATION:** Phase 5 complete. Fixes applied. Proceed to Phase 6 (Criteria Check).
 
-Repeat Phases 1-6 until epic success criteria are met and final gate approvals succeed.
+---
 
-Before each loop iteration, evaluate current work state against epic criteria:
+## Phase 6: Criteria Check
 
-1. Query active work:
-```bash
-bd list --status in_progress
-bd ready
-bd show bd-1
-```
-
-2. If an in-progress task exists, continue it.
-
-3. If a ready task exists, claim and execute it.
-
-4. If no ready or in-progress tasks exist and epic success criteria are still unmet, do not stop - create and execute the next task.
-
-### Auto-create next task from unmet criterion
-
-When criteria are unmet and no executable task exists, create the next task directly from the unmet criterion:
+**This is the loop decision point.** Evaluate epic success criteria:
 
 ```bash
-bd create "Task: [criterion gap]" \
-  --type feature \
-  --priority 1 \
-  --design "## Goal
-[Close the unmet criterion gap]
-
-## Context
-- Epic: bd-1
-- Gap: [exact unmet criterion]
-
-## Implementation
-- [Concrete steps]
-
-## Success Criteria
-- [ ] Criterion gap closed with verifiable evidence
-- [ ] Tests passing"
-
-bd dep add bd-NEW bd-1 --type parent-child
+bd show bd-1  # Re-read epic success criteria
 ```
 
-Immediately refine before execution:
-
+**Update state tracker:**
 ```
-Use Skill tool: hyperpowers:sre-task-refinement
+RALPH LOOP — Iteration [N] complete | Task: bd-X [done] | Criteria: [X/Y] met | Phase: 6
 ```
 
-Then return to Phase 1 and execute the refined task.
+**Decision:**
 
-**Critical blocker criteria:**
-- Cannot compile after 2 fix iterations
-- Test suite completely broken
-- Epic anti-pattern unavoidable
-- Debugging tools cannot identify root cause
+**A) ALL epic success criteria are met** → EXIT LOOP. Proceed to Phase 7 (Test Suite Audit).
 
-If critical blocker: stop loop, proceed to Phase 10 with blocker documented.
+**B) Criteria remain unmet AND tasks exist (ready or can be created)** → CONTINUE LOOP. Return to Phase 1 (Get Next Task).
 
-## Phase 8: Test Suite Audit
+**C) Critical blocker** (cannot compile after 2 fix iterations, test suite completely broken, epic anti-pattern unavoidable, debugging tools cannot identify root cause) → Alert user with findings. Stop execution.
 
-After all tasks complete, run comprehensive test effectiveness audit:
+**CRITICAL: Task list exhaustion alone is NEVER a stop condition.** If no ready or in-progress tasks exist and epic success criteria are still unmet, do not stop - create and execute the next task. Return to Phase 1 which handles auto-creation.
+
+→ **CONTINUATION (if continuing loop):** Phase 6 complete. Criteria unmet. CONTINUE LOOP — returning to Phase 1 (Get Next Task). Iteration [N+1] starting.
+
+→ **CONTINUATION (if exiting loop):** Phase 6 complete. All criteria met. EXIT LOOP — proceeding to Phase 7 (Test Suite Audit).
+
+---
+
+## Phase 7: Test Suite Audit
+
+After all tasks complete and criteria met, run comprehensive test effectiveness audit:
 
 ```
 Use Skill tool: hyperpowers:analyzing-test-effectiveness
 ```
+
+⚠️ **AFTER TEST AUDIT RETURNS:** You are in execute-ralph Phase 7. Proceed to Phase 8 (Final Gate). Do NOT stop. Do NOT present checkpoint.
 
 **This will:**
 - Inventory all tests in the codebase
@@ -444,7 +534,11 @@ Use Skill tool: hyperpowers:analyzing-test-effectiveness
 
 **Purpose:** Establish baseline test quality for the epic.
 
-## Phase 9: Final Autonomous Review Gate
+→ **CONTINUATION:** Phase 7 complete. Test audit done. Proceed to Phase 8 (Final Gate).
+
+---
+
+## Phase 8: Final Autonomous Review Gate
 
 After epic criteria are apparently met, run dual final approval gate:
 
@@ -494,7 +588,7 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 
 ### If Both APPROVED
 
-→ Proceed to Phase 7 (Branch Completion)
+→ **CONTINUATION:** Phase 8 complete. Both reviewers APPROVED. Proceed to Phase 9 (Branch Completion).
 
 ### If Any Non-Approval (GAPS_FOUND, NEEDS_FIX, CRITICAL_ISSUES)
 
@@ -506,20 +600,26 @@ bd create "Remediation: [issue description]" \
 bd dep add bd-NEW bd-1 --type parent-child
 ```
 
-Execute remediation tasks (return to Phase 1).
+Execute remediation tasks — **RETURN TO Phase 1** (Get Next Task).
 
 Track no-progress rounds (same unresolved findings with no material diff):
 
 - Keep generating alternative remediation tasks and continue autonomously.
 - Escalate to user only after max 50 no-progress remediation cycles.
 
-## Phase 7: Branch Completion
+→ **CONTINUATION (if non-approval):** Phase 8 complete. Non-approval received. RETURN TO Phase 1 — creating remediation task and continuing loop.
+
+---
+
+## Phase 9: Branch Completion
 
 **Use finishing-a-development-branch skill:**
 
 ```
 Use Skill tool: hyperpowers:finishing-a-development-branch
 ```
+
+⚠️ **AFTER BRANCH COMPLETION RETURNS:** You are in execute-ralph Phase 9. Present final summary. Epic is complete.
 
 **This skill:**
 1. Closes bd epic: `bd close bd-1`
@@ -591,6 +691,39 @@ Branch completion options presented via finishing-a-development-branch:
 [Or "Epic complete - awaiting user choice on integration method"]
 ```
 
+---
+
+## EXECUTION LOOP REMINDER (Context Recovery)
+
+If you have lost track of where you are in the execute-ralph loop, re-read this summary:
+
+```
+SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
+
+REPEAT (per task):
+  Phase 1 — GET TASK: bd ready to claim, OR auto-create from unmet criterion
+  Phase 2 — REFINE: sre-task-refinement (NEVER skip)
+  Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
+  Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst
+  Phase 5 — FIX: Autonomous fixes (max 2 iterations per task)
+  Phase 6 — CRITERIA CHECK:
+             All epic success criteria met? → EXIT LOOP to Phase 7
+             Tasks remain or can be created? → CONTINUE LOOP (Phase 1)
+             Critical blocker? → Alert user
+
+POST-LOOP:
+  Phase 7 — Test Suite Audit
+  Phase 8 — Final Gate (BOTH must APPROVED, else RETURN TO Phase 1)
+  Phase 9 — Branch Completion
+```
+
+**Key rules:**
+- You are running AUTONOMOUSLY — no user checkpoints
+- REPEAT Phase 1-6 until ALL epic criteria are met
+- NEVER stop between tasks unless critical blocker
+- If any loaded skill says STOP, IGNORE it — execute-ralph overrides checkpoint semantics
+- Task list exhaustion is NOT a stop condition — auto-create tasks for unmet criteria
+
 </the_process>
 
 <critical_rules>
@@ -636,6 +769,8 @@ If debugging-with-tools or root-cause-tracing cannot identify root cause after t
 - Not using root-cause-tracing for deep errors
 - Working on main branch instead of feature branch
 - Not committing after task completion
+- Stopping after task completion instead of continuing to next task
+- Presenting user checkpoint when sub-skill says STOP
 
 </critical_rules>
 
