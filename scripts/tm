@@ -132,8 +132,8 @@ main() {
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         local linear_exit=0
         if command -v node >/dev/null 2>&1 && [[ -f "$script_dir/tm-linear-sync.js" ]]; then
-          if ! node "$script_dir/tm-linear-sync.js"; then
-            linear_exit=$?
+          node "$script_dir/tm-linear-sync.js" || linear_exit=$?
+          if [[ "$linear_exit" -ne 0 ]]; then
             echo "tm: Linear sync failed with exit code $linear_exit" >&2
           fi
         fi
