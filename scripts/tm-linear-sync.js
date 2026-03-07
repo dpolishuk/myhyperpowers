@@ -183,10 +183,12 @@ async function syncToLinear() {
       name: labelName,
       teamId: team.id,
     })
-    if (payload._issueLabel) {
+    if (payload.success) {
       const label = await payload.issueLabel
-      labelCache[labelName] = label.id
-      return label.id
+      if (label) {
+        labelCache[labelName] = label.id
+        return label.id
+      }
     }
     return null
   }
@@ -201,19 +203,46 @@ async function syncToLinear() {
 
   for (const issue of issues) {
     const bdId = issue.id
-    const designHash = hashDesign(issue.design)
+    const designText = issue.design || issue.description || ""
+    const designHash = hashDesign(designText)
     const stateId = mapStatus(issue.status, teamStates)
     const priority = mapPriority(issue.priority)
     const labelName = mapType(issue.issue_type)
 
-    const existing = mapping[bdId]
+    let existing = mapping[bdId]
+
+    // If no local mapping, search Linear by title to avoid duplicates (e.g. fresh clone)
+    if (!existing && issue.title) {
+      try {
+        const search = await client.issues({
+          first: 1,
+          filter: {
+            team: { id: { eq: team.id } },
+            title: { eq: issue.title },
+          },
+        })
+        if (search.nodes.length > 0) {
+          const found = search.nodes[0]
+          existing = {
+            linearId: found.id,
+            linearIdentifier: found.identifier,
+            lastSyncedAt: new Date().toISOString(),
+            lastSyncedFields: {},
+          }
+          mapping[bdId] = existing
+          console.log(`tm-sync: Linked ${bdId} → ${found.identifier} (found by title)`)
+        }
+      } catch {
+        // Search failed, proceed to create
+      }
+    }
 
     if (!existing) {
       // Create new issue in Linear
       const createParams = {
         teamId: team.id,
         title: issue.title || bdId,
-        description: issue.design || "",
+        description: designText,
         priority,
       }
       if (stateId) createParams.stateId = stateId
@@ -264,7 +293,7 @@ async function syncToLinear() {
       // Update existing issue
       const updateParams = {
         title: issue.title,
-        description: issue.design || "",
+        description: designText,
         priority,
       }
       if (stateId) updateParams.stateId = stateId

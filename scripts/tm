@@ -38,7 +38,7 @@ detect_backend() {
   local config="$root/.beads/config.yaml"
   if [[ -f "$config" && -r "$config" ]]; then
     local val
-    val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{print $2}' || true)
+    val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
     if [[ -n "$val" ]]; then
       echo "$val"
       return
@@ -127,13 +127,23 @@ main() {
       if [[ "${1:-}" == "sync" ]]; then
         local sync_exit=0
         bd sync "${@:2}" || sync_exit=$?
-        # Run Linear sync if node is available (non-fatal)
+        # Run Linear sync if node is available; surface failures when configured
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local linear_exit=0
         if command -v node >/dev/null 2>&1 && [[ -f "$script_dir/tm-linear-sync.js" ]]; then
-          node "$script_dir/tm-linear-sync.js" || true
+          if ! node "$script_dir/tm-linear-sync.js"; then
+            linear_exit=$?
+            echo "tm: Linear sync failed with exit code $linear_exit" >&2
+          fi
         fi
-        exit "$sync_exit"
+        if [[ "$sync_exit" -ne 0 ]]; then
+          exit "$sync_exit"
+        elif [[ "$linear_exit" -ne 0 ]]; then
+          exit "$linear_exit"
+        else
+          exit 0
+        fi
       fi
       exec bd "$@"
       ;;

@@ -2,7 +2,6 @@ const test = require("node:test")
 const assert = require("node:assert/strict")
 const path = require("node:path")
 const fs = require("node:fs")
-const os = require("node:os")
 const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")

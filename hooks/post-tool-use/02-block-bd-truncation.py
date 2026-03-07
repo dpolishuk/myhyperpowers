@@ -61,8 +61,8 @@ def main():
 
     command = tool_input.get("command", "")
 
-    # Check if this is a tm/bd create or update command
-    if not command or not re.search(r'\b(tm|bd)\s+(create|update)\b', command):
+    # Check if this is a tm/bd create, update, or edit command
+    if not command or not re.search(r'\b(tm|bd)\s+(create|update|edit)\b', command):
         sys.exit(0)
 
     # Check for truncation markers

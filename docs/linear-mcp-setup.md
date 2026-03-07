@@ -18,7 +18,7 @@ Add to your user settings (`~/.claude/settings.local.json`):
   "mcpServers": {
     "linear": {
       "command": "npx",
-      "args": ["-y", "@tacticlaunch/mcp-linear"],
+      "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
         "LINEAR_API_KEY": "lin_api_your_key_here"
       }
@@ -36,7 +36,7 @@ Add to `.opencode/config.json`:
   "mcpServers": {
     "linear": {
       "command": "npx",
-      "args": ["-y", "@tacticlaunch/mcp-linear"],
+      "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
         "LINEAR_API_KEY": "lin_api_your_key_here"
       }
@@ -44,6 +44,8 @@ Add to `.opencode/config.json`:
   }
 }
 ```
+
+> **Security note:** The MCP server version is pinned above. Periodically check for updates with `npm view @tacticlaunch/mcp-linear version` and bump after reviewing the changelog.
 
 ## tm sync Configuration
 
