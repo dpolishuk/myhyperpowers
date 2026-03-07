@@ -6,7 +6,7 @@ description: Use this agent to run tests, pre-commit hooks, or commits without p
 # - providerID/modelID: Explicit model selection (e.g., anthropic/claude-haiku-4-5)
 # 
 # Recommended: Fast model (haiku, glm-4.5) for high-volume, low-complexity tasks
-# See README.md "Model Configuration" section for details
+# See docs/model-configuration.md for details
 model: inherit
 ---
 

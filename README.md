@@ -1,23 +1,24 @@
 # Hyperpowers
 
-Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.12.1-green.svg)](.claude-plugin/plugin.json)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 
-Hyperpowers is a multi-host plugin for Claude Code, OpenCode, and Gemini CLI, providing structured workflows, best practices, and specialized agents to help you build software more effectively. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
-## Table of Contents
+[Features](#features) · [Installation](#installation) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
-- [Features](#features)
-  - [Skills](#skills)
-  - [Slash Commands](#slash-commands)
-  - [Specialized Agents](#specialized-agents)
-  - [Model Configuration](#model-configuration)
-- [How Ralph Works](#how-ralph-works)
-- [Key Benefits](#key-benefits)
-- [Installation](#installation)
-  - [Gemini CLI](#gemini-cli)
-- [Usage](#usage)
-- [Philosophy](#philosophy)
-- [Contributing](#contributing)
+## Quick Start
+
+**Claude Code** (recommended):
+
+```text
+/plugin marketplace add dpolishuk/myhyperpowers
+/plugin install myhyperpowers@myhyperpowers --scope user
+```
+
+See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI.
 
 ## Features
 
@@ -74,8 +75,6 @@ Reusable workflows for common development tasks:
 
 ### Slash Commands
 
-Quick access to key workflows:
-
 ```
 /hyperpowers:brainstorm          - Start interactive design refinement
 /hyperpowers:write-plan          - Create detailed implementation plan
@@ -121,530 +120,64 @@ These 5 agents run in parallel after each task during autonomous execution:
 | **test-effectiveness-analyst** | Audit test quality with SRE scrutiny | Capable | Identifies tautological tests, coverage gaming, weak assertions |
 | **autonomous-reviewer** | Final validation with web research | Most capable (opus, glm-4.7) | Comprehensive review with external research |
 
-### Model Configuration
-
-Hyperpowers agents support per-agent model configuration using the `providerID/modelID` format. This allows you to:
-- Use different models for different agents (e.g., fast models for test-running, capable models for code review)
-- Configure multiple API providers simultaneously
-- Optimize costs by matching task complexity to model capability
-
-**Recommended model choices by agent:**
-
-| Agent | Recommended Model | Reason |
-|-------|------------------|--------|
-| test-runner | Fast model (haiku, glm-4.5) | High-volume, low-complexity tasks |
-| codebase-investigator | Fast model | Scanning and searching operations |
-| internet-researcher | Fast model | External API lookups and summarization |
-| code-reviewer | Capable model (sonnet, glm-4.7) | Requires reasoning and analysis |
-| test-effectiveness-analyst | Capable model (sonnet, glm-4.7) | Complex analysis of test quality |
-| autonomous-reviewer | Most capable model (opus, glm-4.7) | Final validation and comprehensive review |
-
----
-
-#### Understanding the `providerID/modelID` Format
-
-OpenCode uses a `providerID/modelID` format to specify exactly which provider and model to use:
-
-```
-anthropic/claude-sonnet-4-5
-├───┬───┘ └───┬───────────┘
-│   │         └── Model ID
-│   └── Provider ID
-└── Separator (forward slash)
-```
-
-This format eliminates ambiguity when multiple providers offer models with similar names.
-
----
-
-#### Configuration Methods
-
-There are three ways to configure agent models, in order of precedence:
-
-1. **Agent Frontmatter** - Set default model in the agent definition
-2. **OpenCode Config** - Override per-agent models in `opencode.json`
-3. **Environment Variables** - Dynamic configuration via env vars
-
----
-
-##### Method 1: Agent Frontmatter (Default Configuration)
-
-Each agent file has a YAML frontmatter section where you can specify the default model:
-
-**File locations:**
-- Claude Code: `agents/<agent-name>.md`
-- OpenCode: `.opencode/agents/<agent-name>.md`
-
-**Format:**
-
-```yaml
----
-name: test-runner
-description: Runs tests without polluting context
-model: anthropic/claude-haiku-4-5  # Full providerID/modelID format
----
-```
-
-**Supported model values:**
-
-| Value | Description | Example |
-|-------|-------------|---------|
-| `inherit` | Use the parent's/current model | `model: inherit` |
-| `providerID/modelID` | Explicit provider and model | `model: anthropic/claude-sonnet-4-5` |
-| `modelID` (OpenCode only) | Shorthand for built-in providers | `model: claude-sonnet-4-5` |
-
-**Example agent configurations:**
-
-```yaml
-# agents/test-runner.md - Use fast, cheap model
----
-name: test-runner
-model: anthropic/claude-haiku-4-5
----
-```
-
-```yaml
-# agents/code-reviewer.md - Use capable model
----
-name: code-reviewer
-model: anthropic/claude-sonnet-4-5
----
-```
-
-```yaml
-# agents/autonomous-reviewer.md - Use most capable model
----
-name: autonomous-reviewer
-model: anthropic/claude-opus-4-5
----
-```
-
----
-
-##### Method 2: OpenCode Configuration (Per-Agent Override)
-
-In OpenCode, you can override agent models in your `opencode.json` file without modifying agent files. This is useful for:
-- Project-specific model choices
-- Testing different models
-- User preferences that shouldn't be committed
-
-**Configuration precedence (highest to lowest):**
-
-```
-1. opencode.json → agents.<agent-name>.model
-2. opencode.json → model (top-level default)
-3. Agent frontmatter → model setting
-4. Provider default
-```
-
-**Basic configuration:**
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "comment": "All agents use Sonnet by default",
-  "model": "anthropic/claude-sonnet-4-5"
-}
-```
-
-**Per-agent override:**
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "comment": "Optimize costs: fast models for simple tasks, capable for complex",
-  "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
-    "test-runner": {
-      "model": "anthropic/claude-haiku-4-5"
-    },
-    "codebase-investigator": {
-      "model": "anthropic/claude-haiku-4-5"
-    },
-    "autonomous-reviewer": {
-      "model": "anthropic/claude-opus-4-5"
-    }
-  }
-}
-```
-
----
-
-##### Method 3: Multiple Providers with Same Models
-
-When using multiple providers (e.g., multiple API proxies or aggregation services), use the full `providerID/modelID` format to disambiguate:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "comment": "Configure multiple providers with same model names",
-  
-  "model": "proxy1/claude-sonnet-4-5",
-  "small_model": "proxy1/claude-haiku-4-5",
-  
-  "provider": {
-    "proxy1": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "API Proxy 1",
-      "options": {
-        "baseURL": "https://api.proxy1.com/v1",
-        "apiKey": "{env:PROXY1_API_KEY}"
-      },
-      "models": {
-        "claude-sonnet-4-5": {
-          "name": "Claude Sonnet 4.5 (via Proxy 1)",
-          "limit": { "context": 200000, "output": 64000 }
-        },
-        "claude-haiku-4-5": {
-          "name": "Claude Haiku 4.5 (via Proxy 1)",
-          "limit": { "context": 200000, "output": 8192 }
-        }
-      }
-    },
-    "proxy2": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "API Proxy 2",
-      "options": {
-        "baseURL": "https://api.proxy2.com/v1",
-        "apiKey": "{env:PROXY2_API_KEY}"
-      },
-      "models": {
-        "claude-sonnet-4-5": {
-          "name": "Claude Sonnet 4.5 (via Proxy 2)",
-          "limit": { "context": 200000, "output": 64000 }
-        }
-      }
-    },
-    "anthropic": {
-      "comment": "Official Anthropic provider",
-      "options": {
-        "apiKey": "{env:ANTHROPIC_API_KEY}"
-      }
-    }
-  },
-  
-  "agents": {
-    "test-runner": {
-      "model": "proxy2/claude-haiku-4-5"
-    },
-    "code-reviewer": {
-      "model": "anthropic/claude-opus-4-5"
-    }
-  },
-  
-  "disabled_providers": ["openai", "google"]
-}
-```
-
-**Key points for multi-provider setup:**
-
-1. **Provider ID** must be unique (e.g., `proxy1`, `proxy2`, `anthropic`)
-2. **Model IDs** are scoped to each provider - same name can exist in multiple providers
-3. **Reference format** is always `providerID/modelID`
-4. **Disable unused providers** to avoid confusion in model selection
-
----
-
-##### Method 4: Claude Code Configuration
-
-Claude Code uses a different configuration approach. Models are resolved through settings files:
-
-**Global settings:** `~/.claude/settings.json`
-**Project settings:** `.claude/settings.json`
-
-**Configuration format:**
-
-```json
-{
-  "env": {
-    "ANTHROPIC_DEFAULT_MODEL": "claude-sonnet-4-5",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5"
-  }
-}
-```
-
-**Using third-party providers (e.g., GLM, OpenRouter):**
-
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.glm.ai/v1",
-    "ANTHROPIC_AUTH_TOKEN": "{env:GLM_API_KEY}",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7"
-  }
-}
-```
-
-**Note:** Claude Code's agent system doesn't support per-agent model overrides in configuration files. To set per-agent models in Claude Code, modify the agent file's frontmatter directly.
-
----
-
-#### Complete Configuration Examples
-
-**Example 1: Minimal Setup (Inherit Current Model)**
-
-```json
-// opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-sonnet-4-5"
-}
-```
-
-All agents with `model: inherit` will use `claude-sonnet-4-5`.
-
----
-
-**Example 2: Cost-Optimized Setup**
-
-```json
-// opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
-    "test-runner": { "model": "anthropic/claude-haiku-4-5" },
-    "codebase-investigator": { "model": "anthropic/claude-haiku-4-5" },
-    "internet-researcher": { "model": "anthropic/claude-haiku-4-5" },
-    "code-reviewer": { "model": "anthropic/claude-sonnet-4-5" },
-    "autonomous-reviewer": { "model": "anthropic/claude-opus-4-5" }
-  }
-}
-```
-
-| Agent | Model | Estimated Cost |
-|-------|-------|----------------|
-| test-runner | Haiku | $ |
-| codebase-investigator | Haiku | $ |
-| code-reviewer | Sonnet | $$ |
-| autonomous-reviewer | Opus | $$$ |
-
----
-
-**Example 3: Multi-Provider with API Proxy**
-
-```json
-// opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "myproxy/claude-sonnet-4-5",
-  "provider": {
-    "myproxy": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "My API Proxy",
-      "options": {
-        "baseURL": "https://api.myproxy.com/v1",
-        "apiKey": "{env:MYPROXY_API_KEY}",
-        "timeout": 300000
-      },
-      "models": {
-        "claude-haiku-4-5": {
-          "name": "Claude Haiku 4.5",
-          "limit": { "context": 200000, "output": 8192 }
-        },
-        "claude-sonnet-4-5": {
-          "name": "Claude Sonnet 4.5",
-          "limit": { "context": 200000, "output": 64000 }
-        },
-        "claude-opus-4-5": {
-          "name": "Claude Opus 4.5",
-          "limit": { "context": 200000, "output": 32000 }
-        }
-      }
-    }
-  },
-  "agents": {
-    "test-runner": { "model": "myproxy/claude-haiku-4-5" }
-  },
-  "disabled_providers": ["anthropic", "openai", "google"]
-}
-```
-
----
-
-**Example 4: Local + Cloud Mix (OpenCode)**
-
-```json
-// opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-sonnet-4-5",
-  "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Local Ollama",
-      "options": {
-        "baseURL": "http://localhost:11434/v1"
-      },
-      "models": {
-        "qwen2.5-coder:32b": { "name": "Qwen 2.5 Coder 32B" }
-      }
-    }
-  },
-  "agents": {
-    "codebase-investigator": { "model": "ollama/qwen2.5-coder:32b" }
-  }
-}
-```
-
----
-
-#### Switching Models at Runtime (OpenCode)
-
-In OpenCode's TUI, you can switch models dynamically:
-
-```
-/model
-```
-
-This shows all available `providerID/modelID` combinations. Select a different model to change the active model for the current session.
-
-For quick switching between modes:
-- Press `Tab` to toggle between Build and Plan agents (if configured)
-- Use `/agent <name>` to switch to a specific agent with its configured model
-
----
-
-#### Troubleshooting Model Configuration
-
-**Issue: Model not found**
-
-```
-Error: Model 'myproxy/gpt-4o' not found
-```
-
-**Solutions:**
-1. Check that the provider is defined in `opencode.json`
-2. Verify the model ID exists in the provider's `models` section
-3. Ensure you're using the correct format: `providerID/modelID`
-
-**Issue: Agent using wrong model**
-
-**Solutions:**
-1. Check configuration precedence (agent config > top-level model > frontmatter)
-2. Verify the agent file's frontmatter doesn't have a hardcoded model
-3. Restart OpenCode/Claude Code after configuration changes
-
-**Issue: API key not recognized**
-
-**Solutions:**
-1. Use `{env:VARIABLE_NAME}` format in config, not hardcoded keys
-2. Verify the environment variable is set: `echo $VARIABLE_NAME`
-3. For OpenCode, use `/connect` command to authenticate
-
----
-
-**Quick setup - copy example configs:**
-
-```bash
-# For Anthropic (official)
-cp docs/opencode.example.anthropic.json opencode.json
-
-# For GLM models
-cp docs/opencode.example.glm.json opencode.json
-
-# For multiple providers
-cp docs/opencode.example.multi-provider.json opencode.json
-
-# For Claude Code with third-party provider
-cat docs/claude-code.example.glm.json >> ~/.claude/settings.json
-```
-
-See [docs/README.md](docs/README.md) for more detailed examples.
+See [Model Configuration](docs/model-configuration.md) for details on configuring AI providers and models per agent.
 
 ### Hooks System
 
 Intelligent hooks that provide context-aware assistance:
 
-**Automatic Skill Activation** - The UserPromptSubmit hook analyzes your prompts and suggests relevant skills before Claude responds. Simply type what you want to do, and you'll get skill recommendations if applicable.
-
-**Context Tracking** - The PostToolUse hook tracks file edits during your session, maintaining context for intelligent reminders.
-
-**Gentle Reminders** - The Stop hook provides helpful reminders after Claude responds:
-- 💭 TDD reminder when editing source without tests
-- ✅ Verification reminder when claiming completion
-- 💾 Commit reminder after multiple file edits
+- **Automatic Skill Activation** - The UserPromptSubmit hook analyzes prompts and suggests relevant skills.
+- **Context Tracking** - The PostToolUse hook tracks file edits during your session.
+- **Gentle Reminders** - The Stop hook provides TDD, verification, and commit reminders.
 
 See [HOOKS.md](HOOKS.md) for configuration, troubleshooting, and customization details.
 
 ## How Ralph Works
 
-**Ralph** (`execute-ralph`) is the autonomous execution mode that completes entire epics without user intervention. It's like having a senior developer who:
-
-1. Executes tasks using TDD
-2. Reviews their own work with 5 specialized agents
-3. Fixes issues autonomously
-4. Commits after each task
-5. Only bothers you if something critical fails
-
-### Ralph's Execution Flow
+**Ralph** (`execute-ralph`) is the autonomous execution mode that completes entire epics without user intervention.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 0: Setup                                                  │
-│  ├── Smart triage (bv -robot-triage)                            │
-│  ├── Create feature branch from epic name                       │
-│  └── Load epic requirements and tasks                           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 1: Execute Task                                           │
-│  ├── Claim next ready task (bv -robot-next)                     │
-│  ├── Implement using TDD skill                                  │
-│  └── Run tests via test-runner agent                            │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 2: Multi-Agent Parallel Review                            │
-│  ├── review-quality       → Bugs, security, race conditions     │
-│  ├── review-implementation → Requirements match                 │
-│  ├── review-testing       → Coverage, test quality              │
-│  ├── review-simplification → Over-engineering detection         │
-│  └── review-documentation → Doc update needs                    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 3: Autonomous Fix (max 2 iterations)                      │
-│  ├── If issues found: fix autonomously                          │
-│  ├── Re-run affected reviewers only                             │
-│  └── Still issues after 2 tries? Flag for user review           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │  More tasks?    │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┴──────────────┐
-              ▼                             ▼
-        ┌─────────┐                  ┌─────────────┐
-        │   Yes   │                  │     No      │
-        └────┬────┘                  └──────┬──────┘
-             │                              │
-             └──────────────┐               │
-                            ▼               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 4: Final Critical Review                                  │
-│  ├── review-quality (critical issues only)                      │
-│  ├── review-implementation (critical gaps only)                 │
-│  └── If issues: create remediation tasks and fix                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 5: Complete                                               │
-│  ├── Close epic                                                 │
-│  ├── Final commit                                               │
-│  └── Present comprehensive summary                              │
-└─────────────────────────────────────────────────────────────────┘
+Setup → Execute Task (TDD) → 5-Agent Review → Auto-Fix (max 2 tries) → Next Task → Final Review → Done
 ```
+
+<details>
+<summary><strong>Ralph's Execution Flow (detailed)</strong></summary>
+
+```
+PHASE 0: Setup
+  ├── Smart triage (bv -robot-triage)
+  ├── Create feature branch from epic name
+  └── Load epic requirements and tasks
+
+PHASE 1: Execute Task
+  ├── Claim next ready task (bv -robot-next)
+  ├── Implement using TDD skill
+  └── Run tests via test-runner agent
+
+PHASE 2: Multi-Agent Parallel Review
+  ├── review-quality       → Bugs, security, race conditions
+  ├── review-implementation → Requirements match
+  ├── review-testing       → Coverage, test quality
+  ├── review-simplification → Over-engineering detection
+  └── review-documentation → Doc update needs
+
+PHASE 3: Autonomous Fix (max 2 iterations)
+  ├── If issues found: fix autonomously
+  ├── Re-run affected reviewers only
+  └── Still issues after 2 tries? Flag for user review
+
+PHASE 4: Final Critical Review
+  ├── review-quality (critical issues only)
+  ├── review-implementation (critical gaps only)
+  └── If issues: create remediation tasks and fix
+
+PHASE 5: Complete
+  ├── Close epic
+  ├── Final commit
+  └── Present comprehensive summary
+```
+
+</details>
 
 ### Ralph vs Execute-Plan
 
@@ -656,118 +189,22 @@ See [HOOKS.md](HOOKS.md) for configuration, troubleshooting, and customization d
 | **Git Branch** | Manual | Auto-created from epic name |
 | **Best For** | Uncertain requirements, high-risk changes | Well-defined epics, trusted execution |
 
-### When to Use Ralph
+**Use Ralph when** epics have clear success criteria and you trust autonomous execution.
+**Don't use Ralph when** requirements are ambiguous or you want to review between tasks.
 
-**Use Ralph when:**
-- ✅ Epic has clear success criteria and anti-patterns
-- ✅ Tasks are straightforward implementation
-- ✅ You trust autonomous execution
-- ✅ You want hands-off operation
-
-**Don't use Ralph when:**
-- ❌ Requirements are ambiguous
-- ❌ High-risk changes needing human oversight
-- ❌ Experimental/exploratory work
-- ❌ You want to review between tasks
-
-### Ralph's Safety Limits
-
-- **Max 2 fix iterations** per task (then flags for user)
-- **Max 3 remediation rounds** total (then completes with flags)
-- **Max 10 tasks** per execution (prevents runaway)
-- **Auto-branch creation** (never works on main)
-- **Epic requirements are immutable** (won't water down to make execution easier)
+**Safety limits:** Max 2 fix iterations per task, max 3 remediation rounds, max 10 tasks per execution, auto-branch creation (never works on main), immutable epic requirements.
 
 ## Key Benefits
 
-### Context Efficiency with test-runner Agent
-
-The **test-runner** agent solves a common problem: running tests, pre-commit hooks, or git commits can generate massive amounts of output that pollutes your context window with successful test results, formatting changes, and debug prints.
-
-**How it works:**
-- Agent runs commands in its own separate context
-- Captures all output (test results, hook output, etc.)
-- Returns **only**: summary statistics + complete failure details
-- Filters out: passing test output, "Reformatted X files" spam, verbose formatting diffs
-
-**Example:**
-```bash
-# Without agent: Your context gets 500 lines of passing test output
-pytest tests/  # 47 tests pass, prints everything
-
-# With test-runner agent: Your context gets clean summary
-Task("Run tests", "Run pytest tests/")
-# Agent returns: "✓ 47 tests passed, 0 failed. Exit code 0."
-```
-
-**Benefits:**
-- Keeps your context clean and focused
-- Still provides complete failure details when tests fail
-- Works with all test frameworks (pytest, cargo, npm, go)
-- Handles pre-commit hooks without formatting spam
-- Provides verification evidence for verification-before-completion skill
+- **Context efficiency** - The test-runner agent keeps verbose output (test results, formatting diffs) in its own context, returning only summaries and failures to yours.
+- **Structured workflows** - Skills enforce proven patterns: TDD, verification-before-completion, brainstorming-before-coding.
+- **Multi-agent review** - Ralph's 5 specialized reviewers catch bugs, security issues, missing tests, and over-engineering in parallel.
+- **Safe autonomous execution** - Ralph has hard limits on iterations, always creates feature branches, and never waters down epic requirements.
 
 ## Installation
 
-Choose your platform below:
-
-### OpenCode
-
-Quick start - run from the hyperpowers repo:
-
-```bash
-# Clone or navigate to hyperpowers
-cd /path/to/hyperpowers
-
-# Run OpenCode (it auto-discovers opencode.json and .opencode/)
-opencode
-```
-
-That's it! Hyperpowers commands, agents, and skills are now available.
-
-**What you get:**
-- Commands: `/brainstorm`, `/write-plan`, `/execute-plan`, `/hyperpowers-version`, etc.
-- Agents: `@code-reviewer`, `@test-runner`, `@codebase-investigator`, `@internet-researcher`
-- Skills: All workflows auto-loaded via local discovery
-- Safety: `.env` and sensitive files are protected
-
-**Verify it works:**
-```
-/hyperpowers-version
-# Should show plugin version and installation status
-```
-
----
-
-**For your own projects**, copy these files:
-
-```bash
-# Copy to your project
-cp hyperpowers/opencode.json your-project/
-cp -r hyperpowers/.opencode your-project/
-
-# Install dependencies
-cd your-project/.opencode
-bun install
-cd ..
-
-# Run OpenCode
-opencode
-```
-
----
-
-**Install via npm** (alternative):
-
-```json
-// In your project's opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@dpolishuk/hyperpowers-opencode"]
-}
-```
-
-### Claude Code
+<details>
+<summary><strong>Claude Code</strong></summary>
 
 **Recommended: Install from GitHub**
 
@@ -778,16 +215,10 @@ opencode
 
 **Note for legacy installs:**
 
-If you previously installed this plugin under the legacy name `withzombies-hyper`, you should uninstall it first:
+If you previously installed under the legacy name `withzombies-hyper`, uninstall it first:
 
 ```text
 /plugin uninstall withzombies-hyper@withzombies-hyper
-```
-
-Then install with the new name:
-
-```text
-/plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
 **Local development** (if you're contributing):
@@ -818,11 +249,48 @@ claude --plugin-dir .
 # Should show /hyperpowers:* commands
 ```
 
-### Gemini CLI
+</details>
 
-The Gemini CLI extension lives in `.gemini-extension/` and is installed from that folder.
+<details>
+<summary><strong>OpenCode</strong></summary>
 
-From the repo root:
+Quick start - run from the hyperpowers repo:
+
+```bash
+# Clone or navigate to hyperpowers
+cd /path/to/hyperpowers
+
+# Run OpenCode (it auto-discovers opencode.json and .opencode/)
+opencode
+```
+
+That's it! Commands, agents, and skills are now available.
+
+**For your own projects**, copy these files:
+
+```bash
+cp hyperpowers/opencode.json your-project/
+cp -r hyperpowers/.opencode your-project/
+cd your-project/.opencode && bun install && cd ..
+opencode
+```
+
+**Install via npm** (alternative):
+
+```json
+// In your project's opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@dpolishuk/hyperpowers-opencode"]
+}
+```
+
+**Verify:** `/hyperpowers-version`
+
+</details>
+
+<details>
+<summary><strong>Gemini CLI</strong></summary>
 
 ```bash
 # Install or link the extension
@@ -841,27 +309,14 @@ If you had a prior local install, uninstall first:
 gemini extensions uninstall hyperpowers
 ```
 
-Verify installation:
-
-```bash
-gemini extensions list
-gemini tools
-```
-
-You should see `hyperpowers` and the tools/commands in this list.
-
-Try these commands in Gemini:
-
-```text
-/hyperpowers:brainstorm
-/hyperpowers:write-plan
-/hyperpowers:execute-plan
-/hyperpowers:review-implementation
-```
+Verify: `gemini extensions list && gemini tools`
 
 For full extension-specific installation and troubleshooting, see `.gemini-extension/README.md`.
 
-### Codex CLI
+</details>
+
+<details>
+<summary><strong>Codex CLI</strong></summary>
 
 Use the unified installer to install wrappers to `~/.codex/skills` (auto-syncs if needed):
 
@@ -885,7 +340,10 @@ $codex-skill-executing-plans Continue from current bd ready task.
 
 You can also use `/skills` in Codex UI to discover and select the same wrappers.
 
-### After Installation: Configure Models
+</details>
+
+<details>
+<summary><strong>After Installation: Configure Models</strong></summary>
 
 All agents use `model: inherit` by default, meaning they follow your current model selection.
 
@@ -902,21 +360,12 @@ cp docs/opencode.example.glm.json opencode.json
 cp docs/opencode.example.inherit.json opencode.json
 ```
 
-**Or customize manually:**
+See [Model Configuration](docs/model-configuration.md) for full documentation.
 
-```json
-// opencode.json (OpenCode)
-{
-  "model": "provider/glm-4.7",
-  "agents": {
-    "test-runner": { "model": "provider/glm-4.5" }
-  }
-}
-```
+</details>
 
-See [docs/README.md](docs/README.md) for more example configurations.
-
-### Troubleshooting
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
 **OpenCode:**
 
@@ -924,8 +373,7 @@ See [docs/README.md](docs/README.md) for more example configurations.
 |-------|----------|
 | Commands not found | Ensure you're running `opencode` from a directory with `opencode.json` |
 | Agents not working | Check that `.opencode/agents/*.md` files exist and have valid YAML frontmatter |
-| Skills not loading | Run `bun install` in `.opencode/` directory to install dependencies |
-| `.env` not protected | Verify `.opencode/plugins/hyperpowers-safety.ts` exists and is loaded |
+| Skills not loading | Run `bun install` in `.opencode/` directory |
 
 **Claude Code:**
 
@@ -934,13 +382,8 @@ See [docs/README.md](docs/README.md) for more example configurations.
 | Commands not showing | Run `/plugin list` to verify installation |
 | Plugin not loading | Check `~/.claude/plugins/` for `myhyperpowers@myhyperpowers` directory |
 | Hooks not firing | Restart Claude Code after installation |
-| Models not inheriting | Ensure agent files have `model: inherit` in frontmatter |
 
-**Getting help:**
-
-- OpenCode: Check `.opencode/` directory structure matches repository
-- Claude Code: Run `/plugin info myhyperpowers@myhyperpowers` for diagnostics
-- Both: Open an issue at https://github.com/dpolishuk/myhyperpowers/issues
+**Getting help:** Open an issue at https://github.com/dpolishuk/myhyperpowers/issues
 
 **Updating:**
 
@@ -950,6 +393,33 @@ See [docs/README.md](docs/README.md) for more example configurations.
 
 # OpenCode: git pull in the hyperpowers directory
 ```
+
+</details>
+
+## Uninstall
+
+Hyperpowers uses a manifest-based uninstaller that only removes files it installed -- your custom skills, agents, and hooks are safe.
+
+```bash
+# Preview what would be removed (no changes made)
+./scripts/uninstall.sh --all --dry-run
+
+# Uninstall from all agents
+./scripts/uninstall.sh --all
+
+# Uninstall from specific agent
+./scripts/uninstall.sh --claude
+./scripts/uninstall.sh --opencode
+./scripts/uninstall.sh --kimi
+./scripts/uninstall.sh --codex
+
+# Complete removal (including backups and metadata)
+./scripts/uninstall.sh --all --purge --yes
+```
+
+**Claude Code plugin:** `/plugin uninstall myhyperpowers@myhyperpowers --scope user`
+
+See `./scripts/install.sh --help` for all options.
 
 ## Usage
 
@@ -968,27 +438,21 @@ The `using-hyper` skill automatically loads at the start of each conversation an
 User: I need to add user authentication to my app
 
 Claude: I'm using the brainstorming skill to refine your authentication requirements.
-
 [Socratic questioning to understand requirements]
 
 Claude: Now I'm using the writing-plans skill to create a detailed implementation plan.
-
 [Creates detailed plan with specific tasks in bd]
 
 Claude: I'm using the executing-plans skill to implement the tasks.
-
 [Works through ready tasks continuously, using bd ready to find next task]
 
 Claude: I'm using the test-runner agent to verify all tests pass.
-
-[Agent runs tests, reports: "✓ 47 tests passed, 0 failed"]
+[Agent runs tests, reports: "47 tests passed, 0 failed"]
 
 Claude: I'm using the review-implementation skill to verify everything works.
-
 [Reviews implementation against requirements]
 
 Claude: I'm using the finishing-a-development-branch skill to wrap up.
-
 [Creates PR, cleans up]
 ```
 
@@ -998,7 +462,6 @@ Claude: I'm using the finishing-a-development-branch skill to wrap up.
 User: /hyperpowers:execute-ralph
 
 Claude: I'll execute the current epic autonomously with continuous review.
-
 [Creates feature branch]
 [Executes Task 1 with TDD]
 [5 review agents analyze Task 1]
@@ -1014,7 +477,7 @@ Claude: Epic complete! Summary:
 - Tasks completed: 5
 - Commits: 7 (including 2 fix commits)
 - Review iterations: 2
-- All success criteria met ✓
+- All success criteria met
 ```
 
 ## Philosophy
@@ -1053,7 +516,7 @@ Codex-compatible wrappers are generated artifacts. The source of truth remains:
 - `commands/*.md`
 - `agents/*.md`
 
-Generated output is written to `.agents/skills/**` (in this repo it maps to `.kimi/skills` via symlink).
+Generated output is written to `.codex/skills` (in this repo it maps to `.kimi/skills` via symlink).
 
 Run these commands after changing skills/commands/agents:
 
@@ -1098,7 +561,7 @@ Installer behavior:
 - Auto-detects which agents are installed on the system.
 - Backs up existing installs before overwriting (keeps 3 most recent).
 - Validates each install (skill counts, hook structure, version).
-- Reports partial failures — if one agent fails, others still install.
+- Reports partial failures -- if one agent fails, others still install.
 
 For agent-specific setup guides, see `.opencode/INSTALL.md`, `.kimi/INSTALL.md`, and `.codex/INSTALL.md`.
 

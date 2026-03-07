@@ -55,3 +55,23 @@ Useful commands:
 - Backs up existing `codex-*` wrappers before overwrite.
 - Retains only the 3 newest backups.
 - Safe re-run behavior: detects version and shows upgrade path.
+
+## Uninstall
+
+Using the unified installer:
+
+```bash
+./scripts/install.sh --uninstall --codex
+```
+
+Preview what would be removed:
+
+```bash
+./scripts/install.sh --uninstall --codex --dry-run
+```
+
+Complete removal (including backups):
+
+```bash
+./scripts/install.sh --uninstall --codex --purge --yes
+```

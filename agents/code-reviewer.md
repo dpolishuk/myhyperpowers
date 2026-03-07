@@ -6,7 +6,7 @@ description: Use this agent when a major project step has been completed and nee
 # - providerID/modelID: Explicit model selection (e.g., anthropic/claude-sonnet-4-5)
 # 
 # Recommended: Capable model (sonnet, glm-4.7) for complex reasoning and analysis
-# See README.md "Model Configuration" section for details
+# See docs/model-configuration.md for details
 model: inherit
 ---
 

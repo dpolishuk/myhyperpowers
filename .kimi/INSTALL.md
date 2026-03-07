@@ -312,26 +312,25 @@ kimi --version
 
 ## Uninstall
 
-Remove installed files:
+Using the unified installer:
 
 ```bash
-# Remove skills
-rm -rf ~/.config/agents/skills/{analyzing-test-effectiveness,brainstorming,...}
-
-# Remove agents
-rm -f ~/.config/agents/{codebase-investigator,code-reviewer,...}.yaml
-rm -f ~/.config/agents/*-system.md
-
-# Remove main agent
-rm -f ~/.config/agents/hyperpowers.yaml
-rm -f ~/.config/agents/hyperpowers-system.md
-
-# Remove version file
-rm -f ~/.config/agents/.hyperpowers-version
-
-# Optionally remove MCP config
-rm -f ~/.config/kimi/mcp.json
+./scripts/install.sh --uninstall --kimi
 ```
+
+Preview what would be removed:
+
+```bash
+./scripts/install.sh --uninstall --kimi --dry-run
+```
+
+Complete removal (including backups):
+
+```bash
+./scripts/install.sh --uninstall --kimi --purge --yes
+```
+
+**Note:** MCP configuration merge is not reverted automatically. Edit `~/.config/kimi/mcp.json` manually if needed.
 
 ## Getting Help
 

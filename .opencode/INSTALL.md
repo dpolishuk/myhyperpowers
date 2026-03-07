@@ -277,14 +277,16 @@ Using the unified installer:
 ./scripts/install.sh --uninstall --opencode
 ```
 
-Or manually remove installed files:
+Preview what would be removed:
 
 ```bash
-rm -rf ~/.config/opencode/plugins/hyperpowers-*.ts
-rm -rf ~/.config/opencode/skills/hyperpowers-*
-rm -rf ~/.config/opencode/agents/*
-rm -rf ~/.config/opencode/commands/*
-rm -f ~/.config/opencode/.hyperpowers-version
+./scripts/install.sh --uninstall --opencode --dry-run
+```
+
+Complete removal (including backups):
+
+```bash
+./scripts/install.sh --uninstall --opencode --purge --yes
 ```
 
 ## Getting Help

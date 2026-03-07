@@ -191,11 +191,117 @@ maybe_backup() {
 }
 
 # ---------------------------------------------------------------------------
+# Manifest tracking — records what we install so uninstall is safe
+# ---------------------------------------------------------------------------
+
+MANIFEST_ENTRIES=()
+
+manifest_add() {
+  # manifest_add <relative_path>  — track a file or dir (dirs end with /)
+  MANIFEST_ENTRIES+=("$1")
+}
+
+write_manifest() {
+  # write_manifest <agent_home>  — write .hyperpowers-manifest (overwrites)
+  local home="$1"
+  local manifest="${home}/.hyperpowers-manifest"
+  if [[ "$DRY_RUN" == true ]]; then
+    return 0
+  fi
+  {
+    echo "# .hyperpowers-manifest - installed by hyperpowers v${VERSION}"
+    echo "# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '%s\n' "${MANIFEST_ENTRIES[@]}"
+  } > "$manifest"
+}
+
+uninstall_from_manifest() {
+  # uninstall_from_manifest <agent_home>  — remove only manifest-listed entries
+  local home="$1"
+  local manifest="${home}/.hyperpowers-manifest"
+
+  if [[ ! -f "$manifest" ]]; then
+    if [[ "$PURGE" == true ]]; then
+      # Legacy fallback: remove known hyperpowers directories without manifest
+      local count=0
+      for dir in skills agents commands hooks plugins; do
+        if [[ -d "${home}/${dir}" ]]; then
+          if [[ "$DRY_RUN" == true ]]; then
+            echo "  Would remove (legacy): ${home}/${dir}/"
+          else
+            rm -rf "${home:?}/${dir}"
+          fi
+          count=$((count + 1))
+        fi
+      done
+      for f in .hyperpowers-version .hyperpowers-manifest; do
+        if [[ -f "${home}/${f}" ]]; then
+          [[ "$DRY_RUN" != true ]] && rm -f "${home}/${f}"
+          count=$((count + 1))
+        fi
+      done
+      if [[ "$DRY_RUN" != true ]]; then
+        rm -rf "${home}/.hyperpowers-backups"
+      fi
+      if [[ "$DRY_RUN" == true ]]; then
+        info "Dry run (legacy purge): would remove ${count} items from ${home}"
+      else
+        info "Legacy purge: removed ${count} directories from ${home}"
+      fi
+      return 0
+    fi
+    warn "No manifest found for ${home}. Reinstall to generate manifest, or use --purge for legacy cleanup."
+    return 1
+  fi
+
+  local count=0
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    [[ "$entry" == \#* ]] && continue
+    local target="${home}/${entry}"
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would remove: ${target}"
+      count=$((count + 1))
+      continue
+    fi
+    if [[ "$entry" == */ ]]; then
+      # Directory entry
+      [[ -d "$target" ]] && rm -rf "$target" && count=$((count + 1))
+    else
+      # File entry
+      [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
+    fi
+  done < "$manifest"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Dry run: would remove ${count} items from ${home}"
+    return 0
+  fi
+
+  # Clean up empty parent dirs (skills/, agents/, etc.)
+  for dir in "${home}/skills" "${home}/agents" "${home}/commands" "${home}/hooks" "${home}/plugins"; do
+    [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
+  done
+
+  # Remove manifest and version
+  rm -f "$manifest"
+  rm -f "${home}/.hyperpowers-version"
+
+  # Purge: also remove backups
+  if [[ "$PURGE" == true ]]; then
+    rm -rf "${home}/.hyperpowers-backups"
+  fi
+
+  info "Removed ${count} items from ${home}"
+}
+
+# ---------------------------------------------------------------------------
 # Install functions
 # ---------------------------------------------------------------------------
 
 install_claude() {
   local home="${AGENT_PATHS[claude]:-${HOME}/.claude}"
+  MANIFEST_ENTRIES=()
   ensure_dir "${home}/skills"
   ensure_dir "${home}/agents"
   ensure_dir "${home}/commands"
@@ -203,34 +309,59 @@ install_claude() {
   maybe_backup "$home" "${home}/.hyperpowers-backups"
 
   # Skills (recursive copy of each skill dir)
-  copy_dirs "${REPO_ROOT}/skills/*/" "${home}/skills" --exclude "common-patterns"
+  for d in "${REPO_ROOT}"/skills/*/; do
+    [[ -d "$d" ]] || continue
+    local name; name="$(basename "$d")"
+    [[ "$name" == "common-patterns" ]] && continue
+    copy_item "$d" "${home}/skills/${name}"
+    manifest_add "skills/${name}/"
+  done
 
   # Agents (.md files, excluding CLAUDE.md)
   for f in "${REPO_ROOT}"/agents/*.md; do
     [[ -f "$f" ]] || continue
-    [[ "$(basename "$f")" == "CLAUDE.md" ]] && continue
-    copy_item "$f" "${home}/agents/$(basename "$f")"
+    local name; name="$(basename "$f")"
+    [[ "$name" == "CLAUDE.md" ]] && continue
+    copy_item "$f" "${home}/agents/${name}"
+    manifest_add "agents/${name}"
   done
 
   # Commands
-  copy_files "${REPO_ROOT}/commands/*.md" "${home}/commands"
+  for f in "${REPO_ROOT}"/commands/*.md; do
+    [[ -f "$f" ]] || continue
+    local name; name="$(basename "$f")"
+    copy_item "$f" "${home}/commands/${name}"
+    manifest_add "commands/${name}"
+  done
 
   # Hooks — RECURSIVE copy (fixes bug: old installer only copied files)
   cp -R "${REPO_ROOT}/hooks/"* "${home}/hooks/" 2>/dev/null || true
   if [[ "$USE_SYMLINKS" == true ]]; then
-    # For symlink mode, replace the recursive copy with symlinks per top-level item
     rm -rf "${home}/hooks/"*
     for item in "${REPO_ROOT}"/hooks/*; do
       [[ -e "$item" ]] || continue
       ln -sfn "$item" "${home}/hooks/$(basename "$item")"
     done
   fi
+  # Track each top-level hooks item
+  for item in "${REPO_ROOT}"/hooks/*; do
+    [[ -e "$item" ]] || continue
+    local name; name="$(basename "$item")"
+    if [[ -d "$item" ]]; then
+      manifest_add "hooks/${name}/"
+    else
+      manifest_add "hooks/${name}"
+    fi
+  done
 
+  manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
+  write_manifest "$home"
 }
 
 install_opencode() {
   local home="${AGENT_PATHS[opencode]:-${XDG_CFG}/opencode}"
+  MANIFEST_ENTRIES=()
   ensure_dir "${home}/skills"
   ensure_dir "${home}/agents"
   ensure_dir "${home}/commands"
@@ -238,24 +369,45 @@ install_opencode() {
   maybe_backup "$home" "${home}/.hyperpowers-backups"
 
   # Skills (only hyperpowers-* prefixed — already curated in .opencode/skills/)
-  copy_dirs "${REPO_ROOT}/.opencode/skills/hyperpowers-*/" "${home}/skills"
-  # Also copy beads-triage if it exists
+  for d in "${REPO_ROOT}"/.opencode/skills/hyperpowers-*/; do
+    [[ -d "$d" ]] || continue
+    local name; name="$(basename "$d")"
+    copy_item "$d" "${home}/skills/${name}"
+    manifest_add "skills/${name}/"
+  done
   if [[ -d "${REPO_ROOT}/.opencode/skills/beads-triage" ]]; then
     copy_item "${REPO_ROOT}/.opencode/skills/beads-triage" "${home}/skills/beads-triage"
+    manifest_add "skills/beads-triage/"
   fi
 
   # Agents
-  copy_files "${REPO_ROOT}/.opencode/agents/*.md" "${home}/agents"
+  for f in "${REPO_ROOT}"/.opencode/agents/*.md; do
+    [[ -f "$f" ]] || continue
+    local name; name="$(basename "$f")"
+    copy_item "$f" "${home}/agents/${name}"
+    manifest_add "agents/${name}"
+  done
 
   # Commands
-  copy_files "${REPO_ROOT}/.opencode/commands/*.md" "${home}/commands"
+  for f in "${REPO_ROOT}"/.opencode/commands/*.md; do
+    [[ -f "$f" ]] || continue
+    local name; name="$(basename "$f")"
+    copy_item "$f" "${home}/commands/${name}"
+    manifest_add "commands/${name}"
+  done
 
   # Plugins
-  copy_files "${REPO_ROOT}/.opencode/plugins/*.ts" "${home}/plugins"
+  for f in "${REPO_ROOT}"/.opencode/plugins/*.ts; do
+    [[ -f "$f" ]] || continue
+    local name; name="$(basename "$f")"
+    copy_item "$f" "${home}/plugins/${name}"
+    manifest_add "plugins/${name}"
+  done
 
   # Package.json + bun install
   if [[ -f "${REPO_ROOT}/.opencode/package.json" ]]; then
     copy_item "${REPO_ROOT}/.opencode/package.json" "${home}/package.json"
+    manifest_add "package.json"
     if command -v bun &>/dev/null; then
       (cd "$home" && bun install --silent 2>/dev/null) || warn "bun install failed in ${home}"
     else
@@ -265,14 +417,20 @@ install_opencode() {
 
   # Extra config files
   for f in task-context.json cass-memory.json; do
-    [[ -f "${REPO_ROOT}/.opencode/${f}" ]] && copy_item "${REPO_ROOT}/.opencode/${f}" "${home}/${f}"
+    if [[ -f "${REPO_ROOT}/.opencode/${f}" ]]; then
+      copy_item "${REPO_ROOT}/.opencode/${f}" "${home}/${f}"
+      manifest_add "${f}"
+    fi
   done
 
+  manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
+  write_manifest "$home"
 }
 
 install_kimi() {
   local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
+  MANIFEST_ENTRIES=()
   ensure_dir "${home}/skills"
   maybe_backup "$home" "${home}/.hyperpowers-backups"
 
@@ -281,27 +439,33 @@ install_kimi() {
     [[ -d "$old_codex" ]] && rm -rf "$old_codex"
   done
 
-  # Skills — FILTERED: exclude codex-* and common-patterns (fixes bug: 44 unwanted dirs)
+  # Skills — FILTERED: exclude codex-* and common-patterns
   for skill_dir in "${REPO_ROOT}"/.kimi/skills/*/; do
     [[ -d "$skill_dir" ]] || continue
     local dirname; dirname="$(basename "$skill_dir")"
     [[ "$dirname" == codex-* ]] && continue
     [[ "$dirname" == common-patterns ]] && continue
     copy_item "$skill_dir" "${home}/skills/${dirname}"
+    manifest_add "skills/${dirname}/"
   done
 
   # Agent YAML + system prompts
   for f in "${REPO_ROOT}"/.kimi/agents/*.yaml "${REPO_ROOT}"/.kimi/agents/*-system.md; do
     [[ -f "$f" ]] || continue
-    copy_item "$f" "${home}/$(basename "$f")"
+    local name; name="$(basename "$f")"
+    copy_item "$f" "${home}/${name}"
+    manifest_add "${name}"
   done
 
   # Main agent config
   for f in hyperpowers.yaml hyperpowers-system.md; do
-    [[ -f "${REPO_ROOT}/.kimi/${f}" ]] && copy_item "${REPO_ROOT}/.kimi/${f}" "${home}/${f}"
+    if [[ -f "${REPO_ROOT}/.kimi/${f}" ]]; then
+      copy_item "${REPO_ROOT}/.kimi/${f}" "${home}/${f}"
+      manifest_add "${f}"
+    fi
   done
 
-  # MCP config merge (requires jq)
+  # MCP config merge (requires jq) — NOT tracked in manifest (can't un-merge)
   if command -v jq &>/dev/null && [[ -f "${REPO_ROOT}/.kimi/mcp.json" ]]; then
     local kimi_mcp="${XDG_CFG}/kimi/mcp.json"
     if [[ -f "$kimi_mcp" ]]; then
@@ -315,10 +479,14 @@ install_kimi() {
     warn "jq not found — MCP config not merged. Install jq and re-run."
   fi
 
+  manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
+  write_manifest "$home"
 }
 
 install_codex() {
+  MANIFEST_ENTRIES=()
+
   # Prerequisite: sync-codex-skills generates wrappers
   if command -v node &>/dev/null; then
     if ! node "${REPO_ROOT}/scripts/sync-codex-skills.js" --check 2>/dev/null; then
@@ -339,13 +507,14 @@ install_codex() {
   ensure_dir "${home}/skills"
   maybe_backup "$home" "${home}/.hyperpowers-backups"
 
-  # Source: read from canonical .kimi/skills/codex-* (NOT through .agents symlink — fixes bug)
+  # Source: read from canonical .kimi/skills/codex-* (NOT through .agents symlink)
   local source_base="${REPO_ROOT}/.kimi/skills"
   local copied=0
   for skill_dir in "${source_base}"/codex-*/; do
     [[ -d "$skill_dir" ]] || continue
     local dirname; dirname="$(basename "$skill_dir")"
     copy_item "$skill_dir" "${home}/skills/${dirname}"
+    manifest_add "skills/${dirname}/"
     copied=$((copied + 1))
   done
 
@@ -354,6 +523,7 @@ install_codex() {
     [[ -d "$skill_dir" ]] || continue
     local dirname; dirname="$(basename "$skill_dir")"
     copy_item "$skill_dir" "${home}/skills/${dirname}"
+    manifest_add "skills/${dirname}/"
     copied=$((copied + 1))
   done
 
@@ -362,7 +532,9 @@ install_codex() {
     return 1
   fi
 
+  manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
+  write_manifest "$home"
 }
 
 install_gemini() {
@@ -466,42 +638,40 @@ validate_gemini() {
 # ---------------------------------------------------------------------------
 
 uninstall_claude() {
-  local home="${HOME}/.claude"
-  rm -rf "${home:?}/skills" "${home:?}/agents" "${home:?}/commands" "${home:?}/hooks"
-  rm -f "${home}/.hyperpowers-version"
+  uninstall_from_manifest "${AGENT_PATHS[claude]:-${HOME}/.claude}"
 }
 
 uninstall_opencode() {
-  local home="${XDG_CFG}/opencode"
-  rm -rf "${home:?}/skills" "${home:?}/agents" "${home:?}/commands" "${home:?}/plugins"
-  rm -f "${home}/.hyperpowers-version" "${home}/package.json" "${home}/bun.lock"
-  rm -f "${home}/task-context.json" "${home}/cass-memory.json"
-  rm -rf "${home}/node_modules"
+  local home="${AGENT_PATHS[opencode]:-${XDG_CFG}/opencode}"
+  uninstall_from_manifest "$home"
+  # Also clean bun artifacts (not in manifest but generated by bun install)
+  if [[ "$DRY_RUN" != true ]]; then
+    rm -f "${home}/bun.lock" 2>/dev/null || true
+    rm -rf "${home}/node_modules" 2>/dev/null || true
+  fi
 }
 
 uninstall_kimi() {
-  local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
-  rm -rf "${home:?}/skills"
-  rm -f "${home}/hyperpowers.yaml" "${home}/hyperpowers-system.md"
-  rm -f "${home}/.hyperpowers-version"
-  # Remove agent yaml/md files
-  for f in "${home}"/*-system.md "${home}"/*.yaml; do
-    [[ -f "$f" ]] && rm -f "$f"
-  done
+  uninstall_from_manifest "${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
 }
 
 uninstall_codex() {
-  local home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
-  # Only remove codex-* skill dirs (leave other user content)
-  for d in "${home}"/skills/codex-*/; do
-    [[ -d "$d" ]] && rm -rf "$d"
-  done
-  rm -f "${home}/.hyperpowers-version"
+  local home
+  if [[ "$CODEX_SCOPE" == "local" ]]; then
+    home=".codex"
+  else
+    home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
+  fi
+  uninstall_from_manifest "$home"
 }
 
 uninstall_gemini() {
   if command -v gemini &>/dev/null; then
-    gemini extensions uninstall hyperpowers 2>/dev/null || true
+    if [[ "$DRY_RUN" == true ]]; then
+      info "Would run: gemini extensions uninstall hyperpowers"
+    else
+      gemini extensions uninstall hyperpowers 2>/dev/null || true
+    fi
   fi
 }
 
@@ -590,7 +760,9 @@ MODES:
     --status            Show installation status for all agents
     --symlink           Use symlinks instead of copies (dev mode)
     --local             Install Codex skills to project (not global)
-    --force             Skip confirmation prompt
+    --dry-run           Show what would be installed/removed without doing it
+    --purge             With --uninstall: also remove backups and metadata
+    --force, --yes      Skip confirmation prompt
 
 GENERAL:
     -h, --help          Show this help
@@ -602,6 +774,8 @@ EXAMPLES:
     $(basename "$0") --claude --kimi    # Install to specific agents
     $(basename "$0") --status           # Show what's installed
     $(basename "$0") --uninstall --all  # Remove from all agents
+    $(basename "$0") --uninstall --claude --dry-run  # Preview removal
+    $(basename "$0") --uninstall --all --purge --yes # Complete removal
 
 VERSION: $VERSION
 EOF
@@ -611,9 +785,11 @@ EOF
 # Main orchestration
 # ---------------------------------------------------------------------------
 
-# Module-level defaults for options shared with install functions
+# Module-level defaults for options shared with install/uninstall functions
 USE_SYMLINKS=false
 CODEX_SCOPE="global"
+DRY_RUN=false
+PURGE=false
 
 main() {
   local MODE="install"
@@ -636,7 +812,9 @@ main() {
       --status)     MODE="status"; shift ;;
       --symlink)    USE_SYMLINKS=true; shift ;;
       --local)      CODEX_SCOPE="local"; shift ;;
-      --force)      FORCE=true; shift ;;
+      --dry-run)    DRY_RUN=true; shift ;;
+      --purge)      PURGE=true; shift ;;
+      --force|--yes) FORCE=true; shift ;;
       *)            error "Unknown option: $1"; echo; usage >&2; exit 1 ;;
     esac
   done
@@ -698,20 +876,46 @@ main() {
     agent_list+="${AGENT_LABELS[$agent]}"
   done
 
+  # --- Uninstall safety: require --force/--yes in non-tty (dry-run exempt) ---
+  if [[ "$MODE" == "uninstall" ]] && ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
+    error "No terminal detected. Use --yes to confirm uninstall."
+    exit 1
+  fi
+
+  # --- Purge requires uninstall ---
+  if [[ "$PURGE" == true ]] && [[ "$MODE" != "uninstall" ]]; then
+    error "--purge requires --uninstall"
+    exit 1
+  fi
+
   # --- Interactive confirmation ---
   if [[ "$INTERACTIVE" == true ]] && [[ "$FORCE" != true ]]; then
     header
     show_detection
 
     local action_verb="Install to"
-    [[ "$MODE" == "uninstall" ]] && action_verb="Uninstall from"
+    local default_answer="Y"
+    local prompt_hint="Y/n"
+    if [[ "$MODE" == "uninstall" ]]; then
+      action_verb="Uninstall from"
+      default_answer="N"
+      prompt_hint="y/N"
+    fi
 
     local attempts=0
     while true; do
-      read -r -p "  ${action_verb}: ${agent_list}? [Y/n] " answer </dev/tty
-      case "${answer:-Y}" in
-        [Yy]|"") break ;;
-        [Nn])    info "Cancelled."; exit 0 ;;
+      read -r -p "  ${action_verb}: ${agent_list}? [${prompt_hint}] " answer </dev/tty
+      case "${answer:-$default_answer}" in
+        [Yy]) break ;;
+        [Nn]|"")
+          if [[ "$MODE" == "uninstall" ]] && [[ -z "${answer:-}" ]]; then
+            info "Cancelled."; exit 0
+          elif [[ "${answer:-}" =~ ^[Nn]$ ]]; then
+            info "Cancelled."; exit 0
+          else
+            break  # Empty answer with default Y for install
+          fi
+          ;;
         *)
           attempts=$((attempts + 1))
           if [[ $attempts -ge 3 ]]; then
@@ -739,7 +943,7 @@ main() {
     local label="${AGENT_LABELS[$agent]}"
     if [[ "$MODE" == "uninstall" ]]; then
       printf "  Uninstalling from ${BOLD}%-16s${RESET} " "$label..."
-      if "uninstall_${agent}" 2>/dev/null; then
+      if "uninstall_${agent}"; then
         echo -e "${GREEN}✓${RESET}"
       else
         echo -e "${RED}✗${RESET}"
