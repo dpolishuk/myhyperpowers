@@ -101,15 +101,10 @@ test("mapStatus with unknown status returns fallback via type", () => {
     { id: "x2", name: "Active", type: "started" },
   ]
 
-  // "open" tries "todo", "backlog" match → finds "Unreviewed" via "backlog" keyword... wait
-  // Actually "open" matchers are ["todo", "backlog", "triage"]
-  // "Unreviewed" doesn't contain "todo" or "backlog" or "triage"
-  // Falls through to type match: typeMap.open = "backlog" → x1
-  // Actually... let me re-check. "backlog" is in the matcher list for open.
-  // Does "Unreviewed".toLowerCase().includes("backlog") → false
-  // So falls through to type match: type "backlog" → x1
+  // No state name matches "todo"/"backlog"/"triage", so falls through to type-based
+  // fallback: typeMap.open = "backlog" → matches x1 (type: "backlog")
   const result = mapStatus("open", states)
-  assert.equal(result, "x1") // fallback to type "backlog"
+  assert.equal(result, "x1")
 })
 
 test("mapType maps all 4 types correctly", () => {

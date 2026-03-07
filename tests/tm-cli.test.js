@@ -69,7 +69,15 @@ test("tm passes through arguments unchanged to bd", () => {
 })
 
 test("tm passes arguments with spaces unchanged to bd", () => {
-  // Create a task with spaces in title and design, verify it works
+  // Use a temp directory with its own .beads to avoid polluting repo state
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-test-"))
+  const tmpBeads = path.join(tmpDir, ".beads")
+  fs.mkdirSync(tmpBeads)
+  // Initialize minimal beads DB
+  spawnSync("bd", ["init"], { cwd: tmpDir, encoding: "utf8", timeout: 10000 })
+
   const title = "TM test issue with spaces"
   const design = "Multi word design for testing"
   const createResult = runTm([
@@ -77,23 +85,23 @@ test("tm passes arguments with spaces unchanged to bd", () => {
     "--type", "task",
     "--priority", "4",
     "--design", design,
-  ])
+  ], { cwd: tmpDir })
   assert.equal(createResult.status, 0, `tm create failed: ${createResult.stderr}`)
 
-  // Extract issue ID from output (prefix varies by repo: myhyperpowers-xxx, bd-xxx, etc.)
+  // Extract issue ID from output (prefix varies by repo)
   const idMatch = createResult.stdout.match(/(\S+-[0-9a-z]+)/)
   assert.ok(idMatch, `Could not find issue ID in output: ${createResult.stdout}`)
   const issueId = idMatch[1]
 
   // Verify the title and design were preserved
-  const showResult = runTm(["show", issueId])
+  const showResult = runTm(["show", issueId], { cwd: tmpDir })
   assert.equal(showResult.status, 0)
   assert.ok(showResult.stdout.includes(title), `Title not found in show output`)
   assert.ok(showResult.stdout.includes(design), `Design not found in show output`)
 
   // Clean up
-  const closeResult = runTm(["close", issueId, "--reason", "test cleanup"])
-  assert.equal(closeResult.status, 0)
+  runTm(["close", issueId, "--reason", "test cleanup"], { cwd: tmpDir })
+  fs.rmSync(tmpDir, { recursive: true, force: true })
 })
 
 test("tm when bd not in PATH gives helpful error message", () => {

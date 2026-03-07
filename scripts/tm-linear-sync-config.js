@@ -7,8 +7,12 @@ const { spawnSync } = require("node:child_process")
  * Load a config value from: env var → bd config → null
  */
 function loadConfigValue(envVar, bdConfigKey) {
-  const envVal = process.env[envVar]
-  if (envVal) return envVal
+  // Explicit empty env var overrides bd config (allows disabling with LINEAR_API_KEY="")
+  if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
+    const envVal = (process.env[envVar] || "").trim()
+    if (!envVal) return null
+    return envVal
+  }
 
   const result = spawnSync("bd", ["config", "get", bdConfigKey], {
     encoding: "utf8",
