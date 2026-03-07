@@ -16,8 +16,8 @@ This guide covers the key metrics for tracking work in bd.
 
 ```bash
 # Calculate cycle time for completed task
-bd show bd-5 | grep "status.*in-progress" # Get start time
-bd show bd-5 | grep "status.*closed"      # Get end time
+tm show bd-5 | grep "status.*in-progress" # Get start time
+tm show bd-5 | grep "status.*closed"      # Get end time
 # Difference = cycle time
 ```
 
@@ -31,8 +31,8 @@ bd show bd-5 | grep "status.*closed"      # Get end time
 
 ```bash
 # Calculate lead time for completed task
-bd show bd-5 | grep "created_at"    # Get creation time
-bd show bd-5 | grep "deployed_at"   # Get deployment time (if tracked)
+tm show bd-5 | grep "created_at"    # Get creation time
+tm show bd-5 | grep "deployed_at"   # Get deployment time (if tracked)
 # Difference = lead time
 ```
 
@@ -91,10 +91,10 @@ Lead Time: 3 days, 5 hours (Monday 9am → Thursday 2pm)
 
 ```bash
 # All in-progress tasks
-bd list --status in-progress
+tm list --status in-progress
 
 # Count
-bd list --status in-progress | grep "^bd-" | wc -l
+tm list --status in-progress | grep "^bd-" | wc -l
 ```
 
 ### WIP Limits
@@ -134,7 +134,7 @@ Workflow stages and limits:
 
 ```bash
 # Check personal WIP
-bd list --status in-progress | grep "assignee:me" | wc -l
+tm list --status in-progress | grep "assignee:me" | wc -l
 
 # If > 2: Focus on finishing before starting new work
 ```
@@ -157,9 +157,9 @@ bd list --status in-progress | grep "assignee:me" | wc -l
 ```bash
 # Find tasks that are blocking others
 # (Tasks that many other tasks depend on)
-for task in $(bd list --status open | grep "^bd-" | cut -d: -f1); do
+for task in $(tm list --status open | grep "^bd-" | cut -d: -f1); do
   echo -n "$task: "
-  bd list --status open | xargs -I {} sh -c "bd show {} | grep -q \"depends on $task\" && echo {}" | wc -l
+  tm list --status open | xargs -I {} sh -c "tm show {} | grep -q \"depends on $task\" && echo {}" | wc -l
 done | sort -t: -k2 -n -r
 
 # Shows tasks with most dependencies (top bottlenecks)

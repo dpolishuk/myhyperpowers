@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# tm - Abstract Task Manager CLI
+# Routes commands to the configured backend (bd by default).
+# Part of the Hyperpowers plugin system.
+
+TM_VERSION="0.1.0"
+
+# ── Backend detection ────────────────────────────────────────────────────────
+
+detect_backend() {
+  # Priority: env var > config file > default
+  if [[ -n "${TM_BACKEND:-}" ]]; then
+    echo "$TM_BACKEND"
+    return
+  fi
+
+  # Check .beads/config.yaml for tm.backend (flat YAML, no external deps)
+  local config=".beads/config.yaml"
+  if [[ -f "$config" && -r "$config" ]]; then
+    local val
+    val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{print $2}' || true)
+    if [[ -n "$val" ]]; then
+      echo "$val"
+      return
+    fi
+  fi
+
+  echo "bd"
+}
+
+# ── Validation ───────────────────────────────────────────────────────────────
+
+validate_backend() {
+  local backend="$1"
+  case "$backend" in
+    bd|linear) ;;
+    *)
+      echo "tm: unknown backend '$backend'. Valid backends: bd, linear" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# ── Help / Version ───────────────────────────────────────────────────────────
+
+show_help() {
+  local backend
+  backend=$(detect_backend)
+  cat <<EOF
+tm - Abstract Task Manager CLI (v${TM_VERSION})
+
+Usage: tm <command> [args...]
+
+Routes all commands to the configured backend.
+Currently configured backend: ${backend}
+
+Backend detection (highest priority first):
+  1. TM_BACKEND environment variable
+  2. tm.backend in .beads/config.yaml
+  3. Default: bd
+
+Available backends:
+  bd      Local beads task manager (default)
+  linear  Linear.app integration (not yet implemented)
+
+Examples:
+  tm ready              Show tasks ready to work on
+  tm show bd-3          Show task details
+  tm create "Title"     Create a new task
+  tm close bd-3         Close a task
+
+All arguments are passed through to the backend unchanged.
+EOF
+}
+
+show_version() {
+  local backend
+  backend=$(detect_backend)
+  echo "tm ${TM_VERSION} (backend: ${backend})"
+}
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+main() {
+  # Handle tm-specific flags before routing
+  if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    show_help
+    exit 0
+  fi
+
+  if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    show_version
+    exit 0
+  fi
+
+  local backend
+  backend=$(detect_backend)
+  validate_backend "$backend"
+
+  case "$backend" in
+    bd)
+      if ! command -v bd >/dev/null 2>&1; then
+        echo "tm: bd not found in PATH. Install beads first: https://github.com/Dicklesworthstone/beads_viewer" >&2
+        exit 1
+      fi
+      # Intercept sync: run bd sync first, then Linear sync if configured
+      if [[ "${1:-}" == "sync" ]]; then
+        bd sync "${@:2}"
+        local sync_exit=$?
+        # Run Linear sync if node is available (non-fatal)
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if command -v node >/dev/null 2>&1 && [[ -f "$script_dir/tm-linear-sync.js" ]]; then
+          node "$script_dir/tm-linear-sync.js" || true
+        fi
+        exit "$sync_exit"
+      fi
+      exec bd "$@"
+      ;;
+    linear)
+      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd or wait for Phase 2." >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

@@ -12,9 +12,9 @@ Result: ✓ 234 tests pass
 
 ### Minutes 5-10: Create bd Task
 ```bash
-bd create "Refactor: Extract user validation" --type task
-bd edit bd-456 --design "Extract validation to UserValidator class..."
-bd update bd-456 --status in_progress
+tm create "Refactor: Extract user validation" --type task
+tm edit bd-456 --design "Extract validation to UserValidator class..."
+tm update bd-456 --status in_progress
 ```
 
 ### Minutes 10-15: Step 1 - Extract email validation function
@@ -72,7 +72,7 @@ Result: ✓ 234 tests pass
 Dispatch hyperpowers:test-runner: "Run: cargo clippy"
 Result: ✓ No warnings
 
-bd close bd-456
+tm close bd-456
 ```
 
 **Result:** Refactoring complete, 8 safe commits, all tests green throughout.

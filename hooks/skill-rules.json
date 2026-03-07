@@ -102,7 +102,7 @@
     "enforcement": "suggest",
     "priority": "high",
     "promptTriggers": {
-      "keywords": ["expand", "enhance", "detailed steps", "implementation steps", "bd tasks"],
+      "keywords": ["expand", "enhance", "detailed steps", "implementation steps", "bd tasks", "tm tasks"],
       "intentPatterns": [
         "expand.*?(bd|task|plan)",
         "enhance.*?with.*(steps|details)",
@@ -116,7 +116,7 @@
     "enforcement": "suggest",
     "priority": "high",
     "promptTriggers": {
-      "keywords": ["execute", "implement", "start working", "begin implementation", "work on bd"],
+      "keywords": ["execute", "implement", "start working", "begin implementation", "work on bd", "work on tm"],
       "intentPatterns": [
         "execute.*(plan|tasks|bd)",
         "(start|begin).*(implementation|work|executing)",
@@ -183,7 +183,7 @@
     "enforcement": "suggest",
     "priority": "low",
     "promptTriggers": {
-      "keywords": ["split task", "merge tasks", "bd dependencies", "archive epic"],
+      "keywords": ["split task", "merge tasks", "bd dependencies", "tm dependencies", "archive epic"],
       "intentPatterns": [
         "(split|divide).*?task",
         "merge.*?tasks",

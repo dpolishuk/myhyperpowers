@@ -17,13 +17,13 @@ Epic requirements are immutable. Tasks adapt to discoveries. Do not skip checkpo
 
 | Step | Command | Purpose |
 |------|---------|---------|
-| **Load Epic** | `bd show bd-1` | Read immutable requirements once at start |
-| **Find Task** | `bd ready` | Get next ready task to execute |
-| **Start Task** | `bd update bd-2 --status in_progress` | Mark task active |
+| **Load Epic** | `tm show bd-1` | Read immutable requirements once at start |
+| **Find Task** | `tm ready` | Get next ready task to execute |
+| **Start Task** | `tm update bd-2 --status in_progress` | Mark task active |
 | **Track Substeps** | TodoWrite for each implementation step | Prevent incomplete execution |
-| **Close Task** | `bd close bd-2` | Mark task complete after verification |
+| **Close Task** | `tm close bd-2` | Mark task complete after verification |
 | **Review** | Re-read epic, check learnings | Adapt next task to reality |
-| **Create Next** | `bd create "Task N"` | Based on learnings, not assumptions |
+| **Create Next** | `tm create "Task N"` | Based on learnings, not assumptions |
 | **Refine** | Use `sre-task-refinement` skill | Corner-case analysis with Opus 4.1 |
 | **STOP** | Present summary to user | User reviews, clears context, runs command again |
 | **Final Check** | Use `review-implementation` skill | Verify all success criteria before closing epic |
@@ -49,9 +49,9 @@ Symptoms you need this:
 This skill supports explicit resumption. When invoked:
 
 ```bash
-bd list --type epic --status open  # Find active epic
-bd ready                           # Check for ready tasks
-bd list --status in_progress       # Check for in-progress tasks
+tm list --type epic --status open  # Find active epic
+tm ready                           # Check for ready tasks
+tm list --status in_progress       # Check for in-progress tasks
 ```
 
 **Fresh start:** No in-progress tasks, proceed to Step 1.
@@ -73,8 +73,8 @@ bd list --status in_progress       # Check for in-progress tasks
 Before executing ANY task, load the epic into context:
 
 ```bash
-bd list --type epic --status open  # Find epic
-bd show bd-1                       # Load epic details
+tm list --type epic --status open  # Find epic
+tm show bd-1                       # Load epic details
 ```
 
 **Extract and keep in mind:**
@@ -88,9 +88,9 @@ bd show bd-1                       # Load epic details
 ## 2. Execute Current Ready Task
 
 ```bash
-bd ready                           # Find next task
-bd update bd-2 --status in_progress # Start it
-bd show bd-2                       # Read details
+tm ready                           # Find next task
+tm update bd-2 --status in_progress # Start it
+tm show bd-2                       # Read details
 ```
 
 **CRITICAL - Create TodoWrite for ALL substeps:**
@@ -117,7 +117,7 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 - If complete: Close task and commit
 
 ```bash
-bd close bd-2  # After ALL substeps done
+tm close bd-2  # After ALL substeps done
 ```
 
 ## 2a. When Hitting Obstacles
@@ -127,7 +127,7 @@ bd close bd-2  # After ALL substeps done
 When you hit a blocker or obstacle during implementation, do NOT automatically try alternative approaches. First check the epic's "Approaches Considered" section.
 
 **BEFORE switching approaches:**
-1. Re-read epic: `bd show bd-1`
+1. Re-read epic: `tm show bd-1`
 2. Find "Approaches Considered" section
 3. Check if the alternative you're considering was already rejected
 4. Read the "⚠️ REJECTED BECAUSE" reasoning
@@ -185,7 +185,7 @@ Before switching to a previously rejected approach, you MUST:
 
 **Re-read epic:**
 ```bash
-bd show bd-1  # Keep requirements fresh
+tm show bd-1  # Keep requirements fresh
 ```
 
 **Three cases:**
@@ -194,13 +194,13 @@ bd show bd-1  # Keep requirements fresh
 
 **B) Next task now redundant** (plan invalidation allowed):
 ```bash
-bd delete bd-4  # Remove wasteful task
-# Or update: bd update bd-4 --title "New work" --design "..."
+tm delete bd-4  # Remove wasteful task
+# Or update: tm update bd-4 --title "New work" --design "..."
 ```
 
 **C) Need new task** based on learnings:
 ```bash
-bd create "Task N: [Next Step Based on Reality]" \
+tm create "Task N: [Next Step Based on Reality]" \
   --type feature \
   --design "## Goal
 [Deliverable based on what we learned]
@@ -215,8 +215,8 @@ Completed bd-2: [discoveries]
 - [ ] Specific outcomes
 - [ ] Tests passing"
 
-bd dep add bd-N bd-1 --type parent-child
-bd dep add bd-N bd-2 --type blocks
+tm dep add bd-N bd-1 --type parent-child
+tm dep add bd-N bd-2 --type blocks
 ```
 
 **REQUIRED - Run SRE refinement on new task:**
@@ -235,7 +235,7 @@ SRE refinement will:
 ## 4. Check Epic Success Criteria and STOP
 
 ```bash
-bd show bd-1  # Check success criteria
+tm show bd-1  # Check success criteria
 ```
 
 - ALL criteria met? → Step 5 (final validation)
@@ -314,7 +314,7 @@ TodoWrite shows:
 - ⏸️ bd-2 Step 6: Commit (pending)
 
 Developer thinks: "Function works, I'll close bd-2 and move on"
-Runs: bd close bd-2
+Runs: tm close bd-2
 </code>
 
 <why_it_fails>
@@ -332,7 +332,7 @@ Steps 4-6 skipped:
 Before closing ANY task:
 1. Check TodoWrite: All substeps completed?
 2. If incomplete: Continue with remaining substeps
-3. Only when ALL ✅: bd close bd-2
+3. Only when ALL ✅: tm close bd-2
 
 **Result:** Task actually complete, tests passing, code committed.
 </correction>
@@ -376,12 +376,12 @@ npm test -- refresh.spec.ts
 
 2. Delete redundant task:
 ```bash
-bd delete bd-4
+tm delete bd-4
 ```
 
 3. Document why:
 ```
-bd update bd-2 --design "...
+tm update bd-2 --design "...
 
 Discovery: Token refresh middleware already exists (auth/middleware/refresh.ts).
 Verified working with tests. bd-4 deleted as redundant."
@@ -424,7 +424,7 @@ Adds TODO: // TODO: Replace mocks with real DB later
 
 1. Re-read epic requirements and anti-patterns:
 ```bash
-bd show bd-1
+tm show bd-1
 ```
 
 2. Check if solution violates anti-pattern:
@@ -434,7 +434,7 @@ bd show bd-1
 
 **Option A - Research:**
 ```bash
-bd create "Research: Real DB test setup for [project]" \
+tm create "Research: Real DB test setup for [project]" \
   --design "Find how this project sets up test databases.
 Check existing test files for patterns.
 Document setup process that meets anti-pattern requirements."

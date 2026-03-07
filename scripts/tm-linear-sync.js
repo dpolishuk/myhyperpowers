@@ -1,0 +1,288 @@
+#!/usr/bin/env node
+"use strict"
+
+const { spawnSync } = require("node:child_process")
+const fs = require("node:fs")
+const path = require("node:path")
+const crypto = require("node:crypto")
+const { loadLinearConfig } = require("./tm-linear-sync-config")
+
+// ── Field mapping ───────────────────────────────────────────────────────────
+
+function mapPriority(bdPriority) {
+  // Linear and bd use identical 0-4 scale
+  const p = Number(bdPriority)
+  return Number.isInteger(p) && p >= 0 && p <= 4 ? p : 0
+}
+
+function mapType(bdType) {
+  const types = { epic: "Epic", feature: "Feature", task: "Task", bug: "Bug" }
+  return types[bdType] || "Task"
+}
+
+function mapStatus(bdStatus, teamStates) {
+  const matchers = {
+    open: ["todo", "backlog", "triage"],
+    in_progress: ["progress", "started", "active"],
+    closed: ["done", "complete", "closed"],
+    blocked: ["blocked", "todo", "backlog"],
+  }
+
+  const candidates = matchers[bdStatus] || matchers.open
+  for (const keyword of candidates) {
+    const match = teamStates.find(s =>
+      s.name.toLowerCase().includes(keyword)
+    )
+    if (match) return match.id
+  }
+
+  // Fallback: use first state of matching type
+  const typeMap = {
+    open: "backlog",
+    in_progress: "started",
+    closed: "completed",
+    blocked: "unstarted",
+  }
+  const typeMatch = teamStates.find(s => s.type === (typeMap[bdStatus] || "backlog"))
+  if (typeMatch) return typeMatch.id
+
+  return null
+}
+
+function hashDesign(design) {
+  if (!design) return ""
+  return crypto.createHash("md5").update(design).digest("hex")
+}
+
+// ── ID mapping persistence ──────────────────────────────────────────────────
+
+const MAPPING_PATH = path.resolve(".beads", "linear-map.json")
+
+function loadMapping() {
+  try {
+    if (fs.existsSync(MAPPING_PATH)) {
+      return JSON.parse(fs.readFileSync(MAPPING_PATH, "utf8"))
+    }
+  } catch (err) {
+    console.error(`tm-sync: Warning: corrupted ${MAPPING_PATH}, starting fresh.`)
+  }
+  return {}
+}
+
+function saveMapping(mapping) {
+  fs.writeFileSync(MAPPING_PATH, JSON.stringify(mapping, null, 2) + "\n", "utf8")
+}
+
+// ── bd issue loading ────────────────────────────────────────────────────────
+
+function loadBdIssues() {
+  const statuses = ["open", "in_progress", "closed"]
+  const issues = []
+
+  for (const status of statuses) {
+    const result = spawnSync("bd", ["list", "--json", "--status", status], {
+      encoding: "utf8",
+      timeout: 10000,
+    })
+    if (result.status === 0 && result.stdout.trim()) {
+      try {
+        const parsed = JSON.parse(result.stdout)
+        issues.push(...parsed)
+      } catch {
+        console.error(`tm-sync: Warning: could not parse bd list --status ${status} output`)
+      }
+    }
+  }
+
+  return issues
+}
+
+// ── Sync engine ─────────────────────────────────────────────────────────────
+
+async function syncToLinear() {
+  const config = loadLinearConfig()
+  if (!config) {
+    console.log("tm-sync: Linear not configured, skipping.")
+    return
+  }
+
+  // Dynamic import for ESM-only @linear/sdk
+  const { LinearClient } = await import("@linear/sdk")
+  const client = new LinearClient({ apiKey: config.apiKey })
+
+  // Verify API key
+  let viewer
+  try {
+    viewer = await client.viewer
+  } catch (err) {
+    console.error("tm-sync: Linear API key invalid or expired.")
+    console.error(`  Error: ${err.message}`)
+    process.exit(1)
+  }
+  console.log(`tm-sync: Authenticated as ${viewer.displayName || viewer.email}`)
+
+  // Find team
+  const teams = await client.teams({
+    first: 1,
+    filter: { key: { eq: config.teamKey } },
+  })
+  const team = teams.nodes[0]
+  if (!team) {
+    console.error(`tm-sync: Team "${config.teamKey}" not found in Linear.`)
+    process.exit(1)
+  }
+
+  // Load workflow states for the team
+  const statesResult = await client.workflowStates({
+    filter: { team: { id: { eq: team.id } } },
+    first: 100,
+  })
+  const teamStates = statesResult.nodes.map(s => ({
+    id: s.id,
+    name: s.name,
+    type: s.type,
+  }))
+
+  // Find or create labels for issue types
+  const labelCache = {}
+  async function getOrCreateLabel(labelName) {
+    if (labelCache[labelName]) return labelCache[labelName]
+
+    const existing = await client.issueLabels({
+      first: 1,
+      filter: { name: { eq: labelName }, team: { id: { eq: team.id } } },
+    })
+    if (existing.nodes.length > 0) {
+      labelCache[labelName] = existing.nodes[0].id
+      return existing.nodes[0].id
+    }
+
+    // Try workspace-level labels
+    const workspace = await client.issueLabels({
+      first: 1,
+      filter: { name: { eq: labelName } },
+    })
+    if (workspace.nodes.length > 0) {
+      labelCache[labelName] = workspace.nodes[0].id
+      return workspace.nodes[0].id
+    }
+
+    // Create the label
+    const payload = await client.createIssueLabel({
+      name: labelName,
+      teamId: team.id,
+    })
+    if (payload._issueLabel) {
+      const label = await payload.issueLabel
+      labelCache[labelName] = label.id
+      return label.id
+    }
+    return null
+  }
+
+  // Load mapping and bd issues
+  const mapping = loadMapping()
+  const issues = loadBdIssues()
+
+  let created = 0
+  let updated = 0
+  let unchanged = 0
+
+  for (const issue of issues) {
+    const bdId = issue.id
+    const designHash = hashDesign(issue.design)
+    const stateId = mapStatus(issue.status, teamStates)
+    const priority = mapPriority(issue.priority)
+    const labelName = mapType(issue.issue_type)
+
+    const existing = mapping[bdId]
+
+    if (!existing) {
+      // Create new issue in Linear
+      const createParams = {
+        teamId: team.id,
+        title: issue.title || bdId,
+        description: issue.design || "",
+        priority,
+      }
+      if (stateId) createParams.stateId = stateId
+
+      const labelId = await getOrCreateLabel(labelName)
+      if (labelId) createParams.labelIds = [labelId]
+
+      try {
+        const payload = await client.createIssue(createParams)
+        const linearIssue = await payload.issue
+        if (linearIssue) {
+          mapping[bdId] = {
+            linearId: linearIssue.id,
+            linearIdentifier: linearIssue.identifier,
+            lastSyncedAt: new Date().toISOString(),
+            lastSyncedFields: {
+              title: issue.title,
+              status: issue.status,
+              priority: issue.priority,
+              designHash,
+            },
+          }
+          created++
+        }
+      } catch (err) {
+        console.error(`tm-sync: Failed to create "${issue.title}": ${err.message}`)
+      }
+
+      // Rate limit protection
+      if (created > 0 && created % 5 === 0) {
+        await new Promise(r => setTimeout(r, 500))
+      }
+    } else {
+      // Check if anything changed
+      const prev = existing.lastSyncedFields || {}
+      const changed = prev.title !== issue.title ||
+        prev.status !== issue.status ||
+        prev.priority !== issue.priority ||
+        prev.designHash !== designHash
+
+      if (!changed) {
+        unchanged++
+        continue
+      }
+
+      // Update existing issue
+      const updateParams = {
+        title: issue.title,
+        description: issue.design || "",
+        priority,
+      }
+      if (stateId) updateParams.stateId = stateId
+
+      try {
+        await client.updateIssue(existing.linearId, updateParams)
+        existing.lastSyncedAt = new Date().toISOString()
+        existing.lastSyncedFields = {
+          title: issue.title,
+          status: issue.status,
+          priority: issue.priority,
+          designHash,
+        }
+        updated++
+      } catch (err) {
+        console.error(`tm-sync: Failed to update "${issue.title}": ${err.message}`)
+      }
+    }
+  }
+
+  saveMapping(mapping)
+  console.log(`tm-sync: Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged)`)
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+
+if (require.main === module) {
+  syncToLinear().catch(err => {
+    console.error(`tm-sync: ${err.message}`)
+    process.exit(1)
+  })
+}
+
+module.exports = { mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping }

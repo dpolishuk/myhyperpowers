@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-PostToolUse hook to block bd create/update commands with truncation markers.
+PostToolUse hook to block tm/bd create/update commands with truncation markers.
 
-Prevents incomplete task specifications from being saved to bd, which causes
+Prevents incomplete task specifications from being saved, which causes
 confusion and incomplete implementation later.
 
 Truncation markers include:
@@ -61,8 +61,8 @@ def main():
 
     command = tool_input.get("command", "")
 
-    # Check if this is a bd create or bd update command
-    if not command or not re.search(r'\bbd\s+(create|update)\b', command):
+    # Check if this is a tm/bd create or update command
+    if not command or not re.search(r'\b(tm|bd)\s+(create|update)\b', command):
         sys.exit(0)
 
     # Check for truncation markers
@@ -75,9 +75,9 @@ def main():
                 "hookEventName": "PostToolUse",
                 "permissionDecision": "deny",
                 "permissionDecisionReason": (
-                    f"⚠️  BD TRUNCATION DETECTED\n\n"
+                    f"⚠️  TASK TRUNCATION DETECTED\n\n"
                     f"Found truncation marker: {truncation_marker}\n\n"
-                    f"This bd task specification appears incomplete or truncated. "
+                    f"This task specification appears incomplete or truncated. "
                     f"Saving incomplete specifications leads to confusion and incomplete implementations.\n\n"
                     f"Please:\n"
                     f"1. Expand the full implementation details\n"
@@ -86,7 +86,7 @@ def main():
                     f"4. Ensure every step has complete, actionable instructions\n\n"
                     f"If the specification is too long:\n"
                     f"- Break into smaller epics\n"
-                    f"- Use bd dependencies to link related tasks\n"
+                    f"- Use tm dependencies to link related tasks\n"
                     f"- Focus on making each task independently complete\n\n"
                     f"DO NOT truncate task specifications."
                 )
