@@ -294,10 +294,11 @@ async function syncToLinear() {
         continue
       }
 
-      // Update existing issue
+      // Update existing issue (preserve bd ID marker for relinking)
+      const updateDescWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
       const updateParams = {
         title: issue.title,
-        description: designText,
+        description: updateDescWithMarker,
         priority,
       }
       if (stateId) updateParams.stateId = stateId
