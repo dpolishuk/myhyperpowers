@@ -234,8 +234,11 @@ async function syncToLinear() {
           mapping[bdId] = existing
           console.log(`tm-sync: Linked ${bdId} → ${found.identifier} (found by marker)`)
         }
-      } catch {
-        // Search failed, proceed to create
+      } catch (err) {
+        // Search failed — skip this issue to avoid creating duplicates
+        console.error(`tm-sync: Search failed for ${bdId}, skipping to avoid duplicate: ${err.message}`)
+        errors++
+        continue
       }
     }
 
