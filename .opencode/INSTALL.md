@@ -11,23 +11,26 @@ For Gemini CLI, install from `.gemini-extension/`, and for Claude Code, use the 
 
 ## Quick Install
 
-### Option 1: Using the Install Script (Recommended)
+### Option 1: Using the Unified Installer (Recommended)
 
 From the hyperpowers repository:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dpolishuk/hyperpowers.git ~/hyperpowers
-cd ~/hyperpowers
+git clone https://github.com/dpolishuk/myhyperpowers.git ~/myhyperpowers
+cd ~/myhyperpowers
 
-# Run the install script
-./scripts/install-opencode-plugin.sh
+# Install to OpenCode only
+./scripts/install.sh --opencode
+
+# Or install to all detected agents at once
+./scripts/install.sh --all
 ```
 
 For development (symlinks for live reload):
 
 ```bash
-./scripts/install-opencode-plugin.sh --symlink
+./scripts/install.sh --opencode --symlink
 ```
 
 ### Option 2: Manual Install
@@ -35,7 +38,7 @@ For development (symlinks for live reload):
 ```bash
 # 1. Clone to config directory
 mkdir -p ~/.config/opencode
-git clone https://github.com/dpolishuk/hyperpowers.git ~/.config/opencode/hyperpowers
+git clone https://github.com/dpolishuk/myhyperpowers.git ~/.config/opencode/hyperpowers
 
 # 2. Register plugin
 mkdir -p ~/.config/opencode/plugins
@@ -212,7 +215,7 @@ All hyperpowers commands are auto-discovered from the cloned repository:
 For development, use symlinks to enable live reload:
 
 ```bash
-./scripts/install-opencode-plugin.sh --symlink
+./scripts/install.sh --opencode --symlink
 ```
 
 Changes to `.opencode/` files will be reflected immediately upon OpenCode reload.
@@ -268,22 +271,24 @@ bun install
 
 ## Uninstall
 
-Remove installed files:
+Using the unified installer:
 
 ```bash
-rm -rf ~/.config/opencode/hyperpowers
+./scripts/install.sh --uninstall --opencode
+```
+
+Or manually remove installed files:
+
+```bash
 rm -rf ~/.config/opencode/plugins/hyperpowers-*.ts
 rm -rf ~/.config/opencode/skills/hyperpowers-*
 rm -rf ~/.config/opencode/agents/*
 rm -rf ~/.config/opencode/commands/*
-rm -rf ~/.config/opencode/cass-memory
-
-# Keep dependencies or clean all:
-rm -rf ~/.config/opencode/node_modules
+rm -f ~/.config/opencode/.hyperpowers-version
 ```
 
 ## Getting Help
 
-- Report issues: https://github.com/dpolishuk/hyperpowers/issues
-- Documentation: https://github.com/dpolishuk/hyperpowers
+- Report issues: https://github.com/dpolishuk/myhyperpowers/issues
+- Documentation: https://github.com/dpolishuk/myhyperpowers
 - OpenCode Docs: https://opencode.ai/docs/

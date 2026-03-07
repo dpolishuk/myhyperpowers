@@ -18,14 +18,14 @@ node scripts/sync-codex-skills.js --check
 
 ## 2) Install wrappers
 
-Use the installer script:
+Use the unified installer (auto-syncs wrappers if needed):
 
 ```bash
-# Global install to ~/.codex/skills
-bash scripts/install-codex-plugin.sh --global
+# Install to ~/.codex/skills (global)
+./scripts/install.sh --codex
 
-# Local install to <target>/.codex/skills
-bash scripts/install-codex-plugin.sh --local --target /path/to/project
+# Or install to all detected agents at once
+./scripts/install.sh --all
 ```
 
 ## 3) Invoke wrappers explicitly in Codex
@@ -45,14 +45,13 @@ These wrappers are not custom slash-command registrations; they are skill invoca
 Useful commands:
 
 ```bash
-bash scripts/install-codex-plugin.sh --status
-bash scripts/install-codex-plugin.sh --version
-bash scripts/install-codex-plugin.sh --codex-home /custom/.codex
-bash scripts/install-codex-plugin.sh --global --force
+./scripts/install.sh --status     # Show install state for all agents
+./scripts/install.sh --version    # Show hyperpowers version
+./scripts/install.sh --codex --force  # Force reinstall Codex wrappers
 ```
 
 ## Installer guarantees
 
 - Backs up existing `codex-*` wrappers before overwrite.
 - Retains only the 3 newest backups.
-- Safe re-run behavior: exits early when the same version is already installed (unless `--force`).
+- Safe re-run behavior: detects version and shows upgrade path.

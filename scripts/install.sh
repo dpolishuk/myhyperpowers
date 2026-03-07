@@ -1,0 +1,783 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Hyperpowers Unified Multi-Agent Installer
+# Detects installed AI coding agents and installs hyperpowers to all of them.
+# Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI
+
+# ---------------------------------------------------------------------------
+# Common infrastructure
+# ---------------------------------------------------------------------------
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' \
+  "$REPO_ROOT/.claude-plugin/plugin.json" | grep -o '"[^"]*"$' | tr -d '"')
+
+# Colors (respect NO_COLOR and non-tty)
+if [[ -n "${NO_COLOR:-}" ]] || ! [[ -t 1 ]]; then
+  RED='' GREEN='' YELLOW='' BLUE='' BOLD='' DIM='' CYAN='' RESET=''
+else
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  BLUE='\033[0;34m'
+  BOLD='\033[1m'
+  DIM='\033[2m'
+  CYAN='\033[0;36m'
+  RESET='\033[0m'
+fi
+
+info()    { echo -e "${BLUE}i${RESET} $*"; }
+success() { echo -e "${GREEN}✓${RESET} $*"; }
+warn()    { echo -e "${YELLOW}⚠${RESET} $*" >&2; }
+error()   { echo -e "${RED}✗${RESET} $*" >&2; }
+
+header() {
+  echo -e "${BOLD}╭─────────────────────────────────────────╮${RESET}"
+  printf  "${BOLD}│${RESET}  Hyperpowers Installer ${CYAN}v%-16s${RESET} ${BOLD}│${RESET}\n" "$VERSION"
+  echo -e "${BOLD}╰─────────────────────────────────────────╯${RESET}"
+  echo
+}
+
+# ---------------------------------------------------------------------------
+# Utility functions
+# ---------------------------------------------------------------------------
+
+XDG_CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+ensure_dir() { mkdir -p "$1" 2>/dev/null || { error "Cannot create $1"; return 1; }; }
+
+count_items() {
+  # count_items <glob_pattern>  — returns count on stdout
+  local pattern="$1"
+  # shellcheck disable=SC2012,SC2086
+  set +e; local n; n=$(ls -1d $pattern 2>/dev/null | wc -l); set -e
+  echo "${n// /}"
+}
+
+backup_dir() {
+  local target="$1" backup_root="$2"
+  local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
+  local dest="${backup_root}/backup-${stamp}"
+  ensure_dir "$dest"
+  cp -R "$target"/* "$dest/" 2>/dev/null || true
+  # Keep last 3 backups
+  if [[ -d "$backup_root" ]]; then
+    # shellcheck disable=SC2012
+    ls -1t "$backup_root" 2>/dev/null | tail -n +4 | while read -r old; do
+      rm -rf "${backup_root:?}/${old}"
+    done
+  fi
+  echo "$dest"
+}
+
+# ---------------------------------------------------------------------------
+# Agent detection
+# ---------------------------------------------------------------------------
+
+declare -A AGENT_PATHS=()
+declare -A AGENT_LABELS=(
+  [claude]="Claude Code"
+  [opencode]="OpenCode"
+  [kimi]="Kimi CLI"
+  [codex]="Codex CLI"
+  [gemini]="Gemini CLI"
+)
+AGENT_ORDER=(claude opencode kimi codex gemini)
+
+detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude"; }
+detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode"; }
+detect_kimi()    {
+  if [[ -d "${XDG_CFG}/agents" ]]; then
+    AGENT_PATHS[kimi]="${XDG_CFG}/agents"
+  elif [[ -d "${HOME}/.kimi" ]]; then
+    AGENT_PATHS[kimi]="${HOME}/.kimi"
+  fi
+}
+detect_codex()   {
+  if [[ -d "${HOME}/.codex" ]]; then
+    AGENT_PATHS[codex]="${HOME}/.codex"
+  elif [[ -d "${HOME}/.agents" ]]; then
+    AGENT_PATHS[codex]="${HOME}/.agents"
+  elif command -v codex &>/dev/null; then
+    AGENT_PATHS[codex]="${HOME}/.codex"
+  fi
+}
+detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)"; }
+
+detect_all() {
+  detect_claude
+  detect_opencode
+  detect_kimi
+  detect_codex
+  detect_gemini
+}
+
+show_detection() {
+  echo -e "  ${BOLD}Detecting agents...${RESET}"
+  echo
+  for agent in "${AGENT_ORDER[@]}"; do
+    local label="${AGENT_LABELS[$agent]}"
+    if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
+      printf "  ${GREEN}✓${RESET} %-16s %s\n" "$label" "${AGENT_PATHS[$agent]}"
+    else
+      printf "  ${DIM}✗ %-16s not found${RESET}\n" "$label"
+    fi
+  done
+  echo
+}
+
+# ---------------------------------------------------------------------------
+# Copy/symlink helper — respects USE_SYMLINKS
+# ---------------------------------------------------------------------------
+
+copy_item() {
+  # copy_item <src> <dest>  — copies or symlinks based on USE_SYMLINKS
+  local src="$1" dest="$2"
+  if [[ "$USE_SYMLINKS" == true ]]; then
+    ln -sfn "$src" "$dest"
+  else
+    cp -R "$src" "$dest"
+  fi
+}
+
+copy_files() {
+  # copy_files <src_glob> <dest_dir>  — copy matching files (nullglob-safe)
+  local src_pattern="$1" dest_dir="$2"
+  local had_files=false
+  local saved_nullglob
+  saved_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+  shopt -s nullglob
+  for f in $src_pattern; do
+    if [[ -f "$f" ]]; then
+      copy_item "$f" "${dest_dir}/$(basename "$f")"
+      had_files=true
+    fi
+  done
+  eval "$saved_nullglob" 2>/dev/null || true
+  $had_files
+}
+
+copy_dirs() {
+  # copy_dirs <src_glob> <dest_dir> [--exclude <pattern>]
+  local src_pattern="$1" dest_dir="$2"
+  local exclude_pattern="${4:-}"
+  local had_dirs=false
+  local saved_nullglob
+  saved_nullglob=$(shopt -p nullglob 2>/dev/null || true)
+  shopt -s nullglob
+  for d in $src_pattern; do
+    [[ -d "$d" ]] || continue
+    local name; name="$(basename "$d")"
+    # shellcheck disable=SC2053  # Intentional glob matching
+    if [[ -n "$exclude_pattern" ]] && [[ "$name" == $exclude_pattern ]]; then
+      continue
+    fi
+    copy_item "$d" "${dest_dir}/${name}"
+    had_dirs=true
+  done
+  eval "$saved_nullglob" 2>/dev/null || true
+  $had_dirs
+}
+
+maybe_backup() {
+  # maybe_backup <target_dir> <backup_root>  — backup if .hyperpowers-version exists
+  local target="$1" backup_root="$2"
+  if [[ -f "${target}/.hyperpowers-version" ]]; then
+    local old_ver; old_ver=$(cat "${target}/.hyperpowers-version")
+    info "Upgrading ${old_ver} → ${VERSION}"
+    backup_dir "$target" "$backup_root" >/dev/null
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Install functions
+# ---------------------------------------------------------------------------
+
+install_claude() {
+  local home="${AGENT_PATHS[claude]:-${HOME}/.claude}"
+  ensure_dir "${home}/skills"
+  ensure_dir "${home}/agents"
+  ensure_dir "${home}/commands"
+  ensure_dir "${home}/hooks"
+  maybe_backup "$home" "${home}/.hyperpowers-backups"
+
+  # Skills (recursive copy of each skill dir)
+  copy_dirs "${REPO_ROOT}/skills/*/" "${home}/skills" --exclude "common-patterns"
+
+  # Agents (.md files, excluding CLAUDE.md)
+  for f in "${REPO_ROOT}"/agents/*.md; do
+    [[ -f "$f" ]] || continue
+    [[ "$(basename "$f")" == "CLAUDE.md" ]] && continue
+    copy_item "$f" "${home}/agents/$(basename "$f")"
+  done
+
+  # Commands
+  copy_files "${REPO_ROOT}/commands/*.md" "${home}/commands"
+
+  # Hooks — RECURSIVE copy (fixes bug: old installer only copied files)
+  cp -R "${REPO_ROOT}/hooks/"* "${home}/hooks/" 2>/dev/null || true
+  if [[ "$USE_SYMLINKS" == true ]]; then
+    # For symlink mode, replace the recursive copy with symlinks per top-level item
+    rm -rf "${home}/hooks/"*
+    for item in "${REPO_ROOT}"/hooks/*; do
+      [[ -e "$item" ]] || continue
+      ln -sfn "$item" "${home}/hooks/$(basename "$item")"
+    done
+  fi
+
+  echo "${VERSION}" > "${home}/.hyperpowers-version"
+}
+
+install_opencode() {
+  local home="${AGENT_PATHS[opencode]:-${XDG_CFG}/opencode}"
+  ensure_dir "${home}/skills"
+  ensure_dir "${home}/agents"
+  ensure_dir "${home}/commands"
+  ensure_dir "${home}/plugins"
+  maybe_backup "$home" "${home}/.hyperpowers-backups"
+
+  # Skills (only hyperpowers-* prefixed — already curated in .opencode/skills/)
+  copy_dirs "${REPO_ROOT}/.opencode/skills/hyperpowers-*/" "${home}/skills"
+  # Also copy beads-triage if it exists
+  if [[ -d "${REPO_ROOT}/.opencode/skills/beads-triage" ]]; then
+    copy_item "${REPO_ROOT}/.opencode/skills/beads-triage" "${home}/skills/beads-triage"
+  fi
+
+  # Agents
+  copy_files "${REPO_ROOT}/.opencode/agents/*.md" "${home}/agents"
+
+  # Commands
+  copy_files "${REPO_ROOT}/.opencode/commands/*.md" "${home}/commands"
+
+  # Plugins
+  copy_files "${REPO_ROOT}/.opencode/plugins/*.ts" "${home}/plugins"
+
+  # Package.json + bun install
+  if [[ -f "${REPO_ROOT}/.opencode/package.json" ]]; then
+    copy_item "${REPO_ROOT}/.opencode/package.json" "${home}/package.json"
+    if command -v bun &>/dev/null; then
+      (cd "$home" && bun install --silent 2>/dev/null) || warn "bun install failed in ${home}"
+    else
+      warn "bun not found — run 'bun install' in ${home} manually"
+    fi
+  fi
+
+  # Extra config files
+  for f in task-context.json cass-memory.json; do
+    [[ -f "${REPO_ROOT}/.opencode/${f}" ]] && copy_item "${REPO_ROOT}/.opencode/${f}" "${home}/${f}"
+  done
+
+  echo "${VERSION}" > "${home}/.hyperpowers-version"
+}
+
+install_kimi() {
+  local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
+  ensure_dir "${home}/skills"
+  maybe_backup "$home" "${home}/.hyperpowers-backups"
+
+  # Clean up old codex-* pollution from previous installs
+  for old_codex in "${home}"/skills/codex-*/; do
+    [[ -d "$old_codex" ]] && rm -rf "$old_codex"
+  done
+
+  # Skills — FILTERED: exclude codex-* and common-patterns (fixes bug: 44 unwanted dirs)
+  for skill_dir in "${REPO_ROOT}"/.kimi/skills/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local dirname; dirname="$(basename "$skill_dir")"
+    [[ "$dirname" == codex-* ]] && continue
+    [[ "$dirname" == common-patterns ]] && continue
+    copy_item "$skill_dir" "${home}/skills/${dirname}"
+  done
+
+  # Agent YAML + system prompts
+  for f in "${REPO_ROOT}"/.kimi/agents/*.yaml "${REPO_ROOT}"/.kimi/agents/*-system.md; do
+    [[ -f "$f" ]] || continue
+    copy_item "$f" "${home}/$(basename "$f")"
+  done
+
+  # Main agent config
+  for f in hyperpowers.yaml hyperpowers-system.md; do
+    [[ -f "${REPO_ROOT}/.kimi/${f}" ]] && copy_item "${REPO_ROOT}/.kimi/${f}" "${home}/${f}"
+  done
+
+  # MCP config merge (requires jq)
+  if command -v jq &>/dev/null && [[ -f "${REPO_ROOT}/.kimi/mcp.json" ]]; then
+    local kimi_mcp="${XDG_CFG}/kimi/mcp.json"
+    if [[ -f "$kimi_mcp" ]]; then
+      jq -s '.[0] * .[1]' "$kimi_mcp" "${REPO_ROOT}/.kimi/mcp.json" > "${kimi_mcp}.tmp" \
+        && mv "${kimi_mcp}.tmp" "$kimi_mcp"
+    else
+      ensure_dir "$(dirname "$kimi_mcp")"
+      cp "${REPO_ROOT}/.kimi/mcp.json" "$kimi_mcp"
+    fi
+  elif [[ -f "${REPO_ROOT}/.kimi/mcp.json" ]]; then
+    warn "jq not found — MCP config not merged. Install jq and re-run."
+  fi
+
+  echo "${VERSION}" > "${home}/.hyperpowers-version"
+}
+
+install_codex() {
+  # Prerequisite: sync-codex-skills generates wrappers
+  if command -v node &>/dev/null; then
+    if ! node "${REPO_ROOT}/scripts/sync-codex-skills.js" --check 2>/dev/null; then
+      node "${REPO_ROOT}/scripts/sync-codex-skills.js" 2>/dev/null \
+        || warn "sync-codex-skills.js failed — Codex wrappers may be stale"
+    fi
+  else
+    warn "node not found — cannot sync Codex wrappers"
+  fi
+
+  # Determine target directory
+  local home
+  if [[ "$CODEX_SCOPE" == "local" ]]; then
+    home=".codex"
+  else
+    home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
+  fi
+  ensure_dir "${home}/skills"
+  maybe_backup "$home" "${home}/.hyperpowers-backups"
+
+  # Source: read from canonical .kimi/skills/codex-* (NOT through .agents symlink — fixes bug)
+  local source_base="${REPO_ROOT}/.kimi/skills"
+  local copied=0
+  for skill_dir in "${source_base}"/codex-*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local dirname; dirname="$(basename "$skill_dir")"
+    copy_item "$skill_dir" "${home}/skills/${dirname}"
+    copied=$((copied + 1))
+  done
+
+  # Also copy from .opencode codex-* dirs (commands/agents wrappers)
+  for skill_dir in "${REPO_ROOT}"/.opencode/codex-*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local dirname; dirname="$(basename "$skill_dir")"
+    copy_item "$skill_dir" "${home}/skills/${dirname}"
+    copied=$((copied + 1))
+  done
+
+  if [[ $copied -eq 0 ]]; then
+    warn "No codex-* skill directories found in source"
+    return 1
+  fi
+
+  echo "${VERSION}" > "${home}/.hyperpowers-version"
+}
+
+install_gemini() {
+  if ! command -v gemini &>/dev/null; then
+    error "gemini CLI not found in PATH"
+    return 1
+  fi
+
+  local ext_dir="${REPO_ROOT}/.gemini-extension"
+  if [[ ! -d "$ext_dir" ]]; then
+    error "Gemini extension directory not found: ${ext_dir}"
+    return 1
+  fi
+
+  # Gemini CLI manages its own directory structure
+  local gemini_stderr
+  if [[ "$USE_SYMLINKS" == true ]]; then
+    gemini_stderr=$(gemini extensions link "$ext_dir" 2>&1) || {
+      error "gemini extensions link failed: ${gemini_stderr}"
+      return 1
+    }
+  else
+    gemini_stderr=$(gemini extensions install "$ext_dir" 2>&1) || {
+      error "gemini extensions install failed: ${gemini_stderr}"
+      return 1
+    }
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Validation functions
+# ---------------------------------------------------------------------------
+
+validate_claude() {
+  local home="${AGENT_PATHS[claude]:-${HOME}/.claude}"
+  local ok=true
+  [[ -d "${home}/hooks/post-tool-use" ]] || { warn "Claude: hooks/post-tool-use/ missing (recursive copy failed?)"; ok=false; }
+  [[ -d "${home}/hooks/pre-tool-use" ]] || { warn "Claude: hooks/pre-tool-use/ missing"; ok=false; }
+  local sk; sk=$(count_items "${home}/skills/*/")
+  [[ "$sk" -ge 15 ]] || { warn "Claude: only ${sk} skills (expected 15+)"; ok=false; }
+  local vf="${home}/.hyperpowers-version"
+  [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Claude: version mismatch"; ok=false; }
+  $ok
+}
+
+validate_opencode() {
+  local home="${AGENT_PATHS[opencode]:-${XDG_CFG}/opencode}"
+  local ok=true
+  local sk; sk=$(count_items "${home}/skills/*/")
+  [[ "$sk" -ge 15 ]] || { warn "OpenCode: only ${sk} skills (expected 15+)"; ok=false; }
+  # shellcheck disable=SC2012,SC2086
+  local pl; pl=$(ls -1 ${home}/plugins/*.ts 2>/dev/null | wc -l)
+  [[ "$pl" -ge 1 ]] || { warn "OpenCode: no plugins found"; ok=false; }
+  local vf="${home}/.hyperpowers-version"
+  [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "OpenCode: version mismatch"; ok=false; }
+  $ok
+}
+
+validate_kimi() {
+  local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
+  local ok=true
+  local sk; sk=$(count_items "${home}/skills/*/")
+  [[ "$sk" -ge 15 ]] || { warn "Kimi: only ${sk} skills (expected 15+)"; ok=false; }
+  # Check NO codex-* pollution
+  # shellcheck disable=SC2012,SC2086
+  local codex_count; codex_count=$(ls -1d ${home}/skills/codex-*/ 2>/dev/null | wc -l)
+  [[ "$codex_count" -eq 0 ]] || { warn "Kimi: found ${codex_count} codex-* dirs (should be 0)"; ok=false; }
+  [[ -f "${home}/hyperpowers.yaml" ]] || { warn "Kimi: hyperpowers.yaml missing"; ok=false; }
+  local vf="${home}/.hyperpowers-version"
+  [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Kimi: version mismatch"; ok=false; }
+  $ok
+}
+
+validate_codex() {
+  local home
+  if [[ "$CODEX_SCOPE" == "local" ]]; then
+    home=".codex"
+  else
+    home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
+  fi
+  local ok=true
+  local sk; sk=$(count_items "${home}/skills/codex-*/")
+  [[ "$sk" -ge 5 ]] || { warn "Codex: only ${sk} codex skills (expected 5+)"; ok=false; }
+  local vf="${home}/.hyperpowers-version"
+  [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Codex: version mismatch"; ok=false; }
+  $ok
+}
+
+validate_gemini() {
+  if command -v gemini &>/dev/null; then
+    gemini extensions list 2>/dev/null | grep -q hyperpowers || {
+      warn "Gemini: extension not found in 'gemini extensions list'"
+      return 1
+    }
+  fi
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Uninstall functions
+# ---------------------------------------------------------------------------
+
+uninstall_claude() {
+  local home="${HOME}/.claude"
+  rm -rf "${home:?}/skills" "${home:?}/agents" "${home:?}/commands" "${home:?}/hooks"
+  rm -f "${home}/.hyperpowers-version"
+}
+
+uninstall_opencode() {
+  local home="${XDG_CFG}/opencode"
+  rm -rf "${home:?}/skills" "${home:?}/agents" "${home:?}/commands" "${home:?}/plugins"
+  rm -f "${home}/.hyperpowers-version" "${home}/package.json" "${home}/bun.lock"
+  rm -f "${home}/task-context.json" "${home}/cass-memory.json"
+  rm -rf "${home}/node_modules"
+}
+
+uninstall_kimi() {
+  local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
+  rm -rf "${home:?}/skills"
+  rm -f "${home}/hyperpowers.yaml" "${home}/hyperpowers-system.md"
+  rm -f "${home}/.hyperpowers-version"
+  # Remove agent yaml/md files
+  for f in "${home}"/*-system.md "${home}"/*.yaml; do
+    [[ -f "$f" ]] && rm -f "$f"
+  done
+}
+
+uninstall_codex() {
+  local home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
+  # Only remove codex-* skill dirs (leave other user content)
+  for d in "${home}"/skills/codex-*/; do
+    [[ -d "$d" ]] && rm -rf "$d"
+  done
+  rm -f "${home}/.hyperpowers-version"
+}
+
+uninstall_gemini() {
+  if command -v gemini &>/dev/null; then
+    gemini extensions uninstall hyperpowers 2>/dev/null || true
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Status functions
+# ---------------------------------------------------------------------------
+
+status_claude() {
+  local vf="${HOME}/.claude/.hyperpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    local sk; sk=$(count_items "${HOME}/.claude/skills/*/")
+    local ag; ag=$(count_items "${HOME}/.claude/agents/*.md")
+    local cm; cm=$(count_items "${HOME}/.claude/commands/*.md")
+    local hk; hk=$(count_items "${HOME}/.claude/hooks/*/")
+    echo -e "  ${GREEN}✓${RESET} Claude Code    ${BOLD}v${iv}${RESET}  (${sk} skills, ${ag} agents, ${cm} commands, ${hk} hook dirs)"
+  else
+    echo -e "  ${DIM}✗ Claude Code    not installed${RESET}"
+  fi
+}
+
+status_opencode() {
+  local vf="${XDG_CFG}/opencode/.hyperpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    local sk; sk=$(count_items "${XDG_CFG}/opencode/skills/*/")
+    local ag; ag=$(count_items "${XDG_CFG}/opencode/agents/*.md")
+    echo -e "  ${GREEN}✓${RESET} OpenCode       ${BOLD}v${iv}${RESET}  (${sk} skills, ${ag} agents)"
+  else
+    echo -e "  ${DIM}✗ OpenCode       not installed${RESET}"
+  fi
+}
+
+status_kimi() {
+  local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
+  local vf="${home}/.hyperpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    local sk; sk=$(count_items "${home}/skills/*/")
+    echo -e "  ${GREEN}✓${RESET} Kimi CLI       ${BOLD}v${iv}${RESET}  (${sk} skills)"
+  else
+    echo -e "  ${DIM}✗ Kimi CLI       not installed${RESET}"
+  fi
+}
+
+status_codex() {
+  local home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
+  local vf="${home}/.hyperpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    local sk; sk=$(count_items "${home}/skills/codex-*/")
+    echo -e "  ${GREEN}✓${RESET} Codex CLI      ${BOLD}v${iv}${RESET}  (${sk} skills)"
+  else
+    echo -e "  ${DIM}✗ Codex CLI      not installed${RESET}"
+  fi
+}
+
+status_gemini() {
+  if command -v gemini &>/dev/null && gemini extensions list 2>/dev/null | grep -q hyperpowers; then
+    echo -e "  ${GREEN}✓${RESET} Gemini CLI     ${BOLD}installed${RESET}"
+  else
+    echo -e "  ${DIM}✗ Gemini CLI     not installed${RESET}"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# CLI usage
+# ---------------------------------------------------------------------------
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Unified installer for Hyperpowers across all AI coding agents.
+
+AGENTS:
+    --claude            Install to Claude Code (~/.claude)
+    --opencode          Install to OpenCode (~/.config/opencode)
+    --kimi              Install to Kimi CLI (~/.config/agents)
+    --codex             Install to Codex CLI (~/.codex)
+    --gemini            Install to Gemini CLI (native extension)
+    --all               Install to all detected agents
+
+MODES:
+    --uninstall         Remove hyperpowers from selected agents
+    --status            Show installation status for all agents
+    --symlink           Use symlinks instead of copies (dev mode)
+    --local             Install Codex skills to project (not global)
+    --force             Skip confirmation prompt
+
+GENERAL:
+    -h, --help          Show this help
+    -v, --version       Show version
+
+EXAMPLES:
+    $(basename "$0")                    # Interactive: detect + confirm
+    $(basename "$0") --all              # Install to all detected agents
+    $(basename "$0") --claude --kimi    # Install to specific agents
+    $(basename "$0") --status           # Show what's installed
+    $(basename "$0") --uninstall --all  # Remove from all agents
+
+VERSION: $VERSION
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Main orchestration
+# ---------------------------------------------------------------------------
+
+# Module-level defaults for options shared with install functions
+USE_SYMLINKS=false
+CODEX_SCOPE="global"
+
+main() {
+  local MODE="install"
+  local FORCE=false
+  local INTERACTIVE=true
+  local -a SELECTED_AGENTS=()
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)    usage; exit 0 ;;
+      -v|--version) echo "hyperpowers $VERSION"; exit 0 ;;
+      --claude)     SELECTED_AGENTS+=(claude);   INTERACTIVE=false; shift ;;
+      --opencode)   SELECTED_AGENTS+=(opencode); INTERACTIVE=false; shift ;;
+      --kimi)       SELECTED_AGENTS+=(kimi);     INTERACTIVE=false; shift ;;
+      --codex)      SELECTED_AGENTS+=(codex);    INTERACTIVE=false; shift ;;
+      --gemini)     SELECTED_AGENTS+=(gemini);   INTERACTIVE=false; shift ;;
+      --all)        INTERACTIVE=false; shift ;;  # handled after detection
+      --uninstall)  MODE="uninstall"; shift ;;
+      --status)     MODE="status"; shift ;;
+      --symlink)    USE_SYMLINKS=true; shift ;;
+      --local)      CODEX_SCOPE="local"; shift ;;
+      --force)      FORCE=true; shift ;;
+      *)            error "Unknown option: $1"; echo; usage >&2; exit 1 ;;
+    esac
+  done
+
+  # No tty → force non-interactive
+  if ! [[ -t 0 ]]; then
+    INTERACTIVE=false
+    if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]] && [[ "$MODE" == "install" ]]; then
+      # Check if --all was passed (SELECTED_AGENTS empty + non-interactive + not --all)
+      # --all sets INTERACTIVE=false but leaves SELECTED_AGENTS empty
+      # We differentiate by checking if any agent flag was given
+      :  # handled below after detection
+    fi
+  fi
+
+  # Detect agents
+  detect_all
+
+  # --- Status mode ---
+  if [[ "$MODE" == "status" ]]; then
+    header
+    echo -e "  ${BOLD}Installation Status${RESET}"
+    echo
+    status_claude
+    status_opencode
+    status_kimi
+    status_codex
+    status_gemini
+    echo
+    exit 0
+  fi
+
+  # --- Resolve selected agents ---
+  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
+    # --all or interactive: select all detected
+    for agent in "${AGENT_ORDER[@]}"; do
+      if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
+        SELECTED_AGENTS+=("$agent")
+      fi
+    done
+  fi
+
+  # No agents at all?
+  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
+    header
+    show_detection
+    if [[ "$INTERACTIVE" == true ]]; then
+      warn "No agents detected. Install an agent first, or specify one with --claude, --opencode, etc."
+    else
+      warn "No agents detected."
+    fi
+    exit 0
+  fi
+
+  # Build display list
+  local agent_list=""
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    [[ -n "$agent_list" ]] && agent_list+=", "
+    agent_list+="${AGENT_LABELS[$agent]}"
+  done
+
+  # --- Interactive confirmation ---
+  if [[ "$INTERACTIVE" == true ]] && [[ "$FORCE" != true ]]; then
+    header
+    show_detection
+
+    local action_verb="Install to"
+    [[ "$MODE" == "uninstall" ]] && action_verb="Uninstall from"
+
+    local attempts=0
+    while true; do
+      read -r -p "  ${action_verb}: ${agent_list}? [Y/n] " answer </dev/tty
+      case "${answer:-Y}" in
+        [Yy]|"") break ;;
+        [Nn])    info "Cancelled."; exit 0 ;;
+        *)
+          attempts=$((attempts + 1))
+          if [[ $attempts -ge 3 ]]; then
+            error "Too many invalid responses. Exiting."; exit 1
+          fi
+          warn "Please enter Y or N."
+          ;;
+      esac
+    done
+    echo
+  elif [[ "$INTERACTIVE" == false ]] && [[ "$FORCE" != true ]]; then
+    header
+  fi
+
+  # No tty check for install mode without explicit agents
+  if ! [[ -t 0 ]] && [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
+    error "No terminal detected. Use --all or specify agents (--claude, --opencode, etc.)"
+    exit 1
+  fi
+
+  # --- Execute ---
+  local -a FAILED_AGENTS=()
+
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    local label="${AGENT_LABELS[$agent]}"
+    if [[ "$MODE" == "uninstall" ]]; then
+      printf "  Uninstalling from ${BOLD}%-16s${RESET} " "$label..."
+      if "uninstall_${agent}" 2>/dev/null; then
+        echo -e "${GREEN}✓${RESET}"
+      else
+        echo -e "${RED}✗${RESET}"
+        FAILED_AGENTS+=("$agent")
+      fi
+    else
+      printf "  Installing to ${BOLD}%-16s${RESET} " "$label..."
+      if "install_${agent}" 2>/dev/null; then
+        if "validate_${agent}" 2>/dev/null; then
+          echo -e "${GREEN}✓${RESET}"
+        else
+          echo -e "${YELLOW}⚠${RESET} (validation warning)"
+        fi
+      else
+        echo -e "${RED}✗${RESET}"
+        FAILED_AGENTS+=("$agent")
+      fi
+    fi
+  done
+
+  echo
+
+  # --- Summary ---
+  local ok_count=$(( ${#SELECTED_AGENTS[@]} - ${#FAILED_AGENTS[@]} ))
+  local action_past="Installed"
+  [[ "$MODE" == "uninstall" ]] && action_past="Uninstalled"
+
+  if [[ ${#FAILED_AGENTS[@]} -eq 0 ]]; then
+    success "${action_past} to ${ok_count} agent(s): ${agent_list}"
+  else
+    local failed_list=""
+    for f in "${FAILED_AGENTS[@]}"; do
+      [[ -n "$failed_list" ]] && failed_list+=", "
+      failed_list+="${AGENT_LABELS[$f]}"
+    done
+    warn "${action_past} to ${ok_count} agent(s). Failed: ${failed_list}"
+    exit 1
+  fi
+}
+
+main "$@"

@@ -13,9 +13,9 @@ test("OpenCode install docs define task-context orchestrator as active workflow"
   assert.equal(installDoc.includes("not the active default"), true)
 })
 
-test("OpenCode installer keeps task-context plugin in remove/copy/symlink paths", () => {
-  const installer = fs.readFileSync(path.join(repoRoot, "scripts", "install-opencode-plugin.sh"), "utf8")
-  const matches = installer.match(/task-context-orchestrator\.ts/g) || []
+test("OpenCode plugin source contains task-context-orchestrator", () => {
+  const pluginDir = path.join(repoRoot, ".opencode", "plugins")
+  const files = fs.readdirSync(pluginDir)
 
-  assert.equal(matches.length >= 3, true)
+  assert.equal(files.includes("task-context-orchestrator.ts"), true)
 })

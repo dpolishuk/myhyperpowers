@@ -16,14 +16,17 @@
 git clone https://github.com/dpolishuk/myhyperpowers.git ~/myhyperpowers
 cd ~/myhyperpowers
 
-# Run the install script
-./scripts/install-kimi-plugin.sh
+# Run the unified installer
+./scripts/install.sh --kimi
+
+# Or install to all detected agents at once
+./scripts/install.sh --all
 ```
 
 For development (symlinks for live reload):
 
 ```bash
-./scripts/install-kimi-plugin.sh --symlink
+./scripts/install.sh --kimi --symlink
 ```
 
 ### Manual Install
@@ -216,7 +219,7 @@ agent:
 For active development on hyperpowers:
 
 ```bash
-./scripts/install-kimi-plugin.sh --symlink
+./scripts/install.sh --kimi --symlink
 ```
 
 Changes to `.kimi/` files are reflected immediately.
@@ -224,10 +227,10 @@ Changes to `.kimi/` files are reflected immediately.
 ### Script Options
 
 ```bash
-./scripts/install-kimi-plugin.sh --help
-./scripts/install-kimi-plugin.sh --version
-./scripts/install-kimi-plugin.sh --status
-./scripts/install-kimi-plugin.sh --force   # Reinstall
+./scripts/install.sh --help
+./scripts/install.sh --version
+./scripts/install.sh --status
+./scripts/install.sh --kimi --force   # Reinstall
 ```
 
 ## Troubleshooting
@@ -279,12 +282,12 @@ Changes to `.kimi/` files are reflected immediately.
 
 1. Check current version:
    ```bash
-   ./scripts/install-kimi-plugin.sh --version
+   ./scripts/install.sh --version
    ```
 
 2. Force reinstall:
    ```bash
-   ./scripts/install-kimi-plugin.sh --force
+   ./scripts/install.sh --kimi --force
    ```
 
 3. Check backups:

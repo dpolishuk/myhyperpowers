@@ -863,20 +863,16 @@ For full extension-specific installation and troubleshooting, see `.gemini-exten
 
 ### Codex CLI
 
-Use Codex wrappers from this repo in two steps:
+Use the unified installer to install wrappers to `~/.codex/skills` (auto-syncs if needed):
 
 ```bash
-# 1) Generate/update wrappers from canonical sources
-node scripts/sync-codex-skills.js --write
-
-# 2) Install globally (~/.codex/skills)
-bash scripts/install-codex-plugin.sh --global
+./scripts/install.sh --codex
 ```
 
-For local project install:
+Or install to all detected agents at once:
 
 ```bash
-bash scripts/install-codex-plugin.sh --local --target /path/to/project
+./scripts/install.sh --all
 ```
 
 Explicit invocation in Codex uses skill names (not custom slash-command registration):
@@ -1077,32 +1073,34 @@ Description quality is validated during both `--write` and `--check`:
 
 Do not hand-edit generated `codex-*` skill directories; they are overwritten by sync.
 
-### Codex Installer
+### Unified Installer
 
-Use the installer to copy generated Codex wrappers into local or global `.codex/skills` paths:
+All agents can be installed using the unified installer:
 
 ```bash
-# Global install (~/.codex/skills)
-bash scripts/install-codex-plugin.sh --global
+./scripts/install.sh --all        # Install to all detected agents
+./scripts/install.sh --status     # Show install state per agent
+./scripts/install.sh --help       # Full usage with all flags
+./scripts/install.sh --uninstall --all  # Remove from all agents
+```
 
-# Local install (<target>/.codex/skills)
-bash scripts/install-codex-plugin.sh --local --target /path/to/project
+Install to specific agents:
 
-# Status and version
-bash scripts/install-codex-plugin.sh --status
-bash scripts/install-codex-plugin.sh --version
-
-# Custom Codex home override
-bash scripts/install-codex-plugin.sh --codex-home /custom/.codex
+```bash
+./scripts/install.sh --claude     # Claude Code only
+./scripts/install.sh --opencode   # OpenCode only
+./scripts/install.sh --kimi       # Kimi CLI only
+./scripts/install.sh --codex      # Codex CLI only
+./scripts/install.sh --gemini     # Gemini CLI only
 ```
 
 Installer behavior:
-- Keeps a timestamped backup when replacing existing `codex-*` wrappers.
-- Retains only the 3 newest backups.
-- Is idempotent for already-installed same-version wrappers unless `--force` is used.
-- If “commands are not available”, invoke wrappers explicitly via `$codex-*` or select them in `/skills`.
+- Auto-detects which agents are installed on the system.
+- Backs up existing installs before overwriting (keeps 3 most recent).
+- Validates each install (skill counts, hook structure, version).
+- Reports partial failures — if one agent fails, others still install.
 
-For a focused Codex setup guide, see `.codex/INSTALL.md`.
+For agent-specific setup guides, see `.opencode/INSTALL.md`, `.kimi/INSTALL.md`, and `.codex/INSTALL.md`.
 
 ## License
 
