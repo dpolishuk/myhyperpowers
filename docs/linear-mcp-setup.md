@@ -54,16 +54,13 @@ To enable `tm sync` to push issues to Linear:
 ```bash
 # Set your API key (choose one method):
 export LINEAR_API_KEY="lin_api_your_key_here"
-# Or persist in bd config:
-bd config set linear.api-key "lin_api_your_key_here"
+# Or persist in tm config:
+tm config set linear.api-key "lin_api_your_key_here"
 
 # Set your team key (e.g., "ENG", "PROD"):
 export LINEAR_TEAM_KEY="ENG"
 # Or persist:
-bd config set linear.team-key "ENG"
-
-# Optional: set project name
-export LINEAR_PROJECT_NAME="Hyperpowers"
+tm config set linear.team-key "ENG"
 ```
 
 Then run:

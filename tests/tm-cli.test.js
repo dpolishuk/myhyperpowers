@@ -105,9 +105,9 @@ test("tm passes arguments with spaces unchanged to bd", () => {
 })
 
 test("tm when bd not in PATH gives helpful error message", () => {
-  // Run tm with a PATH that doesn't include bd
+  // Run tm with a PATH that excludes bd but includes bash and env
   const result = runTm(["ready"], {
-    env: { TM_BACKEND: "bd", PATH: "/usr/bin" },
+    env: { TM_BACKEND: "bd", PATH: "/usr/bin:/bin" },
   })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /bd not found in PATH/)

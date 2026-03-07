@@ -34,10 +34,9 @@ function loadLinearConfig() {
 
   const teamKey = loadConfigValue("LINEAR_TEAM_KEY", "linear.team-key")
   if (!teamKey) {
-    console.error("tm-sync: LINEAR_API_KEY is set but LINEAR_TEAM_KEY is missing.")
-    console.error("  Set it with: export LINEAR_TEAM_KEY=ENG")
-    console.error("  Or: bd config set linear.team-key ENG")
-    return null
+    const err = new Error("LINEAR_API_KEY is set but LINEAR_TEAM_KEY is missing.\n  Set it with: export LINEAR_TEAM_KEY=ENG\n  Or: tm config set linear.team-key ENG")
+    err.code = "MISCONFIGURED"
+    throw err
   }
 
   const projectName = loadConfigValue("LINEAR_PROJECT_NAME", "linear.project-name") || null

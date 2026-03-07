@@ -158,8 +158,13 @@ tm list --status in-progress | grep "assignee:me" | wc -l
 # Find tasks that are blocking others
 # (Tasks that many other tasks depend on)
 for task in $(tm list --status open | grep "^bd-" | cut -d: -f1); do
-  echo -n "$task: "
-  tm list --status open | xargs -I {} sh -c "tm show {} | grep -q \"depends on $task\" && echo {}" | wc -l
+  count=0
+  while IFS= read -r dep; do
+    if tm show "$dep" 2>/dev/null | grep -q "depends on $task"; then
+      count=$((count + 1))
+    fi
+  done < <(tm list --status open | grep "^bd-" | cut -d: -f1)
+  echo "$task: $count"
 done | sort -t: -k2 -n -r
 
 # Shows tasks with most dependencies (top bottlenecks)

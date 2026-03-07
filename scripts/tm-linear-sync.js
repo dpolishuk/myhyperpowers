@@ -117,6 +117,10 @@ async function syncToLinear() {
     return
   }
 
+  if (config.projectName) {
+    console.log(`tm-sync: Note: LINEAR_PROJECT_NAME is set but project filtering is not yet implemented.`)
+  }
+
   // Dynamic import for ESM-only @linear/sdk
   const { LinearClient } = await import("@linear/sdk")
   const client = new LinearClient({ apiKey: config.apiKey })
@@ -200,6 +204,7 @@ async function syncToLinear() {
   let created = 0
   let updated = 0
   let unchanged = 0
+  let errors = 0
 
   for (const issue of issues) {
     const bdId = issue.id
@@ -211,15 +216,12 @@ async function syncToLinear() {
 
     let existing = mapping[bdId]
 
-    // If no local mapping, search Linear by title to avoid duplicates (e.g. fresh clone)
-    if (!existing && issue.title) {
+    // If no local mapping, search Linear by bd ID marker to avoid duplicates (e.g. fresh clone)
+    if (!existing) {
       try {
-        const search = await client.issues({
+        const search = await client.issueSearch(`[bd:${bdId}]`, {
           first: 1,
-          filter: {
-            team: { id: { eq: team.id } },
-            title: { eq: issue.title },
-          },
+          filter: { team: { id: { eq: team.id } } },
         })
         if (search.nodes.length > 0) {
           const found = search.nodes[0]
@@ -230,7 +232,7 @@ async function syncToLinear() {
             lastSyncedFields: {},
           }
           mapping[bdId] = existing
-          console.log(`tm-sync: Linked ${bdId} → ${found.identifier} (found by title)`)
+          console.log(`tm-sync: Linked ${bdId} → ${found.identifier} (found by marker)`)
         }
       } catch {
         // Search failed, proceed to create
@@ -238,11 +240,12 @@ async function syncToLinear() {
     }
 
     if (!existing) {
-      // Create new issue in Linear
+      // Create new issue in Linear (include bd ID marker for stable relinking)
+      const descWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
       const createParams = {
         teamId: team.id,
         title: issue.title || bdId,
-        description: designText,
+        description: descWithMarker,
         priority,
       }
       if (stateId) createParams.stateId = stateId
@@ -270,6 +273,7 @@ async function syncToLinear() {
         }
       } catch (err) {
         console.error(`tm-sync: Failed to create "${issue.title}": ${err.message}`)
+        errors++
       }
 
       // Rate limit protection
@@ -317,12 +321,16 @@ async function syncToLinear() {
         updated++
       } catch (err) {
         console.error(`tm-sync: Failed to update "${issue.title}": ${err.message}`)
+        errors++
       }
     }
   }
 
   saveMapping(mapping)
-  console.log(`tm-sync: Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged)`)
+  console.log(`tm-sync: Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged${errors > 0 ? `, ${errors} failed` : ""})`)
+  if (errors > 0) {
+    process.exitCode = 1
+  }
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────

@@ -129,7 +129,7 @@ Many skills integrate with `tm` (a task management tool). The workflows expect:
 - **Dependencies** - Task relationships (blocking, parent-child)
 - **Status tracking** - Open, in-progress, done, ready
 
-Common bd commands:
+Common tm commands:
 ```bash
 tm list --type epic --status open       # Find open epics
 tm ready                                 # Show ready tasks

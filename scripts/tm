@@ -148,7 +148,7 @@ main() {
       exec bd "$@"
       ;;
     linear)
-      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd or wait for Phase 2." >&2
+      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd (default) for now." >&2
       exit 1
       ;;
   esac
