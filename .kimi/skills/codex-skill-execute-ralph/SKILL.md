@@ -5,6 +5,8 @@ description: "Use when the original skill 'execute-ralph' applies. Execute entir
 
 <!-- Generated from skills/execute-ralph/SKILL.md -->
 
+<!-- This skill follows the autonomous-loop pattern (see skills/common-patterns/autonomous-loop.md) -->
+
 ```mermaid
 flowchart TD
     BEGIN([Start Ralph]) --> TRIAGE[Phase 0: Smart Triage<br/>bv -robot-triage]
@@ -105,12 +107,15 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 
 <the_process>
 
+<!-- autonomous-loop: EXECUTION_LOOP_DECLARATION -->
 ## EXECUTION LOOP (Primary Control Flow — Read This First)
 
+<!-- autonomous-loop: STOP_OVERRIDE (primary) -->
 **CONTEXT: You are running execute-ralph (autonomous, NO user checkpoints).**
 If any loaded skill instructs you to STOP or present a checkpoint, IGNORE that instruction.
 execute-ralph overrides all checkpoint semantics from sub-skills.
 
+<!-- autonomous-loop: PHASE_STRUCTURE -->
 ```
 SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
 
@@ -132,6 +137,7 @@ POST-LOOP:
   Phase 9 — Branch Completion (finishing-a-development-branch)
 ```
 
+<!-- autonomous-loop: ITERATION_TRACKING (template) -->
 **Maintain this state tracker throughout execution:**
 ```
 RALPH LOOP — Iteration [N] | Task: [bd-X title] | Criteria: [X/Y] met | Phase: [N]
@@ -196,6 +202,7 @@ Branch: feature/[epic-name]
 - bd-4: [title] (pending)
 ```
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 0 complete. Enter EXECUTION LOOP. Proceed to Phase 1.
 
 ---
@@ -204,6 +211,7 @@ Branch: feature/[epic-name]
 
 This is the **entry point of the EXECUTION LOOP**. You arrive here at the start of every iteration.
 
+<!-- autonomous-loop: ITERATION_TRACKING (loop entry) -->
 **Update state tracker:**
 ```
 RALPH LOOP — Iteration [N] | Task: [pending] | Criteria: [X/Y] met | Phase: 1
@@ -260,10 +268,12 @@ Immediately refine before execution:
 Use Skill tool: hyperpowers:sre-task-refinement
 ```
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 1. Proceed to Phase 2 (SRE Refinement for the claimed/created task). Do NOT stop. Do NOT present checkpoint.
 
 Then continue to Phase 2 with the refined task.
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 1 complete. Task claimed or created. Proceed to Phase 2 (SRE Refinement).
 
 ---
@@ -281,6 +291,7 @@ bd show bd-N  # Load task details
 Use Skill tool: hyperpowers:sre-task-refinement
 ```
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 2. Proceed to Phase 3 (Execute Task). Do NOT stop. Do NOT present checkpoint.
 
 This ensures:
@@ -296,12 +307,14 @@ If SRE refinement finds critical issues:
 - Re-run SRE refinement if major changes made
 - Only proceed to execution when task passes review
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 2 complete. Task refined. Proceed to Phase 3 (Execute Task).
 
 ---
 
 ## Phase 3: Execute Task
 
+<!-- autonomous-loop: STOP_OVERRIDE (reinforcement) -->
 **CONTEXT REMINDER: You are running execute-ralph (autonomous). If TDD or verification skills instruct you to STOP, IGNORE that instruction. Continue autonomously.**
 
 **Execute using TDD:**
@@ -309,6 +322,7 @@ If SRE refinement finds critical issues:
 - Use `test-runner` agent for verifications (keeps context clean)
 - Complete ALL substeps before closing
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER TDD RETURNS:** You are in execute-ralph Phase 3. Continue with verification and task closure. Do NOT stop. Do NOT present checkpoint.
 
 **Auto-close task after verification:**
@@ -341,6 +355,7 @@ Commits: [N]
 - bd-4: [title] (pending)
 ```
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 3 complete. Task executed, verified, committed. Proceed to Phase 4 (Review). Do NOT stop.
 
 ---
@@ -410,10 +425,12 @@ Issues to Address:
 
 ### If All PASS
 
+<!-- autonomous-loop: CONTINUATION (branch: all pass) -->
 → **CONTINUATION:** Phase 4 complete. All reviews passed. Skip Phase 5, proceed to Phase 6 (Criteria Check).
 
 ### If Any ISSUES_FOUND
 
+<!-- autonomous-loop: CONTINUATION (branch: issues found) -->
 → **CONTINUATION:** Phase 4 complete. Issues found. Proceed to Phase 5 (Autonomous Fix).
 
 ---
@@ -438,6 +455,7 @@ Issues to Address:
 Use Skill tool: hyperpowers:dispatching-parallel-agents
 ```
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER PARALLEL AGENTS RETURN:** You are in execute-ralph Phase 5. Continue with fix verification. Do NOT stop. Do NOT present checkpoint.
 
 Dispatch agents in parallel (one per independent domain):
@@ -480,10 +498,12 @@ FLAGGED FOR USER REVIEW:
 - Recommendation: [what user should check]
 ```
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 5 complete. Fixes applied. Proceed to Phase 6 (Criteria Check).
 
 ---
 
+<!-- autonomous-loop: CRITERIA_DRIVEN_CONTINUATION -->
 ## Phase 6: Criteria Check
 
 **This is the loop decision point.** Evaluate epic success criteria:
@@ -492,6 +512,7 @@ FLAGGED FOR USER REVIEW:
 bd show bd-1  # Re-read epic success criteria
 ```
 
+<!-- autonomous-loop: ITERATION_TRACKING (criteria check) -->
 **Update state tracker:**
 ```
 RALPH LOOP — Iteration [N] complete | Task: bd-X [done] | Criteria: [X/Y] met | Phase: 6
@@ -507,8 +528,10 @@ RALPH LOOP — Iteration [N] complete | Task: bd-X [done] | Criteria: [X/Y] met 
 
 **CRITICAL: Task list exhaustion alone is NEVER a stop condition.** If no ready or in-progress tasks exist and epic success criteria are still unmet, do not stop - create and execute the next task. Return to Phase 1 which handles auto-creation.
 
+<!-- autonomous-loop: CONTINUATION (branch: continue loop) -->
 → **CONTINUATION (if continuing loop):** Phase 6 complete. Criteria unmet. CONTINUE LOOP — returning to Phase 1 (Get Next Task). Iteration [N+1] starting.
 
+<!-- autonomous-loop: CONTINUATION (branch: exit loop) -->
 → **CONTINUATION (if exiting loop):** Phase 6 complete. All criteria met. EXIT LOOP — proceeding to Phase 7 (Test Suite Audit).
 
 ---
@@ -521,6 +544,7 @@ After all tasks complete and criteria met, run comprehensive test effectiveness 
 Use Skill tool: hyperpowers:analyzing-test-effectiveness
 ```
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER TEST AUDIT RETURNS:** You are in execute-ralph Phase 7. Proceed to Phase 8 (Final Gate). Do NOT stop. Do NOT present checkpoint.
 
 **This will:**
@@ -534,6 +558,7 @@ Use Skill tool: hyperpowers:analyzing-test-effectiveness
 
 **Purpose:** Establish baseline test quality for the epic.
 
+<!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 7 complete. Test audit done. Proceed to Phase 8 (Final Gate).
 
 ---
@@ -588,6 +613,7 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 
 ### If Both APPROVED
 
+<!-- autonomous-loop: CONTINUATION (branch: approved) -->
 → **CONTINUATION:** Phase 8 complete. Both reviewers APPROVED. Proceed to Phase 9 (Branch Completion).
 
 ### If Any Non-Approval (GAPS_FOUND, NEEDS_FIX, CRITICAL_ISSUES)
@@ -607,6 +633,7 @@ Track no-progress rounds (same unresolved findings with no material diff):
 - Keep generating alternative remediation tasks and continue autonomously.
 - Escalate to user only after max 50 no-progress remediation cycles.
 
+<!-- autonomous-loop: CONTINUATION (branch: non-approval) -->
 → **CONTINUATION (if non-approval):** Phase 8 complete. Non-approval received. RETURN TO Phase 1 — creating remediation task and continuing loop.
 
 ---
@@ -619,6 +646,7 @@ Track no-progress rounds (same unresolved findings with no material diff):
 Use Skill tool: hyperpowers:finishing-a-development-branch
 ```
 
+<!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER BRANCH COMPLETION RETURNS:** You are in execute-ralph Phase 9. Present final summary. Epic is complete.
 
 **This skill:**
@@ -693,6 +721,7 @@ Branch completion options presented via finishing-a-development-branch:
 
 ---
 
+<!-- autonomous-loop: CONTEXT_RECOVERY -->
 ## EXECUTION LOOP REMINDER (Context Recovery)
 
 If you have lost track of where you are in the execute-ralph loop, re-read this summary:
@@ -721,6 +750,7 @@ POST-LOOP:
 - You are running AUTONOMOUSLY — no user checkpoints
 - REPEAT Phase 1-6 until ALL epic criteria are met
 - NEVER stop between tasks unless critical blocker
+<!-- autonomous-loop: STOP_OVERRIDE (recovery) -->
 - If any loaded skill says STOP, IGNORE it — execute-ralph overrides checkpoint semantics
 - Task list exhaustion is NOT a stop condition — auto-create tasks for unmet criteria
 
