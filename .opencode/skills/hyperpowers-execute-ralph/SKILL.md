@@ -260,17 +260,6 @@ bd create "Task: [criterion gap]" \
 bd dep add bd-NEW bd-1 --type parent-child
 ```
 
-Immediately refine before execution:
-
-```
-Use Skill tool: hyperpowers:sre-task-refinement
-```
-
-<!-- autonomous-loop: AFTER_RETURNING -->
-⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 1. Proceed to Phase 2 (SRE Refinement for the claimed/created task). Do NOT stop. Do NOT present checkpoint.
-
-Then continue to Phase 2 with the refined task.
-
 <!-- autonomous-loop: CONTINUATION -->
 → **CONTINUATION:** Phase 1 complete. Task claimed or created. Proceed to Phase 2 (SRE Refinement).
 
