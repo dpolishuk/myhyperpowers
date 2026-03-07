@@ -81,8 +81,8 @@ test("tm passes arguments with spaces unchanged to bd", () => {
   ])
   assert.equal(createResult.status, 0, `tm create failed: ${createResult.stderr}`)
 
-  // Extract issue ID from output
-  const idMatch = createResult.stdout.match(/(myhyperpowers-\w+)/)
+  // Extract issue ID from output (prefix varies by repo: myhyperpowers-xxx, bd-xxx, etc.)
+  const idMatch = createResult.stdout.match(/(\S+-[0-9a-z]+)/)
   assert.ok(idMatch, `Could not find issue ID in output: ${createResult.stdout}`)
   const issueId = idMatch[1]
 

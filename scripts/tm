@@ -7,6 +7,22 @@ set -euo pipefail
 
 TM_VERSION="0.1.0"
 
+# ── Repo root detection ──────────────────────────────────────────────────────
+
+find_repo_root() {
+  # Walk up from cwd to find .beads/ directory
+  local dir="$PWD"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -d "$dir/.beads" ]]; then
+      echo "$dir"
+      return
+    fi
+    dir="$(dirname "$dir")"
+  done
+  # Fallback: cwd (bd will handle the error if .beads/ doesn't exist)
+  echo "$PWD"
+}
+
 # ── Backend detection ────────────────────────────────────────────────────────
 
 detect_backend() {
@@ -17,7 +33,9 @@ detect_backend() {
   fi
 
   # Check .beads/config.yaml for tm.backend (flat YAML, no external deps)
-  local config=".beads/config.yaml"
+  local root
+  root="$(find_repo_root)"
+  local config="$root/.beads/config.yaml"
   if [[ -f "$config" && -r "$config" ]]; then
     local val
     val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{print $2}' || true)
@@ -107,8 +125,8 @@ main() {
       fi
       # Intercept sync: run bd sync first, then Linear sync if configured
       if [[ "${1:-}" == "sync" ]]; then
-        bd sync "${@:2}"
-        local sync_exit=$?
+        local sync_exit=0
+        bd sync "${@:2}" || sync_exit=$?
         # Run Linear sync if node is available (non-fatal)
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

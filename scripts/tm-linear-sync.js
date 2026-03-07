@@ -54,9 +54,20 @@ function hashDesign(design) {
   return crypto.createHash("md5").update(design).digest("hex")
 }
 
+// ── Repo root detection ─────────────────────────────────────────────────────
+
+function findRepoRoot() {
+  let dir = process.cwd()
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, ".beads"))) return dir
+    dir = path.dirname(dir)
+  }
+  return process.cwd()
+}
+
 // ── ID mapping persistence ──────────────────────────────────────────────────
 
-const MAPPING_PATH = path.resolve(".beads", "linear-map.json")
+const MAPPING_PATH = path.join(findRepoRoot(), ".beads", "linear-map.json")
 
 function loadMapping() {
   try {
@@ -76,7 +87,7 @@ function saveMapping(mapping) {
 // ── bd issue loading ────────────────────────────────────────────────────────
 
 function loadBdIssues() {
-  const statuses = ["open", "in_progress", "closed"]
+  const statuses = ["open", "in_progress", "closed", "blocked"]
   const issues = []
 
   for (const status of statuses) {
@@ -222,6 +233,7 @@ async function syncToLinear() {
               title: issue.title,
               status: issue.status,
               priority: issue.priority,
+              issueType: issue.issue_type,
               designHash,
             },
           }
@@ -241,6 +253,7 @@ async function syncToLinear() {
       const changed = prev.title !== issue.title ||
         prev.status !== issue.status ||
         prev.priority !== issue.priority ||
+        prev.issueType !== issue.issue_type ||
         prev.designHash !== designHash
 
       if (!changed) {
@@ -256,6 +269,12 @@ async function syncToLinear() {
       }
       if (stateId) updateParams.stateId = stateId
 
+      // Update labels if issue type changed
+      if (prev.issueType !== issue.issue_type) {
+        const labelId = await getOrCreateLabel(labelName)
+        if (labelId) updateParams.labelIds = [labelId]
+      }
+
       try {
         await client.updateIssue(existing.linearId, updateParams)
         existing.lastSyncedAt = new Date().toISOString()
@@ -263,6 +282,7 @@ async function syncToLinear() {
           title: issue.title,
           status: issue.status,
           priority: issue.priority,
+          issueType: issue.issue_type,
           designHash,
         }
         updated++

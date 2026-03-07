@@ -1055,7 +1055,7 @@ hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpower
                    (if gaps: STOP)
 ```
 
-**CRITICAL:** Use bd commands (tm show, tm list, tm dep tree), never read `.beads/issues.jsonl` directly.
+**CRITICAL:** Use tm commands (tm show, tm list, tm dep tree), never read `.beads/issues.jsonl` directly.
 </integration>
 
 <resources>

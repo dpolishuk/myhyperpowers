@@ -126,20 +126,24 @@ test("mapType maps all 4 types correctly", () => {
 
 // ── ID mapping persistence tests ────────────────────────────────────────────
 
-test("ID mapping file creation from empty state", () => {
+test("saveMapping writes and loadMapping reads back correctly", () => {
   const { loadMapping, saveMapping } = require("../scripts/tm-linear-sync")
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-map-"))
-  const mapFile = path.join(tmpDir, "linear-map.json")
+  const mapPath = path.resolve(repoRoot, ".beads", "linear-map.json")
+  const existed = fs.existsSync(mapPath)
+  const backup = existed ? fs.readFileSync(mapPath) : null
 
-  // Save mapping to custom path via direct file ops
-  const data = { "test-123": { linearId: "abc", linearIdentifier: "ENG-1" } }
-  fs.writeFileSync(mapFile, JSON.stringify(data, null, 2) + "\n", "utf8")
-
-  const loaded = JSON.parse(fs.readFileSync(mapFile, "utf8"))
-  assert.deepEqual(loaded, data)
-
-  // Cleanup
-  fs.rmSync(tmpDir, { recursive: true })
+  try {
+    const data = { "test-123": { linearId: "abc", linearIdentifier: "ENG-1" } }
+    saveMapping(data)
+    const loaded = loadMapping()
+    assert.deepEqual(loaded, data)
+  } finally {
+    if (backup) {
+      fs.writeFileSync(mapPath, backup)
+    } else if (fs.existsSync(mapPath)) {
+      fs.unlinkSync(mapPath)
+    }
+  }
 })
 
 test("ID mapping file read with corrupted JSON resets gracefully", () => {
