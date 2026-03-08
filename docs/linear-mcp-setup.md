@@ -84,7 +84,11 @@ tm sync    # Syncs git (bd sync) + pushes issues to Linear
 | bd Field | Linear Field |
 |----------|-------------|
 | type (epic/feature/task/bug) | Label |
-| priority (0-4) | Priority (0-4, same scale) |
+| priority P0 (critical) | Priority 1 (Urgent) |
+| priority P1 (high) | Priority 2 (High) |
+| priority P2 (medium) | Priority 3 (Medium) |
+| priority P3 (low) | Priority 4 (Low) |
+| priority P4 (backlog) | Priority 0 (No priority) |
 | status: open | State: Todo |
 | status: in_progress | State: In Progress |
 | status: closed | State: Done |

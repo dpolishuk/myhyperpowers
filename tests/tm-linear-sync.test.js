@@ -54,12 +54,17 @@ test("loadLinearConfig rejects apiKey without teamKey", () => {
 
 test("mapPriority maps all 5 values correctly (0-4)", () => {
   const { mapPriority } = require("../scripts/tm-linear-sync")
-  assert.equal(mapPriority(0), 0)
-  assert.equal(mapPriority(1), 1)
-  assert.equal(mapPriority(2), 2)
-  assert.equal(mapPriority(3), 3)
-  assert.equal(mapPriority(4), 4)
-  // Edge: invalid priority defaults to 0
+  // bd P0=critical → Linear 1=urgent
+  assert.equal(mapPriority(0), 1)
+  // bd P1=high → Linear 2=high
+  assert.equal(mapPriority(1), 2)
+  // bd P2=medium → Linear 3=medium
+  assert.equal(mapPriority(2), 3)
+  // bd P3=low → Linear 4=low
+  assert.equal(mapPriority(3), 4)
+  // bd P4=backlog → Linear 0=no-priority
+  assert.equal(mapPriority(4), 0)
+  // Edge: invalid priority defaults to 0 (no-priority)
   assert.equal(mapPriority(5), 0)
   assert.equal(mapPriority(-1), 0)
   assert.equal(mapPriority(null), 0)

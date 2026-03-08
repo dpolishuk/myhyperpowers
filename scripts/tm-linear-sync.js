@@ -10,9 +10,12 @@ const { loadLinearConfig } = require("./tm-linear-sync-config")
 // ── Field mapping ───────────────────────────────────────────────────────────
 
 function mapPriority(bdPriority) {
-  // Linear and bd use identical 0-4 scale
+  // bd: P0=critical, P1=high, P2=medium, P3=low, P4=backlog
+  // Linear: 0=no-priority, 1=urgent, 2=high, 3=medium, 4=low
+  const bdToLinear = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 0 }
+  if (bdPriority == null) return 0
   const p = Number(bdPriority)
-  return Number.isInteger(p) && p >= 0 && p <= 4 ? p : 0
+  return Number.isInteger(p) && p >= 0 && p <= 4 ? bdToLinear[p] : 0
 }
 
 function mapType(bdType) {
@@ -253,8 +256,12 @@ async function syncToLinear() {
       }
       if (stateId) createParams.stateId = stateId
 
-      const labelId = await getOrCreateLabel(labelName)
-      if (labelId) createParams.labelIds = [labelId]
+      try {
+        const labelId = await getOrCreateLabel(labelName)
+        if (labelId) createParams.labelIds = [labelId]
+      } catch (err) {
+        console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+      }
 
       try {
         const payload = await client.createIssue(createParams)
@@ -308,8 +315,12 @@ async function syncToLinear() {
 
       // Update labels if issue type changed
       if (prev.issueType !== issue.issue_type) {
-        const labelId = await getOrCreateLabel(labelName)
-        if (labelId) updateParams.labelIds = [labelId]
+        try {
+          const labelId = await getOrCreateLabel(labelName)
+          if (labelId) updateParams.labelIds = [labelId]
+        } catch (err) {
+          console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+        }
       }
 
       try {
