@@ -127,7 +127,11 @@ main() {
       if [[ "${1:-}" == "sync" ]]; then
         local sync_exit=0
         bd sync "${@:2}" || sync_exit=$?
-        # Run Linear sync if node is available; surface failures when configured
+        # Only run Linear sync if bd sync succeeded
+        if [[ "$sync_exit" -ne 0 ]]; then
+          echo "tm: bd sync failed (exit $sync_exit), skipping Linear sync" >&2
+          exit "$sync_exit"
+        fi
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         local linear_exit=0
@@ -137,13 +141,7 @@ main() {
             echo "tm: Linear sync failed with exit code $linear_exit" >&2
           fi
         fi
-        if [[ "$sync_exit" -ne 0 ]]; then
-          exit "$sync_exit"
-        elif [[ "$linear_exit" -ne 0 ]]; then
-          exit "$linear_exit"
-        else
-          exit 0
-        fi
+        exit "$linear_exit"
       fi
       exec bd "$@"
       ;;

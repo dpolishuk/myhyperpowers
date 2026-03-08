@@ -98,12 +98,15 @@ function loadBdIssues() {
       encoding: "utf8",
       timeout: 10000,
     })
-    if (result.status === 0 && result.stdout.trim()) {
+    if (result.status !== 0) {
+      throw new Error(`bd list --status ${status} failed (exit ${result.status}): ${(result.stderr || "").trim()}`)
+    }
+    if (result.stdout.trim()) {
       try {
         const parsed = JSON.parse(result.stdout)
         issues.push(...parsed)
       } catch {
-        console.error(`tm-sync: Warning: could not parse bd list --status ${status} output`)
+        throw new Error(`bd list --status ${status} returned invalid JSON`)
       }
     }
   }
