@@ -6,6 +6,9 @@
     "doc": "docs",
     "test": "tests"
   },
+  "bin": {
+    "tm": "scripts/tm"
+  },
   "scripts": {
     "test": "node --test tests/*.test.js"
   },

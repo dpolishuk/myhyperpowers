@@ -194,11 +194,11 @@ test("sync with no config exits 0 with not-configured message", () => {
     timeout: 10000,
   })
   assert.equal(result.status, 0)
-  assert.match(result.stdout, /not configured/)
+  assert.match(result.stderr, /not configured/)
 })
 
 test("tm sync invokes linear sync script when available", () => {
-  // Verify tm sync runs the linear sync script (which prints "not configured")
+  // Verify tm sync runs the linear sync script (which prints "not configured" to stderr)
   // by running the sync script directly rather than invoking bd sync
   const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
     cwd: repoRoot,
@@ -207,7 +207,7 @@ test("tm sync invokes linear sync script when available", () => {
     timeout: 10000,
   })
   assert.equal(result.status, 0)
-  assert.match(result.stdout, /not configured/)
+  assert.match(result.stderr, /not configured/)
 })
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

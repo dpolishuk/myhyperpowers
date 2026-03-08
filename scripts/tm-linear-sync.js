@@ -116,7 +116,7 @@ function loadBdIssues() {
 async function syncToLinear() {
   const config = loadLinearConfig()
   if (!config) {
-    console.log("tm-sync: Linear not configured, skipping.")
+    console.error("tm-sync: Linear not configured, skipping.")
     return
   }
 
