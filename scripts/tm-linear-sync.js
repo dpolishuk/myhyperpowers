@@ -338,7 +338,13 @@ async function syncToLinear() {
         }
         updated++
       } catch (err) {
-        console.error(`tm-sync: Failed to update "${issue.title}": ${err.message}`)
+        // If the Linear issue was deleted externally, remove stale mapping so next sync recreates it
+        if (err.message && /not found|does not exist|404/i.test(err.message)) {
+          console.error(`tm-sync: Linear issue ${existing.linearIdentifier} was deleted, removing mapping for ${bdId}`)
+          delete mapping[bdId]
+        } else {
+          console.error(`tm-sync: Failed to update "${issue.title}": ${err.message}`)
+        }
         errors++
       }
     }
