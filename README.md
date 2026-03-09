@@ -7,7 +7,7 @@
 
 Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
-[Features](#features) · [Installation](#installation) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
+[Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
 ## Quick Start
 
@@ -395,6 +395,58 @@ See [Model Configuration](docs/model-configuration.md) for full documentation.
 ```
 
 </details>
+
+## Linear Integration (Optional)
+
+Hyperpowers includes a `tm` CLI that wraps the local `bd` task manager. Without any configuration, `tm` passes everything through to `bd` — your existing workflow stays the same.
+
+Optionally, you can connect `tm sync` to [Linear](https://linear.app) to mirror your local issues to your team's Linear workspace.
+
+### Quick Setup
+
+1. **Get a Linear API key**: Linear Settings -> API -> Personal API keys -> Create key
+2. **Find your team key**: Linear Settings -> Teams -> your team's short key (e.g., "ENG")
+3. **Configure**:
+
+```bash
+# Option A: Environment variables
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"
+
+# Option B: Persistent config (per-repo)
+tm config set linear.api-key "lin_api_your_key_here"
+tm config set linear.team-key "ENG"
+```
+
+4. **Sync**: `tm sync` now pushes issues to Linear after syncing git
+
+### Without Linear
+
+If you don't configure Linear, everything works as before:
+
+```
+tm ready       →  bd ready
+tm show bd-42  →  bd show bd-42
+tm sync        →  bd sync (git only)
+```
+
+### Linear MCP Server (Optional)
+
+For read access to your Linear workspace from Claude Code or OpenCode, add an MCP server:
+
+```json
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
+      "env": { "LINEAR_API_KEY": "lin_api_your_key_here" }
+    }
+  }
+}
+```
+
+See [docs/linear-mcp-setup.md](docs/linear-mcp-setup.md) for the full setup guide with field mapping, troubleshooting, and architecture details.
 
 ## Uninstall
 
