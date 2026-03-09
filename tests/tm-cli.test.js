@@ -56,6 +56,38 @@ test("tm --version shows version and backend", () => {
   assert.match(result.stdout, /^tm \d+\.\d+\.\d+ \(backend: \w+\)/)
 })
 
+test("tm discovers repo config from the script location when cwd is outside the repo", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-script-root-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeBeadsDir = path.join(fakeRepo, ".beads")
+  const outsideDir = path.join(tmpRoot, "outside")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.mkdirSync(fakeBeadsDir, { recursive: true })
+    fs.mkdirSync(outsideDir)
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.chmodSync(fakeTmPath, 0o755)
+    fs.writeFileSync(path.join(fakeBeadsDir, "config.yaml"), 'tm.backend: "linear"\n')
+
+    const result = spawnSync(fakeTmPath, ["--version"], {
+      cwd: outsideDir,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "" },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /backend: linear/)
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
+})
+
 test("tm passes through arguments unchanged to bd", () => {
   // Running 'tm list --status open' should produce the same output as 'bd list --status open'
   const tmResult = runTm(["list", "--status", "open"])

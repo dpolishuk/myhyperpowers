@@ -1,12 +1,12 @@
 ---
 name: codex-skill-review-implementation
-description: "Use when the original skill 'review-implementation' applies. Use after hyperpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided"
+description: "Use when the original skill 'review-implementation' applies. Use after hyperpowers:executing-plans completes all tasks - verifies implementation against the epic spec, all success criteria met, anti-patterns avoided"
 ---
 
 <!-- Generated from skills/review-implementation/SKILL.md -->
 
 <skill_overview>
-Review completed implementation against bd epic to catch gaps before claiming completion; spec is contract, implementation must fulfill contract completely.
+Review completed implementation against the epic spec to catch gaps before claiming completion; the spec is the contract, and implementation must fulfill it completely.
 </skill_overview>
 
 <rigidity_level>
@@ -78,9 +78,9 @@ Rate each finding 0.0-1.0:
 **Get epic and tasks:**
 
 ```bash
-bd show bd-1          # Epic specification
-bd dep tree bd-1      # Task tree
-bd list --parent bd-1 # All tasks
+tm show bd-1          # Epic specification
+tm dep tree bd-1      # Task tree
+tm list --parent bd-1 # All tasks
 ```
 
 **Create TodoWrite tracker:**
@@ -102,7 +102,7 @@ For each task:
 ### A. Read Task Specification
 
 ```bash
-bd show bd-3
+tm show bd-3
 ```
 
 Extract:
@@ -773,7 +773,7 @@ rg "console\.log" src/
 # Found at error-handler.ts:12, 15 ⚠️
 
 # Read bd task
-bd show bd-5
+tm show bd-5
 
 # Success criteria:
 # 1. "All error paths logged"
@@ -1057,7 +1057,7 @@ hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpower
                    (if gaps: STOP)
 ```
 
-**CRITICAL:** Use bd commands (bd show, bd list, bd dep tree), never read `.beads/issues.jsonl` directly.
+**CRITICAL:** Use tm commands (tm show, tm list, tm dep tree), never read `.beads/issues.jsonl` directly.
 </integration>
 
 <resources>

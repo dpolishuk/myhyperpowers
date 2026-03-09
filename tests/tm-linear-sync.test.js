@@ -2,10 +2,10 @@ const test = require("node:test")
 const assert = require("node:assert/strict")
 const path = require("node:path")
 const fs = require("node:fs")
+const os = require("node:os")
 const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")
-const tmPath = path.resolve(repoRoot, "scripts/tm")
 
 // ── Config loader tests ─────────────────────────────────────────────────────
 
@@ -124,45 +124,43 @@ test("mapType maps all 4 types correctly", () => {
 // ── ID mapping persistence tests ────────────────────────────────────────────
 
 test("saveMapping writes and loadMapping reads back correctly", () => {
-  const { loadMapping, saveMapping } = require("../scripts/tm-linear-sync")
-  const mapPath = path.resolve(repoRoot, ".beads", "linear-map.json")
-  const existed = fs.existsSync(mapPath)
-  const backup = existed ? fs.readFileSync(mapPath) : null
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
 
   try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const { getMappingPath, loadMapping, saveMapping } = requireFresh("../scripts/tm-linear-sync")
     const data = { "test-123": { linearId: "abc", linearIdentifier: "ENG-1" } }
+    const mapPath = path.join(tempRepoRoot, ".beads", "linear-map.json")
+
+    assert.equal(getMappingPath(), mapPath)
     saveMapping(data)
     const loaded = loadMapping()
+
+    assert.equal(fs.existsSync(mapPath), true)
     assert.deepEqual(loaded, data)
   } finally {
-    if (backup) {
-      fs.writeFileSync(mapPath, backup)
-    } else if (fs.existsSync(mapPath)) {
-      fs.unlinkSync(mapPath)
-    }
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
   }
 })
 
 test("ID mapping file read with corrupted JSON resets gracefully", () => {
-  const { loadMapping } = require("../scripts/tm-linear-sync")
-  // loadMapping reads from .beads/linear-map.json
-  // Test by temporarily creating a corrupted file
-  const mapPath = path.resolve(repoRoot, ".beads", "linear-map.json")
-  const existed = fs.existsSync(mapPath)
-  const backup = existed ? fs.readFileSync(mapPath) : null
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
 
   try {
-    // Write corrupted JSON
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const { loadMapping } = requireFresh("../scripts/tm-linear-sync")
+    const mapPath = path.join(tempRepoRoot, ".beads", "linear-map.json")
+
     fs.writeFileSync(mapPath, "{invalid json!!", "utf8")
     const result = loadMapping()
+
     assert.deepEqual(result, {}, "Should return empty object on corrupted file")
   } finally {
-    // Restore
-    if (backup) {
-      fs.writeFileSync(mapPath, backup)
-    } else if (fs.existsSync(mapPath)) {
-      fs.unlinkSync(mapPath)
-    }
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
   }
 })
 
@@ -198,8 +196,7 @@ test("sync with no config exits 0 with not-configured message", () => {
 })
 
 test("tm sync invokes linear sync script when available", () => {
-  // Verify tm sync runs the linear sync script (which prints "not configured" to stderr)
-  // by running the sync script directly rather than invoking bd sync
+  // The script should exit cleanly when Linear sync is available but not configured.
   const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
     cwd: repoRoot,
     encoding: "utf8",
@@ -231,4 +228,10 @@ function requireFresh(mod) {
   const resolved = require.resolve(mod)
   delete require.cache[resolved]
   return require(mod)
+}
+
+function makeTempRepoRoot() {
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-linear-sync-"))
+  fs.mkdirSync(path.join(tempRepoRoot, ".beads"), { recursive: true })
+  return tempRepoRoot
 }

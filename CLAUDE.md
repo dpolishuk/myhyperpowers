@@ -120,7 +120,7 @@ Skills are invoked through slash commands that expand to prompts. The flow is:
 3. Claude uses the Skill tool to load `skills/writing-plans/SKILL.md`
 4. Claude follows the skill's detailed instructions
 
-### bd Integration
+### tm Integration
 
 Many skills integrate with `tm` (a task management tool). The workflows expect:
 

@@ -59,42 +59,59 @@ function hashDesign(design) {
 
 // ── Repo root detection ─────────────────────────────────────────────────────
 
-function findRepoRoot() {
-  let dir = process.cwd()
+function findRepoRootFrom(startDir) {
+  if (!startDir) return ""
+  let dir = path.resolve(startDir)
   while (dir !== path.dirname(dir)) {
     if (fs.existsSync(path.join(dir, ".beads"))) return dir
     dir = path.dirname(dir)
   }
-  return process.cwd()
+  return ""
+}
+
+function findRepoRoot() {
+  const envRoot = (process.env.TM_REPO_ROOT || "").trim()
+  if (envRoot && fs.existsSync(path.join(envRoot, ".beads"))) {
+    return envRoot
+  }
+
+  return findRepoRootFrom(process.cwd()) || findRepoRootFrom(__dirname) || process.cwd()
 }
 
 // ── ID mapping persistence ──────────────────────────────────────────────────
 
-const MAPPING_PATH = path.join(findRepoRoot(), ".beads", "linear-map.json")
+function getMappingPath() {
+  return path.join(findRepoRoot(), ".beads", "linear-map.json")
+}
 
 function loadMapping() {
+  const mappingPath = getMappingPath()
   try {
-    if (fs.existsSync(MAPPING_PATH)) {
-      return JSON.parse(fs.readFileSync(MAPPING_PATH, "utf8"))
+    if (fs.existsSync(mappingPath)) {
+      return JSON.parse(fs.readFileSync(mappingPath, "utf8"))
     }
   } catch (err) {
-    console.error(`tm-sync: Warning: corrupted ${MAPPING_PATH}, starting fresh.`)
+    console.error(`tm-sync: Warning: corrupted ${mappingPath}, starting fresh.`)
   }
   return {}
 }
 
 function saveMapping(mapping) {
-  fs.writeFileSync(MAPPING_PATH, JSON.stringify(mapping, null, 2) + "\n", "utf8")
+  const mappingPath = getMappingPath()
+  fs.mkdirSync(path.dirname(mappingPath), { recursive: true })
+  fs.writeFileSync(mappingPath, JSON.stringify(mapping, null, 2) + "\n", "utf8")
 }
 
 // ── bd issue loading ────────────────────────────────────────────────────────
 
 function loadBdIssues() {
+  const repoRoot = findRepoRoot()
   const statuses = ["open", "in_progress", "closed", "blocked"]
   const issues = []
 
   for (const status of statuses) {
     const result = spawnSync("bd", ["list", "--json", "--status", status], {
+      cwd: repoRoot,
       encoding: "utf8",
       timeout: 10000,
     })
@@ -366,4 +383,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping }
+module.exports = { findRepoRoot, getMappingPath, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping }

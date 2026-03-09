@@ -96,7 +96,7 @@ tm sync    # Syncs git (bd sync) + pushes issues to Linear
 
 ## Troubleshooting
 
-**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` and `LINEAR_TEAM_KEY` env vars or bd config values.
+**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` and `LINEAR_TEAM_KEY` env vars or persist them with `tm config set`.
 
 **"Linear API key invalid or expired"** — Generate a new key at Linear Settings -> API -> Personal API keys.
 

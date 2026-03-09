@@ -1,10 +1,10 @@
 ---
 name: review-implementation
-description: Use after hyperpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided
+description: Use after hyperpowers:executing-plans completes all tasks - verifies implementation against the epic spec, all success criteria met, anti-patterns avoided
 ---
 
 <skill_overview>
-Review completed implementation against bd epic to catch gaps before claiming completion; spec is contract, implementation must fulfill contract completely.
+Review completed implementation against the epic spec to catch gaps before claiming completion; the spec is the contract, and implementation must fulfill it completely.
 </skill_overview>
 
 <rigidity_level>
