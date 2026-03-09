@@ -305,6 +305,10 @@ test("syncExistingIssue recreates deleted Linear issue in the same run", async (
     updateIssue: async () => {
       throw new Error("404 not found")
     },
+    issueSearch: async () => ({ nodes: [] }),
+    issue: async () => {
+      throw new Error("404 not found")
+    },
     createIssue: async params => ({
       issue: Promise.resolve({ id: "lin-new", identifier: `CREATED:${params.title}` }),
     }),
@@ -329,6 +333,61 @@ test("syncExistingIssue recreates deleted Linear issue in the same run", async (
   assert.deepEqual(result, { created: 1, updated: 0, errors: 0 })
   assert.equal(mapping["bd-404"].linearId, "lin-new")
   assert.equal(mapping["bd-404"].linearIdentifier, "CREATED:Recreate me")
+})
+
+test("syncExistingIssue relinks stale mapping before creating a replacement issue", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-relink": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-10",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const issue = {
+    id: "bd-relink",
+    title: "Relink me",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+  const updateCalls = []
+  const client = {
+    updateIssue: async (id, params) => {
+      updateCalls.push({ id, params })
+      if (id === "lin-stale") {
+        throw new Error("404 not found")
+      }
+    },
+    issueSearch: async query => {
+      assert.equal(query, "[bd:bd-relink]")
+      return { nodes: [{ id: "lin-relinked", identifier: "ENG-77" }] }
+    },
+    createIssue: async () => {
+      throw new Error("should not create duplicate issue")
+    },
+  }
+
+  const result = await syncExistingIssue({
+    client,
+    issue,
+    existing: mapping["bd-relink"],
+    bdId: "bd-relink",
+    designText: "design",
+    designHash: "hash-relink",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: mapping["bd-relink"].lastSyncedFields,
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 1, errors: 0 })
+  assert.equal(mapping["bd-relink"].linearId, "lin-relinked")
+  assert.equal(mapping["bd-relink"].linearIdentifier, "ENG-77")
+  assert.deepEqual(updateCalls.map(call => call.id), ["lin-stale", "lin-relinked"])
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {

@@ -252,8 +252,15 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
     return { created: 0, updated: 1, errors: 0 }
   } catch (err) {
     if (err.message && /not found|does not exist|404/i.test(err.message)) {
+      const relinked = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
+      if (relinked && relinked.linearId !== existing.linearId) {
+        return syncExistingIssue({ client, issue, existing: relinked, bdId, designText, designHash, priority, stateId, labelName, prev, getOrCreateLabel, mapping, teamId })
+      }
+      if (relinked) {
+        console.error(`tm-sync: Failed to update "${issue.title}": stale mapping could not be refreshed safely`)
+        return { created: 0, updated: 0, errors: 1 }
+      }
       console.error(`tm-sync: Linear issue ${existing.linearIdentifier} was deleted, recreating ${bdId}`)
-      delete mapping[bdId]
       return createLinearIssue({ client, teamId, issue, bdId, designText, designHash, priority, stateId, labelName, getOrCreateLabel, mapping })
     }
 

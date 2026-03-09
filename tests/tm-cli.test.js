@@ -150,6 +150,43 @@ test("tm sync fails when Linear is configured but node is unavailable", () => {
   }
 })
 
+test("tm sync skips Linear when only team key is present and node is unavailable", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-team-only-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}\nif [[ \"$1\" == \"sync\" ]]; then exit 0; fi\nexit 0\n`)
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "bd",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "",
+        LINEAR_TEAM_KEY: "ENG",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
 test("tm passes arguments with spaces unchanged to bd", () => {
   // Use a temp directory with its own .beads to avoid polluting repo state
   const os = require("node:os")

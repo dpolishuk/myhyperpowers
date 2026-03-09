@@ -92,10 +92,8 @@ load_linear_config_value() {
 
 linear_sync_configured() {
   local api_key
-  local team_key
   api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key)"
-  team_key="$(load_linear_config_value LINEAR_TEAM_KEY linear.team-key)"
-  [[ -n "$api_key" || -n "$team_key" ]]
+  [[ -n "$api_key" ]]
 }
 
 # ── Validation ───────────────────────────────────────────────────────────────
