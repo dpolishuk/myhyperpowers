@@ -103,7 +103,7 @@ detect_codex()   {
     AGENT_PATHS[codex]="${HOME}/.codex"
   fi
 }
-detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)"; }
+detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)" || true; }
 
 detect_all() {
   detect_claude
@@ -738,6 +738,68 @@ status_gemini() {
 }
 
 # ---------------------------------------------------------------------------
+# tm CLI tool installation
+# ---------------------------------------------------------------------------
+
+TM_BIN_DIR="${HOME}/.local/bin"
+TM_LIB_DIR="${HOME}/.local/lib/tm"
+
+install_tm_cli() {
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Would install tm CLI to ${TM_BIN_DIR}/tm"
+    return 0
+  fi
+
+  ensure_dir "$TM_BIN_DIR"
+  ensure_dir "$TM_LIB_DIR"
+
+  # Copy tm script and supporting files
+  cp "${REPO_ROOT}/scripts/tm" "${TM_BIN_DIR}/tm"
+  chmod +x "${TM_BIN_DIR}/tm"
+
+  cp "${REPO_ROOT}/scripts/tm-linear-sync.js" "${TM_LIB_DIR}/tm-linear-sync.js"
+  cp "${REPO_ROOT}/scripts/tm-linear-sync-config.js" "${TM_LIB_DIR}/tm-linear-sync-config.js"
+
+  # Create symlinks so tm can find its companion scripts
+  ln -sfn "${TM_LIB_DIR}/tm-linear-sync.js" "${TM_BIN_DIR}/tm-linear-sync.js"
+  ln -sfn "${TM_LIB_DIR}/tm-linear-sync-config.js" "${TM_BIN_DIR}/tm-linear-sync-config.js"
+
+  # Install @linear/sdk if node/npm available and package.json exists
+  if command -v npm &>/dev/null && [[ -f "${REPO_ROOT}/package.json" ]]; then
+    if [[ ! -d "${TM_LIB_DIR}/node_modules/@linear" ]]; then
+      cp "${REPO_ROOT}/package.json" "${TM_LIB_DIR}/package.json"
+      (cd "$TM_LIB_DIR" && npm install --silent --omit=dev 2>/dev/null) \
+        || warn "npm install for @linear/sdk failed — Linear sync will be unavailable"
+    fi
+    # Symlink node_modules so the sync script can find @linear/sdk
+    ln -sfn "${TM_LIB_DIR}/node_modules" "${TM_BIN_DIR}/node_modules"
+  fi
+
+  # Check if ~/.local/bin is in PATH
+  if ! echo "$PATH" | tr ':' '\n' | grep -qx "$TM_BIN_DIR"; then
+    warn "${TM_BIN_DIR} is not in your PATH. Add this to your shell profile:"
+    warn "  export PATH=\"${TM_BIN_DIR}:\$PATH\""
+  else
+    success "tm CLI installed to ${TM_BIN_DIR}/tm"
+  fi
+}
+
+uninstall_tm_cli() {
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Would remove tm CLI from ${TM_BIN_DIR}/tm"
+    return 0
+  fi
+
+  rm -f "${TM_BIN_DIR}/tm"
+  rm -f "${TM_BIN_DIR}/tm-linear-sync.js"
+  rm -f "${TM_BIN_DIR}/tm-linear-sync-config.js"
+  rm -f "${TM_BIN_DIR}/node_modules"
+  rm -rf "${TM_LIB_DIR}"
+
+  info "tm CLI removed from ${TM_BIN_DIR}"
+}
+
+# ---------------------------------------------------------------------------
 # CLI usage
 # ---------------------------------------------------------------------------
 
@@ -934,6 +996,13 @@ main() {
   if ! [[ -t 0 ]] && [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
     error "No terminal detected. Use --all or specify agents (--claude, --opencode, etc.)"
     exit 1
+  fi
+
+  # --- Install tm CLI tool (shared across all agents) ---
+  if [[ "$MODE" == "install" ]]; then
+    install_tm_cli
+  elif [[ "$MODE" == "uninstall" ]]; then
+    uninstall_tm_cli
   fi
 
   # --- Execute ---
