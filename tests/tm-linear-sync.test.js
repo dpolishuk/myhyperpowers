@@ -36,6 +36,36 @@ test("loadLinearConfig reads LINEAR_API_KEY from env", () => {
   restoreEnv(saved)
 })
 
+test("loadLinearConfig ignores deprecated LINEAR_PROJECT_NAME", () => {
+  const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
+  const saved = saveEnv()
+  process.env.LINEAR_API_KEY = "lin_api_test123"
+  process.env.LINEAR_TEAM_KEY = "ENG"
+  process.env.LINEAR_PROJECT_NAME = "Roadmap"
+
+  const config = loadLinearConfig()
+
+  assert.ok(config)
+  assert.equal("projectName" in config, false)
+
+  restoreEnv(saved)
+})
+
+test("loadConfigValue fails fast when bd config command cannot run", () => {
+  const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+  const saved = saveEnv()
+  const savedPath = process.env.PATH
+  delete process.env.LINEAR_API_KEY
+  process.env.PATH = ""
+
+  try {
+    assert.throws(() => loadConfigValue("LINEAR_API_KEY", "linear.api-key"), /bd config get linear\.api-key failed/)
+  } finally {
+    restoreEnv(saved)
+    process.env.PATH = savedPath
+  }
+})
+
 test("loadLinearConfig rejects apiKey without teamKey", () => {
   const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
@@ -191,6 +221,30 @@ test("reconcileExistingIssueByMarker removes stale mapping when marker no longer
   assert.deepEqual(mapping, {})
 })
 
+test("reconcileExistingIssueByMarker keeps existing mapping when issue still exists without marker", async () => {
+  const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-keep": {
+      linearId: "lin-keep",
+      linearIdentifier: "ENG-9",
+      lastSyncedFields: { title: "Kept task" },
+    },
+  }
+
+  const client = {
+    issueSearch: async () => ({ nodes: [] }),
+    issue: async id => {
+      assert.equal(id, "lin-keep")
+      return { id: "lin-keep", identifier: "ENG-9" }
+    },
+  }
+
+  const result = await reconcileExistingIssueByMarker(client, "team-1", "bd-keep", mapping["bd-keep"], mapping)
+
+  assert.equal(result.linearId, "lin-keep")
+  assert.equal(mapping["bd-keep"].linearId, "lin-keep")
+})
+
 test("reconcileExistingIssueByMarker relinks mapping when marker finds replacement issue", async () => {
   const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
@@ -214,6 +268,19 @@ test("reconcileExistingIssueByMarker relinks mapping when marker finds replaceme
   assert.equal(result.linearIdentifier, "ENG-44")
   assert.equal(result.lastSyncedFields.title, "Another task")
   assert.equal(mapping["bd-2"].linearId, "lin-new")
+})
+
+test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
+  const { logSyncInfo } = requireFresh("../scripts/tm-linear-sync")
+  const writes = { stdout: [], stderr: [] }
+
+  logSyncInfo("Synced 3 issues", {
+    stdout: { write: chunk => writes.stdout.push(chunk) },
+    stderr: { write: chunk => writes.stderr.push(chunk) },
+  })
+
+  assert.deepEqual(writes.stdout, [])
+  assert.deepEqual(writes.stderr, ["tm-sync: Synced 3 issues\n"])
 })
 
 // ── hashDesign tests ────────────────────────────────────────────────────────

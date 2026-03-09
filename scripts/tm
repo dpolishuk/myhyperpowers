@@ -148,6 +148,9 @@ main() {
       fi
       # Intercept sync: run bd sync first, then Linear sync if configured
       if [[ "${1:-}" == "sync" ]]; then
+        if [[ "${2:-}" == "--help" || "${2:-}" == "-h" || "${2:-}" == "--version" || "${2:-}" == "-v" ]]; then
+          exec bd "$@"
+        fi
         local sync_exit=0
         bd sync "${@:2}" || sync_exit=$?
         # Only run Linear sync if bd sync succeeded

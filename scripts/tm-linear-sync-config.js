@@ -18,6 +18,12 @@ function loadConfigValue(envVar, bdConfigKey) {
     encoding: "utf8",
     timeout: 5000,
   })
+
+  if (result.error || result.status !== 0) {
+    const detail = result.error ? result.error.message : (result.stderr || "").trim() || `exit ${result.status}`
+    throw new Error(`bd config get ${bdConfigKey} failed: ${detail}`)
+  }
+
   const val = (result.stdout || "").trim()
   // bd config get returns "key (not set)" when unconfigured
   if (!val || val.endsWith("(not set)")) return null
@@ -26,7 +32,7 @@ function loadConfigValue(envVar, bdConfigKey) {
 
 /**
  * Load Linear configuration from environment and bd config.
- * Returns { apiKey, teamKey, projectName } or null if not configured.
+ * Returns { apiKey, teamKey } or null if not configured.
  */
 function loadLinearConfig() {
   const apiKey = loadConfigValue("LINEAR_API_KEY", "linear.api-key")
@@ -39,9 +45,7 @@ function loadLinearConfig() {
     throw err
   }
 
-  const projectName = loadConfigValue("LINEAR_PROJECT_NAME", "linear.project-name") || null
-
-  return { apiKey, teamKey, projectName }
+  return { apiKey, teamKey }
 }
 
 module.exports = { loadLinearConfig, loadConfigValue }

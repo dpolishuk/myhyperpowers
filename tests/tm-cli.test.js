@@ -100,6 +100,19 @@ test("tm passes through arguments unchanged to bd", () => {
   assert.equal(tmResult.stdout, bdResult.stdout)
 })
 
+test("tm sync --help matches bd sync --help without running Linear sync", () => {
+  const tmResult = runTm(["sync", "--help"], { env: { LINEAR_API_KEY: "" } })
+  const bdResult = spawnSync("bd", ["sync", "--help"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 10000,
+  })
+
+  assert.equal(tmResult.status, bdResult.status)
+  assert.equal(tmResult.stdout, bdResult.stdout)
+  assert.equal(tmResult.stderr, bdResult.stderr)
+})
+
 test("tm passes arguments with spaces unchanged to bd", () => {
   // Use a temp directory with its own .beads to avoid polluting repo state
   const os = require("node:os")

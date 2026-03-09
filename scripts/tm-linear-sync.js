@@ -131,6 +131,10 @@ function loadBdIssues() {
   return issues
 }
 
+function logSyncInfo(message, streams = process) {
+  streams.stderr.write(`tm-sync: ${message}\n`)
+}
+
 async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
     first: 1,
@@ -138,6 +142,19 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
   })
 
   if (search.nodes.length === 0) {
+    if (typeof client.issue === "function") {
+      try {
+        const currentIssue = await client.issue(existing.linearId)
+        if (currentIssue && currentIssue.id === existing.linearId) {
+          return existing
+        }
+      } catch (err) {
+        if (!err.message || !/not found|does not exist|404/i.test(err.message)) {
+          throw err
+        }
+      }
+    }
+
     console.error(`tm-sync: Linear issue ${existing.linearIdentifier} is missing, removing stale mapping for ${bdId}`)
     delete mapping[bdId]
     return null
@@ -155,7 +172,7 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
     lastSyncedAt: new Date().toISOString(),
   }
   mapping[bdId] = relinked
-  console.log(`tm-sync: Re-linked ${bdId} → ${found.identifier} (found by marker)`) 
+  logSyncInfo(`Re-linked ${bdId} → ${found.identifier} (found by marker)`)
   return relinked
 }
 
@@ -166,10 +183,6 @@ async function syncToLinear() {
   if (!config) {
     console.error("tm-sync: Linear not configured, skipping.")
     return
-  }
-
-  if (config.projectName) {
-    console.log(`tm-sync: Note: LINEAR_PROJECT_NAME is set but project filtering is not yet implemented.`)
   }
 
   // Dynamic import for ESM-only @linear/sdk
@@ -185,7 +198,7 @@ async function syncToLinear() {
     console.error(`  Error: ${err.message}`)
     process.exit(1)
   }
-  console.log(`tm-sync: Authenticated as ${viewer.displayName || viewer.email}`)
+  logSyncInfo(`Authenticated as ${viewer.displayName || viewer.email}`)
 
   // Find team
   const teams = await client.teams({
@@ -283,7 +296,7 @@ async function syncToLinear() {
             lastSyncedFields: {},
           }
           mapping[bdId] = existing
-          console.log(`tm-sync: Linked ${bdId} → ${found.identifier} (found by marker)`)
+          logSyncInfo(`Linked ${bdId} → ${found.identifier} (found by marker)`)
         }
       } catch (err) {
         // Search failed — skip this issue to avoid creating duplicates
@@ -410,7 +423,7 @@ async function syncToLinear() {
   }
 
   saveMapping(mapping)
-  console.log(`tm-sync: Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged${errors > 0 ? `, ${errors} failed` : ""})`)
+  logSyncInfo(`Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged${errors > 0 ? `, ${errors} failed` : ""})`)
   if (errors > 0) {
     process.exitCode = 1
   }
@@ -425,4 +438,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { findRepoRoot, getMappingPath, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, reconcileExistingIssueByMarker }
+module.exports = { findRepoRoot, getMappingPath, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, reconcileExistingIssueByMarker }
