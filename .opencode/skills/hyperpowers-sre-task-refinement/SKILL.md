@@ -62,8 +62,8 @@ Don't use when:
 - [ ] Each subtask has clear deliverable?
 
 **If task >16 hours:**
-- Create subtasks with `bd create`
-- Link with `bd dep add child parent --type parent-child`
+- Create subtasks with `tm create`
+- Link with `tm dep add child parent --type parent-child`
 - Update parent to coordinator role
 
 ---
@@ -115,7 +115,7 @@ Don't use when:
 
 **Verify with:**
 ```bash
-bd dep tree bd-1  # Show full dependency tree
+tm dep tree bd-1  # Show full dependency tree
 ```
 
 ---
@@ -224,7 +224,7 @@ For each task in the plan:
 
 **Step 1: Read the task**
 ```bash
-bd show bd-3
+tm show bd-3
 ```
 
 **Step 2: Apply all 8 checklist categories**
@@ -247,10 +247,10 @@ Take notes:
 
 **Step 4: Update the task**
 
-Use `bd update` to add missing information:
+Use `tm update` to add missing information:
 
 ```bash
-bd update bd-3 --design "$(cat <<'EOF'
+tm update bd-3 --design "$(cat <<'EOF'
 ## Goal
 [Original goal, preserved]
 
@@ -293,7 +293,7 @@ EOF
 
 **Step 5: Verify no placeholder text (MANDATORY)**
 
-After updating, read back with `bd show bd-N` and verify:
+After updating, read back with `tm show bd-N` and verify:
 - ✅ All sections contain actual content, not meta-references
 - ✅ No placeholder text like "[detailed above]", "[as specified]", "[will be added]"
 - ✅ Implementation steps fully written with actual code examples
@@ -308,28 +308,28 @@ If task >16 hours, create subtasks:
 
 ```bash
 # Create first subtask
-bd create "Subtask 1: [Specific Component]" \
+tm create "Subtask 1: [Specific Component]" \
   --type task \
   --priority 1 \
   --design "[Complete subtask design with all 7 categories addressed]"
 # Returns bd-10
 
 # Create second subtask
-bd create "Subtask 2: [Another Component]" \
+tm create "Subtask 2: [Another Component]" \
   --type task \
   --priority 1 \
   --design "[Complete subtask design]"
 # Returns bd-11
 
 # Link subtasks to parent with parent-child relationship
-bd dep add bd-10 bd-3 --type parent-child  # bd-10 is child of bd-3
-bd dep add bd-11 bd-3 --type parent-child  # bd-11 is child of bd-3
+tm dep add bd-10 bd-3 --type parent-child  # bd-10 is child of bd-3
+tm dep add bd-11 bd-3 --type parent-child  # bd-11 is child of bd-3
 
 # Add sequential dependencies if needed (LATER depends on EARLIER)
-bd dep add bd-11 bd-10  # bd-11 depends on bd-10 (do bd-10 first)
+tm dep add bd-11 bd-10  # bd-11 depends on bd-10 (do bd-10 first)
 
 # Update parent to coordinator
-bd update bd-3 --design "$(cat <<'EOF'
+tm update bd-3 --design "$(cat <<'EOF'
 ## Goal
 Coordinate implementation of [feature]. Broken into N subtasks.
 
@@ -356,7 +356,7 @@ After reviewing all tasks:
 [APPROVE ✅ / NEEDS REVISION ⚠️ / REJECT ❌]
 
 ### Dependency Structure Review
-[Output of `bd dep tree [epic-id]`]
+[Output of `tm dep tree [epic-id]`]
 
 **Structure Quality**: [✅ Correct / ❌ Issues found]
 - [Comments on parent-child relationships]
@@ -383,7 +383,7 @@ After reviewing all tasks:
 - [Failure modes not addressed]
 
 **Changes Made**:
-- [Specific improvements added via `bd update`]
+- [Specific improvements added via `tm update`]
 
 ---
 
@@ -479,7 +479,7 @@ Findings:
 
 **Update task:**
 ```bash
-bd update bd-3 --design "$(cat <<'EOF'
+tm update bd-3 --design "$(cat <<'EOF'
 [... original content ...]
 
 ## Key Considerations (ADDED BY SRE REVIEW)
@@ -528,7 +528,7 @@ EOF
 <code>
 # Review of bd-5: Implement License Plate Scanner
 
-bd show bd-5:
+tm show bd-5:
 
 ## Implementation Checklist
 - [ ] Create scanner module
@@ -589,7 +589,7 @@ Reason: Contains placeholder text - task not ready for implementation
 
 **Update task with actual content:**
 ```bash
-bd update bd-5 --design "$(cat <<'EOF'
+tm update bd-5 --design "$(cat <<'EOF'
 ## Implementation Checklist
 - [ ] Create src/scan/plugins/scanners/license_plate.rs
 - [ ] Implement LicensePlateScanner struct with ScanPlugin trait
@@ -638,7 +638,7 @@ EOF
 
 **Verify no placeholder text:**
 ```bash
-bd show bd-5
+tm show bd-5
 # Read entire output
 # Confirm: All sections have actual content
 # Confirm: No "[detailed above]", "[as specified]", "[will be added]"
@@ -662,7 +662,7 @@ bd show bd-5
 <code>
 # Review of bd-7: Implement Data Encryption
 
-bd show bd-7:
+tm show bd-7:
 
 ## Success Criteria
 - [ ] Encryption is implemented correctly
@@ -721,7 +721,7 @@ DECISION: REJECT ❌
 
 **Update with measurable criteria:**
 ```bash
-bd update bd-7 --design "$(cat <<'EOF'
+tm update bd-7 --design "$(cat <<'EOF'
 [... original content ...]
 
 ## Success Criteria
@@ -782,7 +782,7 @@ EOF
 
 1. **Apply all 8 categories to every task** → No skipping any category for any task
 2. **Reject plans with placeholder text** → "[detailed above]", "[as specified]" = instant reject
-3. **Verify no placeholder after updates** → Read back with `bd show` and confirm actual content
+3. **Verify no placeholder after updates** → Read back with `tm show` and confirm actual content
 4. **Break tasks >16 hours** → Create subtasks, don't accept large tasks
 5. **Strengthen vague criteria** → "Works correctly" → measurable verification commands
 6. **Add edge cases to every task** → Empty? Unicode? Concurrency? Failures?
@@ -811,8 +811,8 @@ Before completing SRE review:
 **Per task reviewed:**
 - [ ] Applied all 8 categories (Granularity, Implementability, Criteria, Dependencies, Safety, Edge Cases, Red Flags, Test Meaningfulness)
 - [ ] Checked for placeholder text in design field
-- [ ] Updated task with missing information via `bd update --design`
-- [ ] Verified updated task with `bd show` (no placeholders remain)
+- [ ] Updated task with missing information via `tm update --design`
+- [ ] Verified updated task with `tm show` (no placeholders remain)
 - [ ] Broke down any task >16 hours into subtasks
 - [ ] Strengthened vague success criteria to measurable
 - [ ] Added edge case analysis to Key Considerations
@@ -821,7 +821,7 @@ Before completing SRE review:
 
 **Overall plan:**
 - [ ] Reviewed ALL tasks/phases/subtasks (no exceptions)
-- [ ] Verified dependency structure with `bd dep tree`
+- [ ] Verified dependency structure with `tm dep tree`
 - [ ] Documented findings for each task
 - [ ] Created summary of changes made
 - [ ] Provided clear recommendation (APPROVE/NEEDS REVISION/REJECT)

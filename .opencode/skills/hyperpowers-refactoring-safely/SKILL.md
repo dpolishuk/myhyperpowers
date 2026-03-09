@@ -60,7 +60,7 @@ Dispatch hyperpowers:test-runner agent: "Run: cargo test"
 Track the refactoring work:
 
 ```bash
-bd create "Refactor: Extract user validation logic" \
+tm create "Refactor: Extract user validation logic" \
   --type task \
   --priority P2
 
@@ -87,7 +87,7 @@ Extract user validation logic from UserService into separate Validator class.
 - Validator has 100% test coverage
 "
 
-bd update bd-456 --status in_progress
+tm update bd-456 --status in_progress
 ```
 
 ---
@@ -248,7 +248,7 @@ bd edit bd-456 --design "
 - 8 small transformations, each tested
 "
 
-bd close bd-456
+tm close bd-456
 ```
 </the_process>
 

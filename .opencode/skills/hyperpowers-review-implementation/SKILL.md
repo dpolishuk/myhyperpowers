@@ -44,9 +44,9 @@ LOW FREEDOM - Follow the 4-step review process exactly. Review with Google Fello
 **Get epic and tasks:**
 
 ```bash
-bd show bd-1          # Epic specification
-bd dep tree bd-1      # Task tree
-bd list --parent bd-1 # All tasks
+tm show bd-1          # Epic specification
+tm dep tree bd-1      # Task tree
+tm list --parent bd-1 # All tasks
 ```
 
 **Create TodoWrite tracker:**
@@ -68,7 +68,7 @@ For each task:
 ### A. Read Task Specification
 
 ```bash
-bd show bd-3
+tm show bd-3
 ```
 
 Extract:
@@ -655,7 +655,7 @@ rg "console\.log" src/
 # Found at error-handler.ts:12, 15 ⚠️
 
 # Read bd task
-bd show bd-5
+tm show bd-5
 
 # Success criteria:
 # 1. "All error paths logged"
@@ -855,7 +855,7 @@ hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpower
                    (if gaps: STOP)
 ```
 
-**CRITICAL:** Use bd commands (bd show, bd list, bd dep tree), never read `.beads/issues.jsonl` directly.
+**CRITICAL:** Use bd commands (tm show, tm list, tm dep tree), never read `.beads/issues.jsonl` directly.
 </integration>
 
 <resources>
