@@ -66,6 +66,38 @@ detect_backend() {
   echo "bd"
 }
 
+load_linear_config_value() {
+  local env_name="$1"
+  local bd_key="$2"
+
+  if [[ ${!env_name+x} ]]; then
+    local env_val="${!env_name}"
+    env_val="${env_val#"${env_val%%[![:space:]]*}"}"
+    env_val="${env_val%"${env_val##*[![:space:]]}"}"
+    printf '%s\n' "$env_val"
+    return
+  fi
+
+  local config_val
+  config_val="$(bd config get "$bd_key" 2>/dev/null || true)"
+  config_val="${config_val#"${config_val%%[![:space:]]*}"}"
+  config_val="${config_val%"${config_val##*[![:space:]]}"}"
+  if [[ -z "$config_val" || "$config_val" == *"(not set)" ]]; then
+    printf '\n'
+    return
+  fi
+
+  printf '%s\n' "$config_val"
+}
+
+linear_sync_configured() {
+  local api_key
+  local team_key
+  api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key)"
+  team_key="$(load_linear_config_value LINEAR_TEAM_KEY linear.team-key)"
+  [[ -n "$api_key" || -n "$team_key" ]]
+}
+
 # ── Validation ───────────────────────────────────────────────────────────────
 
 validate_backend() {
@@ -160,12 +192,24 @@ main() {
         fi
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        local linear_exit=0
-        if command -v node >/dev/null 2>&1 && [[ -f "$script_dir/tm-linear-sync.js" ]]; then
-          TM_REPO_ROOT="${repo_root:-$PWD}" node "$script_dir/tm-linear-sync.js" || linear_exit=$?
-          if [[ "$linear_exit" -ne 0 ]]; then
-            echo "tm: Linear sync failed with exit code $linear_exit" >&2
+        if ! command -v node >/dev/null 2>&1; then
+          if linear_sync_configured; then
+            echo "tm: Linear sync is configured but Node.js is unavailable." >&2
+            exit 1
           fi
+          exit 0
+        fi
+        if [[ ! -f "$script_dir/tm-linear-sync.js" ]]; then
+          if linear_sync_configured; then
+            echo "tm: Linear sync is configured but tm-linear-sync.js is missing." >&2
+            exit 1
+          fi
+          exit 0
+        fi
+        local linear_exit=0
+        TM_REPO_ROOT="${repo_root:-$PWD}" node "$script_dir/tm-linear-sync.js" || linear_exit=$?
+        if [[ "$linear_exit" -ne 0 ]]; then
+          echo "tm: Linear sync failed with exit code $linear_exit" >&2
         fi
         exit "$linear_exit"
       fi

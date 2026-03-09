@@ -66,6 +66,21 @@ test("loadConfigValue fails fast when bd config command cannot run", () => {
   }
 })
 
+test("loadBdIssues uses a larger maxBuffer for bd list output", () => {
+  const { loadBdIssues, BD_LIST_MAX_BUFFER } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const fakeSpawn = (command, args, options) => {
+    calls.push({ command, args, options })
+    return { status: 0, stdout: "[]", stderr: "" }
+  }
+
+  const issues = loadBdIssues(fakeSpawn)
+
+  assert.deepEqual(issues, [])
+  assert.equal(calls.length, 4)
+  assert.ok(calls.every(call => call.options.maxBuffer === BD_LIST_MAX_BUFFER))
+})
+
 test("loadLinearConfig rejects apiKey without teamKey", () => {
   const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
@@ -268,6 +283,52 @@ test("reconcileExistingIssueByMarker relinks mapping when marker finds replaceme
   assert.equal(result.linearIdentifier, "ENG-44")
   assert.equal(result.lastSyncedFields.title, "Another task")
   assert.equal(mapping["bd-2"].linearId, "lin-new")
+})
+
+test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-404": {
+      linearId: "lin-old",
+      linearIdentifier: "ENG-12",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const issue = {
+    id: "bd-404",
+    title: "Recreate me",
+    status: "open",
+    priority: 1,
+    issue_type: "task",
+  }
+  const client = {
+    updateIssue: async () => {
+      throw new Error("404 not found")
+    },
+    createIssue: async params => ({
+      issue: Promise.resolve({ id: "lin-new", identifier: `CREATED:${params.title}` }),
+    }),
+  }
+
+  const result = await syncExistingIssue({
+    client,
+    issue,
+    existing: mapping["bd-404"],
+    bdId: "bd-404",
+    designText: "design",
+    designHash: "hash123",
+    priority: 2,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: mapping["bd-404"].lastSyncedFields,
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, errors: 0 })
+  assert.equal(mapping["bd-404"].linearId, "lin-new")
+  assert.equal(mapping["bd-404"].linearIdentifier, "CREATED:Recreate me")
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
