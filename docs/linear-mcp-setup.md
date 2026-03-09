@@ -1,17 +1,68 @@
-# Linear MCP Server Setup
+# Linear Integration Setup
 
-Optional: Configure a Linear MCP server for direct read access to your Linear workspace. This complements `tm sync` — tm handles the write path (bd -> Linear), while the MCP server provides ad-hoc read access to team context.
+Complete guide to setting up Linear with the tm CLI and MCP server.
 
-## Prerequisites
+## Step 1: Create a Linear Workspace
 
-- A [Linear](https://linear.app) account
-- A Linear API key (Settings -> API -> Personal API keys)
+If you don't have a Linear account yet:
 
-## Configuration
+1. Go to [linear.app](https://linear.app) and sign up
+2. Create a workspace (e.g., "My Projects")
+3. Create a team — this is where your issues will live
+   - Go to **Settings** (gear icon, bottom-left) -> **Teams** -> **Create team**
+   - Give it a name (e.g., "Engineering") and a **key** (e.g., "ENG")
+   - The team key is short identifier used in issue IDs like `ENG-123`
+
+## Step 2: Generate an API Key
+
+1. In Linear, go to **Settings** -> **API** -> **Personal API keys**
+2. Click **Create key**, give it a label (e.g., "tm-sync")
+3. Copy the key — it starts with `lin_api_`
+4. Save it somewhere safe; you won't see it again
+
+## Step 3: Configure tm sync
+
+tm sync pushes your local bd issues to Linear. Choose one method to store credentials:
+
+### Option A: Environment Variables (per-session)
+
+```bash
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"   # Your team key from Step 1
+```
+
+Add these to your `~/.bashrc` or `~/.zshrc` to persist across sessions.
+
+### Option B: bd Config (per-repo, persistent)
+
+```bash
+tm config set linear.api-key "lin_api_your_key_here"
+tm config set linear.team-key "ENG"
+```
+
+These are stored in `.beads/config.yaml` and persist across sessions.
+
+### Verify it works
+
+```bash
+tm sync
+```
+
+Expected output (on stderr):
+```
+tm-sync: Authenticated as Your Name
+tm-sync: Synced 5 issues (5 created, 0 updated, 0 unchanged)
+```
+
+Your bd issues should now appear in Linear under your team.
+
+## Step 4: Set Up Linear MCP Server (Optional)
+
+The MCP server gives Claude Code / OpenCode **read access** to your Linear workspace — view team issues, project boards, and timelines directly from the AI assistant.
 
 ### Claude Code
 
-Add to your user settings (`~/.claude/settings.local.json`):
+Add to `~/.claude/settings.local.json`:
 
 ```json
 {
@@ -47,37 +98,28 @@ Add to `.opencode/config.json`:
 
 > **Security note:** The MCP server version is pinned above. Periodically check for updates with `npm view @tacticlaunch/mcp-linear version` and bump after reviewing the changelog.
 
-## tm sync Configuration
+## How It All Fits Together
 
-To enable `tm sync` to push issues to Linear:
-
-```bash
-# Set your API key (choose one method):
-export LINEAR_API_KEY="lin_api_your_key_here"
-# Or persist in tm config:
-tm config set linear.api-key "lin_api_your_key_here"
-
-# Set your team key (e.g., "ENG", "PROD"):
-export LINEAR_TEAM_KEY="ENG"
-# Or persist:
-tm config set linear.team-key "ENG"
 ```
-
-Then run:
-
-```bash
-tm sync    # Syncs git (bd sync) + pushes issues to Linear
+You (local)                    Linear (cloud)
++-----------+    tm sync       +---------------+
+| bd issues | ───────────────> | Linear issues |
+| (offline) |                  | (team-visible)|
++-----------+                  +---------------+
+     ^                                ^
+     |                                |
+  tm create                    MCP server reads
+  tm update                    (Claude/OpenCode)
+  tm close
 ```
-
-## How They Work Together
 
 | Action | Tool | Description |
 |--------|------|-------------|
-| Create/update/close tasks | `tm` CLI | Writes to bd locally, syncs to Linear on `tm sync` |
+| Create/update/close tasks | `tm` CLI | Writes to bd locally |
 | View your tasks | `tm show`, `tm list` | Reads from bd (fast, offline) |
+| Push changes to Linear | `tm sync` | Batch sync after local work |
 | View team tasks | Linear MCP | Reads directly from Linear API |
 | View project boards | Linear MCP | Access Linear boards, timelines |
-| Push changes to Linear | `tm sync` | Batch sync after local work |
 
 ## Field Mapping
 
@@ -94,12 +136,33 @@ tm sync    # Syncs git (bd sync) + pushes issues to Linear
 | status: closed | State: Done |
 | design (markdown) | Description (markdown) |
 
+## Daily Workflow
+
+```bash
+# Morning: check what's ready
+tm ready
+
+# Work on tasks locally
+tm update bd-42 --status in_progress
+# ... code ...
+tm close bd-42
+
+# End of session: push to Linear so your team sees progress
+tm sync
+```
+
 ## Troubleshooting
 
-**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` and `LINEAR_TEAM_KEY` env vars or persist them with `tm config set`.
+**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` and `LINEAR_TEAM_KEY` via env vars or `tm config set`.
+
+**"LINEAR_API_KEY is set but LINEAR_TEAM_KEY is missing"** — You need both. Set the team key: `export LINEAR_TEAM_KEY="ENG"` or `tm config set linear.team-key "ENG"`.
 
 **"Linear API key invalid or expired"** — Generate a new key at Linear Settings -> API -> Personal API keys.
 
-**"Team not found"** — Verify your `LINEAR_TEAM_KEY` matches your team's key in Linear (Settings -> Teams).
+**"Team not found"** — Verify your `LINEAR_TEAM_KEY` matches your team's key in Linear (Settings -> Teams -> click your team -> the short key like "ENG").
 
-**MCP server not responding** — Run `npx -y @tacticlaunch/mcp-linear@1.0.12` directly to check for errors, or bump to another explicitly reviewed version. Ensure the API key is valid.
+**"bd list failed"** — Make sure `bd` is installed and you're in a repo with `.beads/` initialized. Run `bd init` if needed.
+
+**MCP server not responding** — Run `npx -y @tacticlaunch/mcp-linear@1.0.12` directly to check for errors. Ensure the API key is valid and Node.js is installed.
+
+**Duplicate issues after fresh clone** — tm sync uses `[bd:ID]` markers in Linear descriptions to re-link issues. Don't remove these markers from Linear descriptions. If duplicates appear, delete the extras in Linear and run `tm sync` again to re-link.
