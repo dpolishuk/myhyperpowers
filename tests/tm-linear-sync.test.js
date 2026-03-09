@@ -142,6 +142,16 @@ test("mapStatus with custom state names still matches", () => {
   assert.equal(mapStatus("closed", customStates), "c3")      // "complete" substring match
 })
 
+test("mapStatus open falls back to unstarted when no backlog state exists", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "u1", name: "Planned", type: "unstarted" },
+    { id: "s1", name: "Doing", type: "started" },
+  ]
+
+  assert.equal(mapStatus("open", states), "u1")
+})
+
 test("mapStatus with unknown status returns fallback via type", () => {
   const { mapStatus } = require("../scripts/tm-linear-sync")
   const states = [
@@ -388,6 +398,50 @@ test("syncExistingIssue relinks stale mapping before creating a replacement issu
   assert.equal(mapping["bd-relink"].linearId, "lin-relinked")
   assert.equal(mapping["bd-relink"].linearIdentifier, "ENG-77")
   assert.deepEqual(updateCalls.map(call => call.id), ["lin-stale", "lin-relinked"])
+})
+
+test("syncExistingIssue treats relink search failures as per-issue errors", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-search-fail": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-13",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const issue = {
+    id: "bd-search-fail",
+    title: "Search failure",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("404 not found")
+      },
+      issueSearch: async () => {
+        throw new Error("linear search timeout")
+      },
+    },
+    issue,
+    existing: mapping["bd-search-fail"],
+    bdId: "bd-search-fail",
+    designText: "design",
+    designHash: "hash-search",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: mapping["bd-search-fail"].lastSyncedFields,
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.equal(mapping["bd-search-fail"].linearId, "lin-stale")
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {

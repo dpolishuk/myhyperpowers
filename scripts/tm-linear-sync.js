@@ -42,13 +42,16 @@ function mapStatus(bdStatus, teamStates) {
 
   // Fallback: use first state of matching type
   const typeMap = {
-    open: "backlog",
-    in_progress: "started",
-    closed: "completed",
-    blocked: "unstarted",
+    open: ["backlog", "unstarted"],
+    in_progress: ["started"],
+    closed: ["completed"],
+    blocked: ["unstarted", "backlog"],
   }
-  const typeMatch = teamStates.find(s => s.type === (typeMap[bdStatus] || "backlog"))
-  if (typeMatch) return typeMatch.id
+
+  for (const type of (typeMap[bdStatus] || ["backlog", "unstarted"])) {
+    const typeMatch = teamStates.find(s => s.type === type)
+    if (typeMatch) return typeMatch.id
+  }
 
   return null
 }
@@ -252,7 +255,13 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
     return { created: 0, updated: 1, errors: 0 }
   } catch (err) {
     if (err.message && /not found|does not exist|404/i.test(err.message)) {
-      const relinked = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
+      let relinked
+      try {
+        relinked = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
+      } catch (relinkErr) {
+        console.error(`tm-sync: Failed to re-link stale mapping for "${issue.title}": ${relinkErr.message}`)
+        return { created: 0, updated: 0, errors: 1 }
+      }
       if (relinked && relinked.linearId !== existing.linearId) {
         return syncExistingIssue({ client, issue, existing: relinked, bdId, designText, designHash, priority, stateId, labelName, prev, getOrCreateLabel, mapping, teamId })
       }
