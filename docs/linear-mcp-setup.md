@@ -102,4 +102,4 @@ tm sync    # Syncs git (bd sync) + pushes issues to Linear
 
 **"Team not found"** — Verify your `LINEAR_TEAM_KEY` matches your team's key in Linear (Settings -> Teams).
 
-**MCP server not responding** — Run `npx @tacticlaunch/mcp-linear` directly to check for errors. Ensure the API key is valid.
+**MCP server not responding** — Run `npx -y @tacticlaunch/mcp-linear@1.0.12` directly to check for errors, or bump to another explicitly reviewed version. Ensure the API key is valid.

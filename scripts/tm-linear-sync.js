@@ -131,6 +131,34 @@ function loadBdIssues() {
   return issues
 }
 
+async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
+  const search = await client.issueSearch(`[bd:${bdId}]`, {
+    first: 1,
+    filter: { team: { id: { eq: teamId } } },
+  })
+
+  if (search.nodes.length === 0) {
+    console.error(`tm-sync: Linear issue ${existing.linearIdentifier} is missing, removing stale mapping for ${bdId}`)
+    delete mapping[bdId]
+    return null
+  }
+
+  const found = search.nodes[0]
+  if (found.id === existing.linearId) {
+    return existing
+  }
+
+  const relinked = {
+    ...existing,
+    linearId: found.id,
+    linearIdentifier: found.identifier,
+    lastSyncedAt: new Date().toISOString(),
+  }
+  mapping[bdId] = relinked
+  console.log(`tm-sync: Re-linked ${bdId} → ${found.identifier} (found by marker)`) 
+  return relinked
+}
+
 // ── Sync engine ─────────────────────────────────────────────────────────────
 
 async function syncToLinear() {
@@ -265,6 +293,33 @@ async function syncToLinear() {
       }
     }
 
+    let prev = existing ? existing.lastSyncedFields || {} : {}
+
+    if (existing) {
+      const changed = prev.title !== issue.title ||
+        prev.status !== issue.status ||
+        prev.priority !== issue.priority ||
+        prev.issueType !== issue.issue_type ||
+        prev.designHash !== designHash
+
+      if (!changed) {
+        try {
+          existing = await reconcileExistingIssueByMarker(client, team.id, bdId, existing, mapping)
+        } catch (err) {
+          console.error(`tm-sync: Failed to validate unchanged issue "${issue.title}": ${err.message}`)
+          errors++
+          continue
+        }
+
+        if (existing) {
+          unchanged++
+          continue
+        }
+      }
+
+      prev = existing ? existing.lastSyncedFields || {} : {}
+    }
+
     if (!existing) {
       // Create new issue in Linear (include bd ID marker for stable relinking)
       const descWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
@@ -311,19 +366,6 @@ async function syncToLinear() {
         await new Promise(r => setTimeout(r, 500))
       }
     } else {
-      // Check if anything changed
-      const prev = existing.lastSyncedFields || {}
-      const changed = prev.title !== issue.title ||
-        prev.status !== issue.status ||
-        prev.priority !== issue.priority ||
-        prev.issueType !== issue.issue_type ||
-        prev.designHash !== designHash
-
-      if (!changed) {
-        unchanged++
-        continue
-      }
-
       // Update existing issue (preserve bd ID marker for relinking)
       const updateDescWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
       const updateParams = {
@@ -383,4 +425,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { findRepoRoot, getMappingPath, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping }
+module.exports = { findRepoRoot, getMappingPath, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, reconcileExistingIssueByMarker }

@@ -164,6 +164,58 @@ test("ID mapping file read with corrupted JSON resets gracefully", () => {
   }
 })
 
+test("reconcileExistingIssueByMarker removes stale mapping when marker no longer exists", async () => {
+  const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-1": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-1",
+      lastSyncedFields: { title: "A task" },
+    },
+  }
+
+  const client = {
+    issueSearch: async (query, options) => {
+      assert.equal(query, "[bd:bd-1]")
+      assert.deepEqual(options, {
+        first: 1,
+        filter: { team: { id: { eq: "team-1" } } },
+      })
+      return { nodes: [] }
+    },
+  }
+
+  const result = await reconcileExistingIssueByMarker(client, "team-1", "bd-1", mapping["bd-1"], mapping)
+
+  assert.equal(result, null)
+  assert.deepEqual(mapping, {})
+})
+
+test("reconcileExistingIssueByMarker relinks mapping when marker finds replacement issue", async () => {
+  const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-2": {
+      linearId: "lin-old",
+      linearIdentifier: "ENG-2",
+      lastSyncedAt: "2026-03-09T00:00:00.000Z",
+      lastSyncedFields: { title: "Another task" },
+    },
+  }
+
+  const client = {
+    issueSearch: async () => ({
+      nodes: [{ id: "lin-new", identifier: "ENG-44" }],
+    }),
+  }
+
+  const result = await reconcileExistingIssueByMarker(client, "team-1", "bd-2", mapping["bd-2"], mapping)
+
+  assert.equal(result.linearId, "lin-new")
+  assert.equal(result.linearIdentifier, "ENG-44")
+  assert.equal(result.lastSyncedFields.title, "Another task")
+  assert.equal(mapping["bd-2"].linearId, "lin-new")
+})
+
 // ── hashDesign tests ────────────────────────────────────────────────────────
 
 test("hashDesign produces consistent MD5 for same input", () => {

@@ -137,10 +137,43 @@ test("tm passes arguments with spaces unchanged to bd", () => {
 })
 
 test("tm when bd not in PATH gives helpful error message", () => {
-  // Run tm with a PATH that excludes bd but includes bash and env
-  const result = runTm(["ready"], {
-    env: { TM_BACKEND: "bd", PATH: "/usr/bin:/bin" },
-  })
-  assert.equal(result.status, 1)
-  assert.match(result.stderr, /bd not found in PATH/)
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-no-bd-"))
+
+  try {
+    const bashPath = findCommandPath("bash") || "/bin/bash"
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const result = spawnSync(bashPath, [tmPath, "ready"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "bd", PATH: tmpBinDir },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /bd not found in PATH/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
 })
+
+function findCommandPath(commandName) {
+  const fs = require("node:fs")
+  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
+    if (!dir) continue
+    const fullPath = path.join(dir, commandName)
+    try {
+      fs.accessSync(fullPath, fs.constants.X_OK)
+      return fullPath
+    } catch {
+      continue
+    }
+  }
+  return null
+}
