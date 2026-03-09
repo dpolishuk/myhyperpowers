@@ -395,7 +395,7 @@ async function syncToLinear() {
             linearId: found.id,
             linearIdentifier: found.identifier,
             lastSyncedAt: new Date().toISOString(),
-            lastSyncedFields: {},
+            lastSyncedFields: buildLastSyncedFields(issue, designHash),
           }
           mapping[bdId] = existing
           logSyncInfo(`Linked ${bdId} → ${found.identifier} (found by marker)`)
