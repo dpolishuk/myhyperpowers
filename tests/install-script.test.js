@@ -7,7 +7,7 @@ const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")
 
-test("install.sh full uninstall handles a directory at ~/.local/bin/node_modules", () => {
+test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules directory", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
   const binDir = path.join(home, ".local", "bin")
@@ -26,6 +26,39 @@ test("install.sh full uninstall handles a directory at ~/.local/bin/node_modules
   fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
   fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
   fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
+})
+
+test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlink", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const codexHome = path.join(home, ".codex")
+  const binDir = path.join(home, ".local", "bin")
+  const libNodeModules = path.join(home, ".local", "lib", "tm", "node_modules")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.mkdirSync(codexHome, { recursive: true })
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.mkdirSync(binDir, { recursive: true })
+  fs.mkdirSync(libNodeModules, { recursive: true })
+  fs.symlinkSync(libNodeModules, path.join(binDir, "node_modules"), "dir")
 
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
     cwd: repoRoot,

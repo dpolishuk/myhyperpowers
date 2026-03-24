@@ -287,6 +287,36 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
   return relinked
 }
 
+async function prepareExistingIssueForSync({ client, teamId, bdId, issue, designHash, labelName, existing, mapping }) {
+  let prev = existing ? existing.lastSyncedFields || {} : {}
+  let forceLabelSync = false
+  let skipUpdate = false
+
+  if (existing) {
+    const changed = prev.title !== issue.title ||
+      prev.status !== issue.status ||
+      prev.priority !== issue.priority ||
+      prev.issueType !== issue.issue_type ||
+      prev.designHash !== designHash
+
+    if (!changed) {
+      existing = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
+      if (!existing) {
+        return { existing: null, prev: {}, forceLabelSync: false, skipUpdate: false }
+      }
+    }
+
+    forceLabelSync = await issueNeedsLabelRepair({ client, existing, labelName })
+    if (!changed && !forceLabelSync) {
+      skipUpdate = true
+    }
+
+    prev = existing ? existing.lastSyncedFields || {} : {}
+  }
+
+  return { existing, prev, forceLabelSync, skipUpdate }
+}
+
 async function createLinearIssue({ client, teamId, issue, bdId, designText, designHash, priority, stateId, labelName, getOrCreateLabel, mapping }) {
   const descWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
   const createParams = {
@@ -493,38 +523,29 @@ async function syncToLinear() {
     let forceLabelSync = false
 
     if (existing) {
-      const changed = prev.title !== issue.title ||
-        prev.status !== issue.status ||
-        prev.priority !== issue.priority ||
-        prev.issueType !== issue.issue_type ||
-        prev.designHash !== designHash
-
-      if (!changed) {
-        try {
-          existing = await reconcileExistingIssueByMarker(client, team.id, bdId, existing, mapping)
-        } catch (err) {
-          console.error(`tm-sync: Failed to validate unchanged issue "${issue.title}": ${err.message}`)
-          errors++
+      try {
+        const prepared = await prepareExistingIssueForSync({
+          client,
+          teamId: team.id,
+          bdId,
+          issue,
+          designHash,
+          labelName,
+          existing,
+          mapping,
+        })
+        existing = prepared.existing
+        prev = prepared.prev
+        forceLabelSync = prepared.forceLabelSync
+        if (prepared.skipUpdate) {
+          unchanged++
           continue
         }
-
-        if (existing) {
-          try {
-            forceLabelSync = await issueNeedsLabelRepair({ client, existing, labelName })
-          } catch (err) {
-            console.error(`tm-sync: Failed to inspect labels for unchanged issue "${issue.title}": ${err.message}`)
-            errors++
-            continue
-          }
-
-          if (!forceLabelSync) {
-            unchanged++
-            continue
-          }
-        }
+      } catch (err) {
+        console.error(`tm-sync: Failed to prepare sync for "${issue.title}": ${err.message}`)
+        errors++
+        continue
       }
-
-      prev = existing ? existing.lastSyncedFields || {} : {}
     }
 
     if (!existing) {
@@ -588,4 +609,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, syncExistingIssue }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue }

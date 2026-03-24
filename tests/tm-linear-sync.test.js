@@ -444,6 +444,51 @@ test("issueNeedsLabelRepair detects missing type label on unchanged issue", asyn
   assert.equal(needsRepair, true)
 })
 
+test("prepareExistingIssueForSync forces label repair even when other fields changed", async () => {
+  const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
+  const existing = {
+    linearId: "lin-55",
+    linearIdentifier: "ENG-55",
+    lastSyncedFields: {
+      title: "Old title",
+      status: "open",
+      priority: 2,
+      issueType: "task",
+      designHash: "old-hash",
+    },
+  }
+  const issue = {
+    id: "bd-55",
+    title: "New title",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+
+  const prepared = await prepareExistingIssueForSync({
+    client: {
+      issue: async id => {
+        assert.equal(id, "lin-55")
+        return {
+          labels: async () => ({ nodes: [{ name: "Bug" }] }),
+        }
+      },
+    },
+    teamId: "team-1",
+    bdId: "bd-55",
+    issue,
+    designHash: "new-hash",
+    labelName: "Task",
+    existing,
+    mapping: { "bd-55": existing },
+  })
+
+  assert.equal(prepared.existing.linearId, "lin-55")
+  assert.equal(prepared.forceLabelSync, true)
+  assert.deepEqual(prepared.prev, existing.lastSyncedFields)
+  assert.equal(prepared.skipUpdate, false)
+})
+
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
   const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {

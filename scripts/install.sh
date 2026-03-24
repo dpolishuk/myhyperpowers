@@ -793,7 +793,16 @@ uninstall_tm_cli() {
   rm -f "${TM_BIN_DIR}/tm"
   rm -f "${TM_BIN_DIR}/tm-linear-sync.js"
   rm -f "${TM_BIN_DIR}/tm-linear-sync-config.js"
-  rm -rf "${TM_BIN_DIR}/node_modules"
+
+  local managed_node_modules_target="${TM_LIB_DIR}/node_modules"
+  if [[ -L "${TM_BIN_DIR}/node_modules" ]]; then
+    local linked_target
+    linked_target="$(readlink "${TM_BIN_DIR}/node_modules")"
+    if [[ "$linked_target" == "$managed_node_modules_target" ]]; then
+      rm -f "${TM_BIN_DIR}/node_modules"
+    fi
+  fi
+
   rm -rf "${TM_LIB_DIR}"
 
   info "tm CLI removed from ${TM_BIN_DIR}"
