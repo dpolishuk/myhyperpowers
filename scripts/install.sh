@@ -793,7 +793,7 @@ uninstall_tm_cli() {
   rm -f "${TM_BIN_DIR}/tm"
   rm -f "${TM_BIN_DIR}/tm-linear-sync.js"
   rm -f "${TM_BIN_DIR}/tm-linear-sync-config.js"
-  rm -f "${TM_BIN_DIR}/node_modules"
+  rm -rf "${TM_BIN_DIR}/node_modules"
   rm -rf "${TM_LIB_DIR}"
 
   info "tm CLI removed from ${TM_BIN_DIR}"

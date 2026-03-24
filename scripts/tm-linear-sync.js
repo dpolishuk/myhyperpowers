@@ -151,6 +151,45 @@ function buildLastSyncedFields(issue, designHash) {
   }
 }
 
+async function issueNeedsLabelRepair({ client, existing, labelName }) {
+  if (!labelName || typeof client.issue !== "function") {
+    return false
+  }
+
+  let currentIssue
+  try {
+    currentIssue = await client.issue(existing.linearId)
+  } catch (err) {
+    if (err.message && /not found|does not exist|404/i.test(err.message)) {
+      return true
+    }
+    throw err
+  }
+
+  let labelsConnection = null
+  if (currentIssue) {
+    if (typeof currentIssue.labels === "function") {
+      labelsConnection = await currentIssue.labels()
+    } else if (currentIssue.labels && typeof currentIssue.labels.then === "function") {
+      labelsConnection = await currentIssue.labels
+    } else if (currentIssue.labels) {
+      labelsConnection = currentIssue.labels
+    }
+  }
+
+  const labels = Array.isArray(labelsConnection)
+    ? labelsConnection
+    : Array.isArray(labelsConnection?.nodes)
+      ? labelsConnection.nodes
+      : null
+
+  if (!labels) {
+    return false
+  }
+
+  return !labels.some(label => label && label.name === labelName)
+}
+
 async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
     first: 1,
@@ -255,7 +294,7 @@ async function createLinearIssue({ client, teamId, issue, bdId, designText, desi
   return { created: 0, updated: 0, errors: 1 }
 }
 
-async function syncExistingIssue({ client, issue, existing, bdId, designText, designHash, priority, stateId, labelName, prev, getOrCreateLabel, mapping, teamId }) {
+async function syncExistingIssue({ client, issue, existing, bdId, designText, designHash, priority, stateId, labelName, prev, forceLabelSync = false, getOrCreateLabel, mapping, teamId }) {
   const updateDescWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
   const updateParams = {
     title: issue.title,
@@ -264,7 +303,7 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
   }
   if (stateId) updateParams.stateId = stateId
 
-  if (prev.issueType !== issue.issue_type) {
+  if (forceLabelSync || prev.issueType !== issue.issue_type) {
     try {
       const labelId = await getOrCreateLabel(labelName)
       if (labelId) updateParams.labelIds = [labelId]
@@ -420,6 +459,7 @@ async function syncToLinear() {
     }
 
     let prev = existing ? existing.lastSyncedFields || {} : {}
+    let forceLabelSync = false
 
     if (existing) {
       const changed = prev.title !== issue.title ||
@@ -438,8 +478,18 @@ async function syncToLinear() {
         }
 
         if (existing) {
-          unchanged++
-          continue
+          try {
+            forceLabelSync = await issueNeedsLabelRepair({ client, existing, labelName })
+          } catch (err) {
+            console.error(`tm-sync: Failed to inspect labels for unchanged issue "${issue.title}": ${err.message}`)
+            errors++
+            continue
+          }
+
+          if (!forceLabelSync) {
+            unchanged++
+            continue
+          }
         }
       }
 
@@ -480,6 +530,7 @@ async function syncToLinear() {
         stateId,
         labelName,
         prev,
+        forceLabelSync,
         getOrCreateLabel,
         mapping,
         teamId: team.id,
@@ -506,4 +557,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, linkIssueByMarkerSearch, reconcileExistingIssueByMarker, syncExistingIssue }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, syncExistingIssue }

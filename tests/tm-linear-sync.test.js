@@ -317,6 +317,25 @@ test("linkIssueByMarkerSearch leaves lastSyncedFields unset so fresh relinks are
   assert.equal("lastSyncedFields" in mapping["bd-fresh"], false)
 })
 
+test("issueNeedsLabelRepair detects missing type label on unchanged issue", async () => {
+  const { issueNeedsLabelRepair } = requireFresh("../scripts/tm-linear-sync")
+
+  const needsRepair = await issueNeedsLabelRepair({
+    client: {
+      issue: async id => {
+        assert.equal(id, "lin-55")
+        return {
+          labels: async () => ({ nodes: [{ name: "Bug" }] }),
+        }
+      },
+    },
+    existing: { linearId: "lin-55" },
+    labelName: "Task",
+  })
+
+  assert.equal(needsRepair, true)
+})
+
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
   const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
@@ -464,6 +483,54 @@ test("syncExistingIssue treats relink search failures as per-issue errors", asyn
 
   assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
   assert.equal(mapping["bd-search-fail"].linearId, "lin-stale")
+})
+
+test("syncExistingIssue can force label repair even when issue type is unchanged", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const updateCalls = []
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async (id, params) => {
+        updateCalls.push({ id, params })
+      },
+    },
+    issue: {
+      id: "bd-label-fix",
+      title: "Repair label",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+    existing: {
+      linearId: "lin-label-fix",
+      linearIdentifier: "ENG-88",
+      lastSyncedFields: { issueType: "task" },
+    },
+    bdId: "bd-label-fix",
+    designText: "design",
+    designHash: "hash-label-fix",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: { issueType: "task" },
+    forceLabelSync: true,
+    getOrCreateLabel: async () => "label-1",
+    mapping: {},
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 1, errors: 0 })
+  assert.deepEqual(updateCalls, [{
+    id: "lin-label-fix",
+    params: {
+      title: "Repair label",
+      description: "design\n\n<!-- [bd:bd-label-fix] -->",
+      priority: 3,
+      stateId: "state-1",
+      labelIds: ["label-1"],
+    },
+  }])
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
