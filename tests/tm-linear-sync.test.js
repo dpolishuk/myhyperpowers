@@ -290,7 +290,7 @@ test("reconcileExistingIssueByMarker keeps existing mapping when issue still exi
   assert.equal(mapping["bd-keep"].linearId, "lin-keep")
 })
 
-test("reconcileExistingIssueByMarker relinks mapping when marker finds replacement issue", async () => {
+test("reconcileExistingIssueByMarker clears stale synced fields when marker finds replacement issue", async () => {
   const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
     "bd-2": {
@@ -311,7 +311,8 @@ test("reconcileExistingIssueByMarker relinks mapping when marker finds replaceme
 
   assert.equal(result.linearId, "lin-new")
   assert.equal(result.linearIdentifier, "ENG-44")
-  assert.equal(result.lastSyncedFields.title, "Another task")
+  assert.equal("lastSyncedFields" in result, false)
+  assert.equal("lastSyncedFields" in mapping["bd-2"], false)
   assert.equal(mapping["bd-2"].linearId, "lin-new")
 })
 

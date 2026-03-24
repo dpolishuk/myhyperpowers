@@ -250,8 +250,9 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
     return existing
   }
 
+  const { lastSyncedFields, ...relinkBase } = existing
   const relinked = {
-    ...existing,
+    ...relinkBase,
     linearId: found.id,
     linearIdentifier: found.identifier,
     lastSyncedAt: new Date().toISOString(),
