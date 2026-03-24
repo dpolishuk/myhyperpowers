@@ -30,3 +30,25 @@ test("install.sh uninstall handles a directory at ~/.local/bin/node_modules", ()
   assert.equal(result.status, 0)
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), false)
 })
+
+test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const opencodeHome = path.join(home, ".config", "opencode")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(opencodeHome, { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
+  assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
+  assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
+})
