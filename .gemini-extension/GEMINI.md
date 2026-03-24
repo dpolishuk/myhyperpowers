@@ -7,7 +7,7 @@ Welcome to hyperpowers - a structured development workflow system for Gemini CLI
 Hyperpowers is a workflow system that provides:
 - **Skills**: Reusable workflow definitions (TDD, brainstorming, planning, etc.)
 - **Agents**: Specialized sub-agents for specific tasks (test-runner, code-reviewer, etc.)
-- **Issue Tracking**: bd (beads) CLI for tracking work with git integration
+- **Task Management**: `tm` for local task management with optional Linear sync
 
 ## Quick Start
 
@@ -19,10 +19,11 @@ Use these commands to quickly access hyperpowers workflows:
 - `/hyperpowers:write-plan` - Create detailed implementation plans
 - `/hyperpowers:execute-plan` - Execute plans iteratively
 - `/hyperpowers:review-implementation` - Review code against requirements
+- `/hyperpowers:tm-linear-setup` - Show the Gemini tm/Linear setup path for this branch
 
 ### Using Skills
 
-Skills are available as tools. When you need structured guidance, invoke the appropriate skill:
+Skills are available through Gemini’s extension skill system. When you need structured guidance, invoke the appropriate skill:
 
 1. **brainstorming** - Turn rough ideas into validated designs
 2. **writing-plans** - Create detailed implementation plans
@@ -44,14 +45,30 @@ Specialized agents can be invoked for specific tasks:
 - **internet-researcher** - Research APIs and libraries
 - **autonomous-reviewer** - Final validation with web research
 
-### Issue Tracking with bd
+### Task Management with tm
 
-The bd (beads) integration provides:
+The installed Gemini extension provides a tm-oriented task-management surface for this branch:
 
-- `bd ready` - Find available work
-- `bd show <id>` - View issue details
-- `bd update <id> --status in_progress` - Claim work
-- `bd close <id>` - Complete work
+- `tm ready` - Find available work
+- `tm show <id>` - View issue details
+- `tm list --parent <epic-id>` - List child work
+- `tm update <id> --status in_progress` - Claim work
+- `tm close <id>` - Complete work
+- `tm sync` - Push local work to Linear when configured
+
+Preferred setup path on this branch:
+
+```bash
+git clone https://github.com/dpolishuk/myhyperpowers.git
+cd myhyperpowers
+./scripts/install.sh --gemini
+
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"
+
+~/.local/bin/tm --help
+tm sync
+```
 
 ## Workflow Pattern
 
@@ -71,14 +88,15 @@ The typical hyperpowers workflow:
 - ❌ Skip tests in TDD (RED must fail first)
 - ❌ Skip verification gates
 - ❌ Work directly on main (always use feature branches)
-- ❌ Bypass bd CLI for issue tracking (never read .beads/issues.jsonl directly)
+- ❌ Bypass tm/bd CLI for issue tracking (never read .beads/issues.jsonl directly)
 - ❌ Duplicate skill content (use symlinks)
 
 ## Configuration
 
 Settings are resolved by extension startup and environment:
 
-- `BD_PATH`: Path to bd executable (default: `bd`)
+- `TM_PATH`: Path to tm executable (default: `tm`)
+- `BD_PATH`: Path to bd executable (default: `bd`, legacy compatibility)
 - `SKILLS_PATH`: Path to skills directory (default: extension-local `skills` target)
 - `AGENTS_PATH`: Path to agents directory (default: extension-local `agents` target; `AGENTS_PATH` env overrides this, with workspace `agents/` as fallback)
 

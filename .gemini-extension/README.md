@@ -8,7 +8,7 @@ A Gemini CLI extension that brings structured development workflows to Gemini CL
 
 - **Skills**: Access 24+ hyperpowers skills (brainstorming, TDD, planning, etc.)
 - **Agents**: Invoke specialized agents (test-runner, code-reviewer, etc.)
-- **Issue Tracking**: Full bd (beads) integration
+- **Task Management**: Gemini-facing `tm` tools plus optional Linear sync
 - **Slash Commands**: Quick access to namespaced workflows (`/hyperpowers:brainstorm`, `/hyperpowers:write-plan`, `/hyperpowers:refactor-design`, etc.)
 
 ## Installation
@@ -30,7 +30,7 @@ Before installing the hyperpowers extension, ensure you have:
    node --version  # Should show v18.x.x or higher
    ```
 
-3. **bd (beads) CLI** (optional, for issue tracking)
+3. **bd (beads) CLI** (recommended because `tm` delegates to bd locally)
    ```bash
    # Install bd CLI
    npm install -g @dmpol/beads
@@ -41,31 +41,32 @@ Before installing the hyperpowers extension, ensure you have:
 
 ### Install to Gemini CLI
 
-#### Option 1: Clone and Install (Recommended)
+#### Option 1: Unified installer (Recommended on this branch)
 
-Since the extension is located in a subdirectory, you need to clone first:
+This is the preferred path for Gemini users on this branch because it installs the Gemini extension **and** provisions the shared `tm` runtime used by `tm sync`.
 
 ```bash
-# Clone the repository
 git clone https://github.com/dpolishuk/myhyperpowers.git
 cd myhyperpowers
 
-# Install the extension from the local directory
-gemini extensions install .gemini-extension
+# Install Gemini support + shared tm runtime
+./scripts/install.sh --gemini
 
-# Or link for development (changes reflect immediately)
-gemini extensions link .gemini-extension
+# For development, link instead of copy
+./scripts/install.sh --gemini --symlink
 ```
 
-#### Option 2: Install with Auto-Update
+#### Option 2: Manual extension install (fallback)
 
 ```bash
-# Clone first
 git clone https://github.com/dpolishuk/myhyperpowers.git
+cd myhyperpowers
 
-# Install with auto-update enabled
-gemini extensions install ./myhyperpowers/.gemini-extension --auto-update
+# Install the extension manually
+gemini extensions install .gemini-extension
 ```
+
+Manual extension install alone does **not** provision the shared `tm` runtime for this branch. If you use this fallback path, you still need the branch runtime installed before expecting `tm sync` + Linear support to work.
 
 ### Verify Installation
 
@@ -85,7 +86,18 @@ gemini tools
 # - skills_brainstorming
 # - skills_test_driven_development
 # - agent_test_runner
-# - bd_ready
+# - tm_ready
+# - tm_sync
+```
+
+To enable Linear sync for this branch, configure the required credentials and verify the shared tm runtime:
+
+```bash
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"
+
+~/.local/bin/tm --help
+tm sync
 ```
 
 ### Update the Extension
@@ -133,25 +145,30 @@ Once installed, use these commands in Gemini CLI:
 - `/hyperpowers:refactor-design` - Design safe refactors and test strategy
 - `/hyperpowers:refactor-diagnose` - Identify refactor targets and technical debt
 - `/hyperpowers:refactor-execute` - Execute refactors with controlled rollout
+- `/hyperpowers:tm-linear-setup` - Show the supported Gemini tm/Linear setup path for this branch
 
-### Skills as Tools
+### Skills and Tools
 
-Skills are available as tools. When you invoke hyperpowers, you can:
+Skills are available through Gemini’s extension skill system, while MCP servers expose Gemini-callable tools. When you invoke hyperpowers, you can:
 
 1. Use skills for structured guidance
 2. Invoke agents for specific tasks
-3. Track work with bd integration
+3. Track work through the Gemini-facing `tm` surface
 
-### Issue Tracking
+### Task Management
 
-The extension integrates with bd (beads):
+The extension exposes a tm-oriented task-management surface for this branch:
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
+tm ready                      # Find available work
+tm show <id>                  # View issue details
+tm list --parent <epic-id>    # List child tasks
+tm update <id> --status in_progress  # Claim work
+tm close <id>                 # Complete work
+tm sync                       # Push local work to Linear (when configured)
 ```
+
+Legacy `bd_*` Gemini tools may remain for compatibility, but the branch direction is `tm` first.
 
 ## Extension Structure
 
@@ -162,7 +179,8 @@ bd close <id>         # Complete work
 ├── mcp/
 │   ├── skills-server.js # MCP server for skills
 │   ├── agents-server.js # MCP server for agents
-│   └── bd-server.js     # MCP server for bd integration
+│   ├── bd-server.js     # Legacy MCP server for bd integration
+│   └── tm-server.js     # MCP server for tm task management + sync
 ├── agents/              # Sub-agent definitions
 ├── commands/            # Slash command definitions
 ├── hooks/               # Lifecycle hooks
@@ -178,7 +196,8 @@ The extension uses Model Context Protocol (MCP) to expose capabilities:
 
 1. **skills-server**: Scans skills/ directory and exposes tools
 2. **agents-server**: Provides agent invocation
-3. **bd-server**: Wraps bd CLI commands
+3. **bd-server**: Wraps bd CLI commands (legacy compatibility)
+4. **tm-server**: Exposes shared tm task-management + sync commands
 
 ### Adding New Skills
 
@@ -196,7 +215,8 @@ node --test .gemini-extension/tests/*.test.js
 
 Server paths are controlled through runtime environment (extension defaults are deterministic):
 
-- `BD_PATH`: Path to bd executable (default: `bd`)
+- `TM_PATH`: Path to tm executable (default: `tm`)
+- `BD_PATH`: Path to bd executable (default: `bd`, used for legacy bd server)
 - `SKILLS_PATH`: Path to skills directory (default: extension `skills/` target)
 - `AGENTS_PATH`: Path to agents directory (default: extension `agents/`, fallback: extension parent `agents/`)
 

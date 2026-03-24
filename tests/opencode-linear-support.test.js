@@ -23,7 +23,7 @@ const extractTextBlock = (text) => {
 test("test_opencode_docs_use_mcp_not_mcpServers", () => {
   const guide = read("docs/linear-mcp-setup.md")
   const readme = read("README.md")
-  const openCodeSection = guide.split("### OpenCode")[1]?.split("## How It All Fits Together")[0] || ""
+  const openCodeSection = guide.split("### OpenCode")[1]?.split("### Gemini CLI")[0] || ""
   const guideConfig = extractJsonBlockAfter(guide, "### OpenCode")
   const readmeConfig = extractJsonBlockAfter(readme, "### Linear MCP Server (Optional)")
 
