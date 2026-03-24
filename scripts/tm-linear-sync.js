@@ -7,6 +7,7 @@ const path = require("node:path")
 const crypto = require("node:crypto")
 const { loadLinearConfig } = require("./tm-linear-sync-config")
 const BD_LIST_MAX_BUFFER = 10 * 1024 * 1024
+const MARKER_SEARCH_LIMIT = 10
 
 // ── Field mapping ───────────────────────────────────────────────────────────
 
@@ -107,8 +108,17 @@ function loadMapping() {
 
 function saveMapping(mapping) {
   const mappingPath = getMappingPath()
-  fs.mkdirSync(path.dirname(mappingPath), { recursive: true })
-  fs.writeFileSync(mappingPath, JSON.stringify(mapping, null, 2) + "\n", "utf8")
+  const mappingDir = path.dirname(mappingPath)
+  const tempPath = path.join(mappingDir, `linear-map.${process.pid}.${Date.now()}.tmp`)
+  fs.mkdirSync(mappingDir, { recursive: true })
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(mapping, null, 2) + "\n", "utf8")
+    fs.renameSync(tempPath, mappingPath)
+  } finally {
+    if (fs.existsSync(tempPath)) {
+      fs.rmSync(tempPath, { force: true })
+    }
+  }
 }
 
 // ── bd issue loading ────────────────────────────────────────────────────────
@@ -195,9 +205,9 @@ async function issueNeedsLabelRepair({ client, existing, labelName }) {
   return !labels.some(label => label && label.name === labelName)
 }
 
-async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
+async function findIssueByMarker({ client, teamId, bdId, existingLinearId }) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
-    first: 1,
+    first: MARKER_SEARCH_LIMIT,
     filter: { team: { id: { eq: teamId } } },
   })
 
@@ -205,7 +215,26 @@ async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
     return null
   }
 
-  const found = search.nodes[0]
+  if (search.nodes.length === 1) {
+    return search.nodes[0]
+  }
+
+  if (existingLinearId) {
+    const currentMatch = search.nodes.find(node => node.id === existingLinearId)
+    if (currentMatch) {
+      return currentMatch
+    }
+  }
+
+  throw new Error(`multiple Linear issues found for [bd:${bdId}]`)
+}
+
+async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
+  const found = await findIssueByMarker({ client, teamId, bdId })
+
+  if (!found) {
+    return null
+  }
   const linked = {
     linearId: found.id,
     linearIdentifier: found.identifier,
@@ -221,12 +250,9 @@ async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
 }
 
 async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
-  const search = await client.issueSearch(`[bd:${bdId}]`, {
-    first: 1,
-    filter: { team: { id: { eq: teamId } } },
-  })
+  const found = await findIssueByMarker({ client, teamId, bdId, existingLinearId: existing.linearId })
 
-  if (search.nodes.length === 0) {
+  if (!found) {
     if (typeof client.issue === "function") {
       try {
         const currentIssue = await client.issue(existing.linearId)
@@ -245,7 +271,6 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
     return null
   }
 
-  const found = search.nodes[0]
   if (found.id === existing.linearId) {
     return existing
   }

@@ -200,6 +200,43 @@ test("saveMapping writes and loadMapping reads back correctly", () => {
   }
 })
 
+test("saveMapping writes via temp file and atomic rename", () => {
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+  const fsModule = require("node:fs")
+  const originalWriteFileSync = fsModule.writeFileSync
+  const originalRenameSync = fsModule.renameSync
+  const calls = []
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+
+    fsModule.writeFileSync = (filePath, ...rest) => {
+      calls.push({ op: "write", filePath })
+      return originalWriteFileSync(filePath, ...rest)
+    }
+    fsModule.renameSync = (from, to) => {
+      calls.push({ op: "rename", from, to })
+      return originalRenameSync(from, to)
+    }
+
+    const { getMappingPath, saveMapping } = requireFresh("../scripts/tm-linear-sync")
+    const mapPath = getMappingPath()
+    saveMapping({ "bd-atomic": { linearId: "lin-1" } })
+
+    assert.equal(calls[0].op, "write")
+    assert.notEqual(calls[0].filePath, mapPath)
+    assert.equal(calls[1].op, "rename")
+    assert.equal(calls[1].to, mapPath)
+    assert.equal(fs.existsSync(calls[1].from), false)
+  } finally {
+    fsModule.writeFileSync = originalWriteFileSync
+    fsModule.renameSync = originalRenameSync
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("ID mapping file read with corrupted JSON resets gracefully", () => {
   const savedEnv = saveEnv()
   const tempRepoRoot = makeTempRepoRoot()
@@ -253,7 +290,7 @@ test("reconcileExistingIssueByMarker removes stale mapping when marker no longer
     issueSearch: async (query, options) => {
       assert.equal(query, "[bd:bd-1]")
       assert.deepEqual(options, {
-        first: 1,
+        first: 10,
         filter: { team: { id: { eq: "team-1" } } },
       })
       return { nodes: [] }
@@ -316,6 +353,35 @@ test("reconcileExistingIssueByMarker clears stale synced fields when marker find
   assert.equal(mapping["bd-2"].linearId, "lin-new")
 })
 
+test("reconcileExistingIssueByMarker rejects ambiguous replacement matches", async () => {
+  const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-dup": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-old",
+      lastSyncedFields: { title: "Task" },
+    },
+  }
+
+  await assert.rejects(
+    () => reconcileExistingIssueByMarker(
+      {
+        issueSearch: async () => ({
+          nodes: [
+            { id: "lin-1", identifier: "ENG-1" },
+            { id: "lin-2", identifier: "ENG-2" },
+          ],
+        }),
+      },
+      "team-1",
+      "bd-dup",
+      mapping["bd-dup"],
+      mapping
+    ),
+    /multiple Linear issues found for \[bd:bd-dup\]/
+  )
+})
+
 test("linkIssueByMarkerSearch leaves lastSyncedFields unset so fresh relinks are re-synced", async () => {
   const { linkIssueByMarkerSearch } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {}
@@ -336,6 +402,27 @@ test("linkIssueByMarkerSearch leaves lastSyncedFields unset so fresh relinks are
   assert.equal(linked.linearIdentifier, "ENG-55")
   assert.equal("lastSyncedFields" in linked, false)
   assert.equal("lastSyncedFields" in mapping["bd-fresh"], false)
+})
+
+test("linkIssueByMarkerSearch rejects ambiguous duplicate marker matches", async () => {
+  const { linkIssueByMarkerSearch } = requireFresh("../scripts/tm-linear-sync")
+
+  await assert.rejects(
+    () => linkIssueByMarkerSearch({
+      client: {
+        issueSearch: async () => ({
+          nodes: [
+            { id: "lin-1", identifier: "ENG-1" },
+            { id: "lin-2", identifier: "ENG-2" },
+          ],
+        }),
+      },
+      teamId: "team-1",
+      bdId: "bd-dup",
+      mapping: {},
+    }),
+    /multiple Linear issues found for \[bd:bd-dup\]/
+  )
 })
 
 test("issueNeedsLabelRepair detects missing type label on unchanged issue", async () => {
