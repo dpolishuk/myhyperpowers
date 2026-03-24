@@ -80,16 +80,16 @@ Add to `~/.claude/settings.local.json`:
 
 ### OpenCode
 
-Add to `.opencode/config.json`:
+Add to your project-root `opencode.json`:
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "linear": {
-      "command": "npx",
-      "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
-      "env": {
-        "LINEAR_API_KEY": "lin_api_your_key_here"
+      "type": "local",
+      "command": ["npx", "-y", "@tacticlaunch/mcp-linear@1.0.12"],
+      "environment": {
+        "LINEAR_API_KEY": "{env:LINEAR_API_KEY}"
       }
     }
   }

@@ -260,11 +260,14 @@ Quick start - run from the hyperpowers repo:
 # Clone or navigate to hyperpowers
 cd /path/to/hyperpowers
 
+# Preferred path on this branch: install OpenCode support + shared tm runtime
+./scripts/install.sh --opencode
+
 # Run OpenCode (it auto-discovers opencode.json and .opencode/)
 opencode
 ```
 
-That's it! Commands, agents, and skills are now available.
+That's it! Commands, agents, skills, and the shared `tm` CLI used by this branch are now available.
 
 **For your own projects**, copy these files:
 
@@ -432,21 +435,21 @@ tm sync        →  bd sync (git only)
 
 ### Linear MCP Server (Optional)
 
-For read access to your Linear workspace from Claude Code or OpenCode, add an MCP server:
+For OpenCode, add a Linear MCP server to your project-root `opencode.json`:
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "linear": {
-      "command": "npx",
-      "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
-      "env": { "LINEAR_API_KEY": "lin_api_your_key_here" }
+      "type": "local",
+      "command": ["npx", "-y", "@tacticlaunch/mcp-linear@1.0.12"],
+      "environment": { "LINEAR_API_KEY": "{env:LINEAR_API_KEY}" }
     }
   }
 }
 ```
 
-See [docs/linear-mcp-setup.md](docs/linear-mcp-setup.md) for the full setup guide with field mapping, troubleshooting, and architecture details.
+See [docs/linear-mcp-setup.md](docs/linear-mcp-setup.md) for the full setup guide with host-specific examples, field mapping, troubleshooting, and architecture details.
 
 ## Uninstall
 
