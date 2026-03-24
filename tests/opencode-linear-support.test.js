@@ -92,3 +92,10 @@ test("test_opencode_package_readme_marks_npm_path_as_package_only", () => {
   assert.equal(packageReadme.includes("project-root `opencode.json`"), true)
   assert.equal(packageReadme.includes("`.opencode/` for project-local commands"), true)
 })
+
+test("test_opencode_provider_examples_use_env_interpolation_contract", () => {
+  const docsReadme = read("docs/README.md")
+
+  assert.equal(docsReadme.includes('"apiKey": "${GLM_API_KEY}"'), false)
+  assert.equal(docsReadme.includes('"apiKey": "{env:GLM_API_KEY}"'), true)
+})

@@ -122,7 +122,7 @@ For custom providers (GLM, API proxies, local models via Ollama/llama.cpp), add 
       "name": "GLM-4",
       "options": {
         "baseURL": "https://your-glm-endpoint.com/v1",
-        "apiKey": "${GLM_API_KEY}"
+        "apiKey": "{env:GLM_API_KEY}"
       },
       "models": {
         "glm-4.5": { "name": "GLM-4.5 Fast" },

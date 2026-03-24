@@ -24,7 +24,7 @@ description: Use for autonomous code review during continuous execution. Validat
 # - providerID/modelID: Explicit model selection (e.g., anthropic/claude-opus-4-5)
 # 
 # Recommended: Most capable model (opus, glm-4.7) for final validation and comprehensive review
-# See README.md "Model Configuration" section for details
+# See docs/model-configuration.md for details
 model: inherit
 ---
 

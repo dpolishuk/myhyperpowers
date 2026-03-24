@@ -529,7 +529,7 @@ For each module, identify missing corner case tests:
 ### Step 5.1: Create bd Epic for Test Quality Improvement
 
 ```bash
-bd create "Test Quality Improvement: [Module/Project]" \
+tm create "Test Quality Improvement: [Module/Project]" \
   --type epic \
   --priority 1 \
   --design "$(cat <<'EOF'
@@ -559,7 +559,7 @@ EOF
 **Task 1: Remove Tautological Tests (Immediate)**
 
 ```bash
-bd create "Remove tautological tests from [module]" \
+tm create "Remove tautological tests from [module]" \
   --type task \
   --priority 0 \
   --design "$(cat <<'EOF'
@@ -588,7 +588,7 @@ EOF
 **Task 2: Strengthen Weak Tests (This Sprint)**
 
 ```bash
-bd create "Strengthen weak assertions in [module]" \
+tm create "Strengthen weak assertions in [module]" \
   --type task \
   --priority 1 \
   --design "$(cat <<'EOF'
@@ -620,7 +620,7 @@ EOF
 **Task 3: Add Missing Corner Cases (Per Module)**
 
 ```bash
-bd create "Add missing corner case tests for [module]" \
+tm create "Add missing corner case tests for [module]" \
   --type task \
   --priority 1 \
   --design "$(cat <<'EOF'
@@ -671,19 +671,19 @@ Apply all 8 categories to each task, especially:
 
 ```bash
 # Link all tasks as children of epic
-bd dep add bd-2 bd-1 --type parent-child
-bd dep add bd-3 bd-1 --type parent-child
-bd dep add bd-4 bd-1 --type parent-child
+tm dep add bd-2 bd-1 --type parent-child
+tm dep add bd-3 bd-1 --type parent-child
+tm dep add bd-4 bd-1 --type parent-child
 
 # Set dependencies (remove before strengthen before add)
-bd dep add bd-3 bd-2  # strengthen depends on remove
-bd dep add bd-4 bd-3  # add depends on strengthen
+tm dep add bd-3 bd-2  # strengthen depends on remove
+tm dep add bd-4 bd-3  # add depends on strengthen
 ```
 
 ### Step 5.5: Validation Task
 
 ```bash
-bd create "Validate test improvements with mutation testing" \
+tm create "Validate test improvements with mutation testing" \
   --type task \
   --priority 1 \
   --design "$(cat <<'EOF'
@@ -810,7 +810,7 @@ bd-1 (Epic: Test Quality Improvement)
 
 ## Next Steps
 
-1. Run `bd ready` to see tasks ready for implementation
+1. Run `tm ready` to see tasks ready for implementation
 2. Implement tasks using hyperpowers:executing-plans
 3. Run validation task to verify improvements
 ```
