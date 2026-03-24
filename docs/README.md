@@ -65,7 +65,7 @@ cp docs/opencode.example.multi-provider.json opencode.json
 
 You can also set the default model directly in agent files:
 
-**File location:** `.opencode/agents/<agent-name>.md` or `agents/<agent-name>.md`
+**File location:** `.opencode/agents/<agent-name>.md` (project-local) or `~/.config/opencode/agents/<agent-name>.md` (global)
 
 **Format:**
 

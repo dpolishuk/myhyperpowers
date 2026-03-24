@@ -99,3 +99,11 @@ test("test_opencode_provider_examples_use_env_interpolation_contract", () => {
   assert.equal(docsReadme.includes('"apiKey": "${GLM_API_KEY}"'), false)
   assert.equal(docsReadme.includes('"apiKey": "{env:GLM_API_KEY}"'), true)
 })
+
+test("test_opencode_docs_readme_uses_supported_agent_paths", () => {
+  const docsReadme = read("docs/README.md")
+
+  assert.equal(docsReadme.includes("`agents/<agent-name>.md`"), false)
+  assert.equal(docsReadme.includes("`.opencode/agents/<agent-name>.md`"), true)
+  assert.equal(docsReadme.includes("`~/.config/opencode/agents/<agent-name>.md`"), true)
+})
