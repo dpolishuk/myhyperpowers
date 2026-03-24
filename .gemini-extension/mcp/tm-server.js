@@ -9,8 +9,21 @@
 
 const { spawn } = require('child_process');
 const readline = require('readline');
+const path = require('path');
 
-const TM_CMD = process.env.TM_PATH || 'tm';
+function resolveTmCommand() {
+  if (process.env.TM_PATH) {
+    return process.env.TM_PATH;
+  }
+
+  if (process.env.HOME) {
+    return path.join(process.env.HOME, '.local', 'bin', 'tm');
+  }
+
+  return 'tm';
+}
+
+const TM_CMD = resolveTmCommand();
 
 function execTm(args) {
   return new Promise((resolve, reject) => {
@@ -31,7 +44,7 @@ function execTm(args) {
 
     child.on('close', (code) => {
       if (code === 0) {
-        resolve(stdout);
+        resolve({ stdout, stderr });
       } else {
         reject(new Error(`tm exit code ${code}: ${stderr || stdout}`));
       }
@@ -273,11 +286,12 @@ class TmMCPServer {
           };
       }
 
+      const output = `${result.stdout || ''}${result.stderr || ''}`;
       return {
         jsonrpc: '2.0',
         id: id ?? null,
         result: {
-          content: [{ type: 'text', text: result }]
+          content: [{ type: 'text', text: output }]
         }
       };
     } catch (err) {

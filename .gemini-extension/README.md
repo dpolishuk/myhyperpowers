@@ -123,7 +123,7 @@ For contributing or customizing:
 ```bash
 # Clone the repository
 git clone https://github.com/dpolishuk/myhyperpowers.git
-cd hyperpowers
+cd myhyperpowers
 
 # Link for local development (changes reflect immediately)
 gemini extensions link .gemini-extension

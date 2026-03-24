@@ -297,8 +297,16 @@ This npm path adds the OpenCode plugin package only. For this branch's installer
 <details>
 <summary><strong>Gemini CLI</strong></summary>
 
+Preferred path on this branch:
+
 ```bash
-# Install or link the extension
+./scripts/install.sh --gemini
+```
+
+Fallback manual extension flow:
+
+```bash
+# Install or link the extension only
 gemini extensions install .gemini-extension
 
 # Reinstall with auto-update enabled
@@ -307,6 +315,8 @@ gemini extensions install .gemini-extension --auto-update
 # Development workflow (loads edits immediately)
 gemini extensions link .gemini-extension
 ```
+
+Manual extension install/link is fallback-only here: it does **not** provision the shared `tm` runtime used by this branch's `tm sync` + optional Linear support.
 
 If you had a prior local install, uninstall first:
 

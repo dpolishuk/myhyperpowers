@@ -18,6 +18,8 @@ test('Gemini README documents installer-first tm and Linear path', async () => {
   assert.equal(readme.includes('tm sync'), true);
   assert.equal(readme.includes('LINEAR_API_KEY'), true);
   assert.equal(readme.includes('LINEAR_TEAM_KEY'), true);
+  assert.equal(readme.includes('Manual extension install alone does **not** provision the shared `tm` runtime'), true);
+  assert.equal(readme.includes('cd myhyperpowers'), true);
 });
 
 test('Gemini context docs describe tm-oriented task surface', async () => {
@@ -25,6 +27,9 @@ test('Gemini context docs describe tm-oriented task surface', async () => {
 
   assert.equal(geminiDoc.includes('tm ready'), true);
   assert.equal(geminiDoc.includes('tm show <id>'), true);
+  assert.equal(geminiDoc.includes('tm list --parent <epic-id>'), true);
+  assert.equal(geminiDoc.includes('tm update <id> --status in_progress'), true);
+  assert.equal(geminiDoc.includes('LINEAR_TEAM_KEY'), true);
   assert.equal(geminiDoc.includes('tm sync'), true);
 });
 
@@ -42,4 +47,14 @@ test('Linear setup guide includes a Gemini section', async () => {
   assert.equal(guide.includes('### Gemini CLI'), true);
   assert.equal(guide.includes('./scripts/install.sh --gemini'), true);
   assert.equal(guide.includes('~/.local/bin/tm --help'), true);
+  assert.equal(guide.includes('(Claude/OpenCode/Gemini)'), true);
+});
+
+test('Top-level README documents installer-first Gemini path for this branch', async () => {
+  const readme = await read('README.md');
+  const geminiSection = readme.split('<summary><strong>Gemini CLI</strong></summary>')[1]?.split('</details>')[0] || '';
+
+  assert.equal(geminiSection.includes('./scripts/install.sh --gemini'), true);
+  assert.equal(geminiSection.includes('gemini extensions install .gemini-extension'), true);
+  assert.equal(geminiSection.includes('fallback'), true);
 });

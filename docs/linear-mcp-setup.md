@@ -141,7 +141,7 @@ You (local)                    Linear (cloud)
      ^                                ^
      |                                |
   tm create                    MCP server reads
-  tm update                    (Claude/OpenCode)
+   tm update                    (Claude/OpenCode/Gemini)
   tm close
 ```
 
