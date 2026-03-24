@@ -215,7 +215,7 @@ node --test .gemini-extension/tests/*.test.js
 
 Server paths are controlled through runtime environment (extension defaults are deterministic):
 
-- `TM_PATH`: Path to tm executable (default: `tm`)
+- `TM_PATH`: Path to tm executable (default: `~/.local/bin/tm` when present, otherwise `tm`)
 - `BD_PATH`: Path to bd executable (default: `bd`, used for legacy bd server)
 - `SKILLS_PATH`: Path to skills directory (default: extension `skills/` target)
 - `AGENTS_PATH`: Path to agents directory (default: extension `agents/`, fallback: extension parent `agents/`)

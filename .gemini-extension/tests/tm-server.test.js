@@ -175,3 +175,72 @@ if (args[0] === 'sync') {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 });
+
+test('tm-server prefers ~/.local/bin/tm when TM_PATH is unset and managed runtime exists', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-home-'));
+  const homeBin = path.join(tempDir, '.local', 'bin');
+  const fakeTmPath = path.join(homeBin, 'tm');
+  const callsPath = path.join(tempDir, 'calls-home.jsonl');
+
+  await fs.mkdir(homeBin, { recursive: true });
+  await fs.writeFile(fakeTmPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.CALLS_PATH, JSON.stringify(process.argv.slice(2)) + '\\n');
+process.stdout.write('home-tm\\n');
+`, { mode: 0o755 });
+
+  const harness = createHarness({ ...process.env, HOME: tempDir, CALLS_PATH: callsPath });
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+
+    assert.equal(response.result.content[0].text.includes('home-tm'), true);
+    const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    assert.deepEqual(recordedCalls, [
+      ['--version'],
+      ['ready'],
+    ]);
+  } finally {
+    harness.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('tm-server falls back to PATH tm when managed runtime is absent', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-path-'));
+  const fakeBin = path.join(tempDir, 'bin');
+  const fakeTmPath = path.join(fakeBin, 'tm');
+  const callsPath = path.join(tempDir, 'calls-path.jsonl');
+  const fakeHome = path.join(tempDir, 'home');
+
+  await fs.mkdir(fakeBin, { recursive: true });
+  await fs.mkdir(fakeHome, { recursive: true });
+  await fs.writeFile(fakeTmPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.CALLS_PATH, JSON.stringify(process.argv.slice(2)) + '\\n');
+process.stdout.write('path-tm\\n');
+`, { mode: 0o755 });
+
+  const harness = createHarness({
+    ...process.env,
+    HOME: fakeHome,
+    PATH: `${fakeBin}:${process.env.PATH}`,
+    CALLS_PATH: callsPath,
+  });
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+
+    assert.equal(response.result.content[0].text.includes('path-tm'), true);
+    const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    assert.deepEqual(recordedCalls, [
+      ['--version'],
+      ['ready'],
+    ]);
+  } finally {
+    harness.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});

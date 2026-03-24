@@ -95,7 +95,7 @@ The typical hyperpowers workflow:
 
 Settings are resolved by extension startup and environment:
 
-- `TM_PATH`: Path to tm executable (default: `tm`)
+- `TM_PATH`: Path to tm executable (default: `~/.local/bin/tm` when present, otherwise `tm`)
 - `BD_PATH`: Path to bd executable (default: `bd`, legacy compatibility)
 - `SKILLS_PATH`: Path to skills directory (default: extension-local `skills` target)
 - `AGENTS_PATH`: Path to agents directory (default: extension-local `agents` target; `AGENTS_PATH` env overrides this, with workspace `agents/` as fallback)

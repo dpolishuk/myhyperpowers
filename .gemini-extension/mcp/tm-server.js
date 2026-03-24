@@ -8,6 +8,7 @@
  */
 
 const { spawn } = require('child_process');
+const fs = require('fs');
 const readline = require('readline');
 const path = require('path');
 
@@ -17,7 +18,10 @@ function resolveTmCommand() {
   }
 
   if (process.env.HOME) {
-    return path.join(process.env.HOME, '.local', 'bin', 'tm');
+    const homeTm = path.join(process.env.HOME, '.local', 'bin', 'tm');
+    if (fs.existsSync(homeTm)) {
+      return homeTm;
+    }
   }
 
   return 'tm';
