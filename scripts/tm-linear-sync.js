@@ -151,6 +151,31 @@ function buildLastSyncedFields(issue, designHash) {
   }
 }
 
+async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
+  const search = await client.issueSearch(`[bd:${bdId}]`, {
+    first: 1,
+    filter: { team: { id: { eq: teamId } } },
+  })
+
+  if (search.nodes.length === 0) {
+    return null
+  }
+
+  const found = search.nodes[0]
+  const linked = {
+    linearId: found.id,
+    linearIdentifier: found.identifier,
+    lastSyncedAt: new Date().toISOString(),
+  }
+
+  // Intentionally leave lastSyncedFields unset. On a fresh clone we do not know
+  // whether the existing Linear issue still matches the local bd issue, so the
+  // caller must run a real sync before treating the relinked issue as unchanged.
+  mapping[bdId] = linked
+  logSyncInfo(`Linked ${bdId} → ${found.identifier} (found by marker)`)
+  return linked
+}
+
 async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
     first: 1,
@@ -385,21 +410,7 @@ async function syncToLinear() {
     // If no local mapping, search Linear by bd ID marker to avoid duplicates (e.g. fresh clone)
     if (!existing) {
       try {
-        const search = await client.issueSearch(`[bd:${bdId}]`, {
-          first: 1,
-          filter: { team: { id: { eq: team.id } } },
-        })
-        if (search.nodes.length > 0) {
-          const found = search.nodes[0]
-          existing = {
-            linearId: found.id,
-            linearIdentifier: found.identifier,
-            lastSyncedAt: new Date().toISOString(),
-            lastSyncedFields: buildLastSyncedFields(issue, designHash),
-          }
-          mapping[bdId] = existing
-          logSyncInfo(`Linked ${bdId} → ${found.identifier} (found by marker)`)
-        }
+        existing = await linkIssueByMarkerSearch({ client, teamId: team.id, bdId, mapping })
       } catch (err) {
         // Search failed — skip this issue to avoid creating duplicates
         console.error(`tm-sync: Search failed for ${bdId}, skipping to avoid duplicate: ${err.message}`)
@@ -495,4 +506,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, reconcileExistingIssueByMarker, syncExistingIssue }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, linkIssueByMarkerSearch, reconcileExistingIssueByMarker, syncExistingIssue }

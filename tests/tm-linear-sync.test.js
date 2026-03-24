@@ -295,6 +295,28 @@ test("reconcileExistingIssueByMarker relinks mapping when marker finds replaceme
   assert.equal(mapping["bd-2"].linearId, "lin-new")
 })
 
+test("linkIssueByMarkerSearch leaves lastSyncedFields unset so fresh relinks are re-synced", async () => {
+  const { linkIssueByMarkerSearch } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {}
+
+  const linked = await linkIssueByMarkerSearch({
+    client: {
+      issueSearch: async query => {
+        assert.equal(query, "[bd:bd-fresh]")
+        return { nodes: [{ id: "lin-fresh", identifier: "ENG-55" }] }
+      },
+    },
+    teamId: "team-1",
+    bdId: "bd-fresh",
+    mapping,
+  })
+
+  assert.equal(linked.linearId, "lin-fresh")
+  assert.equal(linked.linearIdentifier, "ENG-55")
+  assert.equal("lastSyncedFields" in linked, false)
+  assert.equal("lastSyncedFields" in mapping["bd-fresh"], false)
+})
+
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
   const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
