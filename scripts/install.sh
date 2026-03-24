@@ -772,6 +772,10 @@ install_tm_cli() {
         || warn "npm install for @linear/sdk failed — Linear sync will be unavailable"
     fi
     # Symlink node_modules so the sync script can find @linear/sdk
+    # Remove pre-existing directory first so ln -sfn creates a proper symlink
+    if [[ -d "${TM_BIN_DIR}/node_modules" ]] && [[ ! -L "${TM_BIN_DIR}/node_modules" ]]; then
+      rm -r "${TM_BIN_DIR}/node_modules"
+    fi
     ln -sfn "${TM_LIB_DIR}/node_modules" "${TM_BIN_DIR}/node_modules"
   fi
 
