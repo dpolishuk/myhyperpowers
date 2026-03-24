@@ -288,6 +288,8 @@ opencode
 }
 ```
 
+This npm path adds the OpenCode plugin package only. For this branch's installer-first `tm` + Linear workflow, use `./scripts/install.sh --opencode` so the shared tm runtime is provisioned as well.
+
 **Verify:** `/hyperpowers-version`
 
 </details>

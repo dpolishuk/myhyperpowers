@@ -22,6 +22,13 @@ If you don't have a Linear account yet:
 
 ## Step 3: Configure tm sync
 
+If you are using OpenCode on this branch, run the unified installer first so the shared tm runtime is present:
+
+```bash
+./scripts/install.sh --opencode
+~/.local/bin/tm --help
+```
+
 tm sync pushes your local bd issues to Linear. Choose one method to store credentials:
 
 ### Option A: Environment Variables (per-session)

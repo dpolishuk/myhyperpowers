@@ -63,8 +63,8 @@ ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-skills.ts ~/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-safety.ts ~/.config/opencode/plugins/
 
-# 3. Install dependencies
-cd ~/.config/opencode
+# 3. Install plugin dependencies
+cd ~/.config/opencode/hyperpowers/.opencode
 bun install
 
 # 4. Provision the shared tm runtime used by this branch
