@@ -293,7 +293,7 @@ async function prepareExistingIssueForSync({ client, teamId, bdId, issue, design
   let skipUpdate = false
 
   if (existing) {
-    const changed = prev.title !== issue.title ||
+    let changed = prev.title !== issue.title ||
       prev.status !== issue.status ||
       prev.priority !== issue.priority ||
       prev.issueType !== issue.issue_type ||
@@ -304,6 +304,13 @@ async function prepareExistingIssueForSync({ client, teamId, bdId, issue, design
       if (!existing) {
         return { existing: null, prev: {}, forceLabelSync: false, skipUpdate: false }
       }
+      // Recompute prev and changed after relink may have cleared lastSyncedFields
+      prev = existing.lastSyncedFields || {}
+      changed = prev.title !== issue.title ||
+        prev.status !== issue.status ||
+        prev.priority !== issue.priority ||
+        prev.issueType !== issue.issue_type ||
+        prev.designHash !== designHash
     }
 
     forceLabelSync = await issueNeedsLabelRepair({ client, existing, labelName })

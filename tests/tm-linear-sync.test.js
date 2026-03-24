@@ -489,6 +489,54 @@ test("prepareExistingIssueForSync forces label repair even when other fields cha
   assert.equal(prepared.skipUpdate, false)
 })
 
+test("prepareExistingIssueForSync recomputes changed after relink clears lastSyncedFields", async () => {
+  const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
+  const existing = {
+    linearId: "lin-stale",
+    linearIdentifier: "ENG-stale",
+    lastSyncedFields: {
+      title: "Same title",
+      status: "open",
+      priority: 2,
+      issueType: "task",
+      designHash: "same-hash",
+    },
+  }
+  const issue = {
+    id: "bd-relink-changed",
+    title: "Same title",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+  const mapping = { "bd-relink-changed": existing }
+
+  const prepared = await prepareExistingIssueForSync({
+    client: {
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-replacement", identifier: "ENG-new" }],
+      }),
+      issue: async () => ({
+        labels: async () => ({ nodes: [{ name: "Task" }] }),
+      }),
+    },
+    teamId: "team-1",
+    bdId: "bd-relink-changed",
+    issue,
+    designHash: "same-hash",
+    labelName: "Task",
+    existing,
+    mapping,
+  })
+
+  // After relink, lastSyncedFields is cleared, so prev is empty and everything
+  // should be considered "changed" — skipUpdate must be false even though the
+  // label is already present and original fields matched.
+  assert.equal(prepared.skipUpdate, false)
+  assert.equal(prepared.existing.linearId, "lin-replacement")
+  assert.deepEqual(prepared.prev, {})
+})
+
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
   const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
