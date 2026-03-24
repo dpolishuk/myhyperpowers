@@ -9,7 +9,6 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const readline = require('readline');
 const path = require('path');
 
 function resolveTmCommand() {
@@ -19,8 +18,11 @@ function resolveTmCommand() {
 
   if (process.env.HOME) {
     const homeTm = path.join(process.env.HOME, '.local', 'bin', 'tm');
-    if (fs.existsSync(homeTm)) {
+    try {
+      fs.accessSync(homeTm, fs.constants.X_OK);
       return homeTm;
+    } catch {
+      // fall through to PATH tm
     }
   }
 
@@ -315,6 +317,7 @@ async function main() {
   const server = new TmMCPServer();
   await server.initialize();
 
+  const readline = require('readline');
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,

@@ -70,7 +70,7 @@ function createHarness(env = process.env) {
   };
 }
 
-test('tm-server responds to initialize', async () => {
+test('tm-server responds to initialize with full MCP shape', async () => {
   const harness = createHarness();
 
   try {
@@ -107,23 +107,25 @@ test('tm-server returns list of tm tools with expected schemas', async () => {
     assert.deepEqual(byName.tm_close.inputSchema.required, ['id']);
     assert.deepEqual(byName.tm_create.inputSchema.required, ['title']);
     assert.deepEqual(byName.tm_dep_tree.inputSchema.required, ['id']);
+    assert.deepEqual(byName.tm_update.inputSchema.required, ['id']);
   } finally {
     harness.close();
   }
 });
 
-test('tm-server validates required parameters for tm tools deterministically', async () => {
+test('tm-server validates required parameters deterministically', async () => {
   const harness = createHarness();
 
   try {
     await harness.initialize();
 
-    const responseShowMissingId = await harness.sendRequest('tools/call', { name: 'tm_show', arguments: {} });
-    const responseCloseMissingId = await harness.sendRequest('tools/call', { name: 'tm_close', arguments: {} });
-    const responseCreateMissingTitle = await harness.sendRequest('tools/call', { name: 'tm_create', arguments: {} });
-    const responseDepTreeMissingId = await harness.sendRequest('tools/call', { name: 'tm_dep_tree', arguments: {} });
+    const showMissing = await harness.sendRequest('tools/call', { name: 'tm_show', arguments: {} });
+    const closeMissing = await harness.sendRequest('tools/call', { name: 'tm_close', arguments: {} });
+    const createMissing = await harness.sendRequest('tools/call', { name: 'tm_create', arguments: {} });
+    const depTreeMissing = await harness.sendRequest('tools/call', { name: 'tm_dep_tree', arguments: {} });
+    const updateMissing = await harness.sendRequest('tools/call', { name: 'tm_update', arguments: {} });
 
-    for (const response of [responseShowMissingId, responseCloseMissingId, responseCreateMissingTitle, responseDepTreeMissingId]) {
+    for (const response of [showMissing, closeMissing, createMissing, depTreeMissing, updateMissing]) {
       assert.equal(response.jsonrpc, '2.0');
       assert.ok(response.error);
       assert.equal(response.error.code, -32602);
@@ -134,7 +136,7 @@ test('tm-server validates required parameters for tm tools deterministically', a
   }
 });
 
-test('tm-server dispatches tool calls to tm and surfaces stderr output on success', async () => {
+test('tm-server dispatches all tool calls to tm with correct argv', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-server-'));
   const fakeTmPath = path.join(tempDir, 'tm');
   const callsPath = path.join(tempDir, 'calls.jsonl');
@@ -155,19 +157,34 @@ if (args[0] === 'sync') {
   try {
     await harness.initialize();
 
-    const readyResponse = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
-    const listResponse = await harness.sendRequest('tools/call', { name: 'tm_list', arguments: { status: 'open', parent: 'bd-1' } });
-    const syncResponse = await harness.sendRequest('tools/call', { name: 'tm_sync', arguments: {} });
+    const readyR = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+    const showR = await harness.sendRequest('tools/call', { name: 'tm_show', arguments: { id: 'bd-1' } });
+    const listR = await harness.sendRequest('tools/call', { name: 'tm_list', arguments: { status: 'open', parent: 'bd-1' } });
+    const updateR = await harness.sendRequest('tools/call', { name: 'tm_update', arguments: { id: 'bd-2', status: 'in_progress', priority: 1 } });
+    const closeR = await harness.sendRequest('tools/call', { name: 'tm_close', arguments: { id: 'bd-3' } });
+    const createR = await harness.sendRequest('tools/call', { name: 'tm_create', arguments: { title: 'New task', type: 'feature', priority: 2 } });
+    const depR = await harness.sendRequest('tools/call', { name: 'tm_dep_tree', arguments: { id: 'bd-4' } });
+    const syncR = await harness.sendRequest('tools/call', { name: 'tm_sync', arguments: {} });
 
-    assert.equal(readyResponse.result.content[0].text.includes('ok:ready'), true);
-    assert.equal(listResponse.result.content[0].text.includes('ok:list --status open --parent bd-1'), true);
-    assert.equal(syncResponse.result.content[0].text.includes('tm-sync: Synced 1 issues'), true);
+    assert.equal(readyR.result.content[0].text.includes('ok:ready'), true);
+    assert.equal(showR.result.content[0].text.includes('ok:show bd-1'), true);
+    assert.equal(listR.result.content[0].text.includes('ok:list --status open --parent bd-1'), true);
+    assert.equal(updateR.result.content[0].text.includes('ok:update bd-2 --status in_progress --priority 1'), true);
+    assert.equal(closeR.result.content[0].text.includes('ok:close bd-3'), true);
+    assert.equal(createR.result.content[0].text.includes('ok:create New task --type feature --priority 2'), true);
+    assert.equal(depR.result.content[0].text.includes('ok:dep tree bd-4'), true);
+    assert.equal(syncR.result.content[0].text.includes('tm-sync: Synced 1 issues'), true);
 
     const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
     assert.deepEqual(recordedCalls, [
       ['--version'],
       ['ready'],
+      ['show', 'bd-1'],
       ['list', '--status', 'open', '--parent', 'bd-1'],
+      ['update', 'bd-2', '--status', 'in_progress', '--priority', '1'],
+      ['close', 'bd-3'],
+      ['create', 'New task', '--type', 'feature', '--priority', '2'],
+      ['dep', 'tree', 'bd-4'],
       ['sync'],
     ]);
   } finally {
@@ -176,7 +193,61 @@ if (args[0] === 'sync') {
   }
 });
 
-test('tm-server prefers ~/.local/bin/tm when TM_PATH is unset and managed runtime exists', async () => {
+test('tm-server returns isError for non-zero tm exit', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-fail-'));
+  const fakeTmPath = path.join(tempDir, 'tm');
+
+  await fs.writeFile(fakeTmPath, `#!/usr/bin/env node
+if (process.argv[2] === '--version') { process.stdout.write('fake\\n'); process.exit(0); }
+process.stderr.write('fatal: something broke\\n');
+process.exit(1);
+`, { mode: 0o755 });
+
+  const harness = createHarness({ ...process.env, TM_PATH: fakeTmPath });
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+
+    assert.equal(response.result.isError, true);
+    assert.equal(response.result.content[0].text.includes('fatal: something broke'), true);
+  } finally {
+    harness.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('tm-server rejects unknown tool name', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_nonexistent', arguments: {} });
+
+    assert.ok(response.error);
+    assert.equal(response.error.code, -32602);
+    assert.equal(response.error.message.includes('Tool not found'), true);
+  } finally {
+    harness.close();
+  }
+});
+
+test('tm-server rejects missing name in tools/call', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { arguments: {} });
+
+    assert.ok(response.error);
+    assert.equal(response.error.code, -32602);
+    assert.equal(response.error.message.includes('Missing required argument: name'), true);
+  } finally {
+    harness.close();
+  }
+});
+
+test('tm-server prefers executable ~/.local/bin/tm when TM_PATH is unset', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-home-'));
   const homeBin = path.join(tempDir, '.local', 'bin');
   const fakeTmPath = path.join(homeBin, 'tm');
@@ -197,10 +268,7 @@ process.stdout.write('home-tm\\n');
 
     assert.equal(response.result.content[0].text.includes('home-tm'), true);
     const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
-    assert.deepEqual(recordedCalls, [
-      ['--version'],
-      ['ready'],
-    ]);
+    assert.deepEqual(recordedCalls, [['--version'], ['ready']]);
   } finally {
     harness.close();
     await fs.rm(tempDir, { recursive: true, force: true });
@@ -235,10 +303,7 @@ process.stdout.write('path-tm\\n');
 
     assert.equal(response.result.content[0].text.includes('path-tm'), true);
     const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
-    assert.deepEqual(recordedCalls, [
-      ['--version'],
-      ['ready'],
-    ]);
+    assert.deepEqual(recordedCalls, [['--version'], ['ready']]);
   } finally {
     harness.close();
     await fs.rm(tempDir, { recursive: true, force: true });
