@@ -219,6 +219,26 @@ test("ID mapping file read with corrupted JSON resets gracefully", () => {
   }
 })
 
+test("loadMapping rejects non-object JSON payloads", () => {
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const { loadMapping } = requireFresh("../scripts/tm-linear-sync")
+    const mapPath = path.join(tempRepoRoot, ".beads", "linear-map.json")
+
+    fs.writeFileSync(mapPath, "[]", "utf8")
+    assert.deepEqual(loadMapping(), {})
+
+    fs.writeFileSync(mapPath, "null", "utf8")
+    assert.deepEqual(loadMapping(), {})
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("reconcileExistingIssueByMarker removes stale mapping when marker no longer exists", async () => {
   const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
@@ -531,6 +551,71 @@ test("syncExistingIssue can force label repair even when issue type is unchanged
       labelIds: ["label-1"],
     },
   }])
+})
+
+test("syncExistingIssue preserves forceLabelSync when retrying after relink", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const updateCalls = []
+  const mapping = {
+    "bd-force-relink": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-90",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async (id, params) => {
+        updateCalls.push({ id, params })
+        if (id === "lin-stale") throw new Error("404 not found")
+      },
+      issueSearch: async () => ({ nodes: [{ id: "lin-fixed", identifier: "ENG-91" }] }),
+    },
+    issue: {
+      id: "bd-force-relink",
+      title: "Repair relinked label",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+    existing: mapping["bd-force-relink"],
+    bdId: "bd-force-relink",
+    designText: "design",
+    designHash: "hash-force-relink",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: { issueType: "task" },
+    forceLabelSync: true,
+    getOrCreateLabel: async () => "label-1",
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 1, errors: 0 })
+  assert.deepEqual(updateCalls, [
+    {
+      id: "lin-stale",
+      params: {
+        title: "Repair relinked label",
+        description: "design\n\n<!-- [bd:bd-force-relink] -->",
+        priority: 3,
+        stateId: "state-1",
+        labelIds: ["label-1"],
+      },
+    },
+    {
+      id: "lin-fixed",
+      params: {
+        title: "Repair relinked label",
+        description: "design\n\n<!-- [bd:bd-force-relink] -->",
+        priority: 3,
+        stateId: "state-1",
+        labelIds: ["label-1"],
+      },
+    },
+  ])
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {

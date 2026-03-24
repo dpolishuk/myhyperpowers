@@ -998,11 +998,19 @@ main() {
     exit 1
   fi
 
+  local total_detected_agents=${#SELECTED_AGENTS[@]}
+  if [[ ${#AGENT_PATHS[@]} -gt 0 ]]; then
+    total_detected_agents=0
+    for agent in "${AGENT_ORDER[@]}"; do
+      if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
+        total_detected_agents=$((total_detected_agents + 1))
+      fi
+    done
+  fi
+
   # --- Install tm CLI tool (shared across all agents) ---
   if [[ "$MODE" == "install" ]]; then
     install_tm_cli
-  elif [[ "$MODE" == "uninstall" ]]; then
-    uninstall_tm_cli
   fi
 
   # --- Execute ---
@@ -1041,6 +1049,9 @@ main() {
   [[ "$MODE" == "uninstall" ]] && action_past="Uninstalled"
 
   if [[ ${#FAILED_AGENTS[@]} -eq 0 ]]; then
+    if [[ "$MODE" == "uninstall" ]] && [[ ${#SELECTED_AGENTS[@]} -eq $total_detected_agents ]]; then
+      uninstall_tm_cli
+    fi
     success "${action_past} to ${ok_count} agent(s): ${agent_list}"
   else
     local failed_list=""

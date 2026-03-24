@@ -92,7 +92,12 @@ function loadMapping() {
   const mappingPath = getMappingPath()
   try {
     if (fs.existsSync(mappingPath)) {
-      return JSON.parse(fs.readFileSync(mappingPath, "utf8"))
+      const parsed = JSON.parse(fs.readFileSync(mappingPath, "utf8"))
+      if (!parsed || Array.isArray(parsed) || Object.prototype.toString.call(parsed) !== "[object Object]") {
+        console.error(`tm-sync: Warning: invalid mapping payload in ${mappingPath}, starting fresh.`)
+        return {}
+      }
+      return parsed
     }
   } catch (err) {
     console.error(`tm-sync: Warning: corrupted ${mappingPath}, starting fresh.`)
@@ -327,7 +332,7 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
         return { created: 0, updated: 0, errors: 1 }
       }
       if (relinked && relinked.linearId !== existing.linearId) {
-        return syncExistingIssue({ client, issue, existing: relinked, bdId, designText, designHash, priority, stateId, labelName, prev, getOrCreateLabel, mapping, teamId })
+        return syncExistingIssue({ client, issue, existing: relinked, bdId, designText, designHash, priority, stateId, labelName, prev, forceLabelSync, getOrCreateLabel, mapping, teamId })
       }
       if (relinked) {
         console.error(`tm-sync: Failed to update "${issue.title}": stale mapping could not be refreshed safely`)
