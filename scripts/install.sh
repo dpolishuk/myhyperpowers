@@ -766,11 +766,10 @@ install_tm_cli() {
 
   # Install @linear/sdk if node/npm available and package.json exists
   if command -v npm &>/dev/null && [[ -f "${REPO_ROOT}/package.json" ]]; then
-    if [[ ! -d "${TM_LIB_DIR}/node_modules/@linear" ]]; then
-      cp "${REPO_ROOT}/package.json" "${TM_LIB_DIR}/package.json"
-      (cd "$TM_LIB_DIR" && npm install --silent --omit=dev 2>/dev/null) \
-        || warn "npm install for @linear/sdk failed — Linear sync will be unavailable"
-    fi
+    # Always copy and install so upgrades pick up new dependency versions
+    cp "${REPO_ROOT}/package.json" "${TM_LIB_DIR}/package.json"
+    (cd "$TM_LIB_DIR" && npm install --silent --omit=dev 2>/dev/null) \
+      || warn "npm install for @linear/sdk failed — Linear sync will be unavailable"
     # Symlink node_modules so the sync script can find @linear/sdk
     # Remove pre-existing directory first so ln -sfn creates a proper symlink
     if [[ -d "${TM_BIN_DIR}/node_modules" ]] && [[ ! -L "${TM_BIN_DIR}/node_modules" ]]; then
