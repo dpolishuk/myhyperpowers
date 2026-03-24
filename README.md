@@ -272,8 +272,8 @@ That's it! Commands, agents, skills, and the shared `tm` CLI used by this branch
 **For your own projects**, copy these files:
 
 ```bash
-cp hyperpowers/opencode.json your-project/
-cp -r hyperpowers/.opencode your-project/
+cp opencode.json your-project/
+cp -r .opencode your-project/
 cd your-project/.opencode && bun install && cd ..
 opencode
 ```

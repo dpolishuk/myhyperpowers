@@ -7,18 +7,35 @@ const repoRoot = path.resolve(__dirname, "..")
 
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
 
+const extractJsonBlockAfter = (text, marker) => {
+  const afterMarker = text.split(marker)[1] || ""
+  const match = afterMarker.match(/```json\n([\s\S]*?)\n```/)
+  assert.ok(match, `missing JSON block after ${marker}`)
+  return JSON.parse(match[1])
+}
+
+const extractTextBlock = (text) => {
+  const match = text.match(/```text\n([\s\S]*?)\n```/)
+  assert.ok(match, "missing text block")
+  return match[1]
+}
+
 test("test_opencode_docs_use_mcp_not_mcpServers", () => {
   const guide = read("docs/linear-mcp-setup.md")
   const readme = read("README.md")
   const openCodeSection = guide.split("### OpenCode")[1]?.split("## How It All Fits Together")[0] || ""
-  const readmeLinearSection = readme.split("### Linear MCP Server (Optional)")[1]?.split("## Uninstall")[0] || ""
+  const guideConfig = extractJsonBlockAfter(guide, "### OpenCode")
+  const readmeConfig = extractJsonBlockAfter(readme, "### Linear MCP Server (Optional)")
 
   assert.equal(openCodeSection.includes('"mcpServers"'), false)
-  assert.equal(openCodeSection.includes('"mcp"'), true)
+  assert.deepEqual(Object.keys(guideConfig), ["mcp"])
+  assert.equal(guideConfig.mcp.linear.type, "local")
+  assert.deepEqual(guideConfig.mcp.linear.command, ["npx", "-y", "@tacticlaunch/mcp-linear@1.0.12"])
+  assert.equal(guideConfig.mcp.linear.environment.LINEAR_API_KEY, "{env:LINEAR_API_KEY}")
   assert.equal(openCodeSection.includes("opencode.json"), true)
-  assert.equal(readmeLinearSection.includes('"mcpServers"'), false)
-  assert.equal(readmeLinearSection.includes('"mcp"'), true)
-  assert.equal(readmeLinearSection.includes("opencode.json"), true)
+  assert.deepEqual(Object.keys(readmeConfig), ["mcp"])
+  assert.equal(readmeConfig.mcp.linear.type, "local")
+  assert.equal(readmeConfig.mcp.linear.environment.LINEAR_API_KEY, "{env:LINEAR_API_KEY}")
 })
 
 test("test_opencode_install_docs_describe_installer_first_tm_path", () => {
@@ -46,6 +63,7 @@ test("test_opencode_linear_guide_mentions_installer_prerequisite", () => {
   const guide = read("docs/linear-mcp-setup.md")
 
   assert.equal(guide.includes("./scripts/install.sh --opencode"), true)
+  assert.equal(guide.includes("from a Hyperpowers checkout"), true)
   assert.equal(guide.includes("~/.local/bin/tm --help"), true)
 })
 
@@ -54,10 +72,23 @@ test("test_opencode_tm_linear_command_exists", () => {
   assert.equal(fs.existsSync(commandPath), true)
 
   const command = fs.readFileSync(commandPath, "utf8")
-  assert.equal(command.includes("From a Hyperpowers checkout"), true)
-  assert.equal(command.includes("tm sync"), true)
-  assert.equal(command.includes("LINEAR_API_KEY"), true)
-  assert.equal(command.includes("LINEAR_TEAM_KEY"), true)
-  assert.equal(command.includes("opencode.json"), true)
-  assert.equal(command.includes("mcp"), true)
+  const textBlock = extractTextBlock(command)
+
+  assert.match(textBlock, /1\. From a Hyperpowers checkout, run `\.\/scripts\/install\.sh --opencode`/)
+  assert.match(textBlock, /2\. Configure Linear credentials:/)
+  assert.match(textBlock, /LINEAR_API_KEY/)
+  assert.match(textBlock, /LINEAR_TEAM_KEY/)
+  assert.match(textBlock, /3\. Verify the shared tm path:/)
+  assert.match(textBlock, /tm sync/)
+  assert.match(textBlock, /4\. OpenCode project config belongs in `opencode\.json`/)
+  assert.match(textBlock, /Use the `mcp` key for MCP servers/)
+})
+
+test("test_opencode_package_readme_marks_npm_path_as_package_only", () => {
+  const packageReadme = read("packages/opencode-plugin/README.md")
+
+  assert.equal(packageReadme.includes("./scripts/install.sh --opencode"), true)
+  assert.equal(packageReadme.includes("shared `tm` runtime"), true)
+  assert.equal(packageReadme.includes("project-root `opencode.json`"), true)
+  assert.equal(packageReadme.includes("`.opencode/` for project-local commands"), true)
 })
