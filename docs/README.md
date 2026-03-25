@@ -88,6 +88,8 @@ GLM models with optimized agent assignments:
 1. **Copy** the example that matches your provider:
 
 ```bash
+cp docs/opencode.example.inherit.json opencode.json
+# or
 cp docs/opencode.example.anthropic.json opencode.json
 # or
 cp docs/opencode.example.glm.json opencode.json

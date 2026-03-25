@@ -57,6 +57,18 @@ test("all OpenCode-facing examples use the canonical agent key", () => {
   }
 })
 
+test("all explicit-routing OpenCode examples parse with the canonical agent key", () => {
+  for (const relativePath of [
+    "docs/opencode.example.anthropic.json",
+    "docs/opencode.example.glm.json",
+    "docs/opencode.example.multi-provider.json",
+  ]) {
+    const example = JSON.parse(read(relativePath))
+    assert.ok(example.agent, `${relativePath} should define agent mappings`)
+    assert.equal(example.agents, undefined, `${relativePath} should not use the legacy agents key`)
+  }
+})
+
 test("OpenCode docs README matches the canonical precedence and examples list", () => {
   const docsReadme = read("docs/README.md")
   const modelConfig = read("docs/model-configuration.md")
@@ -65,6 +77,7 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   assert.equal(docsReadme.includes("2. `opencode.json` → top-level `model`"), true)
   assert.equal(docsReadme.includes("3. Agent frontmatter → `model` field"), true)
   assert.equal(docsReadme.includes("opencode.example.agent-routing.json"), true)
+  assert.equal(docsReadme.includes("cp docs/opencode.example.inherit.json opencode.json"), true)
   assert.equal(docsReadme.includes("/models"), true)
   assert.equal(modelConfig.includes("/models"), true)
 })
@@ -75,4 +88,13 @@ test("inherit example points users to the canonical agent key", () => {
   assert.equal(inheritExample.includes("'agents' section"), false)
   assert.equal(inheritExample.includes("'agent' section"), true)
   assert.equal((inheritExample.match(/"comment":/g) || []).length, 1)
+})
+
+test("model configuration intro matches the documented four methods", () => {
+  const docs = read("docs/model-configuration.md")
+
+  assert.equal(docs.includes("1. **Agent Frontmatter** - Set default model in the agent definition"), true)
+  assert.equal(docs.includes("2. **OpenCode Config** - Override per-agent models in `opencode.json`"), true)
+  assert.equal(docs.includes("3. **Environment Variables** - Dynamic configuration via env vars"), true)
+  assert.equal(docs.includes("4. **Claude Code Configuration** - Host-specific model configuration"), true)
 })
