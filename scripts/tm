@@ -62,16 +62,18 @@ detect_backend() {
   fi
 
   # Check .beads/config.yaml for tm.backend (flat YAML, no external deps)
-  local root
+  local root config
   root="$(find_repo_root)"
-  local config="$root/.beads/config.yaml"
-  if [[ -f "$config" && -r "$config" ]]; then
-    local val
-    val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
-    val="$(trim "$val")"
-    if [[ -n "$val" ]]; then
-      echo "$val"
-      return
+  if [[ -n "$root" ]]; then
+    config="$root/.beads/config.yaml"
+    if [[ -f "$config" && -r "$config" ]]; then
+      local val
+      val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
+      val="$(trim "$val")"
+      if [[ -n "$val" ]]; then
+        echo "$val"
+        return
+      fi
     fi
   fi
 
@@ -91,13 +93,26 @@ load_linear_config_value() {
 
   local root config config_val
   root="$(find_repo_root)"
+  if [[ -z "$root" ]]; then
+    printf '\n'
+    return
+  fi
+
   config="$root/.beads/config.yaml"
   if [[ ! -f "$config" || ! -r "$config" ]]; then
     printf '\n'
     return
   fi
 
-  config_val=$(grep "^${config_key}:" "$config" 2>/dev/null | awk '{sub(/^[^:]*:[[:space:]]*/, ""); gsub(/^["'"'"']|["'"'"']$/, ""); print}' | head -n1 || true)
+  config_val="$(awk -v key="$config_key" '
+    index($0, key ":") == 1 {
+      value = $0
+      sub(/^[^:]*:[[:space:]]*/, "", value)
+      gsub(/^[\"\047]|[\"\047]$/, "", value)
+      print value
+      exit
+    }
+  ' "$config" 2>/dev/null || true)"
   config_val="$(trim "$config_val")"
   if [[ -z "$config_val" || "$config_val" == *"(not set)" ]]; then
     printf '\n'

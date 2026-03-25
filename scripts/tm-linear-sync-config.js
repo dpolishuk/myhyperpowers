@@ -48,7 +48,7 @@ function readConfigValue(configPath, key) {
  * Load a config value from: env var → .beads/config.yaml → null
  */
 function loadConfigValue(envVar, configKey) {
-  // Explicit empty env var overrides bd config (allows disabling with LINEAR_API_KEY="")
+  // Explicit empty env var overrides project config (allows disabling with LINEAR_API_KEY="")
   if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
     const envVal = trimValue(process.env[envVar] || "")
     if (!envVal) return null
@@ -61,7 +61,7 @@ function loadConfigValue(envVar, configKey) {
 }
 
 /**
- * Load Linear configuration from environment and bd config.
+ * Load Linear configuration from environment and .beads/config.yaml.
  * Returns { apiKey, teamKey } or null if not configured.
  */
 function loadLinearConfig() {
