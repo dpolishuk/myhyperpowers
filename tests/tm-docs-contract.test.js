@@ -70,15 +70,19 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
 test("README and AGENTS agree on Codex wrapper location and host support", () => {
   const readme = read("README.md")
   const agentsGuide = read("AGENTS.md")
+  const codexSection = readme.split("<summary><strong>Codex CLI</strong></summary>")[1]?.split("</details>")[0] || ""
 
   assert.equal(readme.includes("Generated output is written to `.agents/skills`"), true)
-  assert.equal(readme.includes("symlink to `.kimi/skills`"), true)
+  assert.equal(readme.includes(".kimi/skills"), false)
   assert.equal(agentsGuide.includes(".agents/               # Codex-compatible generated wrappers"), true)
-  assert.equal(agentsGuide.includes("supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, and Codex CLI)"), true)
+  assert.equal(agentsGuide.includes("supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI)"), true)
+  assert.equal(codexSection.includes("./scripts/install.sh --codex"), true)
+  assert.equal(codexSection.includes("~/.codex/skills"), true)
 })
 
 test("Docs index surfaces model configuration guide", () => {
   const docsReadme = read("docs/README.md")
+  const guidesSection = docsReadme.split("## Core Setup & Workflow Guides")[1]?.split("## Backend / Tracker Context")[0] || ""
 
-  assert.equal(docsReadme.includes("model-configuration.md"), true)
+  assert.equal(guidesSection.includes("model-configuration.md"), true)
 })

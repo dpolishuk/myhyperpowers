@@ -437,7 +437,7 @@ See [Model Configuration](docs/model-configuration.md) for full documentation.
 
 ## Linear Integration (Optional)
 
-Hyperpowers includes a `tm` CLI that wraps the local `bd` task manager. Without any configuration, `tm` passes everything through to `bd` — your existing workflow stays the same.
+Hyperpowers includes a `tm` CLI as the canonical task-management interface. In this repo the current backend is `bd`, but day-to-day usage should remain tm-first.
 
 Optionally, you can connect `tm sync` to [Linear](https://linear.app) to mirror your local issues to your team's Linear workspace.
 
@@ -461,12 +461,12 @@ tm config set linear.team-key "ENG"
 
 ### Without Linear
 
-If you don't configure Linear, everything works as before:
+If you don't configure Linear, the normal tm-first local workflow still works:
 
 ```
-tm ready       →  bd ready
-tm show bd-42  →  bd show bd-42
-tm sync        →  bd sync (git only)
+tm ready
+tm show bd-42
+tm sync
 ```
 
 ### Linear MCP Server (Optional)
@@ -607,7 +607,7 @@ Codex-compatible wrappers are generated artifacts. The source of truth remains:
 - `commands/*.md`
 - `agents/*.md`
 
-Generated output is written to `.agents/skills` (in this repo that path is a symlink to `.kimi/skills`).
+Generated output is written to `.agents/skills`.
 
 Run these commands after changing skills/commands/agents:
 
