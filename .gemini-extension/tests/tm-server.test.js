@@ -310,6 +310,46 @@ process.stdout.write('path-tm\\n');
   }
 });
 
+test('tm-server falls back to PATH tm when managed runtime is broken at runtime', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-broken-'));
+  const homeBin = path.join(tempDir, '.local', 'bin');
+  const managedTmPath = path.join(homeBin, 'tm');
+  const fakeBin = path.join(tempDir, 'bin');
+  const pathTmPath = path.join(fakeBin, 'tm');
+  const pathCalls = path.join(tempDir, 'calls-path-fallback.jsonl');
+
+  await fs.mkdir(homeBin, { recursive: true });
+  await fs.mkdir(fakeBin, { recursive: true });
+  await fs.writeFile(managedTmPath, `#!/usr/bin/env node
+process.stderr.write('managed tm broken\\n');
+process.exit(127);
+`, { mode: 0o755 });
+  await fs.writeFile(pathTmPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.CALLS_PATH, JSON.stringify(process.argv.slice(2)) + '\\n');
+process.stdout.write('path-fallback-tm\\n');
+`, { mode: 0o755 });
+
+  const harness = createHarness({
+    ...process.env,
+    HOME: tempDir,
+    PATH: `${fakeBin}:${process.env.PATH}`,
+    CALLS_PATH: pathCalls,
+  });
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+
+    assert.equal(response.result.content[0].text.includes('path-fallback-tm'), true);
+    const recordedCalls = (await fs.readFile(pathCalls, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    assert.deepEqual(recordedCalls, [['--version'], ['ready']]);
+  } finally {
+    harness.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('tm-server executes tm in TM_REPO_ROOT when provided', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-repo-root-'));
   const fakeTmPath = path.join(tempDir, 'tm');

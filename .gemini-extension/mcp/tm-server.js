@@ -30,11 +30,26 @@ function resolveTmCommand() {
 }
 
 const TM_CMD = resolveTmCommand();
+const MANAGED_TM_CMD = (!process.env.TM_PATH && process.env.HOME)
+  ? path.join(process.env.HOME, '.local', 'bin', 'tm')
+  : null;
 
-function execTm(args) {
+function shouldRetryWithPathTm(err) {
+  if (!MANAGED_TM_CMD || TM_CMD !== MANAGED_TM_CMD) {
+    return false;
+  }
+
+  if (err && (err.spawnCode === 'ENOENT' || err.spawnCode === 'EACCES')) {
+    return true;
+  }
+
+  return err && (err.exitCode === 126 || err.exitCode === 127);
+}
+
+function spawnTm(command, args) {
   return new Promise((resolve, reject) => {
     const tmCwd = process.env.TM_REPO_ROOT || process.cwd();
-    const child = spawn(TM_CMD, args, {
+    const child = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: tmCwd
     });
@@ -54,13 +69,26 @@ function execTm(args) {
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
-        reject(new Error(`tm exit code ${code}: ${stderr || stdout}`));
+        const error = new Error(`tm exit code ${code}: ${stderr || stdout}`);
+        error.exitCode = code;
+        reject(error);
       }
     });
 
     child.on('error', (err) => {
-      reject(new Error(`Failed to execute tm: ${err.message}`));
+      const error = new Error(`Failed to execute tm: ${err.message}`);
+      error.spawnCode = err.code;
+      reject(error);
     });
+  });
+}
+
+function execTm(args) {
+  return spawnTm(TM_CMD, args).catch((err) => {
+    if (shouldRetryWithPathTm(err)) {
+      return spawnTm('tm', args);
+    }
+    throw err;
   });
 }
 

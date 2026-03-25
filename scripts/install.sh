@@ -771,9 +771,14 @@ install_tm_cli() {
     (cd "$TM_LIB_DIR" && npm install --silent --omit=dev 2>/dev/null) \
       || warn "npm install for @linear/sdk failed — Linear sync will be unavailable"
     # Symlink node_modules so the sync script can find @linear/sdk
-    # Remove pre-existing directory first so ln -sfn creates a proper symlink
+    # If a real directory already exists here, move it aside instead of deleting it.
     if [[ -d "${TM_BIN_DIR}/node_modules" ]] && [[ ! -L "${TM_BIN_DIR}/node_modules" ]]; then
-      rm -r "${TM_BIN_DIR}/node_modules"
+      local backup_path="${TM_BIN_DIR}/node_modules.hyperpowers-backup"
+      if [[ -e "$backup_path" ]]; then
+        backup_path="${backup_path}-$(date +%s)"
+      fi
+      mv "${TM_BIN_DIR}/node_modules" "$backup_path"
+      warn "Moved existing ${TM_BIN_DIR}/node_modules to ${backup_path} before installing tm runtime symlink"
     fi
     ln -sfn "${TM_LIB_DIR}/node_modules" "${TM_BIN_DIR}/node_modules"
   fi

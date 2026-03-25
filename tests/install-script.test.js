@@ -105,7 +105,7 @@ test("install.sh partial uninstall preserves shared tm runtime", () => {
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
 })
 
-test("install.sh opencode replaces pre-existing node_modules directory with symlink", () => {
+test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const binDir = path.join(home, ".local", "bin")
   const libDir = path.join(home, ".local", "lib", "tm")
@@ -129,6 +129,9 @@ test("install.sh opencode replaces pre-existing node_modules directory with syml
   const stat = fs.lstatSync(nmPath)
   assert.equal(stat.isSymbolicLink(), true, "node_modules should be a symlink, not a directory")
   assert.equal(fs.readlinkSync(nmPath), path.join(libDir, "node_modules"))
+  const backupPath = path.join(binDir, "node_modules.hyperpowers-backup")
+  assert.equal(fs.existsSync(backupPath), true)
+  assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
 
 test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
