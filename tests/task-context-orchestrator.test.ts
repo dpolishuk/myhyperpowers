@@ -626,6 +626,33 @@ test("task_model_routing_reads_frontmatter_with_crlf_line_endings", async () => 
   }
 })
 
+test("task_model_routing_ignores_inline_yaml_comments_in_frontmatter_model", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    agentFiles: {
+      "review-simplification": `---\ndescription: reviewer\nmode: subagent\nmodel: comment/model # inline comment\n---\nPrompt`,
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review simplification opportunities",
+        agent: "review-simplification",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("comment/model")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("task_model_routing_logs_malformed_opencode_config_warnings", async () => {
   const { root, cleanup } = await createTempRoot()
   await writeFile(join(root, "opencode.json"), "{", "utf8")

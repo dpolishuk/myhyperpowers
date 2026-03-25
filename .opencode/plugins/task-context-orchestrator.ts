@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -195,17 +196,14 @@ const findConfigEntry = <T>(entries: Record<string, T> | undefined, key: string 
 }
 
 const parseFrontmatterModel = (content: string) => {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
-  if (!match) return null
-
-  for (const line of match[1].split(/\r?\n/)) {
-    const frontmatterMatch = line.match(/^model:\s*(.+)$/)
-    if (!frontmatterMatch) continue
-    const value = frontmatterMatch[1].trim().replace(/^['"]|['"]$/g, "")
-    return value.length > 0 ? value : null
+  try {
+    const { data } = matter(content)
+    const value = getString((data as Record<string, unknown>).model)
+    if (!value || value === "inherit") return null
+    return value
+  } catch {
+    return null
   }
-
-  return null
 }
 
 const hashPrompt = (input: string) => {
