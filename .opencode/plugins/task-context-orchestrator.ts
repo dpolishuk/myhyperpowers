@@ -2,6 +2,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
+import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
 type TaskContextConfig = {
@@ -361,15 +362,33 @@ const detectWorkflowOverride = (
   return null
 }
 
+const getAgentFrontmatterPaths = (rootDir: string, agentName: string) => {
+  const fileName = `${agentName}.md`
+  const homeDir = process.env.HOME || homedir()
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME || join(homeDir, ".config")
+
+  const candidates = [
+    join(rootDir, ".opencode", "agents", fileName),
+    join(xdgConfigHome, "opencode", "agents", fileName),
+    join(homeDir, ".opencode", "agents", fileName),
+  ]
+
+  return Array.from(new Set(candidates))
+}
+
 const readAgentFrontmatterModel = async (rootDir: string, agentName: string) => {
-  const agentPath = join(rootDir, ".opencode", "agents", `${agentName}.md`)
-  if (!existsSync(agentPath)) return null
-  try {
-    const raw = await readFile(agentPath, "utf8")
-    return parseFrontmatterModel(raw)
-  } catch {
-    return null
+  for (const agentPath of getAgentFrontmatterPaths(rootDir, agentName)) {
+    if (!existsSync(agentPath)) continue
+    try {
+      const raw = await readFile(agentPath, "utf8")
+      const model = parseFrontmatterModel(raw)
+      if (model) return model
+    } catch {
+      // Ignore unreadable agent files and keep searching fallback locations.
+    }
   }
+
+  return null
 }
 
 const resolveTaskModel = async (
