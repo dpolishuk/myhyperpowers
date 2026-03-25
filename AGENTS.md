@@ -357,7 +357,7 @@ Do not hand-edit generated `codex-*` directories directly.
 ## Security Considerations
 
 - **NEVER** expose API keys in code - use `{env:VAR_NAME}` pattern
-- **NEVER** read `.beads/issues.jsonl` directly - use `bd` CLI
+- **NEVER** read `.beads/issues.jsonl` directly - use `tm` (or a backend CLI only when a backend-specific guide explicitly requires it)
 - **NEVER** modify `.git/hooks/pre-commit` directly
 - Hooks block dangerous operations automatically
 - Sensitive files are protected by safety plugins

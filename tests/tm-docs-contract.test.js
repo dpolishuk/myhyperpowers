@@ -8,26 +8,38 @@ const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath)
 
 test("README presents tm as the canonical task-management interface", () => {
   const readme = read("README.md")
+  const modelSection = readme.split("## Task Management Model")[1]?.split("## Features")[0] || ""
+  const exampleSection = readme.split("### Example Workflow")[1]?.split("## Philosophy")[0] || ""
 
-  assert.equal(readme.includes("canonical user-facing task-management interface"), true)
-  assert.equal(readme.includes("tm-first"), true)
-  assert.equal(readme.includes("bd` / `br` / `tk`"), true)
-  assert.equal(readme.includes("Linear and GitHub are integrations"), true)
+  assert.equal(modelSection.includes("canonical user-facing task-management interface"), true)
+  assert.equal(modelSection.includes("tm-first"), true)
+  assert.equal(modelSection.includes("bd` / `br` / `tk`"), true)
+  assert.equal(modelSection.includes("Linear and GitHub are integrations"), true)
+  assert.equal(exampleSection.includes("tasks in bd"), false)
+  assert.equal(exampleSection.includes("bd ready"), false)
+  assert.equal(exampleSection.includes("tm ready"), true)
 })
 
 test("AGENTS guide does not claim a conflicting bd-first docs model", () => {
   const agentsGuide = read("AGENTS.md")
+  const commandsSection = agentsGuide.split("### Available Commands")[1]?.split("## Project Structure")[0] || ""
+  const trackingSection = agentsGuide.split("## Task Management")[1] || ""
 
   assert.equal(agentsGuide.includes("uses **bd (beads)** for ALL issue tracking"), false)
   assert.equal(agentsGuide.includes("tm is the canonical user-facing interface"), true)
   assert.equal(agentsGuide.includes("current backend in this repo is `bd`"), true)
+  assert.equal(agentsGuide.includes("use `bd` CLI"), false)
+  assert.equal(commandsSection.includes("tm ready"), true)
+  assert.equal(commandsSection.includes("tm sync"), true)
+  assert.equal(trackingSection.includes("docs/QUICKSTART.md"), true)
 })
 
 test("Docs index surfaces the canonical tm setup and integration guides", () => {
   const docsReadme = read("docs/README.md")
 
-  assert.equal(docsReadme.includes("tm"), true)
+  assert.equal(docsReadme.includes("tm-first"), true)
   assert.equal(docsReadme.includes("linear-mcp-setup.md"), true)
+  assert.equal(docsReadme.includes("QUICKSTART.md"), true)
   assert.equal(docsReadme.includes("backend"), true)
 })
 

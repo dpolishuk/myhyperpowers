@@ -532,10 +532,10 @@ Claude: I'm using the brainstorming skill to refine your authentication requirem
 [Socratic questioning to understand requirements]
 
 Claude: Now I'm using the writing-plans skill to create a detailed implementation plan.
-[Creates detailed plan with specific tasks in bd]
+[Creates detailed plan with specific tasks in tm-backed tracking]
 
 Claude: I'm using the executing-plans skill to implement the tasks.
-[Works through ready tasks continuously, using bd ready to find next task]
+[Works through ready tasks continuously, using tm ready to find next task]
 
 Claude: I'm using the test-runner agent to verify all tests pass.
 [Agent runs tests, reports: "47 tests passed, 0 failed"]
