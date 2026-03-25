@@ -51,18 +51,33 @@ test("loadLinearConfig ignores deprecated LINEAR_PROJECT_NAME", () => {
   restoreEnv(saved)
 })
 
-test("loadConfigValue fails fast when bd config command cannot run", () => {
+test("loadConfigValue returns null when env and config are missing", () => {
   const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
-  const savedPath = process.env.PATH
   delete process.env.LINEAR_API_KEY
-  process.env.PATH = ""
+  delete process.env.TM_REPO_ROOT
 
   try {
-    assert.throws(() => loadConfigValue("LINEAR_API_KEY", "linear.api-key"), /bd config get linear\.api-key failed/)
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), null)
   } finally {
     restoreEnv(saved)
-    process.env.PATH = savedPath
+  }
+})
+
+test("loadConfigValue reads from project config without bd in PATH", () => {
+  const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+  const saved = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    fs.writeFileSync(path.join(tempRepoRoot, ".beads", "config.yaml"), "linear.api-key: cfg_key\n")
+
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), "cfg_key")
+  } finally {
+    restoreEnv(saved)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
   }
 })
 
@@ -862,6 +877,7 @@ function saveEnv() {
     LINEAR_API_KEY: process.env.LINEAR_API_KEY,
     LINEAR_TEAM_KEY: process.env.LINEAR_TEAM_KEY,
     LINEAR_PROJECT_NAME: process.env.LINEAR_PROJECT_NAME,
+    TM_REPO_ROOT: process.env.TM_REPO_ROOT,
   }
 }
 

@@ -1,33 +1,63 @@
 #!/usr/bin/env node
 "use strict"
 
-const { spawnSync } = require("node:child_process")
+const fs = require("node:fs")
+const path = require("node:path")
+
+function trimValue(value) {
+  return (value || "").trim()
+}
+
+function findRepoRoot(startDir = process.cwd()) {
+  if (process.env.TM_REPO_ROOT && fs.existsSync(path.join(process.env.TM_REPO_ROOT, ".beads"))) {
+    return process.env.TM_REPO_ROOT
+  }
+
+  let current = startDir
+  while (current && current !== path.dirname(current)) {
+    if (fs.existsSync(path.join(current, ".beads"))) {
+      return current
+    }
+    current = path.dirname(current)
+  }
+
+  return null
+}
+
+function readConfigValue(configPath, key) {
+  if (!configPath || !fs.existsSync(configPath)) {
+    return null
+  }
+
+  const content = fs.readFileSync(configPath, "utf8")
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = content.match(new RegExp(`^${escapedKey}:\\s*(.+)$`, "m"))
+  if (!match) {
+    return null
+  }
+
+  const rawValue = trimValue(match[1]).replace(/^['\"]|['\"]$/g, "")
+  if (!rawValue || rawValue.includes("(not set)")) {
+    return null
+  }
+
+  return rawValue
+}
 
 /**
- * Load a config value from: env var → bd config → null
+ * Load a config value from: env var → .beads/config.yaml → null
  */
-function loadConfigValue(envVar, bdConfigKey) {
+function loadConfigValue(envVar, configKey) {
   // Explicit empty env var overrides bd config (allows disabling with LINEAR_API_KEY="")
   if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
-    const envVal = (process.env[envVar] || "").trim()
+    const envVal = trimValue(process.env[envVar] || "")
     if (!envVal) return null
     return envVal
   }
 
-  const result = spawnSync("bd", ["config", "get", bdConfigKey], {
-    encoding: "utf8",
-    timeout: 5000,
-  })
-
-  if (result.error || result.status !== 0) {
-    const detail = result.error ? result.error.message : (result.stderr || "").trim() || `exit ${result.status}`
-    throw new Error(`bd config get ${bdConfigKey} failed: ${detail}`)
-  }
-
-  const val = (result.stdout || "").trim()
-  // bd config get returns "key (not set)" when unconfigured
-  if (!val || val.endsWith("(not set)")) return null
-  return val
+  const repoRoot = findRepoRoot()
+  const configPath = repoRoot ? path.join(repoRoot, ".beads", "config.yaml") : null
+  return readConfigValue(configPath, configKey)
 }
 
 /**

@@ -7,6 +7,13 @@ set -euo pipefail
 
 TM_VERSION="0.1.0"
 
+trim() {
+  local value="${1:-}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
 # ── Repo root detection ──────────────────────────────────────────────────────
 
 find_repo_root() {
@@ -45,9 +52,13 @@ find_repo_root_from() {
 
 detect_backend() {
   # Priority: env var > config file > default
-  if [[ -n "${TM_BACKEND:-}" ]]; then
-    echo "$TM_BACKEND"
-    return
+  if [[ ${TM_BACKEND+x} ]]; then
+    local env_backend
+    env_backend="$(trim "${TM_BACKEND}")"
+    if [[ -n "$env_backend" ]]; then
+      echo "$env_backend"
+      return
+    fi
   fi
 
   # Check .beads/config.yaml for tm.backend (flat YAML, no external deps)
@@ -57,6 +68,7 @@ detect_backend() {
   if [[ -f "$config" && -r "$config" ]]; then
     local val
     val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
+    val="$(trim "$val")"
     if [[ -n "$val" ]]; then
       echo "$val"
       return
@@ -68,20 +80,25 @@ detect_backend() {
 
 load_linear_config_value() {
   local env_name="$1"
-  local bd_key="$2"
+  local config_key="$2"
 
   if [[ ${!env_name+x} ]]; then
-    local env_val="${!env_name}"
-    env_val="${env_val#"${env_val%%[![:space:]]*}"}"
-    env_val="${env_val%"${env_val##*[![:space:]]}"}"
+    local env_val
+    env_val="$(trim "${!env_name}")"
     printf '%s\n' "$env_val"
     return
   fi
 
-  local config_val
-  config_val="$(bd config get "$bd_key" 2>/dev/null || true)"
-  config_val="${config_val#"${config_val%%[![:space:]]*}"}"
-  config_val="${config_val%"${config_val##*[![:space:]]}"}"
+  local root config config_val
+  root="$(find_repo_root)"
+  config="$root/.beads/config.yaml"
+  if [[ ! -f "$config" || ! -r "$config" ]]; then
+    printf '\n'
+    return
+  fi
+
+  config_val=$(grep "^${config_key}:" "$config" 2>/dev/null | awk '{sub(/^[^:]*:[[:space:]]*/, ""); gsub(/^["'"'"']|["'"'"']$/, ""); print}' | head -n1 || true)
+  config_val="$(trim "$config_val")"
   if [[ -z "$config_val" || "$config_val" == *"(not set)" ]]; then
     printf '\n'
     return
@@ -101,9 +118,9 @@ linear_sync_configured() {
 validate_backend() {
   local backend="$1"
   case "$backend" in
-    bd|linear) ;;
+    bd|br|linear) ;;
     *)
-      echo "tm: unknown backend '$backend'. Valid backends: bd, linear" >&2
+      echo "tm: unknown backend '$backend'. Valid backends: bd, br, linear" >&2
       exit 1
       ;;
   esac
@@ -129,6 +146,7 @@ Backend detection (highest priority first):
 
 Available backends:
   bd      Local beads task manager (default)
+  br      Local beads_rust task manager
   linear  Linear.app integration (not yet implemented)
 
 Examples:
@@ -166,9 +184,15 @@ main() {
   validate_backend "$backend"
 
   case "$backend" in
-    bd)
-      if ! command -v bd >/dev/null 2>&1; then
-        echo "tm: bd not found in PATH. Install beads first: https://github.com/Dicklesworthstone/beads_viewer" >&2
+    bd|br)
+      local backend_cmd
+      backend_cmd="$backend"
+      if ! command -v "$backend_cmd" >/dev/null 2>&1; then
+        if [[ "$backend_cmd" == "bd" ]]; then
+          echo "tm: bd not found in PATH. Install beads first: https://github.com/Dicklesworthstone/beads_viewer" >&2
+        else
+          echo "tm: br not found in PATH. Install beads_rust first: https://github.com/Dicklesworthstone/beads_rust" >&2
+        fi
         exit 1
       fi
       local repo_root
@@ -176,18 +200,31 @@ main() {
       if [[ -n "$repo_root" ]]; then
         cd "$repo_root"
       fi
-      # Intercept sync: run bd sync first, then Linear sync if configured
+      # Intercept sync: run backend-local sync first, then supported follow-on sync.
       if [[ "${1:-}" == "sync" ]]; then
         if [[ "${2:-}" == "--help" || "${2:-}" == "-h" || "${2:-}" == "--version" || "${2:-}" == "-v" ]]; then
-          exec bd "$@"
+          exec "$backend_cmd" "$@"
         fi
         local sync_exit=0
-        bd sync "${@:2}" || sync_exit=$?
-        # Only run Linear sync if bd sync succeeded
+        if [[ "$backend_cmd" == "br" ]]; then
+          "$backend_cmd" sync --flush-only "${@:2}" || sync_exit=$?
+        else
+          "$backend_cmd" sync "${@:2}" || sync_exit=$?
+        fi
+
+        # Only run follow-on sync if local sync succeeded
         if [[ "$sync_exit" -ne 0 ]]; then
-          echo "tm: bd sync failed (exit $sync_exit), skipping Linear sync" >&2
+          echo "tm: ${backend_cmd} sync failed (exit $sync_exit), skipping follow-on sync" >&2
           exit "$sync_exit"
         fi
+
+        if [[ "$backend_cmd" == "br" ]]; then
+          if linear_sync_configured; then
+            echo "tm: follow-on Linear sync is not supported for backend 'br'; local sync completed and follow-on sync was skipped" >&2
+          fi
+          exit 0
+        fi
+
         local script_dir source_path
         source_path="${BASH_SOURCE[0]}"
         # Resolve symlinks (e.g., npm bin installs)
@@ -218,7 +255,7 @@ main() {
         fi
         exit "$linear_exit"
       fi
-      exec bd "$@"
+      exec "$backend_cmd" "$@"
       ;;
     linear)
       echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd (default) for now." >&2

@@ -28,6 +28,12 @@ test("tm with TM_BACKEND=bd explicitly selects bd backend", () => {
   assert.match(result.stdout, /backend: bd/)
 })
 
+test("tm with TM_BACKEND=br explicitly selects br backend", () => {
+  const result = runTm(["--version"], { env: { TM_BACKEND: "br" } })
+  assert.equal(result.status, 0)
+  assert.match(result.stdout, /backend: br/)
+})
+
 test("tm with TM_BACKEND=linear exits with not-implemented error", () => {
   // linear backend should fail gracefully with a helpful message
   const result = runTm(["ready"], { env: { TM_BACKEND: "linear" } })
@@ -39,7 +45,7 @@ test("tm with TM_BACKEND=invalid exits with unknown-backend error", () => {
   const result = runTm(["ready"], { env: { TM_BACKEND: "gitlab" } })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /unknown backend 'gitlab'/)
-  assert.match(result.stderr, /Valid backends: bd, linear/)
+  assert.match(result.stderr, /Valid backends: bd, br, linear/)
 })
 
 test("tm --help shows usage and configured backend", () => {
@@ -245,6 +251,74 @@ test("tm when bd not in PATH gives helpful error message", () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /bd not found in PATH/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm when br not in PATH gives helpful error message", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-no-br-"))
+
+  try {
+    const bashPath = findCommandPath("bash") || "/bin/bash"
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const result = spawnSync(bashPath, [tmPath, "ready"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "br", PATH: tmpBinDir },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /br not found in PATH/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync under br performs local flush and reports unsupported follow-on sync", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-br-sync-"))
+  const argsCapturePath = path.join(tmpBinDir, "br-args.txt")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep", "head"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBrPath = path.join(tmpBinDir, "br")
+    fs.writeFileSync(fakeBrPath, `#!${bashPath}\nprintf '%s\\n' \"$*\" > \"${argsCapturePath}\"\nif [[ \"$1\" == \"sync\" ]]; then exit 0; fi\nexit 0\n`)
+    fs.chmodSync(fakeBrPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "br",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "lin_api_test123",
+        LINEAR_TEAM_KEY: "ENG",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(fs.existsSync(argsCapturePath), true)
+    assert.match(fs.readFileSync(argsCapturePath, "utf8"), /^sync --flush-only/)
+    assert.match(result.stderr, /not supported for backend 'br'/)
+    assert.match(result.stderr, /follow-on sync was skipped/)
   } finally {
     fs.rmSync(tmpBinDir, { recursive: true, force: true })
   }

@@ -5,13 +5,14 @@ const path = require("node:path")
 
 const repoRoot = path.resolve(__dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
+const hasLegacyAgentsKey = (text) => /"agents"\s*:/.test(text)
 
 test("model configuration docs define direct agent routing as the canonical OpenCode contract", () => {
   const docs = read("docs/model-configuration.md")
 
   assert.equal(docs.includes("direct agent→model mapping"), true)
   assert.equal(docs.includes("`agent.<agent>.model`"), true)
-  assert.equal(docs.includes('"agents": {'), false)
+  assert.equal(hasLegacyAgentsKey(docs), false)
   assert.equal(docs.includes("plugin/options edit the same underlying map"), true)
   assert.equal(docs.includes("resolved at runtime for Hyperpowers task-tool dispatch paths"), true)
   assert.equal(docs.includes("The active Hyperpowers-injected precedence is:"), true)
@@ -60,7 +61,7 @@ test("all OpenCode-facing examples use the canonical agent key", () => {
     "docs/opencode.example.multi-provider.json",
   ]) {
     const text = read(relativePath)
-    assert.equal(text.includes('"agents": {'), false, `${relativePath} should not use the legacy agents key`)
+    assert.equal(hasLegacyAgentsKey(text), false, `${relativePath} should not use the legacy agents key`)
   }
 })
 
@@ -100,13 +101,15 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   assert.equal(modelConfig.includes("/models"), true)
 })
 
-test("OpenCode plugin source includes the routing config tool plugin", () => {
+test("OpenCode plugin source registers the routing config tool and writes opencode.json", () => {
   const pluginPath = path.join(repoRoot, ".opencode", "plugins", "agent-routing-config.ts")
   assert.equal(fs.existsSync(pluginPath), true)
 
   const pluginSource = fs.readFileSync(pluginPath, "utf8")
-  assert.equal(pluginSource.includes("hyperpowers_agent_routing_config"), true)
-  assert.equal(pluginSource.includes("opencode.json"), true)
+  assert.equal(/hyperpowers_agent_routing_config/.test(pluginSource), true)
+  assert.equal(/action\s*===\s*"get"/.test(pluginSource), true)
+  assert.equal(/enum\(\["get",\s*"set"\]\)/.test(pluginSource), true)
+  assert.equal(/opencode\.json/.test(pluginSource), true)
 })
 
 test("OpenCode routing settings command exists and delegates to the routing config tool", () => {
@@ -143,19 +146,26 @@ test("OpenCode docs describe the routing settings command as the primary setting
   assert.equal(installDoc.includes("native OpenCode settings panel"), false)
 })
 
-test("inherit example points users to the canonical agent key", () => {
-  const inheritExample = read("docs/opencode.example.inherit.json")
+test("inherit example remains canonical and free of legacy routing keys", () => {
+  const inheritExample = JSON.parse(read("docs/opencode.example.inherit.json"))
 
-  assert.equal(inheritExample.includes("'agents' section"), false)
-  assert.equal(inheritExample.includes("'agent' section"), true)
-  assert.equal((inheritExample.match(/"comment":/g) || []).length, 1)
+  assert.equal(typeof inheritExample.model, "string")
+  assert.equal(inheritExample.agent, undefined)
+  assert.equal(inheritExample.agents, undefined)
+  assert.equal(typeof inheritExample.note, "string")
+  assert.equal(/'agent' section/.test(inheritExample.note), true)
 })
 
-test("model configuration intro matches the documented four methods", () => {
+test("model configuration intro preserves the four documented methods", () => {
   const docs = read("docs/model-configuration.md")
+  const methods = [
+    "1. **Agent Frontmatter**",
+    "2. **OpenCode Config**",
+    "3. **Multiple Providers with Same Models**",
+    "4. **Claude Code Configuration**",
+  ]
 
-  assert.equal(docs.includes("1. **Agent Frontmatter** - Set default model in the agent definition"), true)
-  assert.equal(docs.includes("2. **OpenCode Config** - Override per-agent models in `opencode.json`"), true)
-  assert.equal(docs.includes("3. **Multiple Providers with Same Models** - Route different concrete agents across providers"), true)
-  assert.equal(docs.includes("4. **Claude Code Configuration** - Host-specific model configuration"), true)
+  for (const method of methods) {
+    assert.equal(docs.includes(method), true, `missing documented method heading: ${method}`)
+  }
 })
