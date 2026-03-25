@@ -42,7 +42,7 @@ This guide covers four common model-configuration patterns across Hyperpowers ho
 
 1. **Agent Frontmatter** - Set default model in the agent definition
 2. **OpenCode Config** - Override per-agent models in `opencode.json`
-3. **Environment Variables** - Dynamic configuration via env vars
+3. **Multiple Providers with Same Models** - Route different concrete agents across providers
 4. **Claude Code Configuration** - Host-specific model configuration
 
 ---
