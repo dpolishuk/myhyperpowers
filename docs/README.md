@@ -83,6 +83,7 @@ GLM models with optimized agent assignments:
 - Keep plugin/options editing aligned to the same underlying routing map
 - See the active `hyperpowers.workflowOverrides` shape for Hyperpowers task-tool dispatch paths
 - Use the `hyperpowers_agent_routing_config` plugin tool to read/write that same `opencode.json` routing map
+- Use `/routing-settings` as the primary settings-like UX for managing those routing values
 
 ### How to Use (OpenCode)
 
@@ -104,7 +105,7 @@ cp docs/opencode.example.agent-routing.json opencode.json
 
 3. **Restart** OpenCode to apply changes
 
-For plugin/options-driven edits, use the `hyperpowers_agent_routing_config` tool. It reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
+For plugin/options-driven edits, use `/routing-settings` as the primary settings-like UX. That command uses the `hyperpowers_agent_routing_config` tool under the hood, so it still reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
 
 ### Agent Frontmatter Configuration
 

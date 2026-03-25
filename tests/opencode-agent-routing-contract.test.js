@@ -109,6 +109,31 @@ test("OpenCode plugin source includes the routing config tool plugin", () => {
   assert.equal(pluginSource.includes("opencode.json"), true)
 })
 
+test("OpenCode routing settings command exists and delegates to the routing config tool", () => {
+  const commandPath = path.join(repoRoot, ".opencode", "commands", "routing-settings.md")
+  assert.equal(fs.existsSync(commandPath), true)
+
+  const commandSource = fs.readFileSync(commandPath, "utf8")
+  assert.equal(commandSource.includes("hyperpowers_agent_routing_config"), true)
+  assert.equal(commandSource.includes("action=get"), true)
+  assert.equal(commandSource.includes("agent.<agent>.model"), true)
+  assert.equal(commandSource.includes("hyperpowers.workflowOverrides.<workflow>.<agent>.model"), true)
+  assert.equal(commandSource.includes("native OpenCode settings panel"), false)
+  assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
+})
+
+test("OpenCode docs describe the routing settings command as the primary settings-like UX", () => {
+  const docsReadme = read("docs/README.md")
+  const modelConfig = read("docs/model-configuration.md")
+  const installDoc = read(".opencode/INSTALL.md")
+
+  assert.equal(docsReadme.includes("/routing-settings"), true)
+  assert.equal(modelConfig.includes("/routing-settings"), true)
+  assert.equal(installDoc.includes("/routing-settings"), true)
+  assert.equal(docsReadme.includes("settings-like UX"), true)
+  assert.equal(modelConfig.includes("settings-like UX"), true)
+})
+
 test("inherit example points users to the canonical agent key", () => {
   const inheritExample = read("docs/opencode.example.inherit.json")
 

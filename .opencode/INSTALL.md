@@ -62,6 +62,8 @@ Note: the `hyperpowers.workflowOverrides` block in that example is active for Hy
 
 The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads and writes the same project-root `opencode.json` file instead of maintaining plugin-only routing state.
 
+The primary settings-like entry point is `/routing-settings`, a plugin-owned slash-command wizard that uses `hyperpowers_agent_routing_config` as its backend instead of relying on any native OpenCode settings panel.
+
 ### Option 2: Manual Install
 
 ```bash
