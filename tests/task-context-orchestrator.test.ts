@@ -445,6 +445,42 @@ test("task_model_routing_prefers_explicit_workflow_argument_over_prompt_detectio
   }
 })
 
+test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      hyperpowers: {
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": {
+              model: "workflow/model",
+            },
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run final validation",
+        workflow: "hyperpowers:execute-ralph",
+        agent: "autonomous-reviewer",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("workflow/model")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("task_model_routing_uses_agent_mapping_before_global_model", async () => {
   const { root, cleanup } = await createTempRootWithConfig({
     opencodeConfig: {
@@ -509,13 +545,10 @@ test("task_model_routing_normalizes_prefixed_subagent_type_names", async () => {
   }
 })
 
-test("task_model_routing_falls_back_to_top_level_model_then_frontmatter", async () => {
+test("task_model_routing_preserves_native_inheritance_when_only_top_level_model_exists", async () => {
   const withGlobal = await createTempRootWithConfig({
     opencodeConfig: {
       model: "global/model",
-    },
-    agentFiles: {
-      "review-testing": `---\ndescription: reviewer\nmode: subagent\nmodel: frontmatter/model\n---\nPrompt`,
     },
   })
 
@@ -533,11 +566,13 @@ test("task_model_routing_falls_back_to_top_level_model_then_frontmatter", async 
 
     await plugin["tool.execute.before"]({ tool: "task" }, output)
 
-    expect(output.args.model).toBe("global/model")
+    expect(output.args.model).toBeUndefined()
   } finally {
     await withGlobal.cleanup()
   }
+})
 
+test("task_model_routing_falls_back_to_frontmatter_when_available", async () => {
   const frontmatterOnly = await createTempRootWithConfig({
     agentFiles: {
       "review-documentation": `---\ndescription: reviewer\nmode: subagent\nmodel: frontmatter/model\n---\nPrompt`,

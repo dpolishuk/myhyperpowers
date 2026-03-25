@@ -79,13 +79,12 @@ Examples of concrete agents you may route directly:
 
 Workflow-specific overrides are active for Hyperpowers task-tool dispatch paths in OpenCode.
 
-The active override precedence is:
+The active Hyperpowers-injected precedence is:
 
 1. Explicit workflow override for the concrete agent
 2. Global `agent.<agent>.model` mapping
-3. Top-level OpenCode `model`
-4. Agent frontmatter `model`
-5. Provider default
+3. Agent frontmatter `model`
+4. Otherwise leave `model` unset so native OpenCode session inheritance, top-level `model`, and provider defaults continue to apply
 
 Plugin/options edit the same underlying map as config.
 

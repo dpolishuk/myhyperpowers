@@ -136,9 +136,8 @@ For Hyperpowers task-tool dispatch paths:
 
 1. `opencode.json` → `hyperpowers.workflowOverrides.<workflow>.<name>.model` (highest)
 2. `opencode.json` → `agent.<name>.model`
-3. `opencode.json` → top-level `model`
-4. Agent frontmatter → `model` field
-5. Provider default (lowest)
+3. Agent frontmatter → `model` field
+4. Otherwise leave `model` unset so native OpenCode inheritance, top-level `model`, and provider defaults can apply
 
 ### Understanding `providerID/modelID` Format
 

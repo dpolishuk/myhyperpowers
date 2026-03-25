@@ -14,11 +14,11 @@ test("model configuration docs define direct agent routing as the canonical Open
   assert.equal(docs.includes('"agents": {'), false)
   assert.equal(docs.includes("plugin/options edit the same underlying map"), true)
   assert.equal(docs.includes("resolved at runtime for Hyperpowers task-tool dispatch paths"), true)
-  assert.equal(docs.includes("The active override precedence is:"), true)
+  assert.equal(docs.includes("The active Hyperpowers-injected precedence is:"), true)
   assert.equal(docs.includes("1. Explicit workflow override for the concrete agent"), true)
   assert.equal(docs.includes("2. Global `agent.<agent>.model` mapping"), true)
-  assert.equal(docs.includes("4. Agent frontmatter `model`"), true)
-  assert.equal(docs.includes("5. Provider default"), true)
+  assert.equal(docs.includes("3. Agent frontmatter `model`"), true)
+  assert.equal(docs.includes("4. Otherwise leave `model` unset so native OpenCode session inheritance"), true)
 })
 
 test("OpenCode install docs describe config and plugin options as peers over one routing map", () => {
@@ -85,8 +85,11 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
     true,
   )
   assert.equal(docsReadme.includes("2. `opencode.json` → `agent.<name>.model`"), true)
-  assert.equal(docsReadme.includes("3. `opencode.json` → top-level `model`"), true)
-  assert.equal(docsReadme.includes("4. Agent frontmatter → `model` field"), true)
+  assert.equal(docsReadme.includes("3. Agent frontmatter → `model` field"), true)
+  assert.equal(
+    docsReadme.includes("4. Otherwise leave `model` unset so native OpenCode inheritance, top-level `model`, and provider defaults can apply"),
+    true,
+  )
   assert.equal(docsReadme.includes("opencode.example.agent-routing.json"), true)
   assert.equal(docsReadme.includes("cp docs/opencode.example.inherit.json opencode.json"), true)
   assert.equal(docsReadme.includes("canonical `agent` key"), true)

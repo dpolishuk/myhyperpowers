@@ -177,7 +177,7 @@ const getString = (value: unknown) => {
 
 const getNestedString = (value: unknown, key: string) => getString(asRecord(value)[key])
 
-const normalizeAgentLookupName = (value: string | null) => {
+const normalizePrefixedLookupName = (value: string | null) => {
   if (!value) return null
   const withoutLeadingSlash = value.replace(/^\/+/, "")
   const segments = withoutLeadingSlash.split(":")
@@ -324,7 +324,7 @@ const loadOpenCodeRoutingConfig = async (
 }
 
 const extractTaskAgentName = (args: Record<string, unknown>) => {
-  return normalizeAgentLookupName(
+  return normalizePrefixedLookupName(
     getString(args.agent) ??
       getString(args.subagent) ??
       getString(args.subagent_type) ??
@@ -342,11 +342,12 @@ const detectWorkflowOverride = (
 ) => {
   if (!workflowOverrides) return null
 
-  const explicitWorkflow =
+  const explicitWorkflow = normalizePrefixedLookupName(
     getString(args.workflow) ??
-    getString(args.hyperpowersWorkflow) ??
-    getNestedString(args.metadata, "workflow") ??
-    getNestedString(args.metadata, "hyperpowersWorkflow")
+      getString(args.hyperpowersWorkflow) ??
+      getNestedString(args.metadata, "workflow") ??
+      getNestedString(args.metadata, "hyperpowersWorkflow"),
+  )
   const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
   if (explicitMatch && explicitWorkflow) return explicitWorkflow
 
@@ -394,9 +395,6 @@ const resolveTaskModel = async (
 
   const agentModel = getString(findConfigEntry(config.agent, agentName)?.model)
   if (agentModel) return agentModel
-
-  const globalModel = getString(config.model)
-  if (globalModel) return globalModel
 
   return readAgentFrontmatterModel(rootDir, agentName)
 }
