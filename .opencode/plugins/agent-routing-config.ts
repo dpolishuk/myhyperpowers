@@ -467,7 +467,7 @@ const agentRoutingConfigPlugin: Plugin = async (ctx) => {
           workflow: tool.schema.string().optional().describe("Optional workflow override name (for set)"),
           model: tool.schema.string().optional().describe("Provider/model value (for set, set-group)"),
           group: tool.schema.string().optional().describe("Agent group: orchestrator, workers, reviewers, all (for set-group)"),
-          preset: tool.schema.string().optional().describe("Preset profile: cost-optimized, quality-first, balanced (for apply-preset)"),
+          preset: tool.schema.string().optional().describe("Preset profile: cost-optimized, quality-first (for apply-preset)"),
         },
         async execute(args) {
           const result = await executeRoutingAction(ctx.directory, args as RoutingToolArgs)
