@@ -105,7 +105,7 @@ cp docs/opencode.example.agent-routing.json opencode.json
 
 3. **Restart** OpenCode to apply changes
 
-For plugin/options-driven edits, use `/routing-settings` as the primary settings-like UX. It is a plugin-owned workflow, not a built-in OpenCode preferences page. That command uses the `hyperpowers_agent_routing_config` tool under the hood, so it still reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
+For plugin/options-driven edits, use `/routing-settings` as the primary settings-like UX. It is a plugin-owned workflow over the shared routing backend. That command uses the `hyperpowers_agent_routing_config` tool under the hood, so it still reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
 
 ### Agent Frontmatter Configuration
 

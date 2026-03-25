@@ -12,7 +12,6 @@ description: Manage Hyperpowers OpenCode routing through a plugin-owned settings
 
 This command is the **primary settings-like UX** for Hyperpowers routing on OpenCode.
 It provides a **plugin-owned settings workflow** over the shared routing backend.
-It is **not** a built-in OpenCode preferences page.
 
 1. Inspect current routing state with `hyperpowers_agent_routing_config` using `action=get`
 2. Ask whether the user wants to edit:
@@ -29,6 +28,7 @@ It is **not** a built-in OpenCode preferences page.
 - Support both global agent routing and workflow override routing.
 - If the user decides not to change anything, report that no update was made.
 - Reuse the backend tool's validation for unsupported agent/workflow names.
+- Keep the UX description plugin-owned and settings-like; do not describe it as a built-in preferences surface.
 
 ## Output Expectations
 

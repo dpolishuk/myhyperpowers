@@ -123,7 +123,7 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("no update was made"), true)
   assert.equal(commandSource.includes("unsupported agent/workflow names"), true)
   assert.equal(commandSource.includes("native OpenCode settings panel"), false)
-  assert.equal(commandSource.includes("built-in OpenCode preferences page"), true)
+  assert.equal(commandSource.includes("built-in OpenCode preferences page"), false)
   assert.equal(commandSource.includes("primary settings-like UX"), true)
   assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
 })
@@ -139,7 +139,8 @@ test("OpenCode docs describe the routing settings command as the primary setting
   assert.equal(docsReadme.includes("settings-like UX"), true)
   assert.equal(modelConfig.includes("settings-like UX"), true)
   assert.equal(docsReadme.includes("plugin-owned workflow"), true)
-  assert.equal(docsReadme.includes("built-in OpenCode preferences page"), true)
+  assert.equal(docsReadme.includes("built-in OpenCode preferences page"), false)
+  assert.equal(installDoc.includes("native OpenCode settings panel"), false)
 })
 
 test("inherit example points users to the canonical agent key", () => {
