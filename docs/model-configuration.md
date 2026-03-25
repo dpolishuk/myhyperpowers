@@ -91,7 +91,27 @@ Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. It uses that backend to inspect or update global `agent.<agent>.model` entries in `opencode.json` and `workflowOverrides.<workflow>.<agent>.model` entries in `.opencode/hyperpowers-routing.json`.
+Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports four actions:
+
+- `get` — returns current routing state with `availableModels` (auto-detected from config), `agentGroups` (orchestrator, workers, reviewers), and available `presets`
+- `set` — update a single agent's model (global or workflow override)
+- `set-group` — batch-set a model for an entire agent group (orchestrator, workers, reviewers, or all)
+- `apply-preset` — apply a named profile (`cost-optimized` or `quality-first`) that maps model tiers to agent groups
+
+**Agent Groups:**
+
+| Group | Agents | Typical Role |
+|-------|--------|-------------|
+| orchestrator | ralph | Primary executor |
+| workers | test-runner, codebase-investigator, internet-researcher | High-volume, low-complexity |
+| reviewers | autonomous-reviewer, code-reviewer, review-*, test-effectiveness-analyst | Require reasoning |
+
+**Presets:**
+
+- **cost-optimized**: Workers use `small_model`, orchestrator and reviewers use `model`
+- **quality-first**: All agents use `model`
+
+Presets read the user's top-level `model` and `small_model` values. If `small_model` is not set, all agents use `model`.
 
 See `docs/opencode.example.agent-routing.json` for the agent mapping example and `docs/opencode.example.hyperpowers-routing.json` for the workflow overrides example.
 

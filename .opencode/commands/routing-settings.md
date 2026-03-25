@@ -43,7 +43,7 @@ Ask the user what they want to do:
 
 1. **Set a single agent** — pick agent + model, use `action=set`
 2. **Set a group** — pick group (orchestrator/workers/reviewers/all) + model, use `action=set-group`
-3. **Apply a preset** — pick preset (cost-optimized/quality-first/balanced), use `action=apply-preset`
+3. **Apply a preset** — pick preset (cost-optimized/quality-first), use `action=apply-preset`
 4. **Set a workflow override** — pick workflow + agent + model, use `action=set` with workflow
 5. **Done** — exit without changes
 
@@ -59,7 +59,6 @@ When presenting presets, explain them:
 
 - **cost-optimized**: Workers (test-runner, investigators) use `small_model`, orchestrator and reviewers use `model`. Saves cost on high-volume agents.
 - **quality-first**: All agents use `model`. Maximum quality everywhere.
-- **balanced**: Same as cost-optimized. Workers use `small_model`, others use `model`.
 
 Presets use the user's top-level `model` (strong) and `small_model` (fast) values. If `small_model` is not configured, all agents use `model`.
 

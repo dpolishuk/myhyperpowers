@@ -57,7 +57,7 @@ export const AGENT_GROUPS = {
 
 type GroupName = keyof typeof AGENT_GROUPS | "all"
 
-export const PRESET_NAMES = ["cost-optimized", "quality-first", "balanced"] as const
+export const PRESET_NAMES = ["cost-optimized", "quality-first"] as const
 type PresetName = (typeof PRESET_NAMES)[number]
 
 type RoutingEntry = Record<string, unknown> & {
@@ -326,7 +326,6 @@ const applyPreset = (
 
   switch (presetName) {
     case "cost-optimized":
-    case "balanced":
       assign(AGENT_GROUPS.orchestrator, strongModel)
       assign(AGENT_GROUPS.workers, fastModel)
       assign(AGENT_GROUPS.reviewers, strongModel)

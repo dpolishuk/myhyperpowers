@@ -498,7 +498,7 @@ test("get_snapshot_includes_preset_names", async () => {
     expect(Array.isArray(result.presets)).toBe(true)
     expect(result.presets).toContain("cost-optimized")
     expect(result.presets).toContain("quality-first")
-    expect(result.presets).toContain("balanced")
+    expect(result.presets.length).toBe(2)
   } finally {
     await cleanup()
   }

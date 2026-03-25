@@ -140,7 +140,6 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("availableModels"), true)
   assert.equal(commandSource.includes("cost-optimized"), true)
   assert.equal(commandSource.includes("quality-first"), true)
-  assert.equal(commandSource.includes("balanced"), true)
 })
 
 test("OpenCode docs describe the routing settings command as the primary settings-like UX", () => {
