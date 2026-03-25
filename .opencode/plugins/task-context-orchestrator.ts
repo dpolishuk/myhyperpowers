@@ -196,12 +196,14 @@ const findConfigEntry = <T>(entries: Record<string, T> | undefined, key: string 
   return null
 }
 
-const parseFrontmatterModel = (content: string) => {
+const INHERIT_SENTINEL = "__inherit__" as const
+
+const parseFrontmatterModel = (content: string): string | null => {
   try {
     const { data } = matter(content)
     const value = getString((data as Record<string, unknown>).model)
-    if (!value || value === "inherit") return null
-    return value
+    if (value === "inherit") return INHERIT_SENTINEL
+    return value || null
   } catch {
     return null
   }
@@ -382,6 +384,9 @@ const readAgentFrontmatterModel = async (rootDir: string, agentName: string) => 
     try {
       const raw = await readFile(agentPath, "utf8")
       const model = parseFrontmatterModel(raw)
+      // Explicit `model: inherit` in a local file is terminal — do not fall
+      // through to global agent files which might override the intent.
+      if (model === INHERIT_SENTINEL) return null
       if (model) return model
     } catch {
       // Ignore unreadable agent files and keep searching fallback locations.

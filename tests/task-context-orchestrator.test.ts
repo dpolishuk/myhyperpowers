@@ -637,6 +637,56 @@ test("task_model_routing_falls_back_to_xdg_global_agent_frontmatter", async () =
   }
 })
 
+test("task_model_routing_local_inherit_stops_global_fallback", async () => {
+  const previousXdg = process.env.XDG_CONFIG_HOME
+  const { root, cleanup } = await createTempRoot()
+
+  // Create a global agent file with a concrete model
+  const xdgConfigHome = join(root, "xdg")
+  const globalAgentsDir = join(xdgConfigHome, "opencode", "agents")
+  await mkdir(globalAgentsDir, { recursive: true })
+  await writeFile(
+    join(globalAgentsDir, "review-documentation.md"),
+    `---\ndescription: reviewer\nmode: subagent\nmodel: global/should-not-win\n---\nPrompt`,
+    "utf8",
+  )
+  process.env.XDG_CONFIG_HOME = xdgConfigHome
+
+  // Create a local agent file with explicit model: inherit
+  const localAgentsDir = join(root, ".opencode", "agents")
+  await mkdir(localAgentsDir, { recursive: true })
+  await writeFile(
+    join(localAgentsDir, "review-documentation.md"),
+    `---\ndescription: reviewer\nmode: subagent\nmodel: inherit\n---\nPrompt`,
+    "utf8",
+  )
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review docs",
+        agent: "review-documentation",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    // model: inherit in local file should NOT fall through to global xdg/model
+    expect(output.args.model).toBeUndefined()
+  } finally {
+    if (previousXdg === undefined) {
+      delete process.env.XDG_CONFIG_HOME
+    } else {
+      process.env.XDG_CONFIG_HOME = previousXdg
+    }
+    await cleanup()
+  }
+})
+
 test("task_model_routing_reads_frontmatter_with_crlf_line_endings", async () => {
   const { root, cleanup } = await createTempRootWithConfig({
     agentFiles: {
