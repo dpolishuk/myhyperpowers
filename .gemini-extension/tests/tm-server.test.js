@@ -7,8 +7,8 @@ const os = require('node:os');
 
 const SERVER_PATH = path.join(__dirname, '..', 'mcp', 'tm-server.js');
 
-function createHarness(env = process.env) {
-  const server = spawn('node', [SERVER_PATH], { env });
+function createHarness(env = process.env, options = {}) {
+  const server = spawn('node', [SERVER_PATH], { env, ...options });
   let nextId = 1;
   let buffer = '';
   const pending = new Map();
@@ -304,6 +304,44 @@ process.stdout.write('path-tm\\n');
     assert.equal(response.result.content[0].text.includes('path-tm'), true);
     const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
     assert.deepEqual(recordedCalls, [['--version'], ['ready']]);
+  } finally {
+    harness.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('tm-server executes tm in TM_REPO_ROOT when provided', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-tm-repo-root-'));
+  const fakeTmPath = path.join(tempDir, 'tm');
+  const callsPath = path.join(tempDir, 'calls-root.jsonl');
+  const workspaceDir = path.join(tempDir, 'workspace');
+  const extensionDir = path.join(tempDir, 'extension');
+
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.mkdir(extensionDir, { recursive: true });
+  await fs.writeFile(fakeTmPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.CALLS_PATH, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd() }) + '\\n');
+process.stdout.write('root-tm\\n');
+`, { mode: 0o755 });
+
+  const harness = createHarness({
+    ...process.env,
+    TM_PATH: fakeTmPath,
+    TM_REPO_ROOT: workspaceDir,
+    CALLS_PATH: callsPath,
+  }, {
+    cwd: extensionDir,
+  });
+
+  try {
+    await harness.initialize();
+    const response = await harness.sendRequest('tools/call', { name: 'tm_ready', arguments: {} });
+
+    assert.equal(response.result.content[0].text.includes('root-tm'), true);
+    const recordedCalls = (await fs.readFile(callsPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    assert.equal(recordedCalls[0].cwd, workspaceDir);
+    assert.equal(recordedCalls[1].cwd, workspaceDir);
   } finally {
     harness.close();
     await fs.rm(tempDir, { recursive: true, force: true });

@@ -33,8 +33,10 @@ const TM_CMD = resolveTmCommand();
 
 function execTm(args) {
   return new Promise((resolve, reject) => {
+    const tmCwd = process.env.TM_REPO_ROOT || process.cwd();
     const child = spawn(TM_CMD, args, {
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: tmCwd
     });
 
     let stdout = '';

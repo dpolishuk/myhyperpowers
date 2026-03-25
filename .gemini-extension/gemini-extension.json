@@ -22,7 +22,7 @@
     "tm": {
       "command": "node",
       "args": ["${extensionPath}${/}mcp${/}tm-server.js"],
-      "cwd": "${extensionPath}"
+      "cwd": "${workspacePath}"
     }
   }
 }
