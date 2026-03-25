@@ -477,6 +477,38 @@ test("task_model_routing_uses_agent_mapping_before_global_model", async () => {
   }
 })
 
+test("task_model_routing_normalizes_prefixed_subagent_type_names", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      agent: {
+        "test-runner": {
+          model: "agent/model",
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run targeted verification",
+        subagent_type: "hyperpowers:test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("agent/model")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("task_model_routing_falls_back_to_top_level_model_then_frontmatter", async () => {
   const withGlobal = await createTempRootWithConfig({
     opencodeConfig: {

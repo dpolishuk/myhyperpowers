@@ -177,6 +177,14 @@ const getString = (value: unknown) => {
 
 const getNestedString = (value: unknown, key: string) => getString(asRecord(value)[key])
 
+const normalizeAgentLookupName = (value: string | null) => {
+  if (!value) return null
+  const withoutLeadingSlash = value.replace(/^\/+/, "")
+  const segments = withoutLeadingSlash.split(":")
+  const candidate = segments[segments.length - 1]?.trim()
+  return candidate && candidate.length > 0 ? candidate : withoutLeadingSlash
+}
+
 const findConfigEntry = <T>(entries: Record<string, T> | undefined, key: string | null) => {
   if (!entries || !key) return null
   const normalizedKey = normalizeKey(key)
@@ -316,14 +324,14 @@ const loadOpenCodeRoutingConfig = async (
 }
 
 const extractTaskAgentName = (args: Record<string, unknown>) => {
-  return (
+  return normalizeAgentLookupName(
     getString(args.agent) ??
-    getString(args.subagent) ??
-    getString(args.subagent_type) ??
-    getString(args.subagentType) ??
-    getNestedString(args.metadata, "agent") ??
-    getNestedString(args.metadata, "subagent") ??
-    getNestedString(args.metadata, "subagent_type")
+      getString(args.subagent) ??
+      getString(args.subagent_type) ??
+      getString(args.subagentType) ??
+      getNestedString(args.metadata, "agent") ??
+      getNestedString(args.metadata, "subagent") ??
+      getNestedString(args.metadata, "subagent_type"),
   )
 }
 
