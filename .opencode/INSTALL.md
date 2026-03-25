@@ -50,6 +50,8 @@ tm sync
 
 OpenCode project configuration still belongs in your project-root `opencode.json`. Use `.opencode/` for project-local commands, plugins, agents, and skills.
 
+For Hyperpowers-specific direct agent→model routing on OpenCode, use `opencode.json` as the canonical config surface and treat any plugin/options UX as editing the same underlying map, not a separate plugin-only state store.
+
 ### Option 2: Manual Install
 
 ```bash
