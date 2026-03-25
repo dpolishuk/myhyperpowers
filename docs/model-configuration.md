@@ -38,7 +38,7 @@ This format eliminates ambiguity when multiple providers offer models with simil
 
 ## Configuration Methods
 
-There are three common ways to configure agent models:
+This guide covers four common model-configuration patterns across Hyperpowers hosts and OpenCode usage.
 
 1. **Agent Frontmatter** - Set default model in the agent definition
 2. **OpenCode Config** - Override per-agent models in `opencode.json`
@@ -331,7 +331,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
+  "agent": {
     "test-runner": { "model": "anthropic/claude-haiku-4-5" },
     "codebase-investigator": { "model": "anthropic/claude-haiku-4-5" },
     "internet-researcher": { "model": "anthropic/claude-haiku-4-5" },
@@ -382,7 +382,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
       }
     }
   },
-  "agents": {
+  "agent": {
     "test-runner": { "model": "myproxy/claude-haiku-4-5" }
   },
   "disabled_providers": ["anthropic", "openai", "google"]
@@ -410,7 +410,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
       }
     }
   },
-  "agents": {
+  "agent": {
     "codebase-investigator": { "model": "ollama/qwen2.5-coder:32b" }
   }
 }

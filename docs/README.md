@@ -118,7 +118,7 @@ model: anthropic/claude-haiku-4-5  # Full providerID/modelID
 
 **Precedence order:**
 
-1. `opencode.json` → `agents.<name>.model` (highest)
+1. `opencode.json` → `agent.<name>.model` (highest)
 2. Agent frontmatter → `model` field
 3. `opencode.json` → top-level `model`
 4. Provider default (lowest)

@@ -11,7 +11,7 @@ test("model configuration docs define direct agent routing as the canonical Open
 
   assert.equal(docs.includes("direct agent→model mapping"), true)
   assert.equal(docs.includes("`agent.<agent>.model`"), true)
-  assert.equal(docs.includes("`agents.<agent>.model`"), false)
+  assert.equal(docs.includes('"agents": {'), false)
   assert.equal(docs.includes("plugin/options edit the same underlying map"), true)
   assert.equal(docs.includes("planned extension"), true)
   assert.equal(docs.includes("When implemented, the intended workflow override precedence is:"), true)
@@ -42,4 +42,16 @@ test("dedicated OpenCode agent-routing example exists with global defaults and w
   assert.ok(example.hyperpowers)
   assert.equal(example.hyperpowers.comment.includes("planned Hyperpowers extension"), true)
   assert.equal(typeof example.hyperpowers.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model, "string")
+})
+
+test("all OpenCode-facing examples use the canonical agent key", () => {
+  for (const relativePath of [
+    "docs/README.md",
+    "docs/opencode.example.anthropic.json",
+    "docs/opencode.example.glm.json",
+    "docs/opencode.example.multi-provider.json",
+  ]) {
+    const text = read(relativePath)
+    assert.equal(text.includes('"agents": {'), false, `${relativePath} should not use the legacy agents key`)
+  }
 })

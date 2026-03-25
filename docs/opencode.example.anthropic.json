@@ -33,7 +33,7 @@
     "lsp": "allow",
     "patch": "allow"
   },
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "anthropic/claude-haiku-4-5-20250514",
       "comment": "Fast model for high-volume test execution"
