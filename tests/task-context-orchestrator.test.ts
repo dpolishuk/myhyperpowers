@@ -532,6 +532,59 @@ test("task_model_routing_falls_back_to_top_level_model_then_frontmatter", async 
   }
 })
 
+test("task_model_routing_reads_frontmatter_with_crlf_line_endings", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    agentFiles: {
+      "review-quality": "---\r\ndescription: reviewer\r\nmode: subagent\r\nmodel: crlf/model\r\n---\r\nPrompt\r\n",
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review code quality",
+        agent: "review-quality",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("crlf/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_logs_malformed_opencode_config_warnings", async () => {
+  const { root, cleanup } = await createTempRoot()
+  await writeFile(join(root, "opencode.json"), "{", "utf8")
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run targeted verification",
+        agent: "test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    const errorLog = await readFile(join(root, ".opencode", "cache", "task-context", "errors.log"), "utf8")
+    expect(errorLog.includes("loadOpenCodeRoutingConfig")).toBe(true)
+    expect(errorLog.includes("opencode.json")).toBe(true)
+  } finally {
+    await cleanup()
+  }
+})
+
 test("task_model_routing_preserves_explicit_model_argument", async () => {
   const { root, cleanup } = await createTempRootWithConfig({
     opencodeConfig: {

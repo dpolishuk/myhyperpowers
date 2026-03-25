@@ -187,10 +187,10 @@ const findConfigEntry = <T>(entries: Record<string, T> | undefined, key: string 
 }
 
 const parseFrontmatterModel = (content: string) => {
-  const match = content.match(/^---\n([\s\S]*?)\n---/)
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
   if (!match) return null
 
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const frontmatterMatch = line.match(/^model:\s*(.+)$/)
     if (!frontmatterMatch) continue
     const value = frontmatterMatch[1].trim().replace(/^['"]|['"]$/g, "")
@@ -285,13 +285,32 @@ const detectCommandIntent = (prompt: string): CommandIntent => {
   return null
 }
 
-const loadOpenCodeRoutingConfig = async (configPath: string): Promise<OpenCodeRoutingConfig> => {
+const loadOpenCodeRoutingConfig = async (
+  configPath: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+): Promise<OpenCodeRoutingConfig> => {
   if (!existsSync(configPath)) return {}
   try {
     const raw = await readFile(configPath, "utf8")
     const parsed = JSON.parse(raw)
     return asRecord(parsed) as OpenCodeRoutingConfig
-  } catch {
+  } catch (error) {
+    try {
+      await appendStructuredLog(
+        errorLogPath,
+        {
+          level: "warn",
+          source: "task-context-orchestrator.loadOpenCodeRoutingConfig",
+          message: "Failed to read or parse OpenCode routing configuration",
+          configPath,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        logLevel,
+      )
+    } catch {
+      // Swallow logging failures to avoid blocking task execution.
+    }
     return {}
   }
 }
@@ -346,14 +365,20 @@ const readAgentFrontmatterModel = async (rootDir: string, agentName: string) => 
   }
 }
 
-const resolveTaskModel = async (rootDir: string, args: Record<string, unknown>, prompt: string) => {
+const resolveTaskModel = async (
+  rootDir: string,
+  args: Record<string, unknown>,
+  prompt: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+) => {
   const explicitModel = getString(args.model)
   if (explicitModel) return explicitModel
 
   const agentName = extractTaskAgentName(args)
   if (!agentName) return null
 
-  const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"))
+  const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
   const workflowName = detectWorkflowOverride(args, prompt, config.hyperpowers?.workflowOverrides)
   const workflowSettings = findConfigEntry(config.hyperpowers?.workflowOverrides, workflowName)
   const workflowModel = getString(findConfigEntry(workflowSettings, agentName)?.model)
@@ -469,7 +494,7 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       if (!prompt.trim()) return
       if (prompt.startsWith("Task Context Pack")) return
 
-      const resolvedModel = await resolveTaskModel(ctx.directory, args, prompt)
+      const resolvedModel = await resolveTaskModel(ctx.directory, args, prompt, errorLogPath, config.logLevel)
       if (resolvedModel) {
         args.model = resolvedModel
       }
