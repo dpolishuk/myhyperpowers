@@ -9,6 +9,38 @@ function trimValue(value) {
   return (value || "").trim()
 }
 
+function stripInlineYamlComment(value) {
+  const input = value || ""
+  let inSingle = false
+  let inDouble = false
+  let output = ""
+
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i]
+    const prev = i > 0 ? input[i - 1] : ""
+
+    if (ch === '"' && !inSingle && prev !== "\\") {
+      inDouble = !inDouble
+      output += ch
+      continue
+    }
+
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle
+      output += ch
+      continue
+    }
+
+    if (ch === "#" && !inSingle && !inDouble && (i === 0 || /\s/.test(prev))) {
+      break
+    }
+
+    output += ch
+  }
+
+  return trimValue(output)
+}
+
 function findRepoRoot(startDir = process.cwd()) {
   if (process.env.TM_REPO_ROOT && fs.existsSync(path.join(process.env.TM_REPO_ROOT, ".beads"))) {
     return process.env.TM_REPO_ROOT
@@ -37,12 +69,13 @@ function readConfigValue(configPath, key) {
     return null
   }
 
-  const rawValue = trimValue(match[1]).replace(/^['\"]|['\"]$/g, "")
-  if (!rawValue || rawValue.includes("(not set)")) {
+  const rawValue = stripInlineYamlComment(match[1]).replace(/^['\"]|['\"]$/g, "")
+  const normalizedValue = trimValue(rawValue)
+  if (!normalizedValue || normalizedValue.includes("(not set)")) {
     return null
   }
 
-  return rawValue
+  return normalizedValue
 }
 
 function readBackendConfigValue(configKey) {

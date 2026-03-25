@@ -82,6 +82,24 @@ test("loadConfigValue reads from project config without bd in PATH", () => {
   }
 })
 
+test("loadConfigValue strips inline YAML comments from quoted values", () => {
+  const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+  const saved = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    process.env.TM_BACKEND = "linear"
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    fs.writeFileSync(path.join(tempRepoRoot, ".beads", "config.yaml"), "linear.api-key: 'cfg_key' # note\n")
+
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), "cfg_key")
+  } finally {
+    restoreEnv(saved)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("loadConfigValue falls back to backend config when project config is missing", () => {
   const childProcess = require("node:child_process")
   const originalSpawnSync = childProcess.spawnSync

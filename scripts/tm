@@ -98,9 +98,47 @@ load_linear_config_value() {
     config="$root/.beads/config.yaml"
     if [[ -f "$config" && -r "$config" ]]; then
       config_val="$(awk -v key="$config_key" '
+        function trim_spaces(str) {
+          sub(/^[[:space:]]+/, "", str)
+          sub(/[[:space:]]+$/, "", str)
+          return str
+        }
+
+        function strip_inline_comment(str,    i, ch, prev, in_single, in_double, out) {
+          in_single = 0
+          in_double = 0
+          out = ""
+
+          for (i = 1; i <= length(str); i++) {
+            ch = substr(str, i, 1)
+            prev = (i > 1) ? substr(str, i - 1, 1) : ""
+
+            if (ch == "\"" && !in_single) {
+              in_double = !in_double
+              out = out ch
+              continue
+            }
+
+            if (ch == "\047" && !in_double) {
+              in_single = !in_single
+              out = out ch
+              continue
+            }
+
+            if (ch == "#" && !in_single && !in_double && (i == 1 || prev ~ /[[:space:]]/)) {
+              break
+            }
+
+            out = out ch
+          }
+
+          return trim_spaces(out)
+        }
+
         index($0, key ":") == 1 {
           value = $0
           sub(/^[^:]*:[[:space:]]*/, "", value)
+          value = strip_inline_comment(value)
           gsub(/^[\"\047]|[\"\047]$/, "", value)
           print value
           exit
