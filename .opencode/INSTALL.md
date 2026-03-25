@@ -58,7 +58,9 @@ To start from the documented contract example:
 cp docs/opencode.example.agent-routing.json opencode.json
 ```
 
-Note: the `hyperpowers.workflowOverrides` block in that example is a **planned Hyperpowers extension** that documents the intended future override shape; it is not yet active runtime behavior in the current branch.
+Note: the `hyperpowers.workflowOverrides` block in that example is active for Hyperpowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
+
+The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads and writes the same project-root `opencode.json` file instead of maintaining plugin-only routing state.
 
 ### Option 2: Manual Install
 
@@ -71,6 +73,7 @@ git clone https://github.com/dpolishuk/myhyperpowers.git ~/.config/opencode/hype
 mkdir -p ~/.config/opencode/plugins
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-skills.ts ~/.config/opencode/plugins/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/agent-routing-config.ts ~/.config/opencode/plugins/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-safety.ts ~/.config/opencode/plugins/
 
 # 3. Install plugin dependencies
@@ -104,7 +107,8 @@ The Hyperpowers OpenCode plugin does the following:
 1. **Discovers skills** from XDG/config directories
 2. **Exposes tools** for each skill discovered
 3. **Loads skill content** when invoked via tool calls
-4. **Integrates with agents** for specialized tasks
+4. **Exposes `hyperpowers_agent_routing_config`** for shared routing-map reads/writes in `opencode.json`
+5. **Integrates with agents** for specialized tasks
 
 ### Active Task Context Workflow
 
@@ -130,6 +134,7 @@ Skills are loaded in this order (later overrides earlier):
 .opencode/
 ├── plugins/
 │   ├── hyperpowers-skills.ts    # Main skill discovery plugin
+│   ├── agent-routing-config.ts  # Shared opencode.json routing-map tool
 │   ├── task-context-orchestrator.ts # Serena+Supermemory task context orchestration
 │   └── hyperpowers-safety.ts    # Safety checks
 ├── skills/                       # Skill definitions (SKILL.md)

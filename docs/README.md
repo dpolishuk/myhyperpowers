@@ -81,7 +81,8 @@ GLM models with optimized agent assignments:
 
 - Map models directly to concrete Hyperpowers agents with the canonical `agent` key
 - Keep plugin/options editing aligned to the same underlying routing map
-- See the planned `hyperpowers.workflowOverrides` shape without treating it as active runtime behavior yet
+- See the active `hyperpowers.workflowOverrides` shape for Hyperpowers task-tool dispatch paths
+- Use the `hyperpowers_agent_routing_config` plugin tool to read/write that same `opencode.json` routing map
 
 ### How to Use (OpenCode)
 
@@ -102,6 +103,8 @@ cp docs/opencode.example.agent-routing.json opencode.json
 2. **Edit** the `model` field and provider configuration
 
 3. **Restart** OpenCode to apply changes
+
+For plugin/options-driven edits, use the `hyperpowers_agent_routing_config` tool. It reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
 
 ### Agent Frontmatter Configuration
 
@@ -129,10 +132,13 @@ model: anthropic/claude-haiku-4-5  # Full providerID/modelID
 
 **Precedence order:**
 
-1. `opencode.json` → `agent.<name>.model` (highest)
-2. `opencode.json` → top-level `model`
-3. Agent frontmatter → `model` field
-4. Provider default (lowest)
+For Hyperpowers task-tool dispatch paths:
+
+1. `opencode.json` → `hyperpowers.workflowOverrides.<workflow>.<name>.model` (highest)
+2. `opencode.json` → `agent.<name>.model`
+3. `opencode.json` → top-level `model`
+4. Agent frontmatter → `model` field
+5. Provider default (lowest)
 
 ### Understanding `providerID/modelID` Format
 

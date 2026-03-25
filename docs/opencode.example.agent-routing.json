@@ -46,7 +46,7 @@
     }
   },
   "hyperpowers": {
-    "comment": "workflowOverrides is a planned Hyperpowers extension for future runtime implementation; the current active contract is the direct agent mapping above.",
+    "comment": "workflowOverrides is active for Hyperpowers task-tool dispatch paths and resolves before the global direct agent map above.",
     "workflowOverrides": {
       "execute-ralph": {
         "autonomous-reviewer": {

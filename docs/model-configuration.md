@@ -52,8 +52,9 @@ This guide covers four common model-configuration patterns across Hyperpowers ho
 For Hyperpowers on OpenCode, **direct agent→model mapping** is the canonical routing model.
 
 - Global defaults use OpenCode’s native `agent.<agent>.model` shape.
-- Hyperpowers-specific workflow overrides are a **planned extension** for future runtime implementation.
+- Hyperpowers-specific workflow overrides are resolved at runtime for Hyperpowers task-tool dispatch paths.
 - Any plugin/options UX should edit the same underlying map, not a separate plugin-only state store.
+- The first plugin/options editing surface is the `hyperpowers_agent_routing_config` tool, which reads/writes project-root `opencode.json` directly.
 
 In short: plugin/options edit the same underlying map.
 
@@ -74,22 +75,25 @@ Examples of concrete agents you may route directly:
 - `test-effectiveness-analyst`
 - `autonomous-reviewer`
 
-### Hyperpowers workflow overrides (planned extension)
+### Hyperpowers workflow overrides
 
-Workflow-specific overrides are a planned Hyperpowers extension. They are documented here as the intended future contract, but they are not yet active runtime behavior in the current branch.
+Workflow-specific overrides are active for Hyperpowers task-tool dispatch paths in OpenCode.
 
-When implemented, the intended workflow override precedence is:
+The active override precedence is:
 
 1. Explicit workflow override for the concrete agent
 2. Global `agent.<agent>.model` mapping
 3. Top-level OpenCode `model`
-4. Agent frontmatter / provider default
+4. Agent frontmatter `model`
+5. Provider default
 
 Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-See `docs/opencode.example.agent-routing.json` for an example of the current direct-agent mapping plus the planned workflow-override shape.
+Today, the practical plugin/options surface is the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. Use it to inspect or update global `agent.<agent>.model` entries and `hyperpowers.workflowOverrides.<workflow>.<agent>.model` entries in the same file.
+
+See `docs/opencode.example.agent-routing.json` for an example of the current direct-agent mapping plus workflow overrides.
 
 ---
 
