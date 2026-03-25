@@ -81,6 +81,13 @@ test("README and AGENTS agree on Codex wrapper location and host support", () =>
   assert.equal(codexSection.includes("~/.codex/skills"), true)
 })
 
+test("README points Kimi users to the correct install guide", () => {
+  const readme = read("README.md")
+
+  assert.equal(readme.includes("See [Installation](#installation) for OpenCode, Gemini CLI, Kimi CLI, and Codex CLI."), false)
+  assert.equal(readme.includes(".kimi/INSTALL.md"), true)
+})
+
 test("Docs index surfaces model configuration guide", () => {
   const docsReadme = read("docs/README.md")
   const guidesSection = docsReadme.split("## Core Setup & Workflow Guides")[1]?.split("## Backend / Tracker Context")[0] || ""

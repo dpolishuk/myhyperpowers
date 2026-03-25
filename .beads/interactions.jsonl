@@ -19,3 +19,5 @@
 {"id":"int-069818ad","kind":"field_change","created_at":"2026-03-25T07:05:51.380045849Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-kkb","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-389a16ac","kind":"field_change","created_at":"2026-03-25T07:06:11.044715735Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-tkm","extra":{"field":"status","new_value":"open","old_value":"closed"}}
 {"id":"int-2f963d7d","kind":"field_change","created_at":"2026-03-25T07:22:43.343262712Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-55t","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-4cefb59e","kind":"field_change","created_at":"2026-03-25T07:50:07.423982645Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-962","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-92ace9af","kind":"field_change","created_at":"2026-03-25T07:53:47.877262991Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-962","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}

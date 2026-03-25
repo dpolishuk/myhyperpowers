@@ -18,7 +18,7 @@ Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI a
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
-See [Installation](#installation) for OpenCode, Gemini CLI, Kimi CLI, and Codex CLI.
+See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For Kimi CLI, see [`.kimi/INSTALL.md`](.kimi/INSTALL.md).
 
 ## Task Management Model
 
