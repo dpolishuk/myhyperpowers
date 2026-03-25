@@ -40,6 +40,26 @@ export const HYPERPOWERS_WORKFLOWS = [
 type AgentName = (typeof HYPERPOWERS_AGENTS)[number]
 type WorkflowName = (typeof HYPERPOWERS_WORKFLOWS)[number]
 
+export const AGENT_GROUPS = {
+  orchestrator: ["ralph"] as AgentName[],
+  workers: ["test-runner", "codebase-investigator", "internet-researcher"] as AgentName[],
+  reviewers: [
+    "autonomous-reviewer",
+    "code-reviewer",
+    "review-quality",
+    "review-implementation",
+    "review-testing",
+    "review-simplification",
+    "review-documentation",
+    "test-effectiveness-analyst",
+  ] as AgentName[],
+} as const
+
+type GroupName = keyof typeof AGENT_GROUPS | "all"
+
+export const PRESET_NAMES = ["cost-optimized", "quality-first", "balanced"] as const
+type PresetName = (typeof PRESET_NAMES)[number]
+
 type RoutingEntry = Record<string, unknown> & {
   model?: string
 }
@@ -55,10 +75,12 @@ type HyperpowersRoutingConfig = {
 }
 
 type RoutingToolArgs = {
-  action: "get" | "set"
+  action: "get" | "set" | "set-group" | "apply-preset"
   agent?: string
   workflow?: string
   model?: string
+  group?: string
+  preset?: string
 }
 
 const asRecord = (value: unknown): Record<string, unknown> => {
@@ -131,6 +153,34 @@ const normalizeWorkflowOverrides = (value: unknown) => {
   return sortObject(result)
 }
 
+const discoverModels = (config: OpenCodeConfig): string[] => {
+  const models = new Set<string>()
+
+  const addIfModel = (value: unknown) => {
+    const model = getString(value)
+    if (model && model.includes("/")) models.add(model)
+  }
+
+  addIfModel(config.model)
+  addIfModel((config as Record<string, unknown>).small_model)
+
+  const agentMap = asRecord(config.agent)
+  for (const entry of Object.values(agentMap)) {
+    addIfModel(asRecord(entry).model)
+  }
+
+  const providers = asRecord((config as Record<string, unknown>).provider)
+  for (const [providerId, providerValue] of Object.entries(providers)) {
+    const providerObj = asRecord(providerValue)
+    const providerModels = asRecord(providerObj.models)
+    for (const modelId of Object.keys(providerModels)) {
+      models.add(`${providerId}/${modelId}`)
+    }
+  }
+
+  return [...models].sort()
+}
+
 const createRoutingSnapshot = (
   config: OpenCodeConfig,
   hpConfig: HyperpowersRoutingConfig,
@@ -143,6 +193,13 @@ const createRoutingSnapshot = (
   hpConfigPath,
   supportedAgents: [...HYPERPOWERS_AGENTS],
   supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
+  agentGroups: {
+    orchestrator: [...AGENT_GROUPS.orchestrator],
+    workers: [...AGENT_GROUPS.workers],
+    reviewers: [...AGENT_GROUPS.reviewers],
+  },
+  availableModels: discoverModels(config),
+  presets: [...PRESET_NAMES],
   routing: {
     model: getString(config.model),
     agent: normalizeAgentMap(config.agent),
@@ -244,6 +301,44 @@ const updateWorkflowAgentModel = (
   }
 }
 
+const resolveGroupAgents = (groupName: string): AgentName[] | null => {
+  if (groupName === "all") return [...HYPERPOWERS_AGENTS]
+  const group = AGENT_GROUPS[groupName as keyof typeof AGENT_GROUPS]
+  return group ? [...group] : null
+}
+
+const applyPreset = (
+  config: OpenCodeConfig,
+  presetName: PresetName,
+): { config: OpenCodeConfig; updatedAgents: AgentName[] } => {
+  const strongModel = getString(config.model) ?? "default/model"
+  const fastModel = getString((config as Record<string, unknown>).small_model) ?? strongModel
+
+  let nextConfig = { ...config }
+  const updatedAgents: AgentName[] = []
+
+  const assign = (agents: readonly AgentName[], model: string) => {
+    for (const agent of agents) {
+      nextConfig = updateGlobalAgentModel(nextConfig, agent, model)
+      updatedAgents.push(agent)
+    }
+  }
+
+  switch (presetName) {
+    case "cost-optimized":
+    case "balanced":
+      assign(AGENT_GROUPS.orchestrator, strongModel)
+      assign(AGENT_GROUPS.workers, fastModel)
+      assign(AGENT_GROUPS.reviewers, strongModel)
+      break
+    case "quality-first":
+      assign(HYPERPOWERS_AGENTS, strongModel)
+      break
+  }
+
+  return { config: nextConfig, updatedAgents }
+}
+
 const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
   const configPath = join(rootDir, "opencode.json")
   const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
@@ -253,6 +348,62 @@ const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
     if (!current.ok) return current
     const hpConfig = await readHpConfig(hpConfigPath)
     return createRoutingSnapshot(current.config, hpConfig, configPath, hpConfigPath)
+  }
+
+  if (args.action === "set-group") {
+    const groupName = getString(args.group)
+    if (!groupName) {
+      return invalidResult(configPath, "missing_group", "Provide a group name: orchestrator, workers, reviewers, or all")
+    }
+    const agents = resolveGroupAgents(groupName)
+    if (!agents) {
+      return invalidResult(configPath, "unsupported_group", "Use a supported group name", {
+        supportedGroups: ["orchestrator", "workers", "reviewers", "all"],
+      })
+    }
+    const model = getString(args.model)
+    if (!model) {
+      return invalidResult(configPath, "missing_model", "Provide a non-empty model in provider/model format")
+    }
+
+    const current = await loadConfigForWrite(configPath)
+    if (!current.ok) return current
+
+    let nextConfig = current.config
+    for (const agent of agents) {
+      nextConfig = updateGlobalAgentModel(nextConfig, agent, model)
+    }
+    await persistConfig(configPath, nextConfig)
+
+    const hpConfig = await readHpConfig(hpConfigPath)
+    return {
+      ...createRoutingSnapshot(nextConfig, hpConfig, configPath, hpConfigPath),
+      updatedAgents: agents,
+      updatedFile: "opencode.json",
+    }
+  }
+
+  if (args.action === "apply-preset") {
+    const presetName = getString(args.preset)
+    if (!presetName || !PRESET_NAMES.includes(presetName as PresetName)) {
+      return invalidResult(configPath, "unsupported_preset", "Use a supported preset name", {
+        supportedPresets: [...PRESET_NAMES],
+      })
+    }
+
+    const current = await readConfig(configPath)
+    if (!current.ok) return current
+
+    const { config: nextConfig, updatedAgents } = applyPreset(current.config, presetName as PresetName)
+    await persistConfig(configPath, nextConfig)
+
+    const hpConfig = await readHpConfig(hpConfigPath)
+    return {
+      ...createRoutingSnapshot(nextConfig, hpConfig, configPath, hpConfigPath),
+      appliedPreset: presetName,
+      updatedAgents,
+      updatedFile: "opencode.json",
+    }
   }
 
   const agentName = canonicalize(args.agent, HYPERPOWERS_AGENTS)
@@ -310,10 +461,14 @@ const agentRoutingConfigPlugin: Plugin = async (ctx) => {
         description:
           "Read or update the shared Hyperpowers agent-model routing map. Agent mappings live in opencode.json; workflow overrides live in .opencode/hyperpowers-routing.json.",
         args: {
-          action: tool.schema.enum(["get", "set"]).describe("Whether to read or update the routing map"),
-          agent: tool.schema.string().optional().describe("Concrete Hyperpowers agent name"),
-          workflow: tool.schema.string().optional().describe("Optional Hyperpowers workflow override name"),
-          model: tool.schema.string().optional().describe("Provider/model value to store when action=set"),
+          action: tool.schema
+            .enum(["get", "set", "set-group", "apply-preset"])
+            .describe("Action: get (read), set (single agent), set-group (batch), apply-preset (profile)"),
+          agent: tool.schema.string().optional().describe("Concrete Hyperpowers agent name (for set)"),
+          workflow: tool.schema.string().optional().describe("Optional workflow override name (for set)"),
+          model: tool.schema.string().optional().describe("Provider/model value (for set, set-group)"),
+          group: tool.schema.string().optional().describe("Agent group: orchestrator, workers, reviewers, all (for set-group)"),
+          preset: tool.schema.string().optional().describe("Preset profile: cost-optimized, quality-first, balanced (for apply-preset)"),
         },
         async execute(args) {
           const result = await executeRoutingAction(ctx.directory, args as RoutingToolArgs)
