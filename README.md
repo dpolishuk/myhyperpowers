@@ -5,7 +5,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 
-Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
 [Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
@@ -18,7 +18,7 @@ Strong guidance for Claude Code, OpenCode, and Gemini CLI as software developmen
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
-See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI.
+See [Installation](#installation) for OpenCode, Gemini CLI, Kimi CLI, and Codex CLI.
 
 ## Task Management Model
 

@@ -11,6 +11,13 @@ Hyperpowers is **tm-first** on this branch: use `tm` as the day-to-day task-mana
 - [linear-mcp-setup.md](linear-mcp-setup.md) — canonical Linear setup and `tm sync` guide
 - [model-configuration.md](model-configuration.md) — model/provider configuration guide for supported hosts
 
+## Host-Specific Install Guides
+
+- [../.opencode/INSTALL.md](../.opencode/INSTALL.md) — OpenCode install and tm runtime setup
+- [../.gemini-extension/README.md](../.gemini-extension/README.md) — Gemini extension install and tm/Linear support
+- [../.kimi/INSTALL.md](../.kimi/INSTALL.md) — Kimi install and workflow guide
+- [../.codex/INSTALL.md](../.codex/INSTALL.md) — Codex wrapper install guide
+
 ## Backend / Tracker Context
 
 - `tm` — canonical user-facing interface
