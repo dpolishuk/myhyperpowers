@@ -52,6 +52,14 @@ OpenCode project configuration still belongs in your project-root `opencode.json
 
 For Hyperpowers-specific direct agent→model routing on OpenCode, use `opencode.json` as the canonical config surface and treat any plugin/options UX as editing the same underlying map, not a separate plugin-only state store.
 
+To start from the documented contract example:
+
+```bash
+cp docs/opencode.example.agent-routing.json opencode.json
+```
+
+Note: the `hyperpowers.workflowOverrides` block in that example is a **planned Hyperpowers extension** that documents the intended future override shape; it is not yet active runtime behavior in the current branch.
+
 ### Option 2: Manual Install
 
 ```bash

@@ -10,9 +10,13 @@ test("model configuration docs define direct agent routing as the canonical Open
   const docs = read("docs/model-configuration.md")
 
   assert.equal(docs.includes("direct agent→model mapping"), true)
-  assert.equal(docs.includes("`agents.<agent>.model`"), true)
+  assert.equal(docs.includes("`agent.<agent>.model`"), true)
+  assert.equal(docs.includes("`agents.<agent>.model`"), false)
   assert.equal(docs.includes("plugin/options edit the same underlying map"), true)
-  assert.equal(docs.includes("workflow override precedence"), true)
+  assert.equal(docs.includes("planned extension"), true)
+  assert.equal(docs.includes("When implemented, the intended workflow override precedence is:"), true)
+  assert.equal(docs.includes("1. Explicit workflow override for the concrete agent"), true)
+  assert.equal(docs.includes("2. Global `agent.<agent>.model` mapping"), true)
 })
 
 test("OpenCode install docs describe config and plugin options as peers over one routing map", () => {
@@ -21,6 +25,8 @@ test("OpenCode install docs describe config and plugin options as peers over one
   assert.equal(installDoc.includes("agent→model"), true)
   assert.equal(installDoc.includes("plugin/options"), true)
   assert.equal(installDoc.includes("same underlying map"), true)
+  assert.equal(installDoc.includes("cp docs/opencode.example.agent-routing.json opencode.json"), true)
+  assert.equal(installDoc.includes("planned Hyperpowers extension"), true)
 })
 
 test("dedicated OpenCode agent-routing example exists with global defaults and workflow overrides", () => {
@@ -28,9 +34,12 @@ test("dedicated OpenCode agent-routing example exists with global defaults and w
   assert.equal(fs.existsSync(examplePath), true)
 
   const example = JSON.parse(fs.readFileSync(examplePath, "utf8"))
-  assert.ok(example.agents)
-  assert.ok(example.agents.ralph)
-  assert.ok(example.agents["test-runner"])
+  assert.ok(example.agent)
+  assert.equal(example.agents, undefined)
+  assert.equal(typeof example.agent.ralph.model, "string")
+  assert.equal(typeof example.agent["test-runner"].model, "string")
+  assert.equal(typeof example.agent["autonomous-reviewer"].model, "string")
   assert.ok(example.hyperpowers)
-  assert.ok(example.hyperpowers.workflowOverrides)
+  assert.equal(example.hyperpowers.comment.includes("planned Hyperpowers extension"), true)
+  assert.equal(typeof example.hyperpowers.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model, "string")
 })

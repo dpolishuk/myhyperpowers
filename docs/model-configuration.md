@@ -38,7 +38,7 @@ This format eliminates ambiguity when multiple providers offer models with simil
 
 ## Configuration Methods
 
-There are three ways to configure agent models, in order of precedence:
+There are three common ways to configure agent models:
 
 1. **Agent Frontmatter** - Set default model in the agent definition
 2. **OpenCode Config** - Override per-agent models in `opencode.json`
@@ -50,15 +50,15 @@ There are three ways to configure agent models, in order of precedence:
 
 For Hyperpowers on OpenCode, **direct agent→model mapping** is the canonical routing model.
 
-- Global defaults use OpenCode’s native `agents.<agent>.model` shape.
-- Hyperpowers-specific workflow overrides can layer on top for selected workflows.
+- Global defaults use OpenCode’s native `agent.<agent>.model` shape.
+- Hyperpowers-specific workflow overrides are a **planned extension** for future runtime implementation.
 - Any plugin/options UX should edit the same underlying map, not a separate plugin-only state store.
 
 In short: plugin/options edit the same underlying map.
 
 ### Canonical global mapping
 
-Use `agents.<agent>.model` as the canonical global map for direct agent routing.
+Use `agent.<agent>.model` as the canonical global map for direct agent routing.
 
 Examples of concrete agents you may route directly:
 - `ralph`
@@ -73,14 +73,14 @@ Examples of concrete agents you may route directly:
 - `test-effectiveness-analyst`
 - `autonomous-reviewer`
 
-### Hyperpowers workflow overrides
+### Hyperpowers workflow overrides (planned extension)
 
-Workflow-specific overrides are optional and should be layered explicitly over the global map.
+Workflow-specific overrides are a planned Hyperpowers extension. They are documented here as the intended future contract, but they are not yet active runtime behavior in the current branch.
 
-Recommended workflow override precedence:
+When implemented, the intended workflow override precedence is:
 
 1. Explicit workflow override for the concrete agent
-2. Global `agents.<agent>.model` mapping
+2. Global `agent.<agent>.model` mapping
 3. Top-level OpenCode `model`
 4. Agent frontmatter / provider default
 
@@ -88,7 +88,7 @@ Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-See `docs/opencode.example.agent-routing.json` for a complete example.
+See `docs/opencode.example.agent-routing.json` for an example of the current direct-agent mapping plus the planned workflow-override shape.
 
 ---
 
@@ -156,7 +156,7 @@ In OpenCode, you can override agent models in your `opencode.json` file without 
 **Configuration precedence (highest to lowest):**
 
 ```
-1. opencode.json → agents.<agent-name>.model
+1. opencode.json → agent.<agent-name>.model
 2. opencode.json → model (top-level default)
 3. Agent frontmatter → model setting
 4. Provider default
@@ -179,7 +179,7 @@ In OpenCode, you can override agent models in your `opencode.json` file without 
   "$schema": "https://opencode.ai/config.json",
   "comment": "Optimize costs: fast models for simple tasks, capable for complex",
   "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "anthropic/claude-haiku-4-5"
     },
@@ -248,7 +248,7 @@ When using multiple providers (e.g., multiple API proxies or aggregation service
     }
   },
 
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "proxy2/claude-haiku-4-5"
     },

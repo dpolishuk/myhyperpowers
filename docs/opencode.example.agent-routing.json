@@ -3,7 +3,7 @@
   "comment": "Direct agent routing example for Hyperpowers on OpenCode",
   "model": "anthropic/claude-sonnet-4-5-20250514",
   "small_model": "anthropic/claude-haiku-4-5-20250514",
-  "agents": {
+  "agent": {
     "ralph": {
       "model": "anthropic/claude-sonnet-4-5-20250514",
       "comment": "Primary orchestrator/executor"
@@ -26,6 +26,18 @@
     "review-implementation": {
       "model": "anthropic/claude-sonnet-4-5-20250514"
     },
+    "review-testing": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-simplification": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-documentation": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "code-reviewer": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
     "test-effectiveness-analyst": {
       "model": "anthropic/claude-sonnet-4-5-20250514"
     },
@@ -34,6 +46,7 @@
     }
   },
   "hyperpowers": {
+    "comment": "workflowOverrides is a planned Hyperpowers extension for future runtime implementation; the current active contract is the direct agent mapping above.",
     "workflowOverrides": {
       "execute-ralph": {
         "autonomous-reviewer": {
