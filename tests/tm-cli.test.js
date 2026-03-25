@@ -193,6 +193,111 @@ test("tm sync skips Linear when only team key is present and node is unavailable
   }
 })
 
+test("tm sync detects Linear config from backend config when env vars are unset", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-backend-config-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+if [[ "$1" == "sync" ]]; then exit 0; fi
+if [[ "$1" == "config" && "$2" == "get" ]]; then
+  if [[ "$3" == "linear.api-key" ]]; then echo "lin_api_cfg"; exit 0; fi
+  if [[ "$3" == "linear.team-key" ]]; then echo "ENG"; exit 0; fi
+  echo "$3 (not set)"
+  exit 0
+fi
+exit 0
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "bd",
+      PATH: tmpBinDir,
+    }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /Linear sync is configured but Node\.js is unavailable/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync ignores similarly named config keys when checking linear.api-key", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-literal-key-"))
+  const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-literal-repo-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    fs.mkdirSync(path.join(tmpRepo, ".beads"), { recursive: true })
+    fs.writeFileSync(path.join(tmpRepo, ".beads", "config.yaml"), "linearXapi-key: wrong_key\n")
+
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+if [[ "$1" == "sync" ]]; then exit 0; fi
+if [[ "$1" == "config" && "$2" == "get" ]]; then
+  echo "$3 (not set)"
+  exit 0
+fi
+exit 0
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "bd",
+      PATH: tmpBinDir,
+    }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: tmpRepo,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+    fs.rmSync(tmpRepo, { recursive: true, force: true })
+  }
+})
+
 test("tm passes arguments with spaces unchanged to bd", () => {
   // Use a temp directory with its own .beads to avoid polluting repo state
   const os = require("node:os")

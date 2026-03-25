@@ -3,6 +3,7 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
+const { spawnSync } = require("node:child_process")
 
 function trimValue(value) {
   return (value || "").trim()
@@ -44,8 +45,29 @@ function readConfigValue(configPath, key) {
   return rawValue
 }
 
+function readBackendConfigValue(configKey) {
+  const backend = trimValue(process.env.TM_BACKEND || "bd") || "bd"
+  if (backend === "linear") return null
+
+  const result = spawnSync(backend, ["config", "get", configKey], {
+    encoding: "utf8",
+    timeout: 5000,
+  })
+
+  if (result.error || result.status !== 0) {
+    return null
+  }
+
+  const rawValue = trimValue(result.stdout || "")
+  if (!rawValue || rawValue.includes("(not set)")) {
+    return null
+  }
+
+  return rawValue
+}
+
 /**
- * Load a config value from: env var → .beads/config.yaml → null
+ * Load a config value from: env var → .beads/config.yaml → backend config → null
  */
 function loadConfigValue(envVar, configKey) {
   // Explicit empty env var overrides project config (allows disabling with LINEAR_API_KEY="")
@@ -57,11 +79,11 @@ function loadConfigValue(envVar, configKey) {
 
   const repoRoot = findRepoRoot()
   const configPath = repoRoot ? path.join(repoRoot, ".beads", "config.yaml") : null
-  return readConfigValue(configPath, configKey)
+  return readConfigValue(configPath, configKey) ?? readBackendConfigValue(configKey)
 }
 
 /**
- * Load Linear configuration from environment and .beads/config.yaml.
+ * Load Linear configuration from environment, .beads/config.yaml, and backend config.
  * Returns { apiKey, teamKey } or null if not configured.
  */
 function loadLinearConfig() {

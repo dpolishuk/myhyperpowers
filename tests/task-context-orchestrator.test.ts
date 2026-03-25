@@ -445,6 +445,47 @@ test("task_model_routing_prefers_explicit_workflow_argument_over_prompt_detectio
   }
 })
 
+test("task_model_routing_does_not_guess_other_overrides_when_explicit_workflow_is_unmapped", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      agent: {
+        "internet-researcher": {
+          model: "agent/model",
+        },
+      },
+      hyperpowers: {
+        workflowOverrides: {
+          "execute-ralph": {
+            "internet-researcher": {
+              model: "ralph/model",
+            },
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run execute-ralph research prep",
+        workflow: "brainstorming",
+        agent: "internet-researcher",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("agent/model")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
   const { root, cleanup } = await createTempRootWithConfig({
     opencodeConfig: {

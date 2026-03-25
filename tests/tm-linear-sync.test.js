@@ -51,11 +51,12 @@ test("loadLinearConfig ignores deprecated LINEAR_PROJECT_NAME", () => {
   restoreEnv(saved)
 })
 
-test("loadConfigValue returns null when env and config are missing", () => {
+test("loadConfigValue returns null when env/config are missing and backend lookup is disabled", () => {
   const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
   delete process.env.LINEAR_API_KEY
   delete process.env.TM_REPO_ROOT
+  process.env.TM_BACKEND = "linear"
 
   try {
     assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), null)
@@ -78,6 +79,33 @@ test("loadConfigValue reads from project config without bd in PATH", () => {
   } finally {
     restoreEnv(saved)
     fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("loadConfigValue falls back to backend config when project config is missing", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const calls = []
+  const saved = saveEnv()
+
+  childProcess.spawnSync = (command, args, options) => {
+    calls.push({ command, args, options })
+    return { status: 0, stdout: "backend_cfg_value\n", stderr: "" }
+  }
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), "backend_cfg_value")
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].command, "bd")
+    assert.deepEqual(calls[0].args, ["config", "get", "linear.api-key"])
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
   }
 })
 
@@ -878,6 +906,7 @@ function saveEnv() {
     LINEAR_TEAM_KEY: process.env.LINEAR_TEAM_KEY,
     LINEAR_PROJECT_NAME: process.env.LINEAR_PROJECT_NAME,
     TM_REPO_ROOT: process.env.TM_REPO_ROOT,
+    TM_BACKEND: process.env.TM_BACKEND,
   }
 }
 

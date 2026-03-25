@@ -83,6 +83,7 @@ detect_backend() {
 load_linear_config_value() {
   local env_name="$1"
   local config_key="$2"
+  local backend_cmd="${3:-}"
 
   if [[ ${!env_name+x} ]]; then
     local env_val
@@ -93,38 +94,44 @@ load_linear_config_value() {
 
   local root config config_val
   root="$(find_repo_root)"
-  if [[ -z "$root" ]]; then
-    printf '\n'
-    return
+  if [[ -n "$root" ]]; then
+    config="$root/.beads/config.yaml"
+    if [[ -f "$config" && -r "$config" ]]; then
+      config_val="$(awk -v key="$config_key" '
+        index($0, key ":") == 1 {
+          value = $0
+          sub(/^[^:]*:[[:space:]]*/, "", value)
+          gsub(/^[\"\047]|[\"\047]$/, "", value)
+          print value
+          exit
+        }
+      ' "$config" 2>/dev/null || true)"
+      config_val="$(trim "$config_val")"
+      if [[ -n "$config_val" && "$config_val" != *"(not set)" ]]; then
+        printf '%s\n' "$config_val"
+        return
+      fi
+    fi
   fi
 
-  config="$root/.beads/config.yaml"
-  if [[ ! -f "$config" || ! -r "$config" ]]; then
-    printf '\n'
-    return
+  # Compatibility fallback: if backend config stores integration values outside
+  # .beads/config.yaml, read via backend config when available.
+  if [[ -n "$backend_cmd" && "$backend_cmd" != "linear" ]] && command -v "$backend_cmd" >/dev/null 2>&1; then
+    config_val="$($backend_cmd config get "$config_key" 2>/dev/null || true)"
+    config_val="$(trim "$config_val")"
+    if [[ -n "$config_val" && "$config_val" != *"(not set)" ]]; then
+      printf '%s\n' "$config_val"
+      return
+    fi
   fi
 
-  config_val="$(awk -v key="$config_key" '
-    index($0, key ":") == 1 {
-      value = $0
-      sub(/^[^:]*:[[:space:]]*/, "", value)
-      gsub(/^[\"\047]|[\"\047]$/, "", value)
-      print value
-      exit
-    }
-  ' "$config" 2>/dev/null || true)"
-  config_val="$(trim "$config_val")"
-  if [[ -z "$config_val" || "$config_val" == *"(not set)" ]]; then
-    printf '\n'
-    return
-  fi
-
-  printf '%s\n' "$config_val"
+  printf '\n'
 }
 
 linear_sync_configured() {
+  local backend_cmd="${1:-bd}"
   local api_key
-  api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key)"
+  api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key "$backend_cmd")"
   [[ -n "$api_key" ]]
 }
 
@@ -234,7 +241,7 @@ main() {
         fi
 
         if [[ "$backend_cmd" == "br" ]]; then
-          if linear_sync_configured; then
+          if linear_sync_configured "$backend_cmd"; then
             echo "tm: follow-on Linear sync is not supported for backend 'br'; local sync completed and follow-on sync was skipped" >&2
           fi
           exit 0
@@ -250,14 +257,14 @@ main() {
         done
         script_dir="$(cd "$(dirname "$source_path")" && pwd)"
         if ! command -v node >/dev/null 2>&1; then
-          if linear_sync_configured; then
+          if linear_sync_configured "$backend_cmd"; then
             echo "tm: Linear sync is configured but Node.js is unavailable." >&2
             exit 1
           fi
           exit 0
         fi
         if [[ ! -f "$script_dir/tm-linear-sync.js" ]]; then
-          if linear_sync_configured; then
+          if linear_sync_configured "$backend_cmd"; then
             echo "tm: Linear sync is configured but tm-linear-sync.js is missing." >&2
             exit 1
           fi

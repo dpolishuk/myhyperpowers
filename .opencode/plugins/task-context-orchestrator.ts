@@ -349,8 +349,14 @@ const detectWorkflowOverride = (
       getNestedString(args.metadata, "workflow") ??
       getNestedString(args.metadata, "hyperpowersWorkflow"),
   )
-  const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
-  if (explicitMatch && explicitWorkflow) return explicitWorkflow
+  if (explicitWorkflow) {
+    const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
+    if (explicitMatch) return explicitWorkflow
+    // Explicit workflow arguments are authoritative; if a caller provided one
+    // that has no configured override, do not guess a different workflow from
+    // prompt text or command intent.
+    return null
+  }
 
   const commandIntent = detectCommandIntent(prompt)
   const intentMatch = findConfigEntry(workflowOverrides, commandIntent)
