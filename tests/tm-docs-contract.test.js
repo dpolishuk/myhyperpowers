@@ -1,0 +1,118 @@
+const test = require("node:test")
+const assert = require("node:assert/strict")
+const fs = require("node:fs")
+const path = require("node:path")
+
+const repoRoot = path.resolve(__dirname, "..")
+const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
+
+test("README presents tm as the canonical task-management interface", () => {
+  const readme = read("README.md")
+  const modelSection = readme.split("## Task Management Model")[1]?.split("## Features")[0] || ""
+  const exampleSection = readme.split("### Example Workflow")[1]?.split("## Philosophy")[0] || ""
+  const codexSection = readme.split("<summary><strong>Codex CLI</strong></summary>")[1]?.split("</details>")[0] || ""
+
+  assert.equal(modelSection.includes("canonical user-facing task-management interface"), true)
+  assert.equal(modelSection.includes("tm-first"), true)
+  assert.equal(modelSection.includes("bd` / `br` / `tk`"), true)
+  assert.equal(modelSection.includes("Linear and GitHub are integrations"), true)
+  assert.equal(exampleSection.includes("tasks in bd"), false)
+  assert.equal(exampleSection.includes("bd ready"), false)
+  assert.equal(exampleSection.includes("tm ready"), true)
+  assert.equal(codexSection.includes("bd ready"), false)
+  assert.equal(codexSection.includes("tm ready"), true)
+})
+
+test("AGENTS guide does not claim a conflicting bd-first docs model", () => {
+  const agentsGuide = read("AGENTS.md")
+  const commandsSection = agentsGuide.split("### Available Commands")[1]?.split("## Project Structure")[0] || ""
+  const trackingSection = agentsGuide.split("## Task Management")[1] || ""
+
+  assert.equal(agentsGuide.includes("uses **bd (beads)** for ALL issue tracking"), false)
+  assert.equal(agentsGuide.includes("tm is the canonical user-facing interface"), true)
+  assert.equal(agentsGuide.includes("current backend in this repo is `bd`"), true)
+  assert.equal(agentsGuide.includes("use `bd` CLI"), false)
+  assert.equal(commandsSection.includes("tm ready"), true)
+  assert.equal(commandsSection.includes("tm show <id>"), true)
+  assert.equal(commandsSection.includes("tm update <id> --status in_progress"), true)
+  assert.equal(commandsSection.includes("tm close <id>"), true)
+  assert.equal(commandsSection.includes("tm sync"), true)
+  assert.equal(trackingSection.includes("docs/QUICKSTART.md"), true)
+})
+
+test("Docs index surfaces the canonical tm setup and integration guides", () => {
+  const docsReadme = read("docs/README.md")
+  const quickstart = read("docs/QUICKSTART.md")
+
+  assert.equal(docsReadme.includes("tm-first"), true)
+  assert.equal(docsReadme.includes("linear-mcp-setup.md"), true)
+  assert.equal(docsReadme.includes("QUICKSTART.md"), true)
+  assert.equal(docsReadme.includes("backend"), true)
+  assert.equal(quickstart.includes("tm ready"), true)
+  assert.equal(quickstart.includes("tm show <id>"), true)
+  assert.equal(quickstart.includes("tm update <id> --status in_progress"), true)
+  assert.equal(quickstart.includes("tm close <id>"), true)
+  assert.equal(quickstart.includes("tm sync"), true)
+  assert.equal(quickstart.includes("bd ready"), false)
+  assert.equal(quickstart.includes("backend-specific setup"), true)
+})
+
+test("README first-pass classifies bd br and tk with distinct roles", () => {
+  const readme = read("README.md")
+
+  assert.equal(readme.includes("`bd` = current local tracker backend in this repo"), true)
+  assert.equal(readme.includes("`br` = Beads Rust"), true)
+  assert.equal(readme.includes("`tk` = Ticket"), true)
+  assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
+  assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
+})
+
+test("README and AGENTS agree on Codex wrapper location and host support", () => {
+  const readme = read("README.md")
+  const agentsGuide = read("AGENTS.md")
+  const codexSection = readme.split("<summary><strong>Codex CLI</strong></summary>")[1]?.split("</details>")[0] || ""
+
+  assert.equal(readme.includes("Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI"), true)
+  assert.equal(readme.includes("Generated output is written to `.agents/skills`"), true)
+  assert.equal(readme.includes(".kimi/skills"), false)
+  assert.equal(agentsGuide.includes(".agents/               # Codex-compatible generated wrappers"), true)
+  assert.equal(agentsGuide.includes("supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI)"), true)
+  assert.equal(codexSection.includes("./scripts/install.sh --codex"), true)
+  assert.equal(codexSection.includes("~/.codex/skills"), true)
+})
+
+test("README points Kimi users to the correct install guide", () => {
+  const readme = read("README.md")
+
+  assert.equal(readme.includes("See [Installation](#installation) for OpenCode, Gemini CLI, Kimi CLI, and Codex CLI."), false)
+  assert.equal(readme.includes(".kimi/INSTALL.md"), true)
+})
+
+test("Docs index surfaces model configuration guide", () => {
+  const docsReadme = read("docs/README.md")
+  const guidesSection = docsReadme.split("## Core Setup & Workflow Guides")[1]?.split("## Backend / Tracker Context")[0] || ""
+  const hostGuidesSection = docsReadme.split("## Host-Specific Install Guides")[1]?.split("## Backend / Tracker Context")[0] || ""
+
+  assert.equal(guidesSection.includes("model-configuration.md"), true)
+  assert.equal(hostGuidesSection.includes(".kimi/INSTALL.md"), true)
+  assert.equal(hostGuidesSection.includes(".codex/INSTALL.md"), true)
+})
+
+test("Kimi and Codex host docs stay tm-first", () => {
+  const kimiInstall = read(".kimi/INSTALL.md")
+  const kimiSystem = read(".kimi/hyperpowers-system.md")
+  const codexInstall = read(".codex/INSTALL.md")
+
+  assert.equal(kimiInstall.includes("bd ready"), false)
+  assert.equal(kimiInstall.includes("tm ready"), true)
+  assert.equal(kimiInstall.includes("tm close"), true)
+  assert.equal(kimiInstall.includes("tm sync"), true)
+
+  assert.equal(kimiSystem.includes("bd ready"), false)
+  assert.equal(kimiSystem.includes("bd sync"), false)
+  assert.equal(kimiSystem.includes("tm ready"), true)
+  assert.equal(kimiSystem.includes("tm sync"), true)
+
+  assert.equal(codexInstall.includes("bd ready"), false)
+  assert.equal(codexInstall.includes("tm ready"), true)
+})

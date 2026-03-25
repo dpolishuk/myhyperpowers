@@ -23,7 +23,7 @@ Adapt implementation details to actual codebase state. Never use placeholders or
 | **Verify Codebase** | Use `codebase-investigator` agent | NEVER verify yourself, report discrepancies |
 | **Draft Steps** | Write bite-sized (2-5 min) actions | Follow TDD cycle for new features |
 | **Present to User** | Show COMPLETE expansion FIRST | Then ask for approval |
-| **Update bd** | `bd update bd-N --design "..."` | Only after user approves |
+| **Update bd** | `tm update bd-N --design "..."` | Only after user approves |
 | **Continue** | Move to next task automatically | NO asking permission between tasks |
 
 **FORBIDDEN:** Placeholders like `[Full implementation steps as detailed above]`
@@ -53,7 +53,7 @@ Symptoms:
 
 **If epic:**
 ```bash
-bd dep tree bd-1  # View complete dependency tree
+tm dep tree bd-1  # View complete dependency tree
 # Note all child task IDs
 ```
 
@@ -70,7 +70,7 @@ bd dep tree bd-1  # View complete dependency tree
 
 ```bash
 # Mark in TodoWrite: in_progress
-bd show bd-3  # Read current task design
+tm show bd-3  # Read current task design
 ```
 
 ### 2b. Verify Codebase State
@@ -131,7 +131,7 @@ For new features (follow test-driven-development):
 **bd-[N]: [Task Title]**
 
 **From bd issue:**
-- Goal: [From bd show]
+- Goal: [From tm show]
 - Effort estimate: [From bd issue]
 - Success criteria: [From bd issue]
 
@@ -178,7 +178,7 @@ pytest tests/auth/test_login.py::test_login_with_valid_credentials
 ### 2e. If Approved: Update bd and Continue
 
 ```bash
-bd update bd-3 --design "[paste complete expansion]"
+tm update bd-3 --design "[paste complete expansion]"
 # Mark completed in TodoWrite
 # IMMEDIATELY continue to next task (NO asking permission)
 ```
@@ -207,7 +207,7 @@ Epic ready for execution.
 <scenario>Developer writes placeholder text instead of actual implementation steps</scenario>
 
 <code>
-bd update bd-3 --design "## Goal
+tm update bd-3 --design "## Goal
 Implement user authentication
 
 ## Implementation
@@ -235,7 +235,7 @@ Implement user authentication
 **Write actual content:**
 
 ```bash
-bd update bd-3 --design "## Goal
+tm update bd-3 --design "## Goal
 Implement user authentication
 
 ## Implementation
@@ -367,13 +367,13 @@ Should I continue to bd-4 now? What's your preference?"
 **After user approves bd-3:**
 
 ```bash
-bd update bd-3 --design "[expansion]"  # Update bd
+tm update bd-3 --design "[expansion]"  # Update bd
 # Mark completed in TodoWrite
 ```
 
 **IMMEDIATELY continue to bd-4:**
 ```bash
-bd show bd-4  # Read next task
+tm show bd-4  # Read next task
 # Dispatch codebase-investigator with bd-4 assumptions
 # Draft expansion
 # Present bd-4 expansion to user

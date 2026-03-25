@@ -225,7 +225,7 @@ Then they see error: "Only CSV files supported"
 2. **Reference Definition of Done** (don't duplicate it in task)
 
 ```markdown
-bd create "Implement CSV file upload" --design "
+tm create "Implement CSV file upload" --design "
 ## Acceptance Criteria
 - [ ] User can upload CSV files up to 10MB
 - [ ] System validates CSV format

@@ -72,7 +72,7 @@ You cannot access other sessions. You cannot fix past problems. You CAN prevent 
 **User:** "The bd task had '[Remaining steps truncated]' which caused incomplete implementation"
 
 **Correct response:**
-- Create PostToolUse hook blocking bd create/update with truncation markers
+- Create PostToolUse hook blocking tm create/update with truncation markers
 - Add regex patterns for all truncation variations
 - Test hook with sample commands
 
@@ -120,22 +120,22 @@ Skills are invoked through slash commands that expand to prompts. The flow is:
 3. Claude uses the Skill tool to load `skills/writing-plans/SKILL.md`
 4. Claude follows the skill's detailed instructions
 
-### bd Integration
+### tm Integration
 
-Many skills integrate with `bd` (a task management tool). The workflows expect:
+Many skills integrate with `tm` (a task management tool). The workflows expect:
 
 - **Epics** - High-level features/initiatives (created by writing-plans)
 - **Tasks** - Specific implementation steps (created by writing-plans, executed by executing-plans)
 - **Dependencies** - Task relationships (blocking, parent-child)
 - **Status tracking** - Open, in-progress, done, ready
 
-Common bd commands:
+Common tm commands:
 ```bash
-bd list --type epic --status open       # Find open epics
-bd ready                                 # Show ready tasks
-bd show bd-1                            # Show task details
-bd dep tree bd-1                        # Show task tree
-bd status bd-3 --status in-progress     # Update task status
+tm list --type epic --status open       # Find open epics
+tm ready                                 # Show ready tasks
+tm show bd-1                            # Show task details
+tm dep tree bd-1                        # Show task tree
+tm update bd-3 --status in_progress      # Update task status
 ```
 
 ### Agent System
@@ -350,30 +350,30 @@ This project uses [beads_viewer](https://github.com/Dicklesworthstone/beads_view
 bv
 
 # CLI commands for agents (use these instead)
-bd ready              # Show issues ready to work (no blockers)
-bd list --status=open # All open issues
-bd show <id>          # Full issue details with dependencies
-bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
-bd close <id> --reason="Completed"
-bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
+tm ready              # Show issues ready to work (no blockers)
+tm list --status=open # All open issues
+tm show <id>          # Full issue details with dependencies
+tm create --title="..." --type=task --priority=2
+tm update <id> --status=in_progress
+tm close <id> --reason="Completed"
+tm close <id1> <id2>  # Close multiple issues at once
+tm sync               # Commit and push changes
 ```
 
 ### Workflow Pattern
 
-1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress`
+1. **Start**: Run `tm ready` to find actionable work
+2. **Claim**: Use `tm update <id> --status=in_progress`
 3. **Work**: Implement the task
-4. **Complete**: Use `bd close <id>`
-5. **Sync**: Always run `bd sync` at session end
+4. **Complete**: Use `tm close <id>`
+5. **Sync**: Always run `tm sync` at session end
 
 ### Key Concepts
 
-- **Dependencies**: Issues can block other issues. `bd ready` shows only unblocked work.
+- **Dependencies**: Issues can block other issues. `tm ready` shows only unblocked work.
 - **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
 - **Types**: task, bug, feature, epic, question, docs
-- **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
+- **Blocking**: `tm dep add <issue> <depends-on>` to add dependencies
 
 ### Session Protocol
 
@@ -382,18 +382,18 @@ bd sync               # Commit and push changes
 ```bash
 git status              # Check what changed
 git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
+tm sync                 # Commit beads changes
 git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
+tm sync                 # Commit any new beads changes
 git push                # Push to remote
 ```
 
 ### Best Practices
 
-- Check `bd ready` at session start to find available work
+- Check `tm ready` at session start to find available work
 - Update status as you work (in_progress → closed)
-- Create new issues with `bd create` when you discover tasks
+- Create new issues with `tm create` when you discover tasks
 - Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
+- Always `tm sync` before ending session
 
 <!-- end-bv-agent-instructions -->

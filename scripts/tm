@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# tm - Abstract Task Manager CLI
+# Routes commands to the configured backend (bd by default).
+# Part of the Hyperpowers plugin system.
+
+TM_VERSION="0.1.0"
+
+# ── Repo root detection ──────────────────────────────────────────────────────
+
+find_repo_root() {
+  if [[ -n "${TM_REPO_ROOT:-}" && -d "${TM_REPO_ROOT}/.beads" ]]; then
+    echo "$TM_REPO_ROOT"
+    return
+  fi
+
+  local root
+  root="$(find_repo_root_from "$PWD")"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+    return
+  fi
+
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  root="$(find_repo_root_from "$script_dir")"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+  fi
+}
+
+find_repo_root_from() {
+  local dir="$1"
+  while [[ -n "$dir" && "$dir" != "/" ]]; do
+    if [[ -d "$dir/.beads" ]]; then
+      echo "$dir"
+      return
+    fi
+    dir="$(dirname "$dir")"
+  done
+}
+
+# ── Backend detection ────────────────────────────────────────────────────────
+
+detect_backend() {
+  # Priority: env var > config file > default
+  if [[ -n "${TM_BACKEND:-}" ]]; then
+    echo "$TM_BACKEND"
+    return
+  fi
+
+  # Check .beads/config.yaml for tm.backend (flat YAML, no external deps)
+  local root
+  root="$(find_repo_root)"
+  local config="$root/.beads/config.yaml"
+  if [[ -f "$config" && -r "$config" ]]; then
+    local val
+    val=$(grep '^tm\.backend:' "$config" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
+    if [[ -n "$val" ]]; then
+      echo "$val"
+      return
+    fi
+  fi
+
+  echo "bd"
+}
+
+load_linear_config_value() {
+  local env_name="$1"
+  local bd_key="$2"
+
+  if [[ ${!env_name+x} ]]; then
+    local env_val="${!env_name}"
+    env_val="${env_val#"${env_val%%[![:space:]]*}"}"
+    env_val="${env_val%"${env_val##*[![:space:]]}"}"
+    printf '%s\n' "$env_val"
+    return
+  fi
+
+  local config_val
+  config_val="$(bd config get "$bd_key" 2>/dev/null || true)"
+  config_val="${config_val#"${config_val%%[![:space:]]*}"}"
+  config_val="${config_val%"${config_val##*[![:space:]]}"}"
+  if [[ -z "$config_val" || "$config_val" == *"(not set)" ]]; then
+    printf '\n'
+    return
+  fi
+
+  printf '%s\n' "$config_val"
+}
+
+linear_sync_configured() {
+  local api_key
+  api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key)"
+  [[ -n "$api_key" ]]
+}
+
+# ── Validation ───────────────────────────────────────────────────────────────
+
+validate_backend() {
+  local backend="$1"
+  case "$backend" in
+    bd|linear) ;;
+    *)
+      echo "tm: unknown backend '$backend'. Valid backends: bd, linear" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# ── Help / Version ───────────────────────────────────────────────────────────
+
+show_help() {
+  local backend
+  backend=$(detect_backend)
+  cat <<EOF
+tm - Abstract Task Manager CLI (v${TM_VERSION})
+
+Usage: tm <command> [args...]
+
+Routes all commands to the configured backend.
+Currently configured backend: ${backend}
+
+Backend detection (highest priority first):
+  1. TM_BACKEND environment variable
+  2. tm.backend in .beads/config.yaml
+  3. Default: bd
+
+Available backends:
+  bd      Local beads task manager (default)
+  linear  Linear.app integration (not yet implemented)
+
+Examples:
+  tm ready              Show tasks ready to work on
+  tm show bd-3          Show task details
+  tm create "Title"     Create a new task
+  tm close bd-3         Close a task
+
+All arguments are passed through to the backend unchanged.
+EOF
+}
+
+show_version() {
+  local backend
+  backend=$(detect_backend)
+  echo "tm ${TM_VERSION} (backend: ${backend})"
+}
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+main() {
+  # Handle tm-specific flags before routing
+  if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    show_help
+    exit 0
+  fi
+
+  if [[ "${1:-}" == "--version" || "${1:-}" == "-v" ]]; then
+    show_version
+    exit 0
+  fi
+
+  local backend
+  backend=$(detect_backend)
+  validate_backend "$backend"
+
+  case "$backend" in
+    bd)
+      if ! command -v bd >/dev/null 2>&1; then
+        echo "tm: bd not found in PATH. Install beads first: https://github.com/Dicklesworthstone/beads_viewer" >&2
+        exit 1
+      fi
+      local repo_root
+      repo_root="$(find_repo_root)"
+      if [[ -n "$repo_root" ]]; then
+        cd "$repo_root"
+      fi
+      # Intercept sync: run bd sync first, then Linear sync if configured
+      if [[ "${1:-}" == "sync" ]]; then
+        if [[ "${2:-}" == "--help" || "${2:-}" == "-h" || "${2:-}" == "--version" || "${2:-}" == "-v" ]]; then
+          exec bd "$@"
+        fi
+        local sync_exit=0
+        bd sync "${@:2}" || sync_exit=$?
+        # Only run Linear sync if bd sync succeeded
+        if [[ "$sync_exit" -ne 0 ]]; then
+          echo "tm: bd sync failed (exit $sync_exit), skipping Linear sync" >&2
+          exit "$sync_exit"
+        fi
+        local script_dir source_path
+        source_path="${BASH_SOURCE[0]}"
+        # Resolve symlinks (e.g., npm bin installs)
+        while [[ -L "$source_path" ]]; do
+          script_dir="$(cd "$(dirname "$source_path")" && pwd)"
+          source_path="$(readlink "$source_path")"
+          [[ "$source_path" != /* ]] && source_path="$script_dir/$source_path"
+        done
+        script_dir="$(cd "$(dirname "$source_path")" && pwd)"
+        if ! command -v node >/dev/null 2>&1; then
+          if linear_sync_configured; then
+            echo "tm: Linear sync is configured but Node.js is unavailable." >&2
+            exit 1
+          fi
+          exit 0
+        fi
+        if [[ ! -f "$script_dir/tm-linear-sync.js" ]]; then
+          if linear_sync_configured; then
+            echo "tm: Linear sync is configured but tm-linear-sync.js is missing." >&2
+            exit 1
+          fi
+          exit 0
+        fi
+        local linear_exit=0
+        TM_REPO_ROOT="${repo_root:-$PWD}" node "$script_dir/tm-linear-sync.js" || linear_exit=$?
+        if [[ "$linear_exit" -ne 0 ]]; then
+          echo "tm: Linear sync failed with exit code $linear_exit" >&2
+        fi
+        exit "$linear_exit"
+      fi
+      exec bd "$@"
+      ;;
+    linear)
+      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd (default) for now." >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

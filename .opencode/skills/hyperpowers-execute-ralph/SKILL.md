@@ -13,7 +13,7 @@ flowchart TD
     HEALTH -->|OK| LOAD[Load Epic<br/>bv -robot-next]
     LOAD --> BRANCH[Create Feature Branch<br/>feature/epic-name]
     BRANCH --> TODO[Create TodoWrite<br/>for ALL tasks]
-    TODO --> GETTASK[Phase 1: Get Next Task<br/>bd ready or auto-create]
+    TODO --> GETTASK[Phase 1: Get Next Task<br/>tm ready or auto-create]
 
     GETTASK --> NOCRIT{Criteria<br/>met?}
     NOCRIT -->|All met| TESTAUDIT[Phase 7: Test Suite Audit<br/>test-effectiveness-analyst]
@@ -21,7 +21,7 @@ flowchart TD
 
     REFINE --> TDD[Phase 3: Execute Task with TDD<br/>test-driven-development skill]
     TDD --> VERIFYTASK[Verify Task<br/>verification-before-completion]
-    VERIFYTASK --> CLOSE[Close Task<br/>bd close bd-N]
+    VERIFYTASK --> CLOSE[Close Task<br/>tm close bd-N]
     CLOSE --> COMMIT[Auto-Commit<br/>git commit]
     COMMIT --> REVIEW[Phase 4: 5 Parallel Review Agents<br/>quality, implementation, testing,<br/>simplification, documentation]
 
@@ -118,7 +118,7 @@ execute-ralph overrides all checkpoint semantics from sub-skills.
 SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
 
 REPEAT (per task, track iteration count):
-  Phase 1 — GET TASK: bd ready to claim, OR auto-create from unmet criterion
+  Phase 1 — GET TASK: tm ready to claim, OR auto-create from unmet criterion
   Phase 2 — REFINE: sre-task-refinement (NEVER skip)
   Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
   Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst
@@ -183,7 +183,7 @@ git checkout -b "feature/${BRANCH_NAME}"
 Example: "User Authentication Flow" → `feature/user-authentication-flow`
 
 ```bash
-bd dep tree bd-xxx  # Understand task structure
+tm dep tree bd-xxx  # Understand task structure
 ```
 
 **Extract:**
@@ -217,9 +217,9 @@ RALPH LOOP — Iteration [N] | Task: [pending] | Criteria: [X/Y] met | Phase: 1
 
 **Query active work:**
 ```bash
-bd list --status in_progress
-bd ready
-bd show bd-1  # Re-read epic criteria
+tm list --status in_progress
+tm ready
+tm show bd-1  # Re-read epic criteria
 ```
 
 **Three cases:**
@@ -229,8 +229,8 @@ bd show bd-1  # Re-read epic criteria
 **B) Ready task exists** → Claim and proceed:
 ```bash
 bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
-bd update bd-N --status in_progress
-bd show bd-N
+tm update bd-N --status in_progress
+tm show bd-N
 ```
 
 **C) No ready or in-progress tasks exist and epic success criteria are still unmet** → do not stop - create and execute the next task.
@@ -240,7 +240,7 @@ bd show bd-N
 When criteria are unmet and no executable task exists, create the next task directly from the unmet criterion:
 
 ```bash
-bd create "Task: [criterion gap]" \
+tm create "Task: [criterion gap]" \
   --type feature \
   --priority 1 \
   --design "## Goal
@@ -257,7 +257,7 @@ bd create "Task: [criterion gap]" \
 - [ ] Criterion gap closed with verifiable evidence
 - [ ] Tests passing"
 
-bd dep add bd-NEW bd-1 --type parent-child
+tm dep add bd-NEW bd-1 --type parent-child
 ```
 
 <!-- autonomous-loop: CONTINUATION -->
@@ -270,7 +270,7 @@ bd dep add bd-NEW bd-1 --type parent-child
 Before executing ANY task, run SRE refinement to ensure it's ready:
 
 ```bash
-bd show bd-N  # Load task details
+tm show bd-N  # Load task details
 ```
 
 **Run SRE Task Refinement:**
@@ -290,7 +290,7 @@ This ensures:
 - Test specifications catch real bugs
 
 If SRE refinement finds critical issues:
-- Update the task using `bd update --design`
+- Update the task using `tm update --design`
 - Re-run SRE refinement if major changes made
 - Only proceed to execution when task passes review
 
@@ -316,7 +316,7 @@ If SRE refinement finds critical issues:
 ```bash
 # Run verification commands internally
 # Then auto-close
-bd close bd-N
+tm close bd-N
 ```
 
 ### Step 3b: Auto-Commit
@@ -362,7 +362,7 @@ Dispatch IN PARALLEL:
 
 2. review-implementation:
    "Verify task bd-N achieves its stated goals.
-   Task requirements: [from bd show]
+   Task requirements: [from tm show]
    Epic requirements: [relevant subset]
    Return: PASS or ISSUES_FOUND with missing/incomplete items."
 
@@ -496,7 +496,7 @@ FLAGGED FOR USER REVIEW:
 **This is the loop decision point.** Evaluate epic success criteria:
 
 ```bash
-bd show bd-1  # Re-read epic success criteria
+tm show bd-1  # Re-read epic success criteria
 ```
 
 <!-- autonomous-loop: ITERATION_TRACKING (criteria check) -->
@@ -607,10 +607,10 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 
 Create remediation tasks:
 ```bash
-bd create "Remediation: [issue description]" \
+tm create "Remediation: [issue description]" \
   --type task \
   --design "[fix instructions from reviewer]"
-bd dep add bd-NEW bd-1 --type parent-child
+tm dep add bd-NEW bd-1 --type parent-child
 ```
 
 Execute remediation tasks — **RETURN TO Phase 1** (Get Next Task).
@@ -637,7 +637,7 @@ Use Skill tool: hyperpowers:finishing-a-development-branch
 ⚠️ **AFTER BRANCH COMPLETION RETURNS:** You are in execute-ralph Phase 9. Present final summary. Epic is complete.
 
 **This skill:**
-1. Closes bd epic: `bd close bd-1`
+1. Closes bd epic: `tm close bd-1`
 2. Verifies tests pass
 3. Determines base branch
 4. Executes merge/PR automatically (or presents options if ambiguous)
@@ -717,7 +717,7 @@ If you have lost track of where you are in the execute-ralph loop, re-read this 
 SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
 
 REPEAT (per task):
-  Phase 1 — GET TASK: bd ready to claim, OR auto-create from unmet criterion
+  Phase 1 — GET TASK: tm ready to claim, OR auto-create from unmet criterion
   Phase 2 — REFINE: sre-task-refinement (NEVER skip)
   Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
   Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst

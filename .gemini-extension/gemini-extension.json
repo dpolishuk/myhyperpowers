@@ -18,6 +18,11 @@
       "command": "node",
       "args": ["${extensionPath}${/}mcp${/}bd-server.js"],
       "cwd": "${extensionPath}"
+    },
+    "tm": {
+      "command": "node",
+      "args": ["${extensionPath}${/}mcp${/}tm-server.js"],
+      "cwd": "${workspacePath}"
     }
   }
 }

@@ -154,18 +154,20 @@ Use the codebase-investigator to find all authentication handlers
 
 Kimi will automatically dispatch to the appropriate subagent based on the task.
 
-### Beads Integration
+### Task Management
 
-Hyperpowers integrates with beads_viewer for issue tracking:
+Hyperpowers is tm-first on this branch. Use `tm` for day-to-day task management, with backend-specific tools only when a backend guide explicitly requires them:
 
 ```bash
-bd ready              # Show issues ready to work
-bd list --status=open # All open issues
-bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
-bd close <id>
-bd sync               # Commit changes
+tm ready              # Show issues ready to work
+tm list --status open # All open issues
+tm create "Issue title" --type task --priority 2 --design "Details"
+tm update <id> --status in_progress
+tm close <id>
+tm sync               # Sync local work and integrations
 ```
+
+Current backend note for this repo: `bd` is the active backend, while `br` and `tk` are alternative tracker ecosystems rather than interchangeable day-to-day commands.
 
 ## Customization
 

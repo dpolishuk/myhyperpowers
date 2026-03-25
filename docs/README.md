@@ -1,9 +1,40 @@
-# Configuration Examples
+# Documentation Index
 
-This directory contains example configuration files for **OpenCode** and **Claude Code** with different model providers.
+This directory contains deeper guides and example configuration for Hyperpowers.
+
+Hyperpowers is **tm-first** on this branch: use `tm` as the day-to-day task-management interface, then consult the docs below for setup, backend detail, and integrations.
+
+## Core Setup & Workflow Guides
+
+- [../README.md](../README.md) — canonical front door for installation, usage, and the tm-first model
+- [QUICKSTART.md](QUICKSTART.md) — shortest path to the tm-first workflow in this repo
+- [linear-mcp-setup.md](linear-mcp-setup.md) — canonical Linear setup and `tm sync` guide
+- [model-configuration.md](model-configuration.md) — model/provider configuration guide for supported hosts
+
+## Host-Specific Install Guides
+
+- [../.opencode/INSTALL.md](../.opencode/INSTALL.md) — OpenCode install and tm runtime setup
+- [../.gemini-extension/README.md](../.gemini-extension/README.md) — Gemini extension install and tm/Linear support
+- [../.kimi/INSTALL.md](../.kimi/INSTALL.md) — Kimi install and workflow guide
+- [../.codex/INSTALL.md](../.codex/INSTALL.md) — Codex wrapper install guide
+
+## Backend / Tracker Context
+
+- `tm` — canonical user-facing interface
+- `bd` — current backend in this repo
+- `br` — Beads Rust / classic beads-compatible backend alternative
+- `tk` — Ticket / git-backed markdown tracker alternative
+
+These backends and alternatives are related, but they are **not interchangeable day-to-day commands**.
+
+## Configuration Examples
+
+Example configuration files for **OpenCode** and **Claude Code** with different model providers.
 
 ## Table of Contents
 
+- [Core Setup & Workflow Guides](#core-setup--workflow-guides)
+- [Backend / Tracker Context](#backend--tracker-context)
 - [OpenCode Configuration](#opencode-configuration)
 - [Claude Code Configuration](#claude-code-configuration)
 - [Provider Setup Guide](#provider-setup-guide)
@@ -65,7 +96,7 @@ cp docs/opencode.example.multi-provider.json opencode.json
 
 You can also set the default model directly in agent files:
 
-**File location:** `.opencode/agents/<agent-name>.md` or `agents/<agent-name>.md`
+**File location:** `.opencode/agents/<agent-name>.md` (project-local) or `~/.config/opencode/agents/<agent-name>.md` (global)
 
 **Format:**
 
@@ -122,7 +153,7 @@ For custom providers (GLM, API proxies, local models via Ollama/llama.cpp), add 
       "name": "GLM-4",
       "options": {
         "baseURL": "https://your-glm-endpoint.com/v1",
-        "apiKey": "${GLM_API_KEY}"
+        "apiKey": "{env:GLM_API_KEY}"
       },
       "models": {
         "glm-4.5": { "name": "GLM-4.5 Fast" },

@@ -1,0 +1,157 @@
+const test = require("node:test")
+const assert = require("node:assert/strict")
+const path = require("node:path")
+const fs = require("node:fs")
+const os = require("node:os")
+const { spawnSync } = require("node:child_process")
+
+const repoRoot = path.resolve(__dirname, "..")
+
+test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules directory", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const codexHome = path.join(home, ".codex")
+  const binDir = path.join(home, ".local", "bin")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+
+  fs.mkdirSync(codexHome, { recursive: true })
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
+
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
+})
+
+test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlink", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const codexHome = path.join(home, ".codex")
+  const binDir = path.join(home, ".local", "bin")
+  const libNodeModules = path.join(home, ".local", "lib", "tm", "node_modules")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.mkdirSync(codexHome, { recursive: true })
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.mkdirSync(binDir, { recursive: true })
+  fs.mkdirSync(libNodeModules, { recursive: true })
+  fs.symlinkSync(libNodeModules, path.join(binDir, "node_modules"), "dir")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(binDir, "node_modules")), false)
+})
+
+test("install.sh partial uninstall preserves shared tm runtime", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const codexHome = path.join(home, ".codex")
+  const binDir = path.join(home, ".local", "bin")
+  const libDir = path.join(home, ".local", "lib", "tm")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.mkdirSync(codexHome, { recursive: true })
+  fs.mkdirSync(binDir, { recursive: true })
+  fs.mkdirSync(libDir, { recursive: true })
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(binDir, "tm"), "#!/bin/sh\n", "utf8")
+  fs.writeFileSync(path.join(binDir, "tm-linear-sync.js"), "sync\n", "utf8")
+  fs.writeFileSync(path.join(binDir, "tm-linear-sync-config.js"), "config\n", "utf8")
+  fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
+  fs.writeFileSync(path.join(libDir, "tm-linear-sync.js"), "sync\n", "utf8")
+  fs.writeFileSync(path.join(libDir, "tm-linear-sync-config.js"), "config\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--codex", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(binDir, "tm")), true)
+  assert.equal(fs.existsSync(path.join(libDir, "tm-linear-sync.js")), true)
+  assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
+})
+
+test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const binDir = path.join(home, ".local", "bin")
+  const libDir = path.join(home, ".local", "lib", "tm")
+  const opencodeHome = path.join(home, ".config", "opencode")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(opencodeHome, { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  // Pre-create a real directory at ~/.local/bin/node_modules
+  fs.mkdirSync(path.join(binDir, "node_modules", "some-pkg"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0)
+  const nmPath = path.join(binDir, "node_modules")
+  const stat = fs.lstatSync(nmPath)
+  assert.equal(stat.isSymbolicLink(), true, "node_modules should be a symlink, not a directory")
+  assert.equal(fs.readlinkSync(nmPath), path.join(libDir, "node_modules"))
+  const backupPath = path.join(binDir, "node_modules.hyperpowers-backup")
+  assert.equal(fs.existsSync(backupPath), true)
+  assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
+})
+
+test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
+  const opencodeHome = path.join(home, ".config", "opencode")
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(opencodeHome, { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
+  assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
+  assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
+})

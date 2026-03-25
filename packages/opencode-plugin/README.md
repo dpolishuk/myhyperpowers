@@ -15,6 +15,16 @@ Add to your `opencode.json`:
 }
 ```
 
+This package path installs only the published OpenCode plugin package. On this branch, the preferred path is still:
+
+```bash
+./scripts/install.sh --opencode
+```
+
+That installer provisions both the OpenCode assets and the shared `tm` runtime used by `tm sync` + Linear support.
+
+Use project-root `opencode.json` for OpenCode configuration and `.opencode/` for project-local commands, plugins, agents, and skills.
+
 ## What it does
 
 - Blocks reading `.env` files (except `.env.example`)

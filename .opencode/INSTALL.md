@@ -7,11 +7,14 @@ For Gemini CLI, install from `.gemini-extension/`, and for Claude Code, use the 
 
 - [OpenCode.ai](https://opencode.ai) installed
 - [bun](https://bun.sh) for runtime and dependency management
+- Node.js + npm (required for the shared `tm` Linear sync runtime)
 - Git installed (for cloning)
 
 ## Quick Install
 
 ### Option 1: Using the Unified Installer (Recommended)
+
+This is the preferred path for this branch. The unified installer sets up both the OpenCode plugin surface **and** the shared `tm` runtime used by `tm sync`.
 
 From the hyperpowers repository:
 
@@ -33,6 +36,20 @@ For development (symlinks for live reload):
 ./scripts/install.sh --opencode --symlink
 ```
 
+After installation, the shared tm CLI is available at `~/.local/bin/tm` and the supporting Linear sync runtime is installed under `~/.local/lib/tm`.
+
+To enable Linear sync on this branch, configure both required credentials and then verify the shared tm path:
+
+```bash
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"
+
+~/.local/bin/tm --help
+tm sync
+```
+
+OpenCode project configuration still belongs in your project-root `opencode.json`. Use `.opencode/` for project-local commands, plugins, agents, and skills.
+
 ### Option 2: Manual Install
 
 ```bash
@@ -46,13 +63,19 @@ ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-skills.ts ~/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
 ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-safety.ts ~/.config/opencode/plugins/
 
-# 3. Install dependencies
-cd ~/.config/opencode
+# 3. Install plugin dependencies
+cd ~/.config/opencode/hyperpowers/.opencode
 bun install
 
-# 4. Restart OpenCode
+# 4. Provision the shared tm runtime used by this branch
+cd ~/.config/opencode/hyperpowers
+./scripts/install.sh --opencode
+
+# 5. Restart OpenCode
 opencode reload
 ```
+
+Manual plugin setup alone does **not** provision the shared tm runtime for this branch. If you skip the unified installer entirely, you must still install the tm runtime before expecting `tm sync` + Linear support to work.
 
 ## What Gets Installed
 
@@ -203,6 +226,7 @@ All hyperpowers commands are auto-discovered from the cloned repository:
 - `/review-implementation` - Verify implementation fidelity
 - `/beads-triage` - Run `bv --robot-triage` and return raw JSON
 - `/hyperpowers-version` - Show hyperpowers plugin version and installation status
+- `/tm-linear-setup` - Show the supported OpenCode tm/Linear setup path for this branch
 
 ## Beads Triage
 

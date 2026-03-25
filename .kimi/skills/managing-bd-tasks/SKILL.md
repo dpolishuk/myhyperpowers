@@ -25,12 +25,12 @@ HIGH FREEDOM - These are operational patterns, not rigid workflows. Adapt operat
 |-----------|------|-------------|
 | Split task | Task too large mid-flight | Create subtasks, add deps, close parent |
 | Merge duplicates | Found duplicate tasks | Combine designs, move deps, close with reference |
-| Change dependencies | Dependencies wrong/changed | `bd dep remove` then `bd dep add` |
-| Archive epic | Epic complete, hide from views | `bd close bd-X --reason "Archived"` |
-| Query metrics | Need status/velocity data | `bd list` + filters + `wc -l` |
-| Cross-epic deps | Task depends on other epic | `bd dep add` works across epics |
+| Change dependencies | Dependencies wrong/changed | `tm dep remove` then `tm dep add` |
+| Archive epic | Epic complete, hide from views | `tm close bd-X --reason "Archived"` |
+| Query metrics | Need status/velocity data | `tm list` + filters + `wc -l` |
+| Cross-epic deps | Task depends on other epic | `tm dep add` works across epics |
 | Bulk updates | Multiple tasks need same change | Loop with careful review first |
-| Recover mistakes | Accidentally closed/wrong dep | `bd update --status` or `bd dep remove` |
+| Recover mistakes | Accidentally closed/wrong dep | `tm update --status` or `tm dep remove` |
 
 **Core principle:** Track all work in bd, update as you go, never batch updates.
 </quick_reference>
@@ -65,7 +65,7 @@ Use this skill for **advanced** bd operations:
 # Already completed: Login form
 # Remaining work gets split:
 
-bd create "Auth API endpoints" --type task --priority P1 --design "
+tm create "Auth API endpoints" --type task --priority P1 --design "
 POST /api/login and POST /api/logout endpoints.
 ## Success Criteria
 - [ ] POST /api/login validates credentials, returns JWT
@@ -74,7 +74,7 @@ POST /api/login and POST /api/logout endpoints.
 "
 # Returns bd-12
 
-bd create "Session management" --type task --priority P1 --design "
+tm create "Session management" --type task --priority P1 --design "
 JWT token tracking and validation.
 ## Success Criteria
 - [ ] JWT generated on login
@@ -84,7 +84,7 @@ JWT token tracking and validation.
 "
 # Returns bd-13
 
-bd create "Password hashing" --type task --priority P1 --design "
+tm create "Password hashing" --type task --priority P1 --design "
 Secure password hashing with bcrypt.
 ## Success Criteria
 - [ ] Passwords hashed before storage
@@ -99,13 +99,13 @@ Secure password hashing with bcrypt.
 ```bash
 # Password hashing must be done first
 # API endpoints depend on password hashing
-bd dep add bd-12 bd-14  # bd-12 depends on bd-14
+tm dep add bd-12 bd-14  # bd-12 depends on bd-14
 
 # Session management depends on API endpoints
-bd dep add bd-13 bd-12  # bd-13 depends on bd-12
+tm dep add bd-13 bd-12  # bd-13 depends on bd-12
 
 # View tree
-bd dep tree bd-5
+tm dep tree bd-5
 ```
 
 ### Step 3: Update original task and close
@@ -126,19 +126,19 @@ Implement user authentication.
 - [ ] See subtasks for remaining criteria
 "
 
-bd close bd-5 --reason "Split into bd-12, bd-13, bd-14"
+tm close bd-5 --reason "Split into bd-12, bd-13, bd-14"
 ```
 
 ### Step 4: Work on subtasks in order
 
 ```bash
-bd ready  # Shows bd-14 (no dependencies)
-bd update bd-14 --status in_progress
+tm ready  # Shows bd-14 (no dependencies)
+tm update bd-14 --status in_progress
 # Complete bd-14...
-bd close bd-14
+tm close bd-14
 
 # Now bd-12 is unblocked
-bd ready  # Shows bd-12
+tm ready  # Shows bd-12
 ```
 
 ---
@@ -166,8 +166,8 @@ Based on:
 ### Step 2: Merge designs
 
 ```bash
-bd show bd-7
-bd show bd-9
+tm show bd-7
+tm show bd-9
 
 # Combine into bd-7
 bd edit bd-7 --design "
@@ -192,11 +192,11 @@ Need validation on update, not just creation.
 
 ```bash
 # Check bd-9 dependencies
-bd show bd-9
+tm show bd-9
 
 # If bd-10 depended on bd-9, update to bd-7
-bd dep remove bd-10 bd-9
-bd dep add bd-10 bd-7
+tm dep remove bd-10 bd-9
+tm dep add bd-10 bd-7
 ```
 
 ### Step 4: Close duplicate with reference
@@ -206,7 +206,7 @@ bd edit bd-9 --design "DUPLICATE: Merged into bd-7
 
 This task was duplicate of bd-7. All work tracked there."
 
-bd close bd-9
+tm close bd-9
 ```
 
 ---
@@ -219,14 +219,14 @@ bd close bd-9
 
 ```bash
 # Remove obsolete dependency
-bd dep remove bd-10 bd-9
+tm dep remove bd-10 bd-9
 
 # Add new dependency
-bd dep add bd-10 bd-11
+tm dep add bd-10 bd-11
 
 # Verify
-bd dep tree bd-1  # If bd-10 in epic bd-1
-bd show bd-10 | grep "Blocking"
+tm dep tree bd-1  # If bd-10 in epic bd-1
+tm show bd-10 | grep "Blocking"
 ```
 
 **Common scenarios:**
@@ -242,17 +242,17 @@ bd show bd-10 | grep "Blocking"
 
 ```bash
 # Verify all tasks closed
-bd list --parent bd-1 --status open
+tm list --parent bd-1 --status open
 # Output: [empty] = all closed
 
 # Archive epic
-bd close bd-1 --reason "Archived - completed Oct 2025"
+tm close bd-1 --reason "Archived - completed Oct 2025"
 
 # Won't show in open listings
-bd list --status open  # bd-1 won't appear
+tm list --status open  # bd-1 won't appear
 
 # Still accessible
-bd show bd-1  # Still shows full epic
+tm show bd-1  # Still shows full epic
 ```
 
 **Use archived for:** Completed epics, shipped features, historical reference
@@ -267,21 +267,21 @@ bd show bd-1  # Still shows full epic
 
 ```bash
 # Tasks closed this week
-bd list --status closed | grep "closed_at" | grep "2025-10-" | wc -l
+tm list --status closed | grep "closed_at" | grep "2025-10-" | wc -l
 
 # Tasks closed by epic
-bd list --parent bd-1 --status closed | wc -l
+tm list --parent bd-1 --status closed | wc -l
 ```
 
 ### Blocked vs Ready
 
 ```bash
 # Ready to work on
-bd ready
-bd ready | grep "^bd-" | wc -l
+tm ready
+tm ready | grep "^bd-" | wc -l
 
 # All open tasks
-bd list --status open | wc -l
+tm list --status open | wc -l
 
 # Blocked = open - ready
 ```
@@ -290,13 +290,13 @@ bd list --status open | wc -l
 
 ```bash
 # Show tree
-bd dep tree bd-1
+tm dep tree bd-1
 
 # Total tasks in epic
-bd list --parent bd-1 | grep "^bd-" | wc -l
+tm list --parent bd-1 | grep "^bd-" | wc -l
 
 # Completed tasks
-bd list --parent bd-1 --status closed | grep "^bd-" | wc -l
+tm list --parent bd-1 --status closed | grep "^bd-" | wc -l
 
 # Percentage = (completed / total) * 100
 ```
@@ -320,14 +320,14 @@ Epic bd-2: Order Management
 
 ```bash
 # Add cross-epic dependency
-bd dep add bd-20 bd-10
+tm dep add bd-20 bd-10
 # bd-20 (in bd-2) depends on bd-10 (in bd-1)
 
 # Check dependencies
-bd show bd-20 | grep "Blocking"
+tm show bd-20 | grep "Blocking"
 
 # Check ready tasks
-bd ready
+tm ready
 # Won't show bd-20 until bd-10 closed
 ```
 
@@ -346,18 +346,18 @@ bd ready
 
 ```bash
 # Get tasks
-bd list --parent bd-1 --status open | grep "test:" > test-tasks.txt
+tm list --parent bd-1 --status open | grep "test:" > test-tasks.txt
 
 # Review list
 cat test-tasks.txt
 
 # Update each
 while read task_id; do
-  bd close "$task_id"
+  tm close "$task_id"
 done < test-tasks.txt
 
 # Verify
-bd list --parent bd-1 --status open | grep "test:"
+tm list --parent bd-1 --status open | grep "test:"
 ```
 
 **Use bulk for:**
@@ -376,16 +376,16 @@ bd list --parent bd-1 --status open | grep "test:"
 ### Accidentally closed task
 
 ```bash
-bd update bd-15 --status open
+tm update bd-15 --status open
 # Or if was in progress
-bd update bd-15 --status in_progress
+tm update bd-15 --status in_progress
 ```
 
 ### Wrong dependency
 
 ```bash
-bd dep remove bd-10 bd-8  # Remove wrong
-bd dep add bd-10 bd-9     # Add correct
+tm dep remove bd-10 bd-8  # Remove wrong
+tm dep add bd-10 bd-9     # Add correct
 ```
 
 ### Undo design changes
@@ -416,7 +416,7 @@ bd-7: "Add email validation"
 bd-9: "Validate user email addresses"
 
 # Developer just closes bd-9
-bd close bd-9
+tm close bd-9
 
 # Loses information from bd-9's design
 # bd-9 mentioned validation on update (bd-7 didn't)
@@ -438,8 +438,8 @@ bd close bd-9
 
 ```bash
 # Read BOTH tasks
-bd show bd-7  # Only mentions validation on creation
-bd show bd-9  # Mentions validation on update too
+tm show bd-7  # Only mentions validation on creation
+tm show bd-9  # Mentions validation on update too
 
 # Merge information
 bd edit bd-7 --design "
@@ -456,7 +456,7 @@ Merged from bd-9.
 
 # Then close duplicate with reference
 bd edit bd-9 --design "DUPLICATE: Merged into bd-7"
-bd close bd-9
+tm close bd-9
 ```
 
 **What you gain:**
@@ -515,22 +515,22 @@ Implement payment processing.
   - bd-23: Receipt generation
 "
 
-bd close bd-15 --reason "Split into bd-20, bd-21, bd-22, bd-23"
+tm close bd-15 --reason "Split into bd-20, bd-21, bd-22, bd-23"
 
 # Create subtasks with dependencies
-bd create "Stripe API integration" ...  # bd-20
-bd create "Payment validation" ...      # bd-21
-bd create "Retry logic" ...             # bd-22
-bd create "Receipt generation" ...      # bd-23
+tm create "Stripe API integration" ...  # bd-20
+tm create "Payment validation" ...      # bd-21
+tm create "Retry logic" ...             # bd-22
+tm create "Receipt generation" ...      # bd-23
 
-bd dep add bd-21 bd-20  # Validation needs API
-bd dep add bd-22 bd-20  # Retry needs API
-bd dep add bd-23 bd-22  # Receipts after retry works
+tm dep add bd-21 bd-20  # Validation needs API
+tm dep add bd-22 bd-20  # Retry needs API
+tm dep add bd-23 bd-22  # Receipts after retry works
 
 # Work on one at a time
-bd update bd-20 --status in_progress
+tm update bd-20 --status in_progress
 # Complete bd-20 (4 hours)
-bd close bd-20
+tm close bd-20
 
 # Take break
 # Next day: bd-21
@@ -555,19 +555,19 @@ bd-10: "Add user dashboard" (in progress)
 bd-15: "Add analytics to dashboard" (blocked on bd-10)
 
 # During bd-10 implementation, discover need for new API
-bd create "Analytics API endpoints" ...  # Creates bd-20
+tm create "Analytics API endpoints" ...  # Creates bd-20
 
 # Add dependency
-bd dep add bd-15 bd-20  # bd-15 now depends on bd-20 too
+tm dep add bd-15 bd-20  # bd-15 now depends on bd-20 too
 
 # But bd-10 completes, closes
-bd close bd-10
+tm close bd-10
 
 # bd-15 shows as ready (bd-10 closed)
-bd ready  # Shows bd-15
+tm ready  # Shows bd-15
 
 # Developer starts bd-15
-bd update bd-15 --status in_progress
+tm update bd-15 --status in_progress
 
 # Immediately blocked - needs bd-20!
 # bd-20 not done yet
@@ -588,10 +588,10 @@ bd update bd-15 --status in_progress
 
 ```bash
 # Create new API task
-bd create "Analytics API endpoints" ...  # bd-20
+tm create "Analytics API endpoints" ...  # bd-20
 
 # Add dependency
-bd dep add bd-15 bd-20
+tm dep add bd-15 bd-20
 
 # UPDATE bd-15 to document new requirement
 bd edit bd-15 --design "
@@ -608,18 +608,18 @@ Add analytics to dashboard.
 "
 
 # Close bd-10
-bd close bd-10
+tm close bd-10
 
 # Check ready
-bd ready  # Does NOT show bd-15 (blocked on bd-20)
+tm ready  # Does NOT show bd-15 (blocked on bd-20)
 
 # Work on bd-20 first
-bd update bd-20 --status in_progress
+tm update bd-20 --status in_progress
 # Complete bd-20
-bd close bd-20
+tm close bd-20
 
 # NOW bd-15 is truly ready
-bd ready  # Shows bd-15
+tm ready  # Shows bd-15
 ```
 
 **What you gain:**

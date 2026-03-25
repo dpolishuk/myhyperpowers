@@ -5,9 +5,9 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 
-Strong guidance for Claude Code, OpenCode, and Gemini CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
-[Features](#features) · [Installation](#installation) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
+[Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
 ## Quick Start
 
@@ -18,7 +18,31 @@ Strong guidance for Claude Code, OpenCode, and Gemini CLI as software developmen
 /plugin install myhyperpowers@myhyperpowers --scope user
 ```
 
-See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI.
+See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For Kimi CLI, see [`.kimi/INSTALL.md`](.kimi/INSTALL.md).
+
+## Task Management Model
+
+Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
+
+These tools are related, but `bd` / `br` / `tk` are **not interchangeable day-to-day commands**:
+
+- `tm` = canonical user-facing task-management interface
+- `bd` = current local tracker backend in this repo
+- `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
+- `tk` = Ticket, a git-backed markdown ticket workflow alternative
+
+Linear and GitHub are integrations layered on top of task management — **Linear and GitHub are integrations**, not primary local task trackers.
+
+If you only want the main working model:
+
+1. install the host support you need
+2. use `tm` for day-to-day work
+3. use deeper guides for backend or integration details
+
+Start here:
+- [Installation](#installation)
+- [Linear Integration](#linear-integration-optional)
+- [docs/README.md](docs/README.md)
 
 ## Features
 
@@ -260,17 +284,20 @@ Quick start - run from the hyperpowers repo:
 # Clone or navigate to hyperpowers
 cd /path/to/hyperpowers
 
+# Preferred path on this branch: install OpenCode support + shared tm runtime
+./scripts/install.sh --opencode
+
 # Run OpenCode (it auto-discovers opencode.json and .opencode/)
 opencode
 ```
 
-That's it! Commands, agents, and skills are now available.
+That's it! Commands, agents, skills, and the shared `tm` CLI used by this branch are now available.
 
 **For your own projects**, copy these files:
 
 ```bash
-cp hyperpowers/opencode.json your-project/
-cp -r hyperpowers/.opencode your-project/
+cp opencode.json your-project/
+cp -r .opencode your-project/
 cd your-project/.opencode && bun install && cd ..
 opencode
 ```
@@ -285,6 +312,8 @@ opencode
 }
 ```
 
+This npm path adds the OpenCode plugin package only. For this branch's installer-first `tm` + Linear workflow, use `./scripts/install.sh --opencode` so the shared tm runtime is provisioned as well.
+
 **Verify:** `/hyperpowers-version`
 
 </details>
@@ -292,8 +321,16 @@ opencode
 <details>
 <summary><strong>Gemini CLI</strong></summary>
 
+Preferred path on this branch:
+
 ```bash
-# Install or link the extension
+./scripts/install.sh --gemini
+```
+
+Fallback manual extension flow:
+
+```bash
+# Install or link the extension only
 gemini extensions install .gemini-extension
 
 # Reinstall with auto-update enabled
@@ -302,6 +339,8 @@ gemini extensions install .gemini-extension --auto-update
 # Development workflow (loads edits immediately)
 gemini extensions link .gemini-extension
 ```
+
+Manual extension install/link is fallback-only here: it does **not** provision the shared `tm` runtime used by this branch's `tm sync` + optional Linear support.
 
 If you had a prior local install, uninstall first:
 
@@ -335,7 +374,7 @@ Explicit invocation in Codex uses skill names (not custom slash-command registra
 ```text
 $codex-command-write-plan Draft a plan for feature X.
 $codex-command-execute-plan Execute task bd-123.
-$codex-skill-executing-plans Continue from current bd ready task.
+$codex-skill-executing-plans Continue from current tm ready task.
 ```
 
 You can also use `/skills` in Codex UI to discover and select the same wrappers.
@@ -396,6 +435,58 @@ See [Model Configuration](docs/model-configuration.md) for full documentation.
 
 </details>
 
+## Linear Integration (Optional)
+
+Hyperpowers includes a `tm` CLI as the canonical task-management interface. In this repo the current backend is `bd`, but day-to-day usage should remain tm-first.
+
+Optionally, you can connect `tm sync` to [Linear](https://linear.app) to mirror your local issues to your team's Linear workspace.
+
+### Quick Setup
+
+1. **Get a Linear API key**: Linear Settings -> API -> Personal API keys -> Create key
+2. **Find your team key**: Linear Settings -> Teams -> your team's short key (e.g., "ENG")
+3. **Configure**:
+
+```bash
+# Option A: Environment variables
+export LINEAR_API_KEY="lin_api_your_key_here"
+export LINEAR_TEAM_KEY="ENG"
+
+# Option B: Persistent config (per-repo)
+tm config set linear.api-key "lin_api_your_key_here"
+tm config set linear.team-key "ENG"
+```
+
+4. **Sync**: `tm sync` now pushes issues to Linear after syncing git
+
+### Without Linear
+
+If you don't configure Linear, the normal tm-first local workflow still works:
+
+```
+tm ready
+tm show bd-42
+tm sync
+```
+
+### Linear MCP Server (Optional)
+
+For OpenCode, add a Linear MCP server to your project-root `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "linear": {
+      "type": "local",
+      "command": ["npx", "-y", "@tacticlaunch/mcp-linear@1.0.12"],
+      "environment": { "LINEAR_API_KEY": "{env:LINEAR_API_KEY}" }
+    }
+  }
+}
+```
+
+See [docs/linear-mcp-setup.md](docs/linear-mcp-setup.md) for the full setup guide with host-specific examples, field mapping, troubleshooting, and architecture details.
+
 ## Uninstall
 
 Hyperpowers uses a manifest-based uninstaller that only removes files it installed -- your custom skills, agents, and hooks are safe.
@@ -441,10 +532,10 @@ Claude: I'm using the brainstorming skill to refine your authentication requirem
 [Socratic questioning to understand requirements]
 
 Claude: Now I'm using the writing-plans skill to create a detailed implementation plan.
-[Creates detailed plan with specific tasks in bd]
+[Creates detailed plan with specific tasks in tm-backed tracking]
 
 Claude: I'm using the executing-plans skill to implement the tasks.
-[Works through ready tasks continuously, using bd ready to find next task]
+[Works through ready tasks continuously, using tm ready to find next task]
 
 Claude: I'm using the test-runner agent to verify all tests pass.
 [Agent runs tests, reports: "47 tests passed, 0 failed"]
@@ -516,7 +607,7 @@ Codex-compatible wrappers are generated artifacts. The source of truth remains:
 - `commands/*.md`
 - `agents/*.md`
 
-Generated output is written to `.codex/skills` (in this repo it maps to `.kimi/skills` via symlink).
+Generated output is written to `.agents/skills`.
 
 Run these commands after changing skills/commands/agents:
 

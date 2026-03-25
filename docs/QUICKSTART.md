@@ -1,0 +1,41 @@
+# tm-First Quickstart
+
+Use this guide when you want the shortest path to the repo’s canonical task-management workflow.
+
+## Core Model
+
+- `tm` = canonical user-facing interface
+- `bd` = current backend in this repo
+- `br` = Beads Rust / classic beads-compatible alternative
+- `tk` = Ticket / git-backed markdown alternative
+
+These tools are related, but they are **not interchangeable day-to-day commands**.
+
+## Daily Workflow
+
+```bash
+# Find work
+tm ready
+
+# Inspect a task
+tm show <id>
+
+# Claim work
+tm update <id> --status in_progress
+
+# Complete work
+tm close <id>
+
+# Sync local work and integrations
+tm sync
+```
+
+## When to Use Backend-Specific Commands
+
+Use direct `bd`, `br`, or `tk` commands only when a backend-specific setup, maintenance, or migration guide explicitly requires them.
+
+## Next Guides
+
+- [../README.md](../README.md) — front door and installation
+- [linear-mcp-setup.md](linear-mcp-setup.md) — Linear and MCP setup
+- [README.md](README.md) — docs index and deeper guide map

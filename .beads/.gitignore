@@ -26,6 +26,10 @@ ephemeral.sqlite3-journal
 ephemeral.sqlite3-wal
 ephemeral.sqlite3-shm
 
+# Linear sync state (local-only, per-machine)
+linear-map.json
+linear-sync-state.json
+
 # Dolt server management (auto-started by bd)
 dolt-server.pid
 dolt-server.log

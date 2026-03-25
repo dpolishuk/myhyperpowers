@@ -45,8 +45,8 @@ LOW FREEDOM - Follow the 6-step process exactly. Present exactly 4 options. Neve
 **Verify all tasks closed:**
 
 ```bash
-bd dep tree bd-1  # Show task tree
-bd list --status open --parent bd-1  # Check for open tasks
+tm dep tree bd-1  # Show task tree
+tm list --status open --parent bd-1  # Check for open tasks
 ```
 
 **If any tasks still open:**
@@ -63,7 +63,7 @@ Complete all tasks before finishing.
 **If all tasks closed:**
 
 ```bash
-bd close bd-1
+tm close bd-1
 ```
 
 ---
@@ -149,8 +149,8 @@ Then: Step 6 (cleanup worktree)
 **Get epic info:**
 
 ```bash
-bd show bd-1
-bd dep tree bd-1
+tm show bd-1
+tm dep tree bd-1
 ```
 
 **Create PR:**
@@ -236,7 +236,7 @@ git worktree remove <worktree-path>
 
 <code>
 # Step 1: Epic closed ✓
-bd close bd-1
+tm close bd-1
 
 # Step 2: SKIPPED test verification
 # Jump directly to presenting options
@@ -266,7 +266,7 @@ git merge feature-branch
 
 ```bash
 # After closing epic
-bd close bd-1 ✓
+tm close bd-1 ✓
 
 # MANDATORY: Verify tests BEFORE presenting options
 Dispatch hyperpowers:test-runner agent: "Run: cargo test"
@@ -475,7 +475,7 @@ hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpower
 - [bd epic reference in PRs](resources/bd-pr-integration.md)
 
 **When stuck:**
-- Tasks won't close → Check bd status, verify all child tasks done
+- Tasks won't close → Check tm status, verify all child tasks done
 - Tests fail → Fix before presenting options (can't proceed)
 - User unsure → Explain options, but don't make choice for them
 - Worktree won't remove → Might have uncommitted changes, ask user

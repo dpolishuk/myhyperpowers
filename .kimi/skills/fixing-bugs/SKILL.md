@@ -26,12 +26,12 @@ Never skip tracking or regression test. Use debugging-with-tools for investigati
 
 | Step | Action | Command/Skill |
 |------|--------|---------------|
-| **1. Track** | Create bd bug issue | `bd create "Bug: [description]" --type bug` |
+| **1. Track** | Create bd bug issue | `tm create "Bug: [description]" --type bug` |
 | **2. Debug** | Systematic investigation | Use `debugging-with-tools` skill |
 | **3. Test (RED)** | Write failing test reproducing bug | Use `test-driven-development` skill |
 | **4. Fix (GREEN)** | Implement fix | Minimal code to pass test |
 | **5. Verify** | Run full test suite | Use `verification-before-completion` skill |
-| **6. Classify** | Classify status and close | `bd close bd-123` |
+| **6. Classify** | Classify status and close | `tm close bd-123` |
 
 **FORBIDDEN:** Fix without bd issue, fix without regression test
 **REQUIRED:** Every bug gets tracked, tested, verified before closing
@@ -75,7 +75,7 @@ After implementing a fix, classify its status:
 **Track from the start:**
 
 ```bash
-bd create "Bug: [Clear description]" --type bug --priority P1
+tm create "Bug: [Clear description]" --type bug --priority P1
 # Returns: bd-123
 ```
 
@@ -209,7 +209,7 @@ bd edit bd-123 --design "[previous content]
 ## Regression Test
 [Test added: tests/test_user.py::test_rejects_empty_email]"
 
-bd close bd-123
+tm close bd-123
 ```
 
 **If status is not FIXED:**
@@ -272,7 +272,7 @@ Commits: "fix: validate email"
 
 ```bash
 # 1. Track
-bd create "Bug: Empty email accepted" --type bug
+tm create "Bug: Empty email accepted" --type bug
 # Returns: bd-123
 
 # 2. Debug (use debugging-with-tools)
@@ -305,7 +305,7 @@ def create_user(email: str):
 pytest  # All tests pass now, including regression tests
 
 # 6. Close
-bd close bd-123
+tm close bd-123
 git commit -m "fix(bd-123): Reject empty/whitespace email"
 ```
 

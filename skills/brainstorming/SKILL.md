@@ -183,7 +183,7 @@ These concerns often resurface during implementation - having the resolution doc
 **After design validated, create epic as immutable contract:**
 
 ```bash
-bd create "Feature: [Feature Name]" \
+tm create "Feature: [Feature Name]" \
   --type epic \
   --priority [0-4] \
   --design "## Requirements (IMMUTABLE)
@@ -345,7 +345,7 @@ bd create "Feature: [Feature Name]" \
 **Create one task, not full tree:**
 
 ```bash
-bd create "Task 1: [Specific Deliverable]" \
+tm create "Task 1: [Specific Deliverable]" \
   --type feature \
   --priority [match-epic] \
   --design "## Goal
@@ -369,7 +369,7 @@ bd create "Task 1: [Specific Deliverable]" \
 - [ ] Tests passing
 - [ ] Pre-commit hooks passing"
 
-bd dep add bd-2 bd-1 --type parent-child  # Link to epic
+tm dep add bd-2 bd-1 --type parent-child  # Link to epic
 ```
 
 **Why only one task?**
@@ -475,13 +475,13 @@ Claude (without brainstorming):
 <scenario>Developer creates full task tree upfront</scenario>
 
 <code>
-bd create "Epic: Add OAuth"
-bd create "Task 1: Configure OAuth provider"
-bd create "Task 2: Implement token exchange"
-bd create "Task 3: Add refresh token logic"
-bd create "Task 4: Create middleware"
-bd create "Task 5: Add UI components"
-bd create "Task 6: Write integration tests"
+tm create "Epic: Add OAuth"
+tm create "Task 1: Configure OAuth provider"
+tm create "Task 2: Implement token exchange"
+tm create "Task 3: Add refresh token logic"
+tm create "Task 4: Create middleware"
+tm create "Task 5: Add UI components"
+tm create "Task 6: Write integration tests"
 
 # Starts implementing Task 1
 # Discovers OAuth library handles refresh automatically
@@ -503,19 +503,19 @@ bd create "Task 6: Write integration tests"
 **Correct approach (iterative):**
 
 ```bash
-bd create "Epic: Add OAuth" [with immutable requirements]
-bd create "Task 1: Configure OAuth provider"
+tm create "Epic: Add OAuth" [with immutable requirements]
+tm create "Task 1: Configure OAuth provider"
 
 # Execute Task 1
 # Learn: OAuth library handles refresh, middleware exists
 
-bd create "Task 2: Integrate with existing middleware"
+tm create "Task 2: Integrate with existing middleware"
 # [Created AFTER learning from Task 1]
 
 # Execute Task 2
 # Learn: UI needs OAuth button component
 
-bd create "Task 3: Add OAuth button to login UI"
+tm create "Task 3: Add OAuth button to login UI"
 # [Created AFTER learning from Task 2]
 ```
 
@@ -532,7 +532,7 @@ bd create "Task 3: Add OAuth button to login UI"
 <scenario>Epic created without anti-patterns section</scenario>
 
 <code>
-bd create "Epic: OAuth Authentication" --design "
+tm create "Epic: OAuth Authentication" --design "
 ## Requirements
 - Users authenticate via Google OAuth2
 - Tokens stored securely
@@ -562,7 +562,7 @@ bd create "Epic: OAuth Authentication" --design "
 **Correct approach with anti-patterns and design rationale:**
 
 ```bash
-bd create "Epic: OAuth Authentication" --design "
+tm create "Epic: OAuth Authentication" --design "
 ## Requirements (IMMUTABLE)
 - Users authenticate via Google OAuth2
 - Tokens stored in httpOnly cookies (NOT localStorage)

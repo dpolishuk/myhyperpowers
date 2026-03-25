@@ -19,12 +19,12 @@ flowchart TD
     FINAL --> VERIFY[Verify Integration<br/>verification-before-completion]
     VERIFY --> CLOSEEPIC[Close Epic<br/>finishing-a-development-branch]
     
-    CHECK -->|Yes| CLAIM[Claim Next Task<br/>bd update --status in_progress]
+    CHECK -->|Yes| CLAIM[Claim Next Task<br/>tm update --status in_progress]
 
     CLAIM --> REFINE[SRE Refinement<br/>sre-task-refinement skill]
     REFINE --> TDD[Execute Task with TDD<br/>test-driven-development skill]
     TDD --> VERIFYTASK[Verify Task<br/>verification-before-completion]
-    VERIFYTASK --> CLOSE[Close Task<br/>bd close bd-N]
+    VERIFYTASK --> CLOSE[Close Task<br/>tm close bd-N]
     CLOSE --> COMMIT[Auto-Commit<br/>git commit]
     COMMIT --> REVIEW[5 Parallel Review Agents<br/>quality, implementation, testing,<br/>simplification, documentation]
 
@@ -142,7 +142,7 @@ git checkout -b "feature/${BRANCH_NAME}"
 Example: "User Authentication Flow" → `feature/user-authentication-flow`
 
 ```bash
-bd dep tree bd-xxx  # Understand task structure
+tm dep tree bd-xxx  # Understand task structure
 ```
 
 **Extract:**
@@ -169,8 +169,8 @@ bv -robot-next 2>/dev/null  # Get optimal next task with claim_command
 
 Then claim and load:
 ```bash
-bd update bd-N --status in_progress   # Use claim_command from robot-next
-bd show bd-N                          # Load details
+tm update bd-N --status in_progress   # Use claim_command from robot-next
+tm show bd-N                          # Load details
 ```
 
 **Run SRE Task Refinement:**
@@ -187,7 +187,7 @@ This ensures:
 - Test specifications catch real bugs
 
 If SRE refinement finds critical issues:
-- Update the task using `bd update --design`
+- Update the task using `tm update --design`
 - Re-run SRE refinement if major changes made
 - Only proceed to execution when task passes review
 
@@ -202,7 +202,7 @@ If SRE refinement finds critical issues:
 ```bash
 # Run verification commands internally
 # Then auto-close
-bd close bd-N
+tm close bd-N
 ```
 
 ### Step 2b: Auto-Commit
@@ -245,7 +245,7 @@ Dispatch IN PARALLEL:
 
 2. review-implementation:
    "Verify task bd-N achieves its stated goals.
-   Task requirements: [from bd show]
+   Task requirements: [from tm show]
    Epic requirements: [relevant subset]
    Return: PASS or ISSUES_FOUND with missing/incomplete items."
 
@@ -442,10 +442,10 @@ Dispatch IN PARALLEL:
 
 Create remediation tasks:
 ```bash
-bd create "Remediation: [issue description]" \
+tm create "Remediation: [issue description]" \
   --type task \
   --design "[fix instructions from reviewer]"
-bd dep add bd-NEW bd-1 --type parent-child
+tm dep add bd-NEW bd-1 --type parent-child
 ```
 
 Execute remediation tasks (return to Phase 1).
@@ -461,7 +461,7 @@ Use Skill tool: hyperpowers:finishing-a-development-branch
 ```
 
 **This skill:**
-1. Closes bd epic: `bd close bd-1`
+1. Closes bd epic: `tm close bd-1`
 2. Verifies tests pass
 3. Determines base branch
 4. Executes merge/PR automatically (or presents options if ambiguous)

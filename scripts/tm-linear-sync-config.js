@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+"use strict"
+
+const { spawnSync } = require("node:child_process")
+
+/**
+ * Load a config value from: env var → bd config → null
+ */
+function loadConfigValue(envVar, bdConfigKey) {
+  // Explicit empty env var overrides bd config (allows disabling with LINEAR_API_KEY="")
+  if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
+    const envVal = (process.env[envVar] || "").trim()
+    if (!envVal) return null
+    return envVal
+  }
+
+  const result = spawnSync("bd", ["config", "get", bdConfigKey], {
+    encoding: "utf8",
+    timeout: 5000,
+  })
+
+  if (result.error || result.status !== 0) {
+    const detail = result.error ? result.error.message : (result.stderr || "").trim() || `exit ${result.status}`
+    throw new Error(`bd config get ${bdConfigKey} failed: ${detail}`)
+  }
+
+  const val = (result.stdout || "").trim()
+  // bd config get returns "key (not set)" when unconfigured
+  if (!val || val.endsWith("(not set)")) return null
+  return val
+}
+
+/**
+ * Load Linear configuration from environment and bd config.
+ * Returns { apiKey, teamKey } or null if not configured.
+ */
+function loadLinearConfig() {
+  const apiKey = loadConfigValue("LINEAR_API_KEY", "linear.api-key")
+  if (!apiKey) return null
+
+  const teamKey = loadConfigValue("LINEAR_TEAM_KEY", "linear.team-key")
+  if (!teamKey) {
+    const err = new Error("LINEAR_API_KEY is set but LINEAR_TEAM_KEY is missing.\n  Set it with: export LINEAR_TEAM_KEY=ENG\n  Or: tm config set linear.team-key ENG")
+    err.code = "MISCONFIGURED"
+    throw err
+  }
+
+  return { apiKey, teamKey }
+}
+
+module.exports = { loadLinearConfig, loadConfigValue }

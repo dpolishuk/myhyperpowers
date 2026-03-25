@@ -68,7 +68,7 @@ execute-ralph overrides all checkpoint semantics from sub-skills.
 SETUP (once):  Phase 0 — Smart Triage, Load Epic, Create Branch, Extract Criteria
 
 REPEAT (per task, track iteration count):
-  Phase 1 — GET TASK: bd ready to claim, OR auto-create from unmet criterion
+  Phase 1 — GET TASK: tm ready to claim, OR auto-create from unmet criterion
   Phase 2 — REFINE: sre-task-refinement (NEVER skip)
   Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
   Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst

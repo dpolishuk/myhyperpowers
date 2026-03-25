@@ -48,19 +48,21 @@ Use the `Task` tool to dispatch specialized subagents:
 | `autonomous-reviewer` | Ralph's autonomous code reviewer |
 | `test-runner` | Run tests, return only summary + failures |
 
-## Beads Integration
+## Task Management
 
-This agent integrates with beads_viewer (bd/bv) for issue tracking:
+This agent uses the tm-first task-management model for this repo:
 
 ```bash
-bd ready              # Show issues ready to work
-bd list --status=open # All open issues
-bd show <id>          # Detailed issue view
-bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
-bd close <id>
-bd sync               # Commit and push changes
+tm ready              # Show issues ready to work
+tm list --status open # All open issues
+tm show <id>          # Detailed issue view
+tm create "Issue title" --type task --priority 2 --design "Details"
+tm update <id> --status=in_progress
+tm close <id>
+tm sync               # Sync local work and integrations
 ```
+
+Backend note: the current backend in this repo is `bd`; use direct backend CLIs only when a backend-specific guide explicitly requires them.
 
 ## Kimi-Native Tools
 
@@ -86,7 +88,7 @@ You have access to Kimi CLI's native tools:
 
 - Never claim work is complete without verification evidence
 - Always use TDD when implementing features or fixing bugs
-- Check `bd ready` for available work before starting
-- Use `bd sync` at session end to commit beads changes
+- Check `tm ready` for available work before starting
+- Use `tm sync` at session end to sync local work and integrations
 - Dispatch codebase-investigator before making assumptions about code
 - Dispatch internet-researcher before implementing unfamiliar APIs
