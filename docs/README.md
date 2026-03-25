@@ -76,6 +76,13 @@ GLM models with optimized agent assignments:
 - Assign different providers to different agents
 - Mix official and third-party providers
 
+#### `opencode.example.agent-routing.json`
+**Hyperpowers direct-routing contract example.** Shows how to:
+
+- Map models directly to concrete Hyperpowers agents with the canonical `agent` key
+- Keep plugin/options editing aligned to the same underlying routing map
+- See the planned `hyperpowers.workflowOverrides` shape without treating it as active runtime behavior yet
+
 ### How to Use (OpenCode)
 
 1. **Copy** the example that matches your provider:
@@ -86,6 +93,8 @@ cp docs/opencode.example.anthropic.json opencode.json
 cp docs/opencode.example.glm.json opencode.json
 # or for multi-provider
 cp docs/opencode.example.multi-provider.json opencode.json
+# or for the direct Hyperpowers routing contract example
+cp docs/opencode.example.agent-routing.json opencode.json
 ```
 
 2. **Edit** the `model` field and provider configuration
@@ -119,8 +128,8 @@ model: anthropic/claude-haiku-4-5  # Full providerID/modelID
 **Precedence order:**
 
 1. `opencode.json` → `agent.<name>.model` (highest)
-2. Agent frontmatter → `model` field
-3. `opencode.json` → top-level `model`
+2. `opencode.json` → top-level `model`
+3. Agent frontmatter → `model` field
 4. Provider default (lowest)
 
 ### Understanding `providerID/modelID` Format

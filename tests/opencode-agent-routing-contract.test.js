@@ -47,6 +47,7 @@ test("dedicated OpenCode agent-routing example exists with global defaults and w
 test("all OpenCode-facing examples use the canonical agent key", () => {
   for (const relativePath of [
     "docs/README.md",
+    "docs/opencode.example.inherit.json",
     "docs/opencode.example.anthropic.json",
     "docs/opencode.example.glm.json",
     "docs/opencode.example.multi-provider.json",
@@ -54,4 +55,20 @@ test("all OpenCode-facing examples use the canonical agent key", () => {
     const text = read(relativePath)
     assert.equal(text.includes('"agents": {'), false, `${relativePath} should not use the legacy agents key`)
   }
+})
+
+test("OpenCode docs README matches the canonical precedence and examples list", () => {
+  const docsReadme = read("docs/README.md")
+
+  assert.equal(docsReadme.includes("1. `opencode.json` → `agent.<name>.model` (highest)"), true)
+  assert.equal(docsReadme.includes("2. `opencode.json` → top-level `model`"), true)
+  assert.equal(docsReadme.includes("3. Agent frontmatter → `model` field"), true)
+  assert.equal(docsReadme.includes("opencode.example.agent-routing.json"), true)
+})
+
+test("inherit example points users to the canonical agent key", () => {
+  const inheritExample = read("docs/opencode.example.inherit.json")
+
+  assert.equal(inheritExample.includes("'agents' section"), false)
+  assert.equal(inheritExample.includes("'agent' section"), true)
 })
