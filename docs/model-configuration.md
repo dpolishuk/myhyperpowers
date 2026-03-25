@@ -423,7 +423,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
 In OpenCode's TUI, you can switch models dynamically:
 
 ```
-/model
+/models
 ```
 
 This shows all available `providerID/modelID` combinations. Select a different model to change the active model for the current session.

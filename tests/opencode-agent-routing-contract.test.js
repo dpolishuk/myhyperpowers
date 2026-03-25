@@ -59,11 +59,14 @@ test("all OpenCode-facing examples use the canonical agent key", () => {
 
 test("OpenCode docs README matches the canonical precedence and examples list", () => {
   const docsReadme = read("docs/README.md")
+  const modelConfig = read("docs/model-configuration.md")
 
   assert.equal(docsReadme.includes("1. `opencode.json` → `agent.<name>.model` (highest)"), true)
   assert.equal(docsReadme.includes("2. `opencode.json` → top-level `model`"), true)
   assert.equal(docsReadme.includes("3. Agent frontmatter → `model` field"), true)
   assert.equal(docsReadme.includes("opencode.example.agent-routing.json"), true)
+  assert.equal(docsReadme.includes("/models"), true)
+  assert.equal(modelConfig.includes("/models"), true)
 })
 
 test("inherit example points users to the canonical agent key", () => {
@@ -71,4 +74,5 @@ test("inherit example points users to the canonical agent key", () => {
 
   assert.equal(inheritExample.includes("'agents' section"), false)
   assert.equal(inheritExample.includes("'agent' section"), true)
+  assert.equal((inheritExample.match(/"comment":/g) || []).length, 1)
 })
