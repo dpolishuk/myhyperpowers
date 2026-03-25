@@ -66,3 +66,19 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })
+
+test("README and AGENTS agree on Codex wrapper location and host support", () => {
+  const readme = read("README.md")
+  const agentsGuide = read("AGENTS.md")
+
+  assert.equal(readme.includes("Generated output is written to `.agents/skills`"), true)
+  assert.equal(readme.includes("symlink to `.kimi/skills`"), true)
+  assert.equal(agentsGuide.includes(".agents/               # Codex-compatible generated wrappers"), true)
+  assert.equal(agentsGuide.includes("supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, and Codex CLI)"), true)
+})
+
+test("Docs index surfaces model configuration guide", () => {
+  const docsReadme = read("docs/README.md")
+
+  assert.equal(docsReadme.includes("model-configuration.md"), true)
+})

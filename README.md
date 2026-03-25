@@ -607,7 +607,7 @@ Codex-compatible wrappers are generated artifacts. The source of truth remains:
 - `commands/*.md`
 - `agents/*.md`
 
-Generated output is written to `.codex/skills` (in this repo it maps to `.kimi/skills` via symlink).
+Generated output is written to `.agents/skills` (in this repo that path is a symlink to `.kimi/skills`).
 
 Run these commands after changing skills/commands/agents:
 
