@@ -35,7 +35,7 @@ Codex wrappers are skills. Invoke them explicitly with `$skill-name`:
 ```text
 $codex-command-write-plan Draft an implementation plan for OAuth login.
 $codex-command-execute-plan Execute task bd-123 with TDD.
-$codex-skill-executing-plans Continue the current epic from bd ready state.
+$codex-skill-executing-plans Continue the current epic from tm ready state.
 ```
 
 You can also open `/skills` in Codex UI and select the same skills there.

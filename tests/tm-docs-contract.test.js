@@ -97,3 +97,22 @@ test("Docs index surfaces model configuration guide", () => {
   assert.equal(hostGuidesSection.includes(".kimi/INSTALL.md"), true)
   assert.equal(hostGuidesSection.includes(".codex/INSTALL.md"), true)
 })
+
+test("Kimi and Codex host docs stay tm-first", () => {
+  const kimiInstall = read(".kimi/INSTALL.md")
+  const kimiSystem = read(".kimi/hyperpowers-system.md")
+  const codexInstall = read(".codex/INSTALL.md")
+
+  assert.equal(kimiInstall.includes("bd ready"), false)
+  assert.equal(kimiInstall.includes("tm ready"), true)
+  assert.equal(kimiInstall.includes("tm close"), true)
+  assert.equal(kimiInstall.includes("tm sync"), true)
+
+  assert.equal(kimiSystem.includes("bd ready"), false)
+  assert.equal(kimiSystem.includes("bd sync"), false)
+  assert.equal(kimiSystem.includes("tm ready"), true)
+  assert.equal(kimiSystem.includes("tm sync"), true)
+
+  assert.equal(codexInstall.includes("bd ready"), false)
+  assert.equal(codexInstall.includes("tm ready"), true)
+})
