@@ -1,13 +1,17 @@
 import { test, expect } from "bun:test"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import agentRoutingConfigPlugin from "../.opencode/plugins/agent-routing-config"
 
-const createTempRoot = async (configText?: string) => {
+const createTempRoot = async (configText?: string, hpConfigText?: string) => {
   const root = await mkdtemp(join(tmpdir(), "agent-routing-plugin-"))
   if (typeof configText === "string") {
     await writeFile(join(root, "opencode.json"), configText, "utf8")
+  }
+  if (typeof hpConfigText === "string") {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), hpConfigText, "utf8")
   }
 
   return {
@@ -23,7 +27,7 @@ const runTool = async (root: string, args: Record<string, unknown>) => {
   return JSON.parse(String(result))
 }
 
-test("get_returns_current_global_and_workflow_routing_from_opencode_json", async () => {
+test("get_returns_current_global_and_workflow_routing_from_split_config", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify(
       {
@@ -31,11 +35,15 @@ test("get_returns_current_global_and_workflow_routing_from_opencode_json", async
         agent: {
           "test-runner": { model: "fast/model" },
         },
-        hyperpowers: {
-          workflowOverrides: {
-            "execute-ralph": {
-              "autonomous-reviewer": { model: "strong/model" },
-            },
+      },
+      null,
+      2,
+    ),
+    JSON.stringify(
+      {
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": { model: "strong/model" },
           },
         },
       },
@@ -48,12 +56,10 @@ test("get_returns_current_global_and_workflow_routing_from_opencode_json", async
     const result = await runTool(root, { action: "get" })
 
     expect(result.ok).toBe(true)
-    expect(result.sourceOfTruth).toBe("opencode.json")
+    expect(result.sourceOfTruth).toEqual(["opencode.json", ".opencode/hyperpowers-routing.json"])
     expect(result.routing.model).toBe("global/model")
     expect(result.routing.agent["test-runner"].model).toBe("fast/model")
-    expect(result.routing.hyperpowers.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
-      "strong/model",
-    )
+    expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
   } finally {
     await cleanup()
   }
@@ -99,7 +105,7 @@ test("set_updates_global_agent_mapping_and_preserves_unrelated_config", async ()
   }
 })
 
-test("set_updates_workflow_override_and_creates_missing_blocks", async () => {
+test("set_updates_workflow_override_in_separate_hyperpowers_config", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify(
       {
@@ -117,14 +123,17 @@ test("set_updates_workflow_override_and_creates_missing_blocks", async () => {
       agent: "autonomous-reviewer",
       model: "strong/model",
     })
-    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    const hpPersisted = JSON.parse(
+      await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
+    )
 
     expect(result.ok).toBe(true)
-    expect(result.updatedPath).toBe("hyperpowers.workflowOverrides.execute-ralph.autonomous-reviewer.model")
-    expect(persisted.model).toBe("global/model")
-    expect(persisted.hyperpowers.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
-      "strong/model",
-    )
+    expect(result.updatedPath).toBe("workflowOverrides.execute-ralph.autonomous-reviewer.model")
+    expect(result.updatedFile).toBe(".opencode/hyperpowers-routing.json")
+    expect(ocPersisted.model).toBe("global/model")
+    expect(ocPersisted.hyperpowers).toBeUndefined()
+    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
   } finally {
     await cleanup()
   }

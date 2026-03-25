@@ -16,7 +16,7 @@ It provides a **plugin-owned settings workflow** over the shared routing backend
 1. Inspect current routing state with `hyperpowers_agent_routing_config` using `action=get`
 2. Ask whether the user wants to edit:
    - a global `agent.<agent>.model` mapping, or
-   - a `hyperpowers.workflowOverrides.<workflow>.<agent>.model` mapping
+   - a `workflowOverrides.<workflow>.<agent>.model` mapping
 3. Confirm the concrete agent, optional workflow, and target model
 4. Persist the change with `hyperpowers_agent_routing_config` using `action=set`
 5. Summarize the exact updated path and value
@@ -34,6 +34,6 @@ It provides a **plugin-owned settings workflow** over the shared routing backend
 
 After a successful update, summarize:
 
-- whether the change targeted `agent.<agent>.model` or `hyperpowers.workflowOverrides.<workflow>.<agent>.model`
+- whether the change targeted `agent.<agent>.model` or `workflowOverrides.<workflow>.<agent>.model`
 - the exact concrete agent edited
 - the new model value written through the shared routing backend

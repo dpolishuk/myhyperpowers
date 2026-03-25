@@ -34,22 +34,30 @@ test("OpenCode install docs describe config and plugin options as peers over one
   assert.equal(installDoc.includes("agent-routing-config.ts"), true)
 })
 
-test("dedicated OpenCode agent-routing example exists with global defaults and workflow overrides", () => {
+test("dedicated OpenCode agent-routing example exists with global defaults", () => {
   const examplePath = path.join(repoRoot, "docs", "opencode.example.agent-routing.json")
   assert.equal(fs.existsSync(examplePath), true)
 
   const example = JSON.parse(fs.readFileSync(examplePath, "utf8"))
   assert.ok(example.agent)
   assert.equal(example.agents, undefined)
+  assert.equal(example.hyperpowers, undefined, "hyperpowers key must not appear in opencode.json examples")
   assert.equal(typeof example.agent.ralph.model, "string")
   assert.equal(typeof example.agent["test-runner"].model, "string")
   assert.equal(typeof example.agent["code-reviewer"].model, "string")
   assert.equal(typeof example.agent["review-testing"].model, "string")
   assert.equal(typeof example.agent["review-documentation"].model, "string")
   assert.equal(typeof example.agent["autonomous-reviewer"].model, "string")
-  assert.ok(example.hyperpowers)
-  assert.equal(example.hyperpowers.comment.includes("active for Hyperpowers task-tool dispatch paths"), true)
-  assert.equal(typeof example.hyperpowers.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model, "string")
+})
+
+test("separate hyperpowers routing example exists with workflow overrides", () => {
+  const hpExamplePath = path.join(repoRoot, "docs", "opencode.example.hyperpowers-routing.json")
+  assert.equal(fs.existsSync(hpExamplePath), true)
+
+  const hpExample = JSON.parse(fs.readFileSync(hpExamplePath, "utf8"))
+  assert.ok(hpExample.workflowOverrides)
+  assert.equal(hpExample.comment.includes("active for Hyperpowers task-tool dispatch paths"), true)
+  assert.equal(typeof hpExample.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model, "string")
 })
 
 test("all OpenCode-facing examples use the canonical agent key", () => {
@@ -82,7 +90,7 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   const modelConfig = read("docs/model-configuration.md")
 
   assert.equal(
-    docsReadme.includes("1. `opencode.json` → `hyperpowers.workflowOverrides.<workflow>.<name>.model` (highest)"),
+    docsReadme.includes("1. `.opencode/hyperpowers-routing.json` → `workflowOverrides.<workflow>.<name>.model` (highest)"),
     true,
   )
   assert.equal(docsReadme.includes("2. `opencode.json` → `agent.<name>.model`"), true)
@@ -94,8 +102,8 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   assert.equal(docsReadme.includes("opencode.example.agent-routing.json"), true)
   assert.equal(docsReadme.includes("cp docs/opencode.example.inherit.json opencode.json"), true)
   assert.equal(docsReadme.includes("canonical `agent` key"), true)
-  assert.equal(docsReadme.includes("same underlying routing map"), true)
-  assert.equal(docsReadme.includes("active `hyperpowers.workflowOverrides` shape"), true)
+  assert.equal(docsReadme.includes("same underlying routing map") || docsReadme.includes("same routing map"), true)
+  assert.equal(docsReadme.includes("active `workflowOverrides` shape"), true)
   assert.equal(docsReadme.includes("hyperpowers_agent_routing_config"), true)
   assert.equal(docsReadme.includes("/models"), true)
   assert.equal(modelConfig.includes("/models"), true)
@@ -121,7 +129,7 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("action=get"), true)
   assert.equal(commandSource.includes("action=set"), true)
   assert.equal(commandSource.includes("agent.<agent>.model"), true)
-  assert.equal(commandSource.includes("hyperpowers.workflowOverrides.<workflow>.<agent>.model"), true)
+  assert.equal(commandSource.includes("workflowOverrides.<workflow>.<agent>.model"), true)
   assert.equal(commandSource.includes("Never edit `opencode.json` directly"), true)
   assert.equal(commandSource.includes("no update was made"), true)
   assert.equal(commandSource.includes("unsupported agent/workflow names"), true)
