@@ -1,9 +1,31 @@
-# Configuration Examples
+# Documentation Index
 
-This directory contains example configuration files for **OpenCode** and **Claude Code** with different model providers.
+This directory contains deeper guides and example configuration for Hyperpowers.
+
+Hyperpowers is **tm-first** on this branch: use `tm` as the day-to-day task-management interface, then consult the docs below for setup, backend detail, and integrations.
+
+## Core Setup & Workflow Guides
+
+- [../README.md](../README.md) — canonical front door for installation, usage, and the tm-first model
+- [linear-mcp-setup.md](linear-mcp-setup.md) — canonical Linear setup and `tm sync` guide
+
+## Backend / Tracker Context
+
+- `tm` — canonical user-facing interface
+- `bd` — current backend in this repo
+- `br` — Beads Rust / classic beads-compatible backend alternative
+- `tk` — Ticket / git-backed markdown tracker alternative
+
+These backends and alternatives are related, but they are **not interchangeable day-to-day commands**.
+
+## Configuration Examples
+
+Example configuration files for **OpenCode** and **Claude Code** with different model providers.
 
 ## Table of Contents
 
+- [Core Setup & Workflow Guides](#core-setup--workflow-guides)
+- [Backend / Tracker Context](#backend--tracker-context)
 - [OpenCode Configuration](#opencode-configuration)
 - [Claude Code Configuration](#claude-code-configuration)
 - [Provider Setup Guide](#provider-setup-guide)

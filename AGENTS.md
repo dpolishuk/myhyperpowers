@@ -19,7 +19,7 @@ This document provides essential information for AI coding agents working with t
 - **Runtime**: Node.js/Bun for OpenCode plugins and the Gemini extension MCP servers (TypeScript)
 - **Hooks**: Bash, Python, JavaScript
 - **Tests**: Node.js built-in test runner
-- **Issue Tracking**: **bd** (beads) CLI tool
+- **Task Management**: **tm** as the canonical interface, currently backed by **bd** in this repo
 - **Package Manager**: Bun (for OpenCode), npm (for published plugin), npm/pip (for Gemini tools)
 - **Configuration**: JSON, YAML
 
@@ -27,19 +27,19 @@ This document provides essential information for AI coding agents working with t
 
 ### Prerequisites
 
-- Install **bd** (beads) for issue tracking: Run `bd onboard` to get started
+- Install **tm** support via this repo’s setup flow; note that the current backend in this repo is `bd`
 - Install **Bun** for OpenCode plugin development
 - Node.js for running tests
 
 ### Available Commands
 
 ```bash
-# Issue tracking (beads)
-bd ready                    # Find available work
-bd show <id>                # View issue details
-bd update <id> --status in_progress   # Claim work
-bd close <id>               # Complete work
-bd sync                     # Sync issues with git
+# Task management (tm-first)
+tm ready                    # Find available work
+tm show <id>                # View issue details
+tm update <id> --status in_progress   # Claim work
+tm close <id>               # Complete work
+tm sync                     # Sync local work and optional integrations
 
 # Testing
 node --test tests/*.test.js # Run Node.js tests
@@ -243,23 +243,33 @@ test("description", () => {
 - Bash hooks: Log to `hooks/context/`, handle errors silently
 - JavaScript hooks: Parse stdin JSON, output JSON to stdout
 
-## Issue Tracking (beads)
+## Task Management
+
+tm is the canonical user-facing interface in this repo. The current backend in this repo is `bd`, so some backend-specific maintenance and migration details still reference beads directly.
 
 ### Workflow
 
-1. **Find work**: `bd ready`
-2. **Claim work**: `bd update <id> --status in_progress`
-3. **Complete work**: `bd close <id>`
-4. **Sync**: `bd sync` (commits issues to git)
+1. **Find work**: `tm ready`
+2. **Claim work**: `tm update <id> --status in_progress`
+3. **Complete work**: `tm close <id>`
+4. **Sync**: `tm sync`
 
-### Configuration
+### Backend Notes
+
+- `bd` = current backend in this repo
+- `br` = Beads Rust / classic beads-compatible alternative
+- `tk` = Ticket / git-backed markdown ticket workflow alternative
+
+These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for the canonical workflow unless a guide explicitly calls for backend-specific behavior.
+
+### Backend Configuration
 
 Located in `.beads/config.yaml`. Key settings:
 - `sync-branch`: Git branch for beads commits
 - `no-db`: Use JSONL instead of SQLite
 - `auto-start-daemon`: Start daemon automatically
 
-**NEVER** read `.beads/issues.jsonl` directly - always use `bd` CLI.
+**NEVER** read `.beads/issues.jsonl` directly - always use `tm` (or a backend CLI only when a backend-specific guide explicitly requires it).
 
 ## Landing the Plane (Session Completion)
 
@@ -273,7 +283,7 @@ Located in `.beads/config.yaml`. Key settings:
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   tm sync
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -361,43 +371,43 @@ Do not hand-edit generated `codex-*` directories directly.
 - **.beads/config.yaml** - beads configuration reference
 
 <!-- BEGIN BEADS INTEGRATION -->
-## Issue Tracking with bd (beads)
+## Task Tracking
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+**IMPORTANT**: tm is the canonical user-facing interface in this repo. The current backend in this repo is `bd`, so some backend-specific maintenance and migration details still reference beads directly. Do NOT create markdown TODO lists or alternate tracking systems.
 
-### Why bd?
+### Why tm first?
 
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Dolt-powered version control with native sync
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
+- Stable day-to-day interface for users and agents
+- Keeps backend details (`bd`, `br`, `tk`) from leaking into every workflow doc
+- Supports integration-oriented workflows such as `tm sync`
+- Prevents split-brain documentation across hosts and guides
 
 ### Quick Start
 
 **Check for ready work:**
 
 ```bash
-bd ready --json
+tm ready
 ```
 
 **Create new issues:**
 
 ```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+tm create "Issue title" --type task --priority 2 --design "Detailed context"
+tm create "Issue title" --type feature --priority 1 --design "What this issue is about"
 ```
 
 **Claim and update:**
 
 ```bash
-bd update <id> --claim --json
-bd update bd-42 --priority 1 --json
+tm update <id> --status in_progress
+tm update bd-42 --priority 1
 ```
 
 **Complete work:**
 
 ```bash
-bd close bd-42 --reason "Completed" --json
+tm close bd-42
 ```
 
 ### Issue Types
@@ -416,29 +426,34 @@ bd close bd-42 --reason "Completed" --json
 - `3` - Low (polish, optimization)
 - `4` - Backlog (future ideas)
 
+### Backend Notes
+
+- `bd` = current backend in this repo
+- `br` = Beads Rust / classic beads-compatible alternative
+- `tk` = Ticket / git-backed markdown ticket workflow alternative
+
+These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance unless a backend-specific guide explicitly calls for `bd`, `br`, or `tk`.
+
 ### Workflow for AI Agents
 
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
+1. **Check ready work**: `tm ready` shows unblocked issues
+2. **Claim your task**: `tm update <id> --status in_progress`
 3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
+4. **Discover new work?** Create linked issue through `tm create ...`
+5. **Complete**: `tm close <id>`
 
-### Auto-Sync
+### Sync Notes
 
-bd automatically syncs via Dolt:
-
-- Each write auto-commits to Dolt history
-- Use `bd dolt push`/`bd dolt pull` for remote sync
-- No manual export/import needed!
+- `tm sync` is the canonical sync command in repo-facing docs
+- backend-specific sync details should only appear in backend-specific guides
+- use direct backend commands only when a maintenance or migration workflow explicitly requires them
 
 ### Important Rules
 
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
+- ✅ Use `tm` for canonical task-tracking workflows
+- ✅ Use backend-specific commands only when a backend-specific guide explicitly requires them
+- ✅ Link discovered work with `discovered-from` dependencies where supported by the active backend
+- ✅ Check `tm ready` before asking "what should I work on?"
 - ❌ Do NOT create markdown TODO lists
 - ❌ Do NOT use external issue trackers
 - ❌ Do NOT duplicate tracking systems

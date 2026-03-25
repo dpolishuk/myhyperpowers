@@ -20,6 +20,30 @@ Strong guidance for Claude Code, OpenCode, and Gemini CLI as software developmen
 
 See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI.
 
+## Task Management Model
+
+Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
+
+These tools are related, but `bd` / `br` / `tk` are **not interchangeable day-to-day commands**:
+
+- `tm` = canonical user-facing task-management interface
+- `bd` = current local tracker backend in this repo
+- `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
+- `tk` = Ticket, a git-backed markdown ticket workflow alternative
+
+Linear and GitHub are integrations layered on top of task management — **Linear and GitHub are integrations**, not primary local task trackers.
+
+If you only want the main working model:
+
+1. install the host support you need
+2. use `tm` for day-to-day work
+3. use deeper guides for backend or integration details
+
+Start here:
+- [Installation](#installation)
+- [Linear Integration](#linear-integration-optional)
+- [docs/README.md](docs/README.md)
+
 ## Features
 
 ### Skills
