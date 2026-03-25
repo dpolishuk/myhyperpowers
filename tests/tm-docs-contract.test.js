@@ -10,6 +10,7 @@ test("README presents tm as the canonical task-management interface", () => {
   const readme = read("README.md")
   const modelSection = readme.split("## Task Management Model")[1]?.split("## Features")[0] || ""
   const exampleSection = readme.split("### Example Workflow")[1]?.split("## Philosophy")[0] || ""
+  const codexSection = readme.split("<summary><strong>Codex CLI</strong></summary>")[1]?.split("</details>")[0] || ""
 
   assert.equal(modelSection.includes("canonical user-facing task-management interface"), true)
   assert.equal(modelSection.includes("tm-first"), true)
@@ -18,6 +19,8 @@ test("README presents tm as the canonical task-management interface", () => {
   assert.equal(exampleSection.includes("tasks in bd"), false)
   assert.equal(exampleSection.includes("bd ready"), false)
   assert.equal(exampleSection.includes("tm ready"), true)
+  assert.equal(codexSection.includes("bd ready"), false)
+  assert.equal(codexSection.includes("tm ready"), true)
 })
 
 test("AGENTS guide does not claim a conflicting bd-first docs model", () => {
@@ -30,17 +33,28 @@ test("AGENTS guide does not claim a conflicting bd-first docs model", () => {
   assert.equal(agentsGuide.includes("current backend in this repo is `bd`"), true)
   assert.equal(agentsGuide.includes("use `bd` CLI"), false)
   assert.equal(commandsSection.includes("tm ready"), true)
+  assert.equal(commandsSection.includes("tm show <id>"), true)
+  assert.equal(commandsSection.includes("tm update <id> --status in_progress"), true)
+  assert.equal(commandsSection.includes("tm close <id>"), true)
   assert.equal(commandsSection.includes("tm sync"), true)
   assert.equal(trackingSection.includes("docs/QUICKSTART.md"), true)
 })
 
 test("Docs index surfaces the canonical tm setup and integration guides", () => {
   const docsReadme = read("docs/README.md")
+  const quickstart = read("docs/QUICKSTART.md")
 
   assert.equal(docsReadme.includes("tm-first"), true)
   assert.equal(docsReadme.includes("linear-mcp-setup.md"), true)
   assert.equal(docsReadme.includes("QUICKSTART.md"), true)
   assert.equal(docsReadme.includes("backend"), true)
+  assert.equal(quickstart.includes("tm ready"), true)
+  assert.equal(quickstart.includes("tm show <id>"), true)
+  assert.equal(quickstart.includes("tm update <id> --status in_progress"), true)
+  assert.equal(quickstart.includes("tm close <id>"), true)
+  assert.equal(quickstart.includes("tm sync"), true)
+  assert.equal(quickstart.includes("bd ready"), false)
+  assert.equal(quickstart.includes("backend-specific setup"), true)
 })
 
 test("README first-pass classifies bd br and tk with distinct roles", () => {
@@ -50,4 +64,5 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`br` = Beads Rust"), true)
   assert.equal(readme.includes("`tk` = Ticket"), true)
   assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
+  assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })

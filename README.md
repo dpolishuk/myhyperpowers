@@ -374,7 +374,7 @@ Explicit invocation in Codex uses skill names (not custom slash-command registra
 ```text
 $codex-command-write-plan Draft a plan for feature X.
 $codex-command-execute-plan Execute task bd-123.
-$codex-skill-executing-plans Continue from current bd ready task.
+$codex-skill-executing-plans Continue from current tm ready task.
 ```
 
 You can also use `/skills` in Codex UI to discover and select the same wrappers.
