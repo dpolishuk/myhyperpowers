@@ -87,6 +87,14 @@ const resolveDefaultSelections = async (rootDir: string, suggestedModels: string
   }
 }
 
+const requireValue = (argv: string[], index: number, flag: string): string => {
+  const value = argv[index + 1]
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value (e.g., ${flag} provider/model)`)
+  }
+  return value
+}
+
 const parseArgs = (argv: string[]): ParsedArgs => {
   const parsed: ParsedArgs = { yes: false, help: false }
 
@@ -94,15 +102,15 @@ const parseArgs = (argv: string[]): ParsedArgs => {
     const arg = argv[index]
     switch (arg) {
       case "--strong-model":
-        parsed.strongModel = argv[index + 1]
+        parsed.strongModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--fast-model":
-        parsed.fastModel = argv[index + 1]
+        parsed.fastModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--top-review-model":
-        parsed.topReviewModel = argv[index + 1]
+        parsed.topReviewModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--yes":
