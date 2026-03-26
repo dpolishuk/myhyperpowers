@@ -359,6 +359,73 @@ test("get_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", 
 
     expect(result.ok).toBe(false)
     expect(result.error.code).toBe("invalid_hp_json")
+    expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "opencode/claude-sonnet-4-5",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_hp_json")
+      expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set-group",
+        group: "workers",
+        model: "opencode/claude-sonnet-4-5",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_hp_json")
+      expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "quality-first",
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.error.code).toBe("invalid_hp_json")
+    expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
   } finally {
     await cleanup()
   }

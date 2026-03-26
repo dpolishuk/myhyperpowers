@@ -330,7 +330,7 @@ const readHpConfig = async (
 
 const readHpConfigForWrite = async (
   hpConfigPath: string,
-  configPath: string,
+  errorPath = hpConfigPath,
 ): Promise<{ ok: true; config: HyperpowersRoutingConfig } | { ok: false; error: Record<string, unknown> }> => {
   if (!existsSync(hpConfigPath)) return { ok: true, config: {} }
   try {
@@ -342,7 +342,7 @@ const readHpConfigForWrite = async (
         error: {
           code: "invalid_hp_json",
           message: ".opencode/hyperpowers-routing.json must contain a JSON object",
-          configPath,
+          configPath: errorPath,
         },
       }
     }
@@ -353,7 +353,7 @@ const readHpConfigForWrite = async (
       error: {
         code: "invalid_hp_json",
         message: error instanceof Error ? error.message : "Failed to parse .opencode/hyperpowers-routing.json",
-        configPath,
+        configPath: errorPath,
       },
     }
   }
@@ -745,12 +745,17 @@ export const verifyRecommendedRoutingPlan = async (
 export const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
   const configPath = join(rootDir, "opencode.json")
   const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
+  const loadStrictHpConfig = async () => {
+    const hpResult = await readHpConfigForWrite(hpConfigPath)
+    if (!hpResult.ok) return hpResult
+    return hpResult.config
+  }
 
   if (args.action === "get") {
     const current = await readConfig(configPath)
     const discovered = await discoverOpencodeModels(undefined, rootDir)
     const discoveredModels = discovered.ok ? discovered.models : []
-    const hpConfigResult = await readHpConfig(hpConfigPath, true)
+    const hpConfigResult = await loadStrictHpConfig()
     if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
 
     if (!current.ok) {
@@ -847,6 +852,8 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
 
     const current = await loadConfigForWrite(configPath)
     if (!current.ok) return current
+    const hpConfigResult = await loadStrictHpConfig()
+    if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
 
     let nextConfig = current.config
     for (const agent of agents) {
@@ -854,7 +861,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     }
     await persistConfig(configPath, nextConfig)
 
-    const hpConfig = await readHpConfig(hpConfigPath)
+    const hpConfig = hpConfigResult as HyperpowersRoutingConfig
     return {
       ...createRoutingSnapshot(nextConfig, hpConfig, configPath, hpConfigPath),
       updatedAgents: agents,
@@ -872,6 +879,8 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
 
     const current = await readConfig(configPath)
     if (!current.ok) return current
+    const hpConfigResult = await loadStrictHpConfig()
+    if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
 
     const presetResult = applyPreset(current.config, presetName as PresetName)
     if (!presetResult.ok) {
@@ -880,7 +889,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const { config: nextConfig, updatedAgents } = presetResult
     await persistConfig(configPath, nextConfig)
 
-    const hpConfig = await readHpConfig(hpConfigPath)
+    const hpConfig = hpConfigResult as HyperpowersRoutingConfig
     return {
       ...createRoutingSnapshot(nextConfig, hpConfig, configPath, hpConfigPath),
       appliedPreset: presetName,
@@ -913,7 +922,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   }
 
   if (workflowName) {
-    const hpResult = await readHpConfigForWrite(hpConfigPath, configPath)
+    const hpResult = await readHpConfigForWrite(hpConfigPath)
     if (!hpResult.ok) {
       return { ok: false as const, error: hpResult.error }
     }
@@ -931,11 +940,13 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
 
   const current = await loadConfigForWrite(configPath)
   if (!current.ok) return current
+  const hpConfigResult = await loadStrictHpConfig()
+  if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
 
   const nextConfig = updateGlobalAgentModel(current.config, agentName, model)
   await persistConfig(configPath, nextConfig)
 
-  const hpConfig = await readHpConfig(hpConfigPath)
+  const hpConfig = hpConfigResult as HyperpowersRoutingConfig
   return {
     ...createRoutingSnapshot(nextConfig, hpConfig, configPath, hpConfigPath),
     createdConfig: current.createdConfig,
