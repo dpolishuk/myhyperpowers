@@ -353,3 +353,56 @@ test("CLI accepts top-review model present only in merged suggested models", asy
     await cleanup()
   }
 })
+
+test("CLI interactive flow writes config after explicit confirmation", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const wizardPath = resolve(import.meta.dir, "..", "scripts", "opencode-routing-wizard.ts")
+
+  try {
+    await mkdir(binDir, { recursive: true })
+    await writeFile(
+      opencodePath,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"models\" ]; then\n  printf 'Available models\\nanthropic/claude-sonnet-4-5\\nanthropic/claude-haiku-4-5\\nanthropic/claude-opus-4-5\\n'\n  exit 0\nfi\nexit 1\n",
+      "utf8",
+    )
+    await chmod(opencodePath, 0o755)
+
+    const result = spawnSync(
+      "bun",
+      [
+        wizardPath,
+        "--strong-model",
+        "anthropic/claude-sonnet-4-5",
+        "--fast-model",
+        "anthropic/claude-haiku-4-5",
+        "--top-review-model",
+        "anthropic/claude-opus-4-5",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        input: "y\n",
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH}`,
+        },
+      },
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout.includes("Write this routing config now? [y/N]")).toBe(true)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+
+    expect(ocPersisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
+    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
+      "anthropic/claude-opus-4-5",
+    )
+  } finally {
+    await cleanup()
+  }
+})

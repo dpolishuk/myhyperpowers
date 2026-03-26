@@ -91,12 +91,13 @@ Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports four actions:
+Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports five actions:
 
 - `get` — returns current routing state with `availableModels` (auto-detected from config), `agentGroups` (orchestrator, workers, reviewers), and available `presets`
 - `set` — update a single agent's model (global or workflow override)
 - `set-group` — batch-set a model for an entire agent group (orchestrator, workers, reviewers, or all)
 - `apply-preset` — apply a named profile (`cost-optimized` or `quality-first`) that maps model tiers to agent groups
+- `bootstrap` — create a recommended full multi-agent routing config from the merged available model set
 
 **Agent Groups:**
 
