@@ -124,34 +124,53 @@ test("OpenCode plugin source registers the routing config tool and writes openco
   assert.equal(/opencode\.json/.test(coreSource), true)
 })
 
-test("OpenCode routing settings command exists and delegates to the routing config tool", () => {
+test("OpenCode routing settings command delegates to skill and skill contains routing logic", () => {
   const commandPath = path.join(repoRoot, ".opencode", "commands", "routing-settings.md")
   assert.equal(fs.existsSync(commandPath), true)
 
   const commandSource = fs.readFileSync(commandPath, "utf8")
-  assert.equal(commandSource.includes("hyperpowers_agent_routing_config"), true)
-  assert.equal(commandSource.includes("action=get"), true)
-  assert.equal(commandSource.includes("action=set"), true)
-  assert.equal(commandSource.includes("action=set-group"), true)
-  assert.equal(commandSource.includes("action=apply-preset"), true)
-  assert.equal(commandSource.includes("action=bootstrap"), true)
-  assert.equal(commandSource.includes("Never edit `opencode.json` directly"), true)
-  assert.equal(commandSource.includes("no update was made"), true)
-  assert.equal(
-    commandSource.includes("unsupported agent/workflow/group/preset/model names") ||
-      commandSource.includes("unsupported agent/workflow/group/preset names"),
-    true,
-  )
-  assert.equal(commandSource.includes("native OpenCode settings panel"), false)
-  assert.equal(commandSource.includes("built-in OpenCode preferences page"), false)
-  assert.equal(commandSource.includes("primary settings-like UX"), true)
-  assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
-  assert.equal(commandSource.includes("availableModels"), true)
-  assert.equal(commandSource.includes("if no routing config exists") || commandSource.includes("first-run"), true)
-  assert.equal(commandSource.includes("workflow overrides") || commandSource.includes("workflowOverrides"), true)
-  assert.equal(commandSource.includes("warning") || commandSource.includes("malformed"), true)
-  assert.equal(commandSource.includes("cost-optimized"), true)
-  assert.equal(commandSource.includes("quality-first"), true)
+  assert.equal(commandSource.includes("skills_hyperpowers_routing_settings"), true)
+
+  const skillPath = path.join(repoRoot, ".opencode", "skills", "hyperpowers-routing-settings", "SKILL.md")
+  assert.equal(fs.existsSync(skillPath), true)
+
+  const skillSource = fs.readFileSync(skillPath, "utf8")
+  assert.equal(skillSource.includes("name: hyperpowers-routing-settings"), true)
+  assert.equal(skillSource.includes("plugin-owned settings workflow"), true)
+  assert.equal(skillSource.includes("hyperpowers_agent_routing_config"), true)
+  assert.equal(skillSource.includes("action=get"), true)
+  assert.equal(skillSource.includes("action=set"), true)
+  assert.equal(skillSource.includes("action=set-group"), true)
+  assert.equal(skillSource.includes("action=apply-preset"), true)
+  assert.equal(skillSource.includes("action=bootstrap"), true)
+  assert.equal(skillSource.includes("Never edit `opencode.json` directly"), true)
+  assert.equal(skillSource.includes("no update made"), true)
+  assert.equal(skillSource.includes("primary settings-like UX"), true)
+  assert.equal(skillSource.includes("AskUserQuestion"), true)
+  assert.equal(skillSource.includes("one question at a time"), true)
+  assert.equal(skillSource.includes("availableModels"), true)
+  assert.equal(skillSource.includes("first-run"), true)
+  assert.equal(skillSource.includes("workflowOverrides") || skillSource.includes("workflow overrides"), true)
+  assert.equal(skillSource.includes("warning"), true)
+  assert.equal(skillSource.includes("cost-optimized"), true)
+  assert.equal(skillSource.includes("quality-first"), true)
+})
+
+test("routing settings skill documents all action flows", () => {
+  const skillSource = read(".opencode/skills/hyperpowers-routing-settings/SKILL.md")
+
+  assert.equal(skillSource.includes("Bootstrap"), true)
+  assert.equal(skillSource.includes("Set a single agent"), true)
+  assert.equal(skillSource.includes("Set a group"), true)
+  assert.equal(skillSource.includes("Apply a preset"), true)
+  assert.equal(skillSource.includes("Set a workflow override"), true)
+  assert.equal(skillSource.includes("action=get"), true)
+  assert.equal(skillSource.includes("action=bootstrap"), true)
+  assert.equal(skillSource.includes("action=set"), true)
+  assert.equal(skillSource.includes("action=set-group"), true)
+  assert.equal(skillSource.includes("action=apply-preset"), true)
+  assert.equal(skillSource.includes("Never edit `opencode.json` directly"), true)
+  assert.equal(skillSource.includes("structured question"), true)
 })
 
 test("OpenCode CLI routing wizard script exists and uses the canonical split-file contract", () => {
