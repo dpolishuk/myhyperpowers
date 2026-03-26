@@ -32,12 +32,13 @@ type FetchLike = typeof fetch
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const requestJson = async (fetchImpl: FetchLike, url: string, init?: RequestInit) => {
+  const headers = new Headers(init?.headers)
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json")
+  }
   const response = await fetchImpl(url, {
     ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
   })
 
   const text = await response.text()
@@ -149,7 +150,12 @@ export const createQuestionRequest = async (
     const pending = await listPendingQuestions(fetchImpl, serverUrl, {
       directory: params.directory,
     })
-    const match = pending.find((question) => question.sessionID === params.sessionID)
+    const match = pending.find(
+      (question) =>
+        question.sessionID === params.sessionID &&
+        Array.isArray(question.questions) &&
+        question.questions.length === params.questions.length,
+    )
     if (match) return match
     await sleep(pollIntervalMs)
   }

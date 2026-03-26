@@ -62,30 +62,31 @@ test("createQuestionRequest rejects when question tool is unavailable", async ()
 test("live helper can originate and answer a pending question request", async () => {
   if (!process.env.OPENAI_API_KEY) return
 
+  const testDir = process.cwd()
   const { server } = await createOpencodeServer({
     hostname: "127.0.0.1",
-    port: 4101,
+    port: 0,
   })
   const client = createOpencodeClient({
     baseUrl: server.url,
-    directory: "/root/work/myhyperpowers",
+    directory: testDir,
   })
 
   try {
     const session = await client.session.create({
-      query: { directory: "/root/work/myhyperpowers" },
+      query: { directory: testDir },
       body: { title: "question-runtime-test" },
     })
 
     const tools = await listAvailableTools(fetch, server.url, {
-      directory: "/root/work/myhyperpowers",
+      directory: testDir,
       providerID: "openai",
       modelID: "gpt-5.4-mini",
     })
     expect(hasQuestionTool(tools)).toBe(true)
 
     const request = await createQuestionRequest(fetch, server.url, {
-      directory: "/root/work/myhyperpowers",
+      directory: testDir,
       sessionID: session.id,
       providerID: "openai",
       modelID: "gpt-5.4-mini",
@@ -108,7 +109,7 @@ test("live helper can originate and answer a pending question request", async ()
     expect(request.questions[0].header).toBe("Runtime test")
 
     const replyResult = await replyToQuestionRequest(fetch, server.url, {
-      directory: "/root/work/myhyperpowers",
+      directory: testDir,
       requestID: request.id,
       answers: [["Yes"]],
     })

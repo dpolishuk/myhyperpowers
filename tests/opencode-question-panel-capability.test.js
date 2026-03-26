@@ -7,7 +7,7 @@ const repoRoot = path.resolve(__dirname, "..")
 
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
 
-test("installed OpenCode SDK exposes question consumption but not question creation", () => {
+test("installed OpenCode SDK exposes question consumption but not question creation", { skip: !fs.existsSync(path.join(repoRoot, ".opencode/node_modules/@opencode-ai/sdk")) }, () => {
   const v2Types = read(".opencode/node_modules/@opencode-ai/sdk/dist/v2/gen/types.gen.d.ts")
   const v2Sdk = read(".opencode/node_modules/@opencode-ai/sdk/dist/v2/gen/sdk.gen.d.ts")
   const pluginTypes = read(".opencode/node_modules/@opencode-ai/plugin/dist/index.d.ts")
