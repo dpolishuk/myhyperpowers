@@ -383,6 +383,9 @@ const main = async () => {
       // Refresh routing state for subsequent actions
       routing = await getCurrentRouting(cwd())
       renderCurrentState(routing)
+
+      const more = ensureNotCancelled(await p.confirm({ message: "Make more changes?" }))
+      if (!more) break
     }
 
     if (action === "single") {
@@ -398,6 +401,9 @@ const main = async () => {
       } else {
         p.log.error(`Failed to update ${agent}`)
       }
+
+      const more = ensureNotCancelled(await p.confirm({ message: "Configure another agent?" }))
+      if (!more) break
     }
 
     if (action === "preset") {
@@ -452,6 +458,9 @@ const main = async () => {
 
       routing = await getCurrentRouting(cwd())
       renderCurrentState(routing)
+
+      const more = ensureNotCancelled(await p.confirm({ message: "Make more changes?" }))
+      if (!more) break
     }
   }
 
