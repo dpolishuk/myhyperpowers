@@ -306,7 +306,7 @@ const main = async () => {
   const suggestedModels = await resolveSuggestedModels(cwd(), discovery.models)
   s.stop(`Found ${suggestedModels.length} available models`)
 
-  const routing = await getCurrentRouting(cwd())
+  let routing = await getCurrentRouting(cwd())
   renderCurrentState(routing)
 
   const defaults = await resolveDefaultSelections(cwd(), suggestedModels)
@@ -359,9 +359,9 @@ const main = async () => {
       s.stop("Routing config written and verified")
       changed = true
 
-      // Refresh current state
-      const newRouting = await getCurrentRouting(cwd())
-      renderCurrentState(newRouting)
+      // Refresh routing state for subsequent actions
+      routing = await getCurrentRouting(cwd())
+      renderCurrentState(routing)
     }
 
     if (action === "single") {
@@ -429,8 +429,8 @@ const main = async () => {
       s.stop("Preset applied and verified")
       changed = true
 
-      const newRouting = await getCurrentRouting(cwd())
-      renderCurrentState(newRouting)
+      routing = await getCurrentRouting(cwd())
+      renderCurrentState(routing)
     }
   }
 
