@@ -77,22 +77,32 @@ test("planRecommendedRouting uses safe defaults and creates execute-ralph review
 })
 
 test("resolveSuggestedModels merges live discovery with config-derived models", async () => {
-  const { root, cleanup } = await createTempRoot({
-    model: "anthropic/claude-sonnet-4-5",
-    provider: {
-      openrouter: {
-        models: {
-          "custom-model": { name: "Custom Model" },
+  const { root, cleanup } = await createTempRoot(
+    {
+      model: "anthropic/claude-sonnet-4-5",
+      provider: {
+        openrouter: {
+          models: {
+            "custom-model": { name: "Custom Model" },
+          },
         },
       },
     },
-  })
+    {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    },
+  )
 
   try {
     const suggested = await resolveSuggestedModels(root, ["anthropic/claude-sonnet-4-5"])
 
     expect(suggested).toContain("anthropic/claude-sonnet-4-5")
     expect(suggested).toContain("openrouter/custom-model")
+    expect(suggested).toContain("custom-provider/reviewer-only")
   } finally {
     await cleanup()
   }

@@ -197,6 +197,27 @@ export const discoverModelsFromConfig = (config: OpenCodeConfig): string[] => {
   return [...models].sort()
 }
 
+export const discoverModelsFromWorkflowOverrides = (hpConfig: HyperpowersRoutingConfig): string[] => {
+  const models = new Set<string>()
+
+  const workflowOverrides = asRecord(hpConfig.workflowOverrides)
+  for (const workflow of Object.values(workflowOverrides)) {
+    const workflowAgents = asRecord(workflow)
+    for (const entry of Object.values(workflowAgents)) {
+      const model = getString(asRecord(entry).model)
+      if (model && model.includes("/")) {
+        models.add(model)
+      }
+    }
+  }
+
+  return [...models].sort()
+}
+
+export const discoverAvailableModels = (config: OpenCodeConfig, hpConfig: HyperpowersRoutingConfig) => {
+  return [...new Set([...discoverModelsFromConfig(config), ...discoverModelsFromWorkflowOverrides(hpConfig)])].sort()
+}
+
 export const createRoutingSnapshot = (
   config: OpenCodeConfig,
   hpConfig: HyperpowersRoutingConfig,
@@ -219,7 +240,7 @@ export const createRoutingSnapshot = (
     workers: [...AGENT_GROUPS.workers],
     reviewers: [...AGENT_GROUPS.reviewers],
   },
-  availableModels: [...new Set([...discoverModelsFromConfig(config), ...(options.availableModels ?? [])])].sort(),
+  availableModels: [...new Set([...discoverAvailableModels(config, hpConfig), ...(options.availableModels ?? [])])].sort(),
   presets: [...PRESET_NAMES],
   routing: {
     model: getString(config.model),

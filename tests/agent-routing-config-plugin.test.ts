@@ -489,6 +489,28 @@ test("get_snapshot_includes_models_from_provider_blocks", async () => {
   }
 })
 
+test("get_snapshot_includes_models_from_workflow_override_file", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "proxy/model-a" }),
+    JSON.stringify({
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    }),
+  )
+
+  try {
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(result.availableModels).toContain("custom-provider/reviewer-only")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("get_snapshot_includes_agent_groups", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
 
