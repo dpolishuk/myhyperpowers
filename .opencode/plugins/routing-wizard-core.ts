@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 
 export const DEFAULT_SCHEMA = "https://opencode.ai/config.json"
@@ -647,8 +647,16 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
     }
   }
 
-  await persistConfig(configPath, nextConfig)
-  await persistConfig(hpConfigPath, nextHpConfig as Record<string, unknown>)
+  // Atomic write: stage both files to temp paths, then rename into place.
+  // If either write fails, neither file is modified.
+  const tmpConfigPath = `${configPath}.tmp`
+  const tmpHpConfigPath = `${hpConfigPath}.tmp`
+  await mkdir(dirname(configPath), { recursive: true })
+  await mkdir(dirname(hpConfigPath), { recursive: true })
+  await writeFile(tmpConfigPath, `${JSON.stringify(nextConfig, null, 2)}\n`, "utf8")
+  await writeFile(tmpHpConfigPath, `${JSON.stringify(nextHpConfig, null, 2)}\n`, "utf8")
+  await rename(tmpConfigPath, configPath)
+  await rename(tmpHpConfigPath, hpConfigPath)
 
   return {
     ok: true as const,
