@@ -857,7 +857,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const writeResult = await writeRecommendedRoutingPlan(rootDir, plan)
     if (!writeResult.ok) return writeResult
 
-    const verifyResult = await verifyRecommendedRoutingPlan(rootDir, plan, discovery.models)
+    const verifyResult = await verifyRecommendedRoutingPlan(rootDir, plan, availableModels)
     if (!verifyResult.ok) {
       await restoreOptionalFile(configPath, originalConfigContents)
       await removeIfEmptyFile(configPath)

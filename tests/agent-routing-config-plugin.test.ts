@@ -248,6 +248,34 @@ test("bootstrap_rejects_selected_models_that_are_not_discovered", async () => {
   }
 })
 
+test("bootstrap_accepts_top_review_model_present_only in merged availableModels", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "opencode/claude-sonnet-4-5" }),
+    JSON.stringify({
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    }),
+  )
+
+  try {
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "bootstrap",
+        strongModel: "opencode/claude-sonnet-4-5",
+        topReviewModel: "custom-provider/reviewer-only",
+      })
+
+      expect(result.ok).toBe(true)
+      expect(result.routing.agent["autonomous-reviewer"].model).toBe("custom-provider/reviewer-only")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
 test("set_rejects_models_not_present in discovered output when discovery succeeds", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
