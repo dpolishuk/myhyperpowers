@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 
+import { existsSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output, cwd, exit } from "node:process"
 
 import {
   AGENT_GROUPS,
   discoverOpencodeModels,
+  discoverModelsFromConfig,
   planRecommendedRouting,
   verifyRecommendedRoutingPlan,
   writeRecommendedRoutingPlan,
@@ -29,6 +32,19 @@ What it does:
     - workflow overrides in .opencode/hyperpowers-routing.json
   - verifies generated routing by reading it back through the shared routing backend
 `
+
+export const resolveSuggestedModels = async (rootDir: string, discoveredModels: string[]) => {
+  const configPath = `${rootDir}/opencode.json`
+  if (!existsSync(configPath)) return [...new Set(discoveredModels)].sort()
+
+  try {
+    const parsed = JSON.parse(await readFile(configPath, "utf8"))
+    const configModels = discoverModelsFromConfig(parsed)
+    return [...new Set([...discoveredModels, ...configModels])].sort()
+  } catch {
+    return [...new Set(discoveredModels)].sort()
+  }
+}
 
 const parseArgs = (argv: string[]): ParsedArgs => {
   const parsed: ParsedArgs = {
@@ -145,18 +161,20 @@ const main = async () => {
     return
   }
 
+  const suggestedModels = await resolveSuggestedModels(cwd(), discovery.models)
+
   let { strongModel, fastModel, topReviewModel } = args
 
   if (!strongModel || (!args.yes && (!fastModel || !topReviewModel))) {
     const rl = createInterface({ input, output })
     try {
-      strongModel = strongModel ?? (await promptForModel({ rl, models: discovery.models, label: "strong model" }))
-      fastModel = fastModel ?? (await promptForModel({ rl, models: discovery.models, label: "fast model", allowBlank: true }))
+      strongModel = strongModel ?? (await promptForModel({ rl, models: suggestedModels, label: "strong model" }))
+      fastModel = fastModel ?? (await promptForModel({ rl, models: suggestedModels, label: "fast model", allowBlank: true }))
       topReviewModel =
         topReviewModel ??
         (await promptForModel({
           rl,
-          models: discovery.models,
+          models: suggestedModels,
           label: "top-review model",
           allowBlank: true,
         }))
@@ -216,4 +234,6 @@ const main = async () => {
   console.log(`- Verified routing read-back through the shared routing backend`)
 }
 
-await main()
+if (import.meta.main) {
+  await main()
+}

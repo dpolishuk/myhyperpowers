@@ -9,9 +9,11 @@ import {
   executeRoutingAction,
   parseOpencodeModelsOutput,
   planRecommendedRouting,
+  discoverModelsFromConfig,
   verifyRecommendedRoutingPlan,
   writeRecommendedRoutingPlan,
 } from "../.opencode/plugins/routing-wizard-core"
+import { resolveSuggestedModels } from "../scripts/opencode-routing-wizard"
 
 const createTempRoot = async (config?: Record<string, unknown>, hpConfig?: Record<string, unknown>) => {
   const root = await mkdtemp(join(tmpdir(), "opencode-routing-wizard-"))
@@ -72,6 +74,28 @@ test("planRecommendedRouting uses safe defaults and creates execute-ralph review
   expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
     "anthropic/claude-sonnet-4-5",
   )
+})
+
+test("resolveSuggestedModels merges live discovery with config-derived models", async () => {
+  const { root, cleanup } = await createTempRoot({
+    model: "anthropic/claude-sonnet-4-5",
+    provider: {
+      openrouter: {
+        models: {
+          "custom-model": { name: "Custom Model" },
+        },
+      },
+    },
+  })
+
+  try {
+    const suggested = await resolveSuggestedModels(root, ["anthropic/claude-sonnet-4-5"])
+
+    expect(suggested).toContain("anthropic/claude-sonnet-4-5")
+    expect(suggested).toContain("openrouter/custom-model")
+  } finally {
+    await cleanup()
+  }
 })
 
 test("writeRecommendedRoutingPlan preserves unrelated config and verifyRecommendedRoutingPlan reads back planned routing", async () => {
