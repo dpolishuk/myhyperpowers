@@ -190,12 +190,27 @@ const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
   p.note(lines.join("\n"), "Planned Routing")
 }
 
-const modelOptions = (models: string[], currentModel?: string) =>
-  models.map((m) => ({
-    value: m,
-    label: m,
-    hint: m === currentModel ? "(current)" : undefined,
-  }))
+const modelOptionsGrouped = (models: string[], currentModel?: string) => {
+  // Sort: current model's provider first, then alphabetical by provider/model
+  const currentProvider = currentModel?.split("/")[0]
+  const sorted = [...models].sort((a, b) => {
+    const provA = a.split("/")[0]
+    const provB = b.split("/")[0]
+    if (provA === currentProvider && provB !== currentProvider) return -1
+    if (provB === currentProvider && provA !== currentProvider) return 1
+    return a.localeCompare(b)
+  })
+
+  return sorted.map((m) => {
+    const [provider, ...rest] = m.split("/")
+    const modelName = rest.join("/")
+    return {
+      value: m,
+      label: m,
+      hint: m === currentModel ? "(current)" : provider,
+    }
+  })
+}
 
 const ensureNotCancelled = <T>(value: T | symbol): T => {
   if (p.isCancel(value)) {
@@ -206,13 +221,11 @@ const ensureNotCancelled = <T>(value: T | symbol): T => {
 }
 
 const selectModel = async (models: string[], message: string, currentModel?: string) => {
-  // Use select with initial value for current model
-  const initialValue = currentModel && models.includes(currentModel) ? currentModel : undefined
   return ensureNotCancelled(
-    await p.select({
-      message,
-      options: modelOptions(models, currentModel),
-      initialValue,
+    await p.autocomplete({
+      message: `${message}  (type to filter)`,
+      options: modelOptionsGrouped(models, currentModel),
+      maxItems: 15,
     }),
   )
 }
