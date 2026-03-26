@@ -758,6 +758,28 @@ test("apply_preset_quality_first", async () => {
   }
 })
 
+test("apply_preset_quality_first_clears_stale_small_model", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "anthropic/claude-sonnet-4-5",
+      small_model: "anthropic/claude-haiku-4-5",
+    }),
+  )
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "quality-first",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    expect(persisted.small_model).toBeUndefined()
+  } finally {
+    await cleanup()
+  }
+})
+
 test("apply_preset_without_small_model_uses_main_model_for_all", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify({

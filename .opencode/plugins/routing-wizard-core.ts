@@ -460,6 +460,7 @@ const applyPreset = (
       break
     case "quality-first":
       assign(HYPERPOWERS_AGENTS, strongModel)
+      delete (nextConfig as Record<string, unknown>).small_model
       break
   }
 
