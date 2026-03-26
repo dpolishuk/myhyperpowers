@@ -7,7 +7,7 @@ import {
   hasQuestionTool,
   listAvailableTools,
   replyToQuestionRequest,
-} from "../.opencode/plugins/opencode-question-runtime"
+} from "../.opencode/plugins/opencode-question-runtime.ts"
 
 test("buildQuestionToolPrompt embeds exact question payload", () => {
   const prompt = buildQuestionToolPrompt([
