@@ -129,13 +129,14 @@ test("OpenCode routing settings command delegates to skill and skill contains ro
   assert.equal(fs.existsSync(commandPath), true)
 
   const commandSource = fs.readFileSync(commandPath, "utf8")
-  assert.equal(commandSource.includes("skills_hyperpowers_routing-settings"), true)
-  assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
+  assert.equal(commandSource.includes("skills_hyperpowers_routing_settings"), true)
 
   const skillPath = path.join(repoRoot, ".opencode", "skills", "hyperpowers-routing-settings", "SKILL.md")
   assert.equal(fs.existsSync(skillPath), true)
 
   const skillSource = fs.readFileSync(skillPath, "utf8")
+  assert.equal(skillSource.includes("name: hyperpowers-routing-settings"), true)
+  assert.equal(skillSource.includes("plugin-owned settings workflow"), true)
   assert.equal(skillSource.includes("hyperpowers_agent_routing_config"), true)
   assert.equal(skillSource.includes("action=get"), true)
   assert.equal(skillSource.includes("action=set"), true)

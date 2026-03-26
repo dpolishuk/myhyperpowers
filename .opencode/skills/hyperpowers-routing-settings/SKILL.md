@@ -1,5 +1,5 @@
 ---
-name: routing-settings
+name: hyperpowers-routing-settings
 description: Interactive wizard to configure which AI model runs for each Hyperpowers agent
 ---
 

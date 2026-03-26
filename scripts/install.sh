@@ -365,7 +365,7 @@ install_claude() {
   if [[ -f "$settings" ]]; then
     if ! python3 -c "import json; d=json.load(open('$settings')); assert d.get('statusline')" 2>/dev/null; then
       local tmp; tmp=$(mktemp)
-      python3 -c "
+      if python3 -c "
 import json
 with open('$settings') as f:
     d = json.load(f)
@@ -373,8 +373,11 @@ d['statusline'] = '$statusline_cmd'
 with open('$tmp', 'w') as f:
     json.dump(d, f, indent=2)
     f.write('\n')
-" 2>/dev/null && mv "$tmp" "$settings" || rm -f "$tmp"
-      echo "  Configured status line in settings.json"
+" 2>/dev/null && mv "$tmp" "$settings"; then
+        echo "  Configured status line in settings.json"
+      else
+        rm -f "$tmp"
+      fi
     fi
   else
     echo '{"statusline":"'"$statusline_cmd"'"}' | python3 -m json.tool > "$settings" 2>/dev/null || true
