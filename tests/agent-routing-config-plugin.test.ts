@@ -511,6 +511,34 @@ test("get_snapshot_includes_models_from_workflow_override_file", async () => {
   }
 })
 
+test("set_accepts_model_present_only in merged availableModels", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "opencode/claude-sonnet-4-5" }),
+    JSON.stringify({
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    }),
+  )
+
+  try {
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "custom-provider/reviewer-only",
+      })
+
+      expect(result.ok).toBe(true)
+      expect(result.routing.agent["test-runner"].model).toBe("custom-provider/reviewer-only")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
 test("get_snapshot_includes_agent_groups", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
 

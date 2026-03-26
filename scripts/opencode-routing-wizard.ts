@@ -102,10 +102,10 @@ const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
   }
 }
 
-const ensureModelInDiscovery = (model: string | undefined, models: string[], label: string) => {
+const ensureModelInAllowedSet = (model: string | undefined, models: string[], label: string) => {
   if (!model) return
   if (!models.includes(model)) {
-    throw new Error(`${label} is not present in \`opencode models\` output: ${model}`)
+    throw new Error(`${label} is not present in the merged available model set: ${model}`)
   }
 }
 
@@ -186,9 +186,9 @@ const main = async () => {
   }
 
   try {
-    ensureModelInDiscovery(strongModel, discovery.models, "The selected strong model")
-    ensureModelInDiscovery(fastModel, discovery.models, "The selected fast model")
-    ensureModelInDiscovery(topReviewModel, discovery.models, "The selected top-review model")
+    ensureModelInAllowedSet(strongModel, suggestedModels, "The selected strong model")
+    ensureModelInAllowedSet(fastModel, suggestedModels, "The selected fast model")
+    ensureModelInAllowedSet(topReviewModel, suggestedModels, "The selected top-review model")
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
     exit(1)
@@ -223,7 +223,7 @@ const main = async () => {
     return
   }
 
-  const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, discovery.models)
+  const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, suggestedModels)
   if (!verifyResult.ok) {
     console.error(`Verification failed: ${verifyResult.error.message}`)
     exit(1)

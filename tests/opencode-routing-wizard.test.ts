@@ -277,3 +277,57 @@ test("CLI bootstrap script generates canonical routing files from discovered mod
     await cleanup()
   }
 })
+
+test("CLI accepts top-review model present only in merged suggested models", async () => {
+  const { root, cleanup } = await createTempRoot(
+    {
+      model: "anthropic/claude-sonnet-4-5",
+    },
+    {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    },
+  )
+
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const wizardPath = resolve(import.meta.dir, "..", "scripts", "opencode-routing-wizard.ts")
+
+  try {
+    await mkdir(binDir, { recursive: true })
+    await writeFile(
+      opencodePath,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"models\" ]; then\n  printf 'Available models\\nanthropic/claude-sonnet-4-5\\n'\n  exit 0\nfi\nexit 1\n",
+      "utf8",
+    )
+    await chmod(opencodePath, 0o755)
+
+    const result = spawnSync(
+      "bun",
+      [
+        wizardPath,
+        "--strong-model",
+        "anthropic/claude-sonnet-4-5",
+        "--top-review-model",
+        "custom-provider/reviewer-only",
+        "--yes",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH}`,
+        },
+      },
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout.includes("Verification succeeded")).toBe(true)
+  } finally {
+    await cleanup()
+  }
+})

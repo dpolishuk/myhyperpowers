@@ -557,17 +557,16 @@ export const discoverOpencodeModels = async (runner: ModelsCommandRunner = runOp
   }
 }
 
-const validateModelAgainstDiscovery = (
+const validateModelAgainstAvailableSet = (
   configPath: string,
   model: string,
-  discovery: Awaited<ReturnType<typeof discoverOpencodeModels>>,
+  allowedModels: string[],
 ) => {
-  if (!discovery.ok) return null
-  if (discovery.models.includes(model)) return null
+  if (allowedModels.includes(model)) return null
 
   return invalidResult(configPath, "invalid_selected_model", `Selected model not found in discovered model list: ${model}`, {
     model,
-    discoveredModels: discovery.models,
+    discoveredModels: allowedModels,
   })
 }
 
@@ -823,18 +822,26 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       return invalidResult(configPath, "missing_model", "Provide a non-empty strongModel in provider/model format")
     }
 
-    const strongModelValidation = validateModelAgainstDiscovery(configPath, strongModel, discovery)
+    const hpResult = await readHpConfigForWrite(hpConfigPath)
+    if (!hpResult.ok) {
+      return { ok: false as const, error: hpResult.error }
+    }
+    const current = await loadConfigForWrite(configPath)
+    if (!current.ok && current.error.code !== "config_not_found") return current
+    const availableModels = [...new Set([...discovery.models, ...discoverAvailableModels(current.ok ? current.config : { $schema: DEFAULT_SCHEMA }, hpResult.config)])].sort()
+
+    const strongModelValidation = validateModelAgainstAvailableSet(configPath, strongModel, availableModels)
     if (strongModelValidation) return strongModelValidation
 
     const fastModel = getString(args.fastModel) ?? undefined
     if (fastModel) {
-      const fastModelValidation = validateModelAgainstDiscovery(configPath, fastModel, discovery)
+      const fastModelValidation = validateModelAgainstAvailableSet(configPath, fastModel, availableModels)
       if (fastModelValidation) return fastModelValidation
     }
 
     const topReviewModel = getString(args.topReviewModel) ?? undefined
     if (topReviewModel) {
-      const topReviewValidation = validateModelAgainstDiscovery(configPath, topReviewModel, discovery)
+      const topReviewValidation = validateModelAgainstAvailableSet(configPath, topReviewModel, availableModels)
       if (topReviewValidation) return topReviewValidation
     }
 
@@ -884,12 +891,12 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     }
 
     const discovery = await discoverOpencodeModels(undefined, rootDir)
-    const invalidModel = validateModelAgainstDiscovery(configPath, model, discovery)
-    if (invalidModel) return invalidModel
-
     const current = await loadConfigForWrite(configPath)
     if (!current.ok) return current
     const hpState = await loadHpConfigWarning()
+    const availableModels = [...new Set([...discovery.ok ? discovery.models : [], ...discoverAvailableModels(current.config, hpState.config)])].sort()
+    const invalidModel = validateModelAgainstAvailableSet(configPath, model, availableModels)
+    if (invalidModel) return invalidModel
 
     let nextConfig = current.config
     for (const agent of agents) {
@@ -947,16 +954,26 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     return invalidResult(configPath, "missing_model", "Provide a non-empty model in provider/model format")
   }
 
-  const discovery = await discoverOpencodeModels(undefined, rootDir)
-  const invalidModel = validateModelAgainstDiscovery(configPath, model, discovery)
-  if (invalidModel) return invalidModel
-
   const workflowName = args.workflow ? canonicalize(args.workflow, HYPERPOWERS_WORKFLOWS) : null
   if (args.workflow && !workflowName) {
     return invalidResult(configPath, "unsupported_workflow", "Use a supported Hyperpowers workflow name", {
       supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
     })
   }
+
+  const discovery = await discoverOpencodeModels(undefined, rootDir)
+  const current = await loadConfigForWrite(configPath)
+  if (!current.ok) return current
+  const hpState = workflowName ? await loadStrictHpConfig() : await loadHpConfigWarning()
+  if ("ok" in hpState && hpState.ok === false) return hpState
+  const availableModels = [
+    ...new Set([
+      ...(discovery.ok ? discovery.models : []),
+      ...discoverAvailableModels(current.config, ("config" in hpState ? hpState.config : hpState) as HyperpowersRoutingConfig),
+    ]),
+  ].sort()
+  const invalidModel = validateModelAgainstAvailableSet(configPath, model, availableModels)
+  if (invalidModel) return invalidModel
 
   if (workflowName) {
     const hpResult = await readHpConfigForWrite(hpConfigPath)
@@ -974,10 +991,6 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       updatedFile: ".opencode/hyperpowers-routing.json",
     }
   }
-
-  const current = await loadConfigForWrite(configPath)
-  if (!current.ok) return current
-  const hpState = await loadHpConfigWarning()
 
   const nextConfig = updateGlobalAgentModel(current.config, agentName, model)
   await persistConfig(configPath, nextConfig)
