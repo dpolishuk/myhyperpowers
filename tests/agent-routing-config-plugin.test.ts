@@ -582,6 +582,7 @@ test("get_snapshot_includes_agent_groups", async () => {
     expect(result.agentGroups.reviewers).toContain("autonomous-reviewer")
     expect(result.agentGroups.reviewers).toContain("code-reviewer")
     expect(result.agentGroups.reviewers.length).toBe(AGENT_GROUPS.reviewers.length)
+    expect(result.agentGroups.all).toEqual(HYPERPOWERS_AGENTS)
   } finally {
     await cleanup()
   }

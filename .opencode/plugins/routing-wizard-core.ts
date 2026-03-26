@@ -236,6 +236,7 @@ export const createRoutingSnapshot = (
   supportedAgents: [...HYPERPOWERS_AGENTS],
   supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
   agentGroups: {
+    all: [...HYPERPOWERS_AGENTS],
     orchestrator: [...AGENT_GROUPS.orchestrator],
     workers: [...AGENT_GROUPS.workers],
     reviewers: [...AGENT_GROUPS.reviewers],
