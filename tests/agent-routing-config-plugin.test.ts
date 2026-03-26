@@ -379,9 +379,9 @@ test("set_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", 
         model: "opencode/claude-sonnet-4-5",
       })
 
-      expect(result.ok).toBe(false)
-      expect(result.error.code).toBe("invalid_hp_json")
-      expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.ok).toBe(true)
+      expect(result.warning.code).toBe("invalid_hp_json")
+      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
     })
   } finally {
     await cleanup()
@@ -402,9 +402,9 @@ test("set_group_returns_invalid_hp_json_when_hyperpowers_override_file_is_malfor
         model: "opencode/claude-sonnet-4-5",
       })
 
-      expect(result.ok).toBe(false)
-      expect(result.error.code).toBe("invalid_hp_json")
-      expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.ok).toBe(true)
+      expect(result.warning.code).toBe("invalid_hp_json")
+      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
     })
   } finally {
     await cleanup()
@@ -423,9 +423,9 @@ test("apply_preset_returns_invalid_hp_json_when_hyperpowers_override_file_is_mal
       preset: "quality-first",
     })
 
-    expect(result.ok).toBe(false)
-    expect(result.error.code).toBe("invalid_hp_json")
-    expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    expect(result.ok).toBe(true)
+    expect(result.warning.code).toBe("invalid_hp_json")
+    expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
   } finally {
     await cleanup()
   }

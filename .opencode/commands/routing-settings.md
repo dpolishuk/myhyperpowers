@@ -37,6 +37,10 @@ Also show:
 - **Supported groups** from `agentGroups` (orchestrator, workers, reviewers)
 - **Available presets** from `presets` (cost-optimized, quality-first)
 
+After the main global-agent table, render a second section for current **workflow overrides** from `routing.workflowOverrides` so users can verify workflow-specific routing in the same settings flow.
+
+If the backend response includes a `warning` about malformed `.opencode/hyperpowers-routing.json`, show that warning explicitly before presenting edit options.
+
 If no routing config exists yet (`configMissing: true`), explicitly say this is a first-run/bootstrap flow and offer to create a recommended full multi-agent setup.
 
 ### Step 2: Present options

@@ -148,6 +148,8 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
   assert.equal(commandSource.includes("availableModels"), true)
   assert.equal(commandSource.includes("if no routing config exists") || commandSource.includes("first-run"), true)
+  assert.equal(commandSource.includes("workflow overrides") || commandSource.includes("workflowOverrides"), true)
+  assert.equal(commandSource.includes("warning") || commandSource.includes("malformed"), true)
   assert.equal(commandSource.includes("cost-optimized"), true)
   assert.equal(commandSource.includes("quality-first"), true)
 })
