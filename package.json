@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/dpolishuk/myhyperpowers#readme",
   "dependencies": {
+    "@clack/prompts": "^1.1.0",
     "@linear/sdk": "^76.0.0"
   }
 }

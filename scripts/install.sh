@@ -380,8 +380,12 @@ with open('$tmp', 'w') as f:
       fi
     fi
   else
-    echo '{"statusline":"'"$statusline_cmd"'"}' | python3 -m json.tool > "$settings" 2>/dev/null || true
-    echo "  Created settings.json with status line"
+    if command -v python3 >/dev/null 2>&1; then
+      echo '{"statusline":"'"$statusline_cmd"'"}' | python3 -m json.tool > "$settings" 2>/dev/null || true
+      echo "  Created settings.json with status line"
+    else
+      echo "  Warning: python3 not found, skipping settings.json creation"
+    fi
   fi
 
   manifest_add ".hyperpowers-version"

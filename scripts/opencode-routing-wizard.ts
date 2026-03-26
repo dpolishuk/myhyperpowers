@@ -2,11 +2,12 @@
 
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
-import { createInterface } from "node:readline/promises"
-import { stdin as input, stdout as output, cwd, exit } from "node:process"
+import { cwd, exit } from "node:process"
+import * as p from "@clack/prompts"
 
 import {
   AGENT_GROUPS,
+  HYPERPOWERS_AGENTS,
   discoverAvailableModels,
   discoverOpencodeModels,
   planRecommendedRouting,
@@ -76,11 +77,7 @@ const resolveDefaultSelections = async (rootDir: string, suggestedModels: string
     const globalReviewer = asRecord(asRecord(asRecord(parsed).agent)["autonomous-reviewer"])
     const topReviewModel = getString(workflowReviewer.model) ?? getString(globalReviewer.model) ?? strongModel
 
-    return {
-      strongModel,
-      fastModel,
-      topReviewModel,
-    }
+    return { strongModel, fastModel, topReviewModel }
   } catch {
     return {
       strongModel: suggestedModels[0],
@@ -90,25 +87,30 @@ const resolveDefaultSelections = async (rootDir: string, suggestedModels: string
   }
 }
 
-const parseArgs = (argv: string[]): ParsedArgs => {
-  const parsed: ParsedArgs = {
-    yes: false,
-    help: false,
+const requireValue = (argv: string[], index: number, flag: string): string => {
+  const value = argv[index + 1]
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value (e.g., ${flag} provider/model)`)
   }
+  return value
+}
+
+const parseArgs = (argv: string[]): ParsedArgs => {
+  const parsed: ParsedArgs = { yes: false, help: false }
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     switch (arg) {
       case "--strong-model":
-        parsed.strongModel = argv[index + 1]
+        parsed.strongModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--fast-model":
-        parsed.fastModel = argv[index + 1]
+        parsed.fastModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--top-review-model":
-        parsed.topReviewModel = argv[index + 1]
+        parsed.topReviewModel = requireValue(argv, index, arg)
         index += 1
         break
       case "--yes":
@@ -126,59 +128,116 @@ const parseArgs = (argv: string[]): ParsedArgs => {
   return parsed
 }
 
-const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
-  console.log("\nPlanned Hyperpowers routing:")
+const getAgentGroup = (agent: string) => {
+  if (AGENT_GROUPS.orchestrator.includes(agent as any)) return "orchestrator"
+  if (AGENT_GROUPS.workers.includes(agent as any)) return "worker"
+  if (AGENT_GROUPS.reviewers.includes(agent as any)) return "reviewer"
+  return ""
+}
 
-  for (const [groupName, agents] of Object.entries(AGENT_GROUPS)) {
-    console.log(`\n${groupName}:`)
+const getCurrentRouting = async (rootDir: string) => {
+  const configPath = `${rootDir}/opencode.json`
+  try {
+    const parsed = existsSync(configPath) ? JSON.parse(await readFile(configPath, "utf8")) : {}
+    const agentMap = asRecord(asRecord(parsed).agent)
+    const result: Record<string, string> = {}
+    for (const agent of HYPERPOWERS_AGENTS) {
+      result[agent] = getString(asRecord(agentMap[agent]).model) ?? getString(asRecord(parsed).model) ?? "(inherit)"
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+const renderCurrentState = (routing: Record<string, string>) => {
+  if (Object.keys(routing).length === 0) {
+    p.log.warn("No routing config found. Run bootstrap to set up all agents.")
+    return
+  }
+
+  const lines: string[] = []
+  for (const [group, agents] of Object.entries(AGENT_GROUPS)) {
+    lines.push(`  ${group}:`)
     for (const agent of agents) {
-      console.log(`  - ${agent}: ${plan.agent[agent].model}`)
+      const model = routing[agent] ?? "(not set)"
+      lines.push(`    ${agent.padEnd(28)} ${model}`)
+    }
+  }
+  p.note(lines.join("\n"), "Current Routing")
+}
+
+const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
+  const lines: string[] = []
+  for (const [group, agents] of Object.entries(AGENT_GROUPS)) {
+    lines.push(`  ${group}:`)
+    for (const agent of agents) {
+      lines.push(`    ${agent.padEnd(28)} ${plan.agent[agent].model}`)
     }
   }
 
-  console.log("\nworkflow overrides:")
-  for (const [workflowName, workflowAgents] of Object.entries(plan.workflowOverrides)) {
-    for (const [agentName, entry] of Object.entries(workflowAgents)) {
-      console.log(`  - ${workflowName}.${agentName}.model: ${entry.model}`)
+  const overrides = Object.entries(plan.workflowOverrides)
+  if (overrides.length > 0) {
+    lines.push("")
+    lines.push("  workflow overrides:")
+    for (const [workflow, agents] of overrides) {
+      for (const [agent, entry] of Object.entries(agents)) {
+        lines.push(`    ${workflow}.${agent}: ${entry.model}`)
+      }
     }
   }
+
+  p.note(lines.join("\n"), "Planned Routing")
 }
 
-const ensureModelInAllowedSet = (model: string | undefined, models: string[], label: string) => {
-  if (!model) return
-  if (!models.includes(model)) {
-    throw new Error(`${label} is not present in the merged available model set: ${model}`)
+const modelOptions = (models: string[], currentModel?: string) =>
+  models.map((m) => ({
+    value: m,
+    label: m,
+    hint: m === currentModel ? "(current)" : undefined,
+  }))
+
+const ensureNotCancelled = <T>(value: T | symbol): T => {
+  if (p.isCancel(value)) {
+    p.cancel("Wizard cancelled.")
+    exit(0)
   }
+  return value as T
 }
 
-const promptForModel = async ({
-  rl,
-  models,
-  label,
-  allowBlank,
-}: {
-  rl: ReturnType<typeof createInterface>
-  models: string[]
-  label: string
-  allowBlank?: boolean
-}) => {
-  console.log(`\nAvailable models (live discovery + current config):`)
-  models.forEach((model, index) => {
-    console.log(`  ${index + 1}. ${model}`)
-  })
+const selectModel = async (models: string[], message: string, currentModel?: string) => {
+  // Use select with initial value for current model
+  const initialValue = currentModel && models.includes(currentModel) ? currentModel : undefined
+  return ensureNotCancelled(
+    await p.select({
+      message,
+      options: modelOptions(models, currentModel),
+      initialValue,
+    }),
+  )
+}
 
-  const suffix = allowBlank ? " (press Enter to reuse the strong model)" : ""
-  const answer = (await rl.question(`Select ${label} by number or exact provider/model${suffix}: `)).trim()
+const runBootstrapFlow = async (models: string[], defaults: { strongModel: string; fastModel: string; topReviewModel: string }) => {
+  const strongModel = await selectModel(models, "Select strong model (orchestrator + reviewers)", defaults.strongModel)
+  const fastModel = await selectModel(models, "Select fast model (workers — test-runner, investigators)", defaults.fastModel)
+  const topReviewModel = await selectModel(models, "Select top-review model (autonomous-reviewer)", defaults.topReviewModel)
+  return { strongModel, fastModel, topReviewModel }
+}
 
-  if (!answer && allowBlank) return undefined
-  if (!answer) throw new Error(`${label} is required`)
+const runSingleAgentFlow = async (models: string[], routing: Record<string, string>) => {
+  const agent = ensureNotCancelled(
+    await p.select({
+      message: "Which agent?",
+      options: HYPERPOWERS_AGENTS.map((a) => ({
+        value: a,
+        label: a,
+        hint: `${getAgentGroup(a)} — ${routing[a] ?? "(not set)"}`,
+      })),
+    }),
+  )
 
-  const numeric = Number(answer)
-  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= models.length) {
-    return models[numeric - 1]
-  }
-
-  return answer
+  const model = await selectModel(models, `Select model for ${agent}`, routing[agent])
+  return { agent, model }
 }
 
 const main = async () => {
@@ -197,100 +256,197 @@ const main = async () => {
     return
   }
 
+  // --- Non-interactive mode (--yes) ---
+  if (args.yes) {
+    const discovery = await discoverOpencodeModels(undefined, cwd())
+    if (!discovery.ok) {
+      console.error(`Model discovery failed: ${discovery.error.message}`)
+      exit(1)
+      return
+    }
+
+    const suggestedModels = await resolveSuggestedModels(cwd(), discovery.models)
+    const defaults = await resolveDefaultSelections(cwd(), suggestedModels)
+    const strongModel = args.strongModel ?? defaults.strongModel
+    const fastModel = args.fastModel ?? defaults.fastModel
+    const topReviewModel = args.topReviewModel ?? defaults.topReviewModel
+
+    if (!strongModel) {
+      console.error("No strong model could be inferred from config or discovered models")
+      exit(1)
+      return
+    }
+
+    const plan = planRecommendedRouting({ strongModel, fastModel, topReviewModel })
+    const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
+    if (!writeResult.ok) {
+      console.error(`Write failed: ${writeResult.error.message}`)
+      exit(1)
+      return
+    }
+
+    const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, suggestedModels)
+    if (!verifyResult.ok) {
+      console.error(`Verification failed: ${verifyResult.error.message}`)
+      exit(1)
+      return
+    }
+
+    console.log("Routing config written and verified.")
+    return
+  }
+
+  // --- Interactive TUI mode ---
+  p.intro("Hyperpowers Routing Wizard")
+
+  const s = p.spinner()
+  s.start("Discovering available models...")
+
   const discovery = await discoverOpencodeModels(undefined, cwd())
   if (!discovery.ok) {
-    console.error(`Model discovery failed: ${discovery.error.message}`)
-    if (discovery.error.stderr) console.error(discovery.error.stderr)
+    s.stop("Model discovery failed")
+    p.log.error(discovery.error.message)
+    p.outro("Cannot continue without available models.")
     exit(1)
     return
   }
 
   const suggestedModels = await resolveSuggestedModels(cwd(), discovery.models)
+  s.stop(`Found ${suggestedModels.length} available models`)
 
-  let { strongModel, fastModel, topReviewModel } = args
+  let routing = await getCurrentRouting(cwd())
+  renderCurrentState(routing)
 
-  if (args.yes) {
-    const defaults = await resolveDefaultSelections(cwd(), suggestedModels)
-    strongModel = strongModel ?? defaults.strongModel ?? undefined
-    fastModel = fastModel ?? defaults.fastModel ?? undefined
-    topReviewModel = topReviewModel ?? defaults.topReviewModel ?? undefined
-  }
+  const defaults = await resolveDefaultSelections(cwd(), suggestedModels)
 
-  if (args.yes && !strongModel) {
-    console.error("Model bootstrap failed: no strong model could be inferred from current config or discovered models")
-    exit(1)
-    return
-  }
+  // Main action loop
+  let changed = false
+  while (true) {
+    const action = ensureNotCancelled(
+      await p.select({
+        message: "What would you like to do?",
+        options: [
+          { value: "bootstrap", label: "Bootstrap all agents", hint: "set strong + fast + review models" },
+          { value: "single", label: "Configure single agent", hint: "pick agent → pick model" },
+          { value: "preset", label: "Apply preset", hint: "cost-optimized or quality-first" },
+          { value: "done", label: "Done", hint: changed ? "save and exit" : "exit without changes" },
+        ],
+      }),
+    )
 
-  if (!strongModel || (!args.yes && (!fastModel || !topReviewModel))) {
-    const rl = createInterface({ input, output })
-    try {
-      strongModel = strongModel ?? (await promptForModel({ rl, models: suggestedModels, label: "strong model" }))
-      fastModel = fastModel ?? (await promptForModel({ rl, models: suggestedModels, label: "fast model", allowBlank: true }))
-      topReviewModel =
-        topReviewModel ??
-        (await promptForModel({
-          rl,
-          models: suggestedModels,
-          label: "top-review model",
-          allowBlank: true,
-        }))
-    } finally {
-      rl.close()
-    }
-  }
+    if (action === "done") break
 
-  try {
-    ensureModelInAllowedSet(strongModel, suggestedModels, "The selected strong model")
-    ensureModelInAllowedSet(fastModel, suggestedModels, "The selected fast model")
-    ensureModelInAllowedSet(topReviewModel, suggestedModels, "The selected top-review model")
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error))
-    exit(1)
-    return
-  }
+    if (action === "bootstrap") {
+      const selections = await runBootstrapFlow(suggestedModels, defaults)
+      const plan = planRecommendedRouting({
+        strongModel: selections.strongModel,
+        fastModel: selections.fastModel,
+        topReviewModel: selections.topReviewModel,
+      })
 
-  const plan = planRecommendedRouting({
-    strongModel: strongModel!,
-    fastModel,
-    topReviewModel,
-  })
+      renderPreview(plan)
 
-  renderPreview(plan)
+      const confirmed = ensureNotCancelled(await p.confirm({ message: "Apply this routing?" }))
+      if (!confirmed) continue
 
-  if (!args.yes) {
-    const rl = createInterface({ input, output })
-    try {
-      const answer = (await rl.question("\nWrite this routing config now? [y/N] ")).trim().toLowerCase()
-      if (answer !== "y" && answer !== "yes") {
-        console.log("No update was made.")
-        return
+      s.start("Writing routing config...")
+      const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
+      if (!writeResult.ok) {
+        s.stop("Write failed")
+        p.log.error(writeResult.error.message)
+        continue
       }
-    } finally {
-      rl.close()
+
+      const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, suggestedModels)
+      if (!verifyResult.ok) {
+        s.stop("Verification failed")
+        p.log.error(verifyResult.error.message)
+        continue
+      }
+
+      s.stop("Routing config written and verified")
+      changed = true
+
+      // Refresh routing state for subsequent actions
+      routing = await getCurrentRouting(cwd())
+      renderCurrentState(routing)
+    }
+
+    if (action === "single") {
+      const { agent, model } = await runSingleAgentFlow(suggestedModels, routing)
+
+      // Use the shared core to write just this one agent
+      const { executeRoutingAction } = await import("../.opencode/plugins/routing-wizard-core")
+      const result = await executeRoutingAction(cwd(), { action: "set", agent, model })
+      if ("ok" in result && result.ok) {
+        routing[agent] = model
+        p.log.success(`${agent} → ${model}`)
+        changed = true
+      } else {
+        p.log.error(`Failed to update ${agent}`)
+      }
+    }
+
+    if (action === "preset") {
+      const preset = ensureNotCancelled(
+        await p.select({
+          message: "Which preset?",
+          options: [
+            {
+              value: "cost-optimized",
+              label: "Cost-optimized",
+              hint: "workers=fast, reviewers=strong, autonomous-reviewer=top",
+            },
+            {
+              value: "quality-first",
+              label: "Quality-first",
+              hint: "all agents=strong, autonomous-reviewer=top",
+            },
+          ],
+        }),
+      )
+
+      // Presets need strong/fast/top models
+      const selections = await runBootstrapFlow(suggestedModels, defaults)
+      const plan = planRecommendedRouting({
+        strongModel: selections.strongModel,
+        fastModel: preset === "cost-optimized" ? selections.fastModel : selections.strongModel,
+        topReviewModel: selections.topReviewModel,
+      })
+
+      renderPreview(plan)
+
+      const confirmed = ensureNotCancelled(await p.confirm({ message: "Apply this preset?" }))
+      if (!confirmed) continue
+
+      s.start("Applying preset...")
+      const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
+      if (!writeResult.ok) {
+        s.stop("Write failed")
+        p.log.error(writeResult.error.message)
+        continue
+      }
+
+      const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, suggestedModels)
+      if (!verifyResult.ok) {
+        s.stop("Verification failed")
+        p.log.error(verifyResult.error.message)
+        continue
+      }
+
+      s.stop("Preset applied and verified")
+      changed = true
+
+      routing = await getCurrentRouting(cwd())
+      renderCurrentState(routing)
     }
   }
 
-  const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
-  if (!writeResult.ok) {
-    console.error(`Write failed: ${writeResult.error.message}`)
-    exit(1)
-    return
+  if (changed) {
+    p.outro("Routing config saved. Restart OpenCode to apply.")
+  } else {
+    p.outro("No changes made.")
   }
-
-  const verifyResult = await verifyRecommendedRoutingPlan(cwd(), plan, suggestedModels)
-  if (!verifyResult.ok) {
-    console.error(`Verification failed: ${verifyResult.error.message}`)
-    exit(1)
-    return
-  }
-
-  console.log("\nVerification succeeded.")
-  console.log(`- Wrote global agent mappings to opencode.json`)
-  console.log(`- Wrote workflow overrides to .opencode/hyperpowers-routing.json`)
-  console.log(`- Verified routing read-back through the shared routing backend`)
-  console.log("\nVerified routing state:")
-  renderPreview(plan)
 }
 
 if (import.meta.main) {
