@@ -343,8 +343,15 @@ const resolveGroupAgents = (groupName: string): AgentName[] | null => {
 const applyPreset = (
   config: OpenCodeConfig,
   presetName: PresetName,
-): { config: OpenCodeConfig; updatedAgents: AgentName[] } => {
-  const strongModel = getString(config.model) ?? "default/model"
+): { ok: true; config: OpenCodeConfig; updatedAgents: AgentName[] } | { ok: false; code: string; message: string } => {
+  const strongModel = getString(config.model)
+  if (!strongModel) {
+    return {
+      ok: false,
+      code: "missing_model",
+      message: "opencode.json must have a top-level model before applying a preset",
+    }
+  }
   const fastModel = getString((config as Record<string, unknown>).small_model) ?? strongModel
 
   let nextConfig = { ...config }
@@ -368,7 +375,7 @@ const applyPreset = (
       break
   }
 
-  return { config: nextConfig, updatedAgents }
+  return { ok: true, config: nextConfig, updatedAgents }
 }
 
 const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
@@ -426,7 +433,11 @@ const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
     const current = await readConfig(configPath)
     if (!current.ok) return current
 
-    const { config: nextConfig, updatedAgents } = applyPreset(current.config, presetName as PresetName)
+    const presetResult = applyPreset(current.config, presetName as PresetName)
+    if (!presetResult.ok) {
+      return invalidResult(configPath, presetResult.code, presetResult.message)
+    }
+    const { config: nextConfig, updatedAgents } = presetResult
     await persistConfig(configPath, nextConfig)
 
     const hpConfig = await readHpConfig(hpConfigPath)

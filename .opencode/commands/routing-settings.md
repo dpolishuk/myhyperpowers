@@ -23,19 +23,19 @@ Call `hyperpowers_agent_routing_config` with `action=get`. Render the result as 
 | Agent                      | Current Model               | Group        |
 |----------------------------|-----------------------------|--------------|
 | ralph                      | glm/glm-4.7                | orchestrator |
-| test-runner                | glm/glm-4.5                | worker       |
-| codebase-investigator      | glm/glm-4.5                | worker       |
-| internet-researcher        | glm/glm-4.5                | worker       |
-| autonomous-reviewer        | glm/glm-4.7                | reviewer     |
-| code-reviewer              | glm/glm-4.7                | reviewer     |
-| review-quality             | glm/glm-4.7                | reviewer     |
+| test-runner                | glm/glm-4.5                | workers      |
+| codebase-investigator      | glm/glm-4.5                | workers      |
+| internet-researcher        | glm/glm-4.5                | workers      |
+| autonomous-reviewer        | glm/glm-4.7                | reviewers    |
+| code-reviewer              | glm/glm-4.7                | reviewers    |
+| review-quality             | glm/glm-4.7                | reviewers    |
 | ...                        | ...                         | ...          |
 ```
 
 Also show:
 - **Available models** from the `availableModels` field (models detected from user's config)
 - **Supported groups** from `agentGroups` (orchestrator, workers, reviewers)
-- **Available presets** from `presets` (cost-optimized, quality-first, balanced)
+- **Available presets** from `presets` (cost-optimized, quality-first)
 
 ### Step 2: Present options
 

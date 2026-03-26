@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import { HYPERPOWERS_AGENTS } from "./agent-routing-config"
 import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
@@ -552,21 +553,7 @@ const buildRoutingSummary = async (rootDir: string, errorLogPath: string, logLev
   const agentMap = asRecord(ocConfig.agent)
 
   const lines: string[] = ["Agent Model Routing:"]
-  const agents = [
-    "ralph",
-    "test-runner",
-    "codebase-investigator",
-    "internet-researcher",
-    "autonomous-reviewer",
-    "code-reviewer",
-    "review-quality",
-    "review-implementation",
-    "review-testing",
-    "review-simplification",
-    "review-documentation",
-    "test-effectiveness-analyst",
-  ]
-  for (const agent of agents) {
+  for (const agent of HYPERPOWERS_AGENTS) {
     const model = getString(asRecord(agentMap[agent]).model) ?? defaultModel
     lines.push(`  ${agent}: ${model}`)
   }
@@ -592,6 +579,7 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
 
   return {
     "experimental.chat.system.transform": async (_input, output) => {
+      if (!config.enabled) return
       try {
         const summary = await buildRoutingSummary(ctx.directory, errorLogPath, config.logLevel)
         output.system.push(summary)
