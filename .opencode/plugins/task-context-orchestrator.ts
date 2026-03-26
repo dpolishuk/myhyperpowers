@@ -402,7 +402,10 @@ const detectWorkflowOverride = (
   return null
 }
 
+const isValidAgentName = (name: string) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)
+
 const getAgentFrontmatterPaths = (rootDir: string, agentName: string) => {
+  if (!isValidAgentName(agentName)) return []
   const fileName = `${agentName}.md`
   const homeDir = process.env.HOME || homedir()
   const xdgConfigHome = process.env.XDG_CONFIG_HOME || join(homeDir, ".config")
