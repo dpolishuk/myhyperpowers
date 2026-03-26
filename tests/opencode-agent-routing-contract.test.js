@@ -118,7 +118,7 @@ test("OpenCode plugin source registers the routing config tool and writes openco
   const pluginSource = fs.readFileSync(pluginPath, "utf8")
   const coreSource = fs.readFileSync(corePath, "utf8")
   assert.equal(/hyperpowers_agent_routing_config/.test(pluginSource), true)
-  assert.equal(/enum\(\["get",\s*"set",\s*"set-group",\s*"apply-preset"\]\)/.test(pluginSource), true)
+  assert.equal(/enum\(\["get",\s*"set",\s*"set-group",\s*"apply-preset",\s*"bootstrap"\]\)/.test(pluginSource), true)
   assert.equal(/executeRoutingAction/.test(pluginSource), true)
   assert.equal(/action\s*===\s*"get"/.test(coreSource), true)
   assert.equal(/opencode\.json/.test(coreSource), true)
@@ -134,14 +134,20 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("action=set"), true)
   assert.equal(commandSource.includes("action=set-group"), true)
   assert.equal(commandSource.includes("action=apply-preset"), true)
+  assert.equal(commandSource.includes("action=bootstrap"), true)
   assert.equal(commandSource.includes("Never edit `opencode.json` directly"), true)
   assert.equal(commandSource.includes("no update was made"), true)
-  assert.equal(commandSource.includes("unsupported agent/workflow/group/preset names"), true)
+  assert.equal(
+    commandSource.includes("unsupported agent/workflow/group/preset/model names") ||
+      commandSource.includes("unsupported agent/workflow/group/preset names"),
+    true,
+  )
   assert.equal(commandSource.includes("native OpenCode settings panel"), false)
   assert.equal(commandSource.includes("built-in OpenCode preferences page"), false)
   assert.equal(commandSource.includes("primary settings-like UX"), true)
   assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
   assert.equal(commandSource.includes("availableModels"), true)
+  assert.equal(commandSource.includes("if no routing config exists") || commandSource.includes("first-run"), true)
   assert.equal(commandSource.includes("cost-optimized"), true)
   assert.equal(commandSource.includes("quality-first"), true)
 })

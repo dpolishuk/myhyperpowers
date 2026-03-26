@@ -80,12 +80,15 @@ export type HyperpowersRoutingConfig = {
 }
 
 export type RoutingToolArgs = {
-  action: "get" | "set" | "set-group" | "apply-preset"
+  action: "get" | "set" | "set-group" | "apply-preset" | "bootstrap"
   agent?: string
   workflow?: string
   model?: string
   group?: string
   preset?: string
+  strongModel?: string
+  fastModel?: string
+  topReviewModel?: string
 }
 
 export type RecommendedRoutingPlan = {
@@ -199,11 +202,16 @@ export const createRoutingSnapshot = (
   hpConfig: HyperpowersRoutingConfig,
   configPath: string,
   hpConfigPath: string,
+  options: {
+    availableModels?: string[]
+    configMissing?: boolean
+  } = {},
 ) => ({
   ok: true as const,
   sourceOfTruth: ["opencode.json", ".opencode/hyperpowers-routing.json"],
   configPath,
   hpConfigPath,
+  configMissing: options.configMissing ?? false,
   supportedAgents: [...HYPERPOWERS_AGENTS],
   supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
   agentGroups: {
@@ -211,7 +219,7 @@ export const createRoutingSnapshot = (
     workers: [...AGENT_GROUPS.workers],
     reviewers: [...AGENT_GROUPS.reviewers],
   },
-  availableModels: discoverModelsFromConfig(config),
+  availableModels: [...new Set([...discoverModelsFromConfig(config), ...(options.availableModels ?? [])])].sort(),
   presets: [...PRESET_NAMES],
   routing: {
     model: getString(config.model),
@@ -679,9 +687,55 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
 
   if (args.action === "get") {
     const current = await readConfig(configPath)
-    if (!current.ok) return current
+    const discovered = await discoverOpencodeModels(undefined, rootDir)
+    const discoveredModels = discovered.ok ? discovered.models : []
+
+    if (!current.ok) {
+      if (current.error.code !== "config_not_found" || !discovered.ok) return current
+      const hpConfig = await readHpConfig(hpConfigPath)
+      return createRoutingSnapshot({ $schema: DEFAULT_SCHEMA }, hpConfig, configPath, hpConfigPath, {
+        availableModels: discoveredModels,
+        configMissing: true,
+      })
+    }
+
     const hpConfig = await readHpConfig(hpConfigPath)
-    return createRoutingSnapshot(current.config, hpConfig, configPath, hpConfigPath)
+    return createRoutingSnapshot(current.config, hpConfig, configPath, hpConfigPath, {
+      availableModels: discoveredModels,
+    })
+  }
+
+  if (args.action === "bootstrap") {
+    const discovery = await discoverOpencodeModels(undefined, rootDir)
+    if (!discovery.ok) {
+      return invalidResult(configPath, discovery.error.code, discovery.error.message, {
+        stderr: discovery.error.stderr,
+      })
+    }
+
+    const strongModel = getString(args.strongModel)
+    if (!strongModel) {
+      return invalidResult(configPath, "missing_model", "Provide a non-empty strongModel in provider/model format")
+    }
+
+    const plan = planRecommendedRouting({
+      strongModel,
+      fastModel: getString(args.fastModel) ?? undefined,
+      topReviewModel: getString(args.topReviewModel) ?? undefined,
+    })
+
+    const writeResult = await writeRecommendedRoutingPlan(rootDir, plan)
+    if (!writeResult.ok) return writeResult
+
+    const verifyResult = await verifyRecommendedRoutingPlan(rootDir, plan, discovery.models)
+    if (!verifyResult.ok) return verifyResult
+
+    return {
+      ...verifyResult.snapshot,
+      bootstrapApplied: true,
+      createdConfig: writeResult.createdConfig,
+      updatedFiles: ["opencode.json", ".opencode/hyperpowers-routing.json"],
+    }
   }
 
   if (args.action === "set-group") {

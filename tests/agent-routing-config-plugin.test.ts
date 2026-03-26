@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test"
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import agentRoutingConfigPlugin from "../.opencode/plugins/agent-routing-config"
@@ -26,6 +26,35 @@ const runTool = async (root: string, args: Record<string, unknown>) => {
   const tool = plugin.tool.hyperpowers_agent_routing_config
   const result = await tool.execute(args, { directory: root, worktree: root })
   return JSON.parse(String(result))
+}
+
+const withFakeOpencodeModels = async (root: string, output: string, callback: () => Promise<void>) => {
+  const binDir = join(root, "bin")
+  const fakeOpencode = join(binDir, "opencode")
+  const originalPath = process.env.PATH || ""
+
+  await mkdir(binDir, { recursive: true })
+  await writeFile(
+    fakeOpencode,
+    `#!/usr/bin/env bash
+if [ "$1" = "models" ]; then
+cat <<'EOF'
+${output}
+EOF
+exit 0
+fi
+exit 1
+`,
+    "utf8",
+  )
+  await chmod(fakeOpencode, 0o755)
+
+  process.env.PATH = `${binDir}:${originalPath}`
+  try {
+    await callback()
+  } finally {
+    process.env.PATH = originalPath
+  }
 }
 
 test("get_returns_current_global_and_workflow_routing_from_split_config", async () => {
@@ -140,14 +169,72 @@ test("set_updates_workflow_override_in_separate_hyperpowers_config", async () =>
   }
 })
 
-test("get_returns_explicit_error_when_opencode_json_is_missing", async () => {
+test("get_returns_bootstrap_friendly_snapshot_when_opencode_json_is_missing", async () => {
   const { root, cleanup } = await createTempRoot()
 
   try {
-    const result = await runTool(root, { action: "get" })
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5\nopencode/claude-haiku-4-5", async () => {
+      const result = await runTool(root, { action: "get" })
 
-    expect(result.ok).toBe(false)
-    expect(result.error.code).toBe("config_not_found")
+      expect(result.ok).toBe(true)
+      expect(result.routing.model).toBeNull()
+      expect(result.routing.agent).toEqual({})
+      expect(result.availableModels).toContain("opencode/claude-sonnet-4-5")
+      expect(result.availableModels).toContain("opencode/claude-haiku-4-5")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("bootstrap_generates_split_file_routing_from_missing_config", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    await withFakeOpencodeModels(
+      root,
+      "opencode/claude-sonnet-4-5\nopencode/claude-haiku-4-5\nopencode/claude-opus-4-5",
+      async () => {
+        const result = await runTool(root, {
+          action: "bootstrap",
+          strongModel: "opencode/claude-sonnet-4-5",
+          fastModel: "opencode/claude-haiku-4-5",
+          topReviewModel: "opencode/claude-opus-4-5",
+        })
+        const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+        const hpPersisted = JSON.parse(
+          await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
+        )
+
+        expect(result.ok).toBe(true)
+        expect(result.bootstrapApplied).toBe(true)
+        expect(result.createdConfig).toBe(true)
+        expect(ocPersisted.agent["test-runner"].model).toBe("opencode/claude-haiku-4-5")
+        expect(ocPersisted.agent["autonomous-reviewer"].model).toBe("opencode/claude-opus-4-5")
+        expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
+          "opencode/claude-opus-4-5",
+        )
+      },
+    )
+  } finally {
+    await cleanup()
+  }
+})
+
+test("bootstrap_rejects_selected_models_that_are_not_discovered", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "bootstrap",
+        strongModel: "opencode/claude-sonnet-4-5",
+        fastModel: "opencode/claude-haiku-4-5",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_selected_model")
+    })
   } finally {
     await cleanup()
   }
