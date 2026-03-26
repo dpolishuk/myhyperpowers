@@ -768,22 +768,25 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const current = await readConfig(configPath)
     const discovered = await discoverOpencodeModels(undefined, rootDir)
     const discoveredModels = discovered.ok ? discovered.models : []
-    const hpConfigResult = await loadStrictHpConfig()
-    if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
+    const hpState = await loadHpConfigWarning()
 
     if (!current.ok) {
       if (current.error.code !== "config_not_found" || !discovered.ok) return current
-      const hpConfig = hpConfigResult as HyperpowersRoutingConfig
-      return createRoutingSnapshot({ $schema: DEFAULT_SCHEMA }, hpConfig, configPath, hpConfigPath, {
-        availableModels: discoveredModels,
-        configMissing: true,
-      })
+      return {
+        ...createRoutingSnapshot({ $schema: DEFAULT_SCHEMA }, hpState.config, configPath, hpConfigPath, {
+          availableModels: discoveredModels,
+          configMissing: true,
+        }),
+        ...(hpState.warning ? { warning: hpState.warning } : {}),
+      }
     }
 
-    const hpConfig = hpConfigResult as HyperpowersRoutingConfig
-    return createRoutingSnapshot(current.config, hpConfig, configPath, hpConfigPath, {
-      availableModels: discoveredModels,
-    })
+    return {
+      ...createRoutingSnapshot(current.config, hpState.config, configPath, hpConfigPath, {
+        availableModels: discoveredModels,
+      }),
+      ...(hpState.warning ? { warning: hpState.warning } : {}),
+    }
   }
 
   if (args.action === "bootstrap") {

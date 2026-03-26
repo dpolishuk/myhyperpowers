@@ -348,7 +348,7 @@ test("unsupported_agent_and_workflow_return_actionable_errors", async () => {
   }
 })
 
-test("get_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+test("get_returns_warning_when_hyperpowers_override_file_is_malformed", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
@@ -357,9 +357,10 @@ test("get_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", 
 
     const result = await runTool(root, { action: "get" })
 
-    expect(result.ok).toBe(false)
-    expect(result.error.code).toBe("invalid_hp_json")
-    expect(result.error.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    expect(result.ok).toBe(true)
+    expect(result.warning.code).toBe("invalid_hp_json")
+    expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    expect(result.routing.workflowOverrides).toEqual({})
   } finally {
     await cleanup()
   }
