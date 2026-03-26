@@ -260,6 +260,39 @@ const readHpConfig = async (hpConfigPath: string): Promise<HyperpowersRoutingCon
   }
 }
 
+/** Strict variant of readHpConfig for write paths — errors on malformed JSON
+ * instead of returning {} (which would cause existing overrides to be dropped). */
+const readHpConfigForWrite = async (
+  hpConfigPath: string,
+  configPath: string,
+): Promise<{ ok: true; config: HyperpowersRoutingConfig } | { ok: false; error: Record<string, unknown> }> => {
+  if (!existsSync(hpConfigPath)) return { ok: true, config: {} }
+  try {
+    const raw = await readFile(hpConfigPath, "utf8")
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_hp_json",
+          message: ".opencode/hyperpowers-routing.json must contain a JSON object",
+          configPath,
+        },
+      }
+    }
+    return { ok: true, config: parsed as HyperpowersRoutingConfig }
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "invalid_hp_json",
+        message: error instanceof Error ? error.message : "Failed to parse .opencode/hyperpowers-routing.json",
+        configPath,
+      },
+    }
+  }
+}
+
 const updateGlobalAgentModel = (config: OpenCodeConfig, agentName: AgentName, model: string) => {
   const nextConfig: OpenCodeConfig = { ...config }
   const existingAgentMap = asRecord(nextConfig.agent)
@@ -425,8 +458,9 @@ const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
   }
 
   if (workflowName) {
-    const hpConfig = await readHpConfig(hpConfigPath)
-    const nextHpConfig = updateWorkflowAgentModel(hpConfig, workflowName, agentName, model)
+    const hpResult = await readHpConfigForWrite(hpConfigPath, configPath)
+    if (!hpResult.ok) return hpResult
+    const nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
     await persistConfig(hpConfigPath, nextHpConfig)
 
     const current = await readConfig(configPath)

@@ -149,6 +149,11 @@ load_linear_config_value() {
         printf '%s\n' "$config_val"
         return
       fi
+      # If the key line exists in the file but the value is empty, honor
+      # the explicit empty — do not fall through to backend config.
+      if grep -q "^${config_key}:" "$config" 2>/dev/null; then
+        return
+      fi
     fi
   fi
 
