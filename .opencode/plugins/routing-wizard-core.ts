@@ -269,15 +269,62 @@ const persistConfig = async (configPath: string, config: Record<string, unknown>
   await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8")
 }
 
-const readHpConfig = async (hpConfigPath: string): Promise<HyperpowersRoutingConfig> => {
+const readOptionalFile = async (filePath: string) => {
+  if (!existsSync(filePath)) return null
+  return readFile(filePath, "utf8")
+}
+
+const restoreOptionalFile = async (filePath: string, contents: string | null) => {
+  if (contents === null) {
+    if (existsSync(filePath)) {
+      await writeFile(filePath, "", "utf8")
+    }
+    return
+  }
+
+  await mkdir(dirname(filePath), { recursive: true })
+  await writeFile(filePath, contents, "utf8")
+}
+
+const removeIfEmptyFile = async (filePath: string) => {
+  if (!existsSync(filePath)) return
+  const contents = await readFile(filePath, "utf8")
+  if (contents.length === 0) {
+    const { unlink } = await import("node:fs/promises")
+    await unlink(filePath)
+  }
+}
+
+const readHpConfig = async (
+  hpConfigPath: string,
+  strict = false,
+): Promise<HyperpowersRoutingConfig | { ok: false; error: Record<string, unknown> }> => {
   if (!existsSync(hpConfigPath)) return {}
   try {
     const raw = await readFile(hpConfigPath, "utf8")
     const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {}
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      if (!strict) return {}
+      return {
+        ok: false,
+        error: {
+          code: "invalid_hp_json",
+          message: ".opencode/hyperpowers-routing.json must contain a JSON object",
+          configPath: hpConfigPath,
+        },
+      }
+    }
     return parsed as HyperpowersRoutingConfig
-  } catch {
-    return {}
+  } catch (error) {
+    if (!strict) return {}
+    return {
+      ok: false,
+      error: {
+        code: "invalid_hp_json",
+        message: error instanceof Error ? error.message : "Failed to parse .opencode/hyperpowers-routing.json",
+        configPath: hpConfigPath,
+      },
+    }
   }
 }
 
@@ -489,6 +536,20 @@ export const discoverOpencodeModels = async (runner: ModelsCommandRunner = runOp
   }
 }
 
+const validateModelAgainstDiscovery = (
+  configPath: string,
+  model: string,
+  discovery: Awaited<ReturnType<typeof discoverOpencodeModels>>,
+) => {
+  if (!discovery.ok) return null
+  if (discovery.models.includes(model)) return null
+
+  return invalidResult(configPath, "invalid_selected_model", `Selected model not found in discovered model list: ${model}`, {
+    model,
+    discoveredModels: discovery.models,
+  })
+}
+
 export const planRecommendedRouting = ({
   strongModel,
   fastModel,
@@ -689,17 +750,19 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const current = await readConfig(configPath)
     const discovered = await discoverOpencodeModels(undefined, rootDir)
     const discoveredModels = discovered.ok ? discovered.models : []
+    const hpConfigResult = await readHpConfig(hpConfigPath, true)
+    if ("ok" in hpConfigResult && hpConfigResult.ok === false) return hpConfigResult
 
     if (!current.ok) {
       if (current.error.code !== "config_not_found" || !discovered.ok) return current
-      const hpConfig = await readHpConfig(hpConfigPath)
+      const hpConfig = hpConfigResult as HyperpowersRoutingConfig
       return createRoutingSnapshot({ $schema: DEFAULT_SCHEMA }, hpConfig, configPath, hpConfigPath, {
         availableModels: discoveredModels,
         configMissing: true,
       })
     }
 
-    const hpConfig = await readHpConfig(hpConfigPath)
+    const hpConfig = hpConfigResult as HyperpowersRoutingConfig
     return createRoutingSnapshot(current.config, hpConfig, configPath, hpConfigPath, {
       availableModels: discoveredModels,
     })
@@ -718,17 +781,41 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       return invalidResult(configPath, "missing_model", "Provide a non-empty strongModel in provider/model format")
     }
 
+    const strongModelValidation = validateModelAgainstDiscovery(configPath, strongModel, discovery)
+    if (strongModelValidation) return strongModelValidation
+
+    const fastModel = getString(args.fastModel) ?? undefined
+    if (fastModel) {
+      const fastModelValidation = validateModelAgainstDiscovery(configPath, fastModel, discovery)
+      if (fastModelValidation) return fastModelValidation
+    }
+
+    const topReviewModel = getString(args.topReviewModel) ?? undefined
+    if (topReviewModel) {
+      const topReviewValidation = validateModelAgainstDiscovery(configPath, topReviewModel, discovery)
+      if (topReviewValidation) return topReviewValidation
+    }
+
     const plan = planRecommendedRouting({
       strongModel,
-      fastModel: getString(args.fastModel) ?? undefined,
-      topReviewModel: getString(args.topReviewModel) ?? undefined,
+      fastModel,
+      topReviewModel,
     })
+
+    const originalConfigContents = await readOptionalFile(configPath)
+    const originalHpContents = await readOptionalFile(hpConfigPath)
 
     const writeResult = await writeRecommendedRoutingPlan(rootDir, plan)
     if (!writeResult.ok) return writeResult
 
     const verifyResult = await verifyRecommendedRoutingPlan(rootDir, plan, discovery.models)
-    if (!verifyResult.ok) return verifyResult
+    if (!verifyResult.ok) {
+      await restoreOptionalFile(configPath, originalConfigContents)
+      await removeIfEmptyFile(configPath)
+      await restoreOptionalFile(hpConfigPath, originalHpContents)
+      await removeIfEmptyFile(hpConfigPath)
+      return verifyResult
+    }
 
     return {
       ...verifyResult.snapshot,
@@ -753,6 +840,10 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     if (!model) {
       return invalidResult(configPath, "missing_model", "Provide a non-empty model in provider/model format")
     }
+
+    const discovery = await discoverOpencodeModels(undefined, rootDir)
+    const invalidModel = validateModelAgainstDiscovery(configPath, model, discovery)
+    if (invalidModel) return invalidModel
 
     const current = await loadConfigForWrite(configPath)
     if (!current.ok) return current
@@ -809,6 +900,10 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   if (!model) {
     return invalidResult(configPath, "missing_model", "Provide a non-empty model in provider/model format")
   }
+
+  const discovery = await discoverOpencodeModels(undefined, rootDir)
+  const invalidModel = validateModelAgainstDiscovery(configPath, model, discovery)
+  if (invalidModel) return invalidModel
 
   const workflowName = args.workflow ? canonicalize(args.workflow, HYPERPOWERS_WORKFLOWS) : null
   if (args.workflow && !workflowName) {

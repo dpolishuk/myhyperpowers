@@ -3,7 +3,7 @@ import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import agentRoutingConfigPlugin from "../.opencode/plugins/agent-routing-config"
-import { AGENT_GROUPS, PRESET_NAMES } from "../.opencode/plugins/agent-routing-config"
+import { AGENT_GROUPS, HYPERPOWERS_AGENTS, PRESET_NAMES } from "../.opencode/plugins/agent-routing-config"
 
 const createTempRoot = async (configText?: string, hpConfigText?: string) => {
   const root = await mkdtemp(join(tmpdir(), "agent-routing-plugin-"))
@@ -117,19 +117,21 @@ test("set_updates_global_agent_mapping_and_preserves_unrelated_config", async ()
   )
 
   try {
-    const result = await runTool(root, {
-      action: "set",
-      agent: "test-runner",
-      model: "fast/model",
-    })
-    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5\nopencode/claude-haiku-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "opencode/claude-haiku-4-5",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
-    expect(result.ok).toBe(true)
-    expect(result.updatedPath).toBe("agent.test-runner.model")
-    expect(persisted.permission.read).toBe("allow")
-    expect(persisted.mcp.linear.type).toBe("local")
-    expect(persisted.agent.ralph.comment).toBe("keep-me")
-    expect(persisted.agent["test-runner"].model).toBe("fast/model")
+      expect(result.ok).toBe(true)
+      expect(result.updatedPath).toBe("agent.test-runner.model")
+      expect(persisted.permission.read).toBe("allow")
+      expect(persisted.mcp.linear.type).toBe("local")
+      expect(persisted.agent.ralph.comment).toBe("keep-me")
+      expect(persisted.agent["test-runner"].model).toBe("opencode/claude-haiku-4-5")
+    })
   } finally {
     await cleanup()
   }
@@ -147,23 +149,27 @@ test("set_updates_workflow_override_in_separate_hyperpowers_config", async () =>
   )
 
   try {
-    const result = await runTool(root, {
-      action: "set",
-      workflow: "execute-ralph",
-      agent: "autonomous-reviewer",
-      model: "strong/model",
-    })
-    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(
-      await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
-    )
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5\nopencode/claude-opus-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        workflow: "execute-ralph",
+        agent: "autonomous-reviewer",
+        model: "opencode/claude-opus-4-5",
+      })
+      const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+      const hpPersisted = JSON.parse(
+        await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
+      )
 
-    expect(result.ok).toBe(true)
-    expect(result.updatedPath).toBe("workflowOverrides.execute-ralph.autonomous-reviewer.model")
-    expect(result.updatedFile).toBe(".opencode/hyperpowers-routing.json")
-    expect(ocPersisted.model).toBe("global/model")
-    expect(ocPersisted.hyperpowers).toBeUndefined()
-    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
+      expect(result.ok).toBe(true)
+      expect(result.updatedPath).toBe("workflowOverrides.execute-ralph.autonomous-reviewer.model")
+      expect(result.updatedFile).toBe(".opencode/hyperpowers-routing.json")
+      expect(ocPersisted.model).toBe("global/model")
+      expect(ocPersisted.hyperpowers).toBeUndefined()
+      expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
+        "opencode/claude-opus-4-5",
+      )
+    })
   } finally {
     await cleanup()
   }
@@ -234,6 +240,46 @@ test("bootstrap_rejects_selected_models_that_are_not_discovered", async () => {
 
       expect(result.ok).toBe(false)
       expect(result.error.code).toBe("invalid_selected_model")
+      expect(await readFile(join(root, "opencode.json"), "utf8").catch(() => null)).toBeNull()
+      expect(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8").catch(() => null)).toBeNull()
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_rejects_models_not_present in discovered output when discovery succeeds", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "opencode/claude-haiku-4-5",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_selected_model")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_rejects_models_not_present in discovered output when discovery succeeds", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set-group",
+        group: "workers",
+        model: "opencode/claude-haiku-4-5",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_selected_model")
     })
   } finally {
     await cleanup()
@@ -244,17 +290,19 @@ test("set_bootstraps_missing_opencode_json_with_canonical_map", async () => {
   const { root, cleanup } = await createTempRoot()
 
   try {
-    const result = await runTool(root, {
-      action: "set",
-      agent: "review-testing",
-      model: "capable/model",
-    })
-    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "review-testing",
+        model: "opencode/claude-sonnet-4-5",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
-    expect(result.ok).toBe(true)
-    expect(result.createdConfig).toBe(true)
-    expect(persisted.$schema).toBe("https://opencode.ai/config.json")
-    expect(persisted.agent["review-testing"].model).toBe("capable/model")
+      expect(result.ok).toBe(true)
+      expect(result.createdConfig).toBe(true)
+      expect(persisted.$schema).toBe("https://opencode.ai/config.json")
+      expect(persisted.agent["review-testing"].model).toBe("opencode/claude-sonnet-4-5")
+    })
   } finally {
     await cleanup()
   }
@@ -277,22 +325,40 @@ test("unsupported_agent_and_workflow_return_actionable_errors", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({}, null, 2))
 
   try {
-    const agentResult = await runTool(root, {
-      action: "set",
-      agent: "validator",
-      model: "bad/model",
-    })
-    const workflowResult = await runTool(root, {
-      action: "set",
-      workflow: "validator-flow",
-      agent: "test-runner",
-      model: "bad/model",
-    })
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const agentResult = await runTool(root, {
+        action: "set",
+        agent: "validator",
+        model: "opencode/claude-sonnet-4-5",
+      })
+      const workflowResult = await runTool(root, {
+        action: "set",
+        workflow: "validator-flow",
+        agent: "test-runner",
+        model: "opencode/claude-sonnet-4-5",
+      })
 
-    expect(agentResult.ok).toBe(false)
-    expect(agentResult.error.code).toBe("unsupported_agent")
-    expect(workflowResult.ok).toBe(false)
-    expect(workflowResult.error.code).toBe("unsupported_workflow")
+      expect(agentResult.ok).toBe(false)
+      expect(agentResult.error.code).toBe("unsupported_agent")
+      expect(workflowResult.ok).toBe(false)
+      expect(workflowResult.error.code).toBe("unsupported_workflow")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("get_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(false)
+    expect(result.error.code).toBe("invalid_hp_json")
   } finally {
     await cleanup()
   }
@@ -369,7 +435,7 @@ test("get_snapshot_includes_agent_groups", async () => {
     expect(result.agentGroups.workers).toContain("internet-researcher")
     expect(result.agentGroups.reviewers).toContain("autonomous-reviewer")
     expect(result.agentGroups.reviewers).toContain("code-reviewer")
-    expect(result.agentGroups.reviewers.length).toBe(8)
+    expect(result.agentGroups.reviewers.length).toBe(AGENT_GROUPS.reviewers.length)
   } finally {
     await cleanup()
   }
@@ -387,22 +453,23 @@ test("set_group_applies_model_to_all_workers", async () => {
   )
 
   try {
-    const result = await runTool(root, {
-      action: "set-group",
-      group: "workers",
-      model: "fast/model",
-    })
-    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    await withFakeOpencodeModels(root, "strong/model\nfast/model", async () => {
+      const result = await runTool(root, {
+        action: "set-group",
+        group: "workers",
+        model: "fast/model",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
-    expect(result.ok).toBe(true)
-    expect(result.updatedAgents).toContain("test-runner")
-    expect(result.updatedAgents).toContain("codebase-investigator")
-    expect(result.updatedAgents).toContain("internet-researcher")
-    expect(persisted.agent["test-runner"].model).toBe("fast/model")
-    expect(persisted.agent["codebase-investigator"].model).toBe("fast/model")
-    expect(persisted.agent["internet-researcher"].model).toBe("fast/model")
-    // ralph should NOT be changed
-    expect(persisted.agent.ralph.model).toBe("strong/model")
+      expect(result.ok).toBe(true)
+      expect(result.updatedAgents).toContain("test-runner")
+      expect(result.updatedAgents).toContain("codebase-investigator")
+      expect(result.updatedAgents).toContain("internet-researcher")
+      expect(persisted.agent["test-runner"].model).toBe("fast/model")
+      expect(persisted.agent["codebase-investigator"].model).toBe("fast/model")
+      expect(persisted.agent["internet-researcher"].model).toBe("fast/model")
+      expect(persisted.agent.ralph.model).toBe("strong/model")
+    })
   } finally {
     await cleanup()
   }
@@ -412,17 +479,19 @@ test("set_group_applies_model_to_all_reviewers", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
 
   try {
-    const result = await runTool(root, {
-      action: "set-group",
-      group: "reviewers",
-      model: "capable/model",
-    })
+    await withFakeOpencodeModels(root, "x/y\ncapable/model", async () => {
+      const result = await runTool(root, {
+        action: "set-group",
+        group: "reviewers",
+        model: "capable/model",
+      })
 
-    expect(result.ok).toBe(true)
-    expect(result.updatedAgents.length).toBe(8)
-    expect(result.updatedAgents).toContain("autonomous-reviewer")
-    expect(result.updatedAgents).toContain("code-reviewer")
-    expect(result.updatedAgents).toContain("review-quality")
+      expect(result.ok).toBe(true)
+      expect(result.updatedAgents.length).toBe(AGENT_GROUPS.reviewers.length)
+      expect(result.updatedAgents).toContain("autonomous-reviewer")
+      expect(result.updatedAgents).toContain("code-reviewer")
+      expect(result.updatedAgents).toContain("review-quality")
+    })
   } finally {
     await cleanup()
   }
@@ -432,18 +501,20 @@ test("set_group_all_applies_to_every_agent", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
 
   try {
-    const result = await runTool(root, {
-      action: "set-group",
-      group: "all",
-      model: "universal/model",
-    })
-    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    await withFakeOpencodeModels(root, "x/y\nuniversal/model", async () => {
+      const result = await runTool(root, {
+        action: "set-group",
+        group: "all",
+        model: "universal/model",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
-    expect(result.ok).toBe(true)
-    expect(result.updatedAgents.length).toBe(12)
-    expect(persisted.agent.ralph.model).toBe("universal/model")
-    expect(persisted.agent["test-runner"].model).toBe("universal/model")
-    expect(persisted.agent["autonomous-reviewer"].model).toBe("universal/model")
+      expect(result.ok).toBe(true)
+      expect(result.updatedAgents.length).toBe(HYPERPOWERS_AGENTS.length)
+      expect(persisted.agent.ralph.model).toBe("universal/model")
+      expect(persisted.agent["test-runner"].model).toBe("universal/model")
+      expect(persisted.agent["autonomous-reviewer"].model).toBe("universal/model")
+    })
   } finally {
     await cleanup()
   }
@@ -483,12 +554,12 @@ test("apply_preset_cost_optimized", async () => {
 
     expect(result.ok).toBe(true)
     expect(result.appliedPreset).toBe("cost-optimized")
-    // Workers get fast model (small_model)
-    expect(persisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
-    expect(persisted.agent["codebase-investigator"].model).toBe("anthropic/claude-haiku-4-5")
-    // Orchestrator and reviewers get strong model
-    expect(persisted.agent.ralph.model).toBe("anthropic/claude-sonnet-4-5")
-    expect(persisted.agent["autonomous-reviewer"].model).toBe("anthropic/claude-sonnet-4-5")
+    for (const agent of AGENT_GROUPS.workers) {
+      expect(persisted.agent[agent].model).toBe("anthropic/claude-haiku-4-5")
+    }
+    for (const agent of [...AGENT_GROUPS.orchestrator, ...AGENT_GROUPS.reviewers]) {
+      expect(persisted.agent[agent].model).toBe("anthropic/claude-sonnet-4-5")
+    }
   } finally {
     await cleanup()
   }
@@ -511,10 +582,9 @@ test("apply_preset_quality_first", async () => {
 
     expect(result.ok).toBe(true)
     expect(result.appliedPreset).toBe("quality-first")
-    // ALL agents get strong model
-    expect(persisted.agent.ralph.model).toBe("anthropic/claude-sonnet-4-5")
-    expect(persisted.agent["test-runner"].model).toBe("anthropic/claude-sonnet-4-5")
-    expect(persisted.agent["autonomous-reviewer"].model).toBe("anthropic/claude-sonnet-4-5")
+    for (const agent of HYPERPOWERS_AGENTS) {
+      expect(persisted.agent[agent].model).toBe("anthropic/claude-sonnet-4-5")
+    }
   } finally {
     await cleanup()
   }
@@ -585,7 +655,7 @@ test("get_snapshot_includes_preset_names", async () => {
     expect(Array.isArray(result.presets)).toBe(true)
     expect(result.presets).toContain("cost-optimized")
     expect(result.presets).toContain("quality-first")
-    expect(result.presets.length).toBe(2)
+    expect(result.presets.length).toBe(PRESET_NAMES.length)
   } finally {
     await cleanup()
   }
