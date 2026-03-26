@@ -22,6 +22,17 @@ type ParsedArgs = {
   help: boolean
 }
 
+const asRecord = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+const getString = (value: unknown) => {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 const usage = `Usage:
   bun scripts/opencode-routing-wizard.ts [--strong-model provider/model] [--fast-model provider/model] [--top-review-model provider/model] [--yes]
 
@@ -44,6 +55,38 @@ export const resolveSuggestedModels = async (rootDir: string, discoveredModels: 
     return [...new Set([...discoveredModels, ...configModels])].sort()
   } catch {
     return [...new Set(discoveredModels)].sort()
+  }
+}
+
+const resolveDefaultSelections = async (rootDir: string, suggestedModels: string[]) => {
+  const configPath = `${rootDir}/opencode.json`
+  const hpConfigPath = `${rootDir}/.opencode/hyperpowers-routing.json`
+
+  try {
+    const parsed = existsSync(configPath)
+      ? JSON.parse(await readFile(configPath, "utf8"))
+      : { $schema: "https://opencode.ai/config.json" }
+    const hpParsed = existsSync(hpConfigPath) ? JSON.parse(await readFile(hpConfigPath, "utf8")) : {}
+
+    const strongModel = getString(asRecord(parsed).model) ?? suggestedModels[0]
+    const fastModel = getString(asRecord(parsed).small_model) ?? strongModel
+    const workflowReviewer = asRecord(
+      asRecord(asRecord(asRecord(hpParsed).workflowOverrides)["execute-ralph"])["autonomous-reviewer"],
+    )
+    const globalReviewer = asRecord(asRecord(asRecord(parsed).agent)["autonomous-reviewer"])
+    const topReviewModel = getString(workflowReviewer.model) ?? getString(globalReviewer.model) ?? strongModel
+
+    return {
+      strongModel,
+      fastModel,
+      topReviewModel,
+    }
+  } catch {
+    return {
+      strongModel: suggestedModels[0],
+      fastModel: suggestedModels[0],
+      topReviewModel: suggestedModels[0],
+    }
   }
 }
 
@@ -119,7 +162,7 @@ const promptForModel = async ({
   label: string
   allowBlank?: boolean
 }) => {
-  console.log(`\nAvailable models from \`opencode models\`:`)
+  console.log(`\nAvailable models (live discovery + current config):`)
   models.forEach((model, index) => {
     console.log(`  ${index + 1}. ${model}`)
   })
@@ -165,6 +208,19 @@ const main = async () => {
   const suggestedModels = await resolveSuggestedModels(cwd(), discovery.models)
 
   let { strongModel, fastModel, topReviewModel } = args
+
+  if (args.yes) {
+    const defaults = await resolveDefaultSelections(cwd(), suggestedModels)
+    strongModel = strongModel ?? defaults.strongModel ?? undefined
+    fastModel = fastModel ?? defaults.fastModel ?? undefined
+    topReviewModel = topReviewModel ?? defaults.topReviewModel ?? undefined
+  }
+
+  if (args.yes && !strongModel) {
+    console.error("Model bootstrap failed: no strong model could be inferred from current config or discovered models")
+    exit(1)
+    return
+  }
 
   if (!strongModel || (!args.yes && (!fastModel || !topReviewModel))) {
     const rl = createInterface({ input, output })

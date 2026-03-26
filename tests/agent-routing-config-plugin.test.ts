@@ -269,7 +269,7 @@ test("bootstrap_rejects_selected_models_that_are_not_discovered", async () => {
   }
 })
 
-test("bootstrap_accepts_top_review_model_present_only in merged availableModels", async () => {
+test("bootstrap_accepts_top_review_model_present_only_in_merged_availableModels", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify({ model: "opencode/claude-sonnet-4-5" }),
     JSON.stringify({
@@ -297,7 +297,7 @@ test("bootstrap_accepts_top_review_model_present_only in merged availableModels"
   }
 })
 
-test("set_rejects_models_not_present in discovered output when discovery succeeds", async () => {
+test("set_rejects_models_not_present_in_available_model_set_when_validation_runs", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
@@ -316,7 +316,7 @@ test("set_rejects_models_not_present in discovered output when discovery succeed
   }
 })
 
-test("set_group_rejects_models_not_present in discovered output when discovery succeeds", async () => {
+test("set_group_rejects_models_not_present_in_available_model_set_when_validation_runs", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
@@ -560,7 +560,7 @@ test("get_snapshot_includes_models_from_workflow_override_file", async () => {
   }
 })
 
-test("set_accepts_model_present_only in merged availableModels", async () => {
+test("set_accepts_model_present_only_in_merged_availableModels", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify({ model: "opencode/claude-sonnet-4-5" }),
     JSON.stringify({

@@ -9,7 +9,6 @@ import {
   executeRoutingAction,
   parseOpencodeModelsOutput,
   planRecommendedRouting,
-  discoverModelsFromConfig,
   verifyRecommendedRoutingPlan,
   writeRecommendedRoutingPlan,
 } from "../.opencode/plugins/routing-wizard-core"
@@ -34,9 +33,9 @@ const createTempRoot = async (config?: Record<string, unknown>, hpConfig?: Recor
 }
 
 test("parseOpencodeModelsOutput ignores noise and deduplicates model ids", () => {
-  const parsed = parseOpencodeModelsOutput(`Available models\n\nanthropic/claude-sonnet-4-5\nopenai/gpt-4o-mini\nanthropic/claude-sonnet-4-5\n- not-a-model\n`)
+  const parsed = parseOpencodeModelsOutput(`Available models\n\nanthropic/claude-sonnet-4-5\nopenrouter/google/gemini-2.5-pro\nopenai/gpt-4o-mini\nanthropic/claude-sonnet-4-5\n- not-a-model\n`)
 
-  expect(parsed).toEqual(["anthropic/claude-sonnet-4-5", "openai/gpt-4o-mini"])
+  expect(parsed).toEqual(["anthropic/claude-sonnet-4-5", "openai/gpt-4o-mini", "openrouter/google/gemini-2.5-pro"])
 })
 
 test("discoverOpencodeModels returns actionable error when opencode CLI is missing", async () => {
@@ -350,6 +349,41 @@ test("CLI accepts top-review model present only in merged suggested models", asy
 
     expect(result.status).toBe(0)
     expect(result.stdout.includes("Verification succeeded")).toBe(true)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("CLI --yes bootstraps without interactive model prompts", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const wizardPath = resolve(import.meta.dir, "..", "scripts", "opencode-routing-wizard.ts")
+
+  try {
+    await mkdir(binDir, { recursive: true })
+    await writeFile(
+      opencodePath,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"models\" ]; then\n  printf 'Available models\\nopencode/claude-sonnet-4-5\\nopencode/claude-haiku-4-5\\n'\n  exit 0\nfi\nexit 1\n",
+      "utf8",
+    )
+    await chmod(opencodePath, 0o755)
+
+    const result = spawnSync("bun", [wizardPath, "--yes"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH}`,
+      },
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout.includes("Select strong model")).toBe(false)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    expect(ocPersisted.model).toBe("opencode/claude-haiku-4-5")
   } finally {
     await cleanup()
   }

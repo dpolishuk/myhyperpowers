@@ -317,39 +317,6 @@ const removeIfEmptyFile = async (filePath: string) => {
   }
 }
 
-const readHpConfig = async (
-  hpConfigPath: string,
-  strict = false,
-): Promise<HyperpowersRoutingConfig | { ok: false; error: Record<string, unknown> }> => {
-  if (!existsSync(hpConfigPath)) return {}
-  try {
-    const raw = await readFile(hpConfigPath, "utf8")
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      if (!strict) return {}
-      return {
-        ok: false,
-        error: {
-          code: "invalid_hp_json",
-          message: ".opencode/hyperpowers-routing.json must contain a JSON object",
-          configPath: hpConfigPath,
-        },
-      }
-    }
-    return parsed as HyperpowersRoutingConfig
-  } catch (error) {
-    if (!strict) return {}
-    return {
-      ok: false,
-      error: {
-        code: "invalid_hp_json",
-        message: error instanceof Error ? error.message : "Failed to parse .opencode/hyperpowers-routing.json",
-        configPath: hpConfigPath,
-      },
-    }
-  }
-}
-
 const readHpConfigForWrite = async (
   hpConfigPath: string,
   errorPath = hpConfigPath,
@@ -501,7 +468,7 @@ export const parseOpencodeModelsOutput = (output: string) => {
   const models = new Set<string>()
 
   for (const line of output.split(/\r?\n/)) {
-    const matches = line.match(/[A-Za-z0-9._-]+\/[A-Za-z0-9._:-]+/g)
+    const matches = line.match(/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._:-]+)+/g)
     if (!matches) continue
 
     for (const match of matches) {
@@ -566,9 +533,9 @@ const validateModelAgainstAvailableSet = (
 ) => {
   if (allowedModels.includes(model)) return null
 
-  return invalidResult(configPath, "invalid_selected_model", `Selected model not found in discovered model list: ${model}`, {
+  return invalidResult(configPath, "invalid_selected_model", `Selected model not found in available model list: ${model}`, {
     model,
-    discoveredModels: allowedModels,
+    availableModels: allowedModels,
   })
 }
 
@@ -662,7 +629,7 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
     nextConfig = updateGlobalAgentModel(nextConfig, agentName, model)
   }
 
-  const hpResult = await readHpConfigForWrite(hpConfigPath, configPath)
+  const hpResult = await readHpConfigForWrite(hpConfigPath)
   if (!hpResult.ok) {
     return { ok: false as const, error: hpResult.error }
   }
@@ -694,16 +661,16 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
 export const verifyRecommendedRoutingPlan = async (
   rootDir: string,
   plan: RecommendedRoutingPlan,
-  discoveredModels: string[],
+  availableModels: string[],
 ) => {
   const configPath = join(rootDir, "opencode.json")
   const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
 
   for (const model of plan.selectedModels) {
-    if (!discoveredModels.includes(model)) {
-      return invalidResult(configPath, "invalid_selected_model", `Selected model not found in discovered model list: ${model}`, {
+    if (!availableModels.includes(model)) {
+      return invalidResult(configPath, "invalid_selected_model", `Selected model not found in available model list: ${model}`, {
         model,
-        discoveredModels,
+        availableModels,
       })
     }
   }
@@ -711,7 +678,7 @@ export const verifyRecommendedRoutingPlan = async (
   const current = await readConfig(configPath)
   if (!current.ok) return current
 
-  const hpResult = await readHpConfigForWrite(hpConfigPath, configPath)
+  const hpResult = await readHpConfigForWrite(hpConfigPath)
   if (!hpResult.ok) {
     return { ok: false as const, error: hpResult.error }
   }
@@ -992,10 +959,13 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
     await persistConfig(hpConfigPath, nextHpConfig as Record<string, unknown>)
 
-    const current = await readConfig(configPath)
-    const ocConfig = current.ok ? current.config : ({ $schema: DEFAULT_SCHEMA } as OpenCodeConfig)
+    const ocConfig = current.config
+    if (current.createdConfig) {
+      await persistConfig(configPath, ocConfig as Record<string, unknown>)
+    }
     return {
       ...createRoutingSnapshot(ocConfig, nextHpConfig, configPath, hpConfigPath),
+      createdConfig: current.createdConfig,
       updatedPath: `workflowOverrides.${workflowName}.${agentName}.model`,
       updatedFile: ".opencode/hyperpowers-routing.json",
     }
