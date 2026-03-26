@@ -193,6 +193,27 @@ test("get_returns_bootstrap_friendly_snapshot_when_opencode_json_is_missing", as
   }
 })
 
+test("get_returns_configMissing_snapshot_when_model_discovery_fails", async () => {
+  const { root, cleanup } = await createTempRoot()
+  const originalPath = process.env.PATH || ""
+
+  try {
+    const emptyBinDir = join(root, "empty-bin")
+    await mkdir(emptyBinDir, { recursive: true })
+    process.env.PATH = emptyBinDir
+
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(result.configMissing).toBe(true)
+    expect(result.availableModels).toEqual([])
+    expect(result.warning.code).toBe("missing_opencode_cli")
+  } finally {
+    process.env.PATH = originalPath
+    await cleanup()
+  }
+})
+
 test("bootstrap_generates_split_file_routing_from_missing_config", async () => {
   const { root, cleanup } = await createTempRoot()
 

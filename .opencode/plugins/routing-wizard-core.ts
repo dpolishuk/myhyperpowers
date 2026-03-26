@@ -571,6 +571,12 @@ const validateModelAgainstAvailableSet = (
   })
 }
 
+const discoveryToWarning = (error: { code: string; message: string; stderr?: string }) => ({
+  code: error.code,
+  message: error.message,
+  ...(error.stderr ? { stderr: error.stderr } : {}),
+})
+
 export const planRecommendedRouting = ({
   strongModel,
   fastModel,
@@ -790,15 +796,16 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const discovered = await discoverOpencodeModels(undefined, rootDir)
     const discoveredModels = discovered.ok ? discovered.models : []
     const hpState = await loadHpConfigWarning()
+    const runtimeWarning = hpState.warning ?? (discovered.ok ? null : discoveryToWarning(discovered.error))
 
     if (!current.ok) {
-      if (current.error.code !== "config_not_found" || !discovered.ok) return current
+      if (current.error.code !== "config_not_found") return current
       return {
         ...createRoutingSnapshot({ $schema: DEFAULT_SCHEMA }, hpState.config, configPath, hpConfigPath, {
           availableModels: discoveredModels,
           configMissing: true,
         }),
-        ...(hpState.warning ? { warning: hpState.warning } : {}),
+        ...(runtimeWarning ? { warning: runtimeWarning } : {}),
       }
     }
 
@@ -806,7 +813,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       ...createRoutingSnapshot(current.config, hpState.config, configPath, hpConfigPath, {
         availableModels: discoveredModels,
       }),
-      ...(hpState.warning ? { warning: hpState.warning } : {}),
+      ...(runtimeWarning ? { warning: runtimeWarning } : {}),
     }
   }
 
