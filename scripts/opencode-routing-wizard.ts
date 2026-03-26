@@ -233,6 +233,8 @@ const main = async () => {
   console.log(`- Wrote global agent mappings to opencode.json`)
   console.log(`- Wrote workflow overrides to .opencode/hyperpowers-routing.json`)
   console.log(`- Verified routing read-back through the shared routing backend`)
+  console.log("\nVerified routing state:")
+  renderPreview(plan)
 }
 
 if (import.meta.main) {

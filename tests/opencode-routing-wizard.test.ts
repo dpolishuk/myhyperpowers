@@ -282,6 +282,7 @@ test("CLI bootstrap script generates canonical routing files from discovered mod
 
     expect(result.status).toBe(0)
     expect(result.stdout.includes("Verification succeeded")).toBe(true)
+    expect(result.stdout.includes("Verified routing state:")).toBe(true)
 
     const snapshot = await executeRoutingAction(root, { action: "get" })
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
@@ -394,6 +395,7 @@ test("CLI interactive flow writes config after explicit confirmation", async () 
 
     expect(result.status).toBe(0)
     expect(result.stdout.includes("Write this routing config now? [y/N]")).toBe(true)
+    expect(result.stdout.includes("Verified routing state:")).toBe(true)
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
     const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
