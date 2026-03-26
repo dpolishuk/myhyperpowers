@@ -146,12 +146,27 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("built-in OpenCode preferences page"), false)
   assert.equal(commandSource.includes("primary settings-like UX"), true)
   assert.equal(commandSource.includes("plugin-owned settings workflow"), true)
+  assert.equal(commandSource.includes("question-panel wizard"), true)
+  assert.equal(commandSource.includes("AskUserQuestion") || commandSource.includes("QuestionTool"), true)
+  assert.equal(commandSource.includes("one structured question at a time"), true)
   assert.equal(commandSource.includes("availableModels"), true)
   assert.equal(commandSource.includes("if no routing config exists") || commandSource.includes("first-run"), true)
   assert.equal(commandSource.includes("workflow overrides") || commandSource.includes("workflowOverrides"), true)
   assert.equal(commandSource.includes("warning") || commandSource.includes("malformed"), true)
+  assert.equal(commandSource.includes("If the runtime does **not** expose the question-panel") || commandSource.includes("If the runtime does not expose the question-panel"), true)
   assert.equal(commandSource.includes("cost-optimized"), true)
   assert.equal(commandSource.includes("quality-first"), true)
+})
+
+test("routing settings command documents a question-panel happy path without direct file edits", () => {
+  const commandSource = read(".opencode/commands/routing-settings.md")
+
+  assert.equal(commandSource.includes("Bootstrap recommended config through question-panel steps") || commandSource.includes("**Bootstrap recommended config** through question-panel steps"), true)
+  assert.equal(commandSource.includes("Set a single agent") && commandSource.includes("through question-panel steps"), true)
+  assert.equal(commandSource.includes("action=get"), true)
+  assert.equal(commandSource.includes("action=bootstrap"), true)
+  assert.equal(commandSource.includes("action=set"), true)
+  assert.equal(commandSource.includes("Never edit `opencode.json` directly"), true)
 })
 
 test("OpenCode CLI routing wizard script exists and uses the canonical split-file contract", () => {

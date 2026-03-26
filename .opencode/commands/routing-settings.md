@@ -15,6 +15,15 @@ It provides a **plugin-owned settings workflow** over the shared routing backend
 
 ## Workflow
 
+### Interaction mode
+
+Drive this command as a **question-panel wizard** using the same structured AskUserQuestion / QuestionTool-style interaction surface that OpenCode guided flows already use.
+
+- Do **not** rely on freeform chat replies for the main decision flow when the question-panel surface is available.
+- Ask one structured question at a time.
+- Prefer concise multiple-choice options for action selection, group selection, workflow selection, and model selection.
+- If the runtime does **not** expose the question-panel / QuestionTool surface, say so explicitly and stop instead of pretending a panel wizard is active.
+
 ### Step 1: Show current state as a table
 
 Call `hyperpowers_agent_routing_config` with `action=get`. Render the result as a markdown table:
@@ -43,9 +52,11 @@ If the backend response includes a `warning` about malformed `.opencode/hyperpow
 
 If no routing config exists yet (`configMissing: true`), explicitly say this is a first-run/bootstrap flow and offer to create a recommended full multi-agent setup.
 
+After showing the initial state, immediately open the first question-panel step asking what the user wants to change.
+
 ### Step 2: Present options
 
-Ask the user what they want to do:
+Ask the user through a question-panel step what they want to do:
 
 1. **Set a single agent** — pick agent + model, use `action=set`
 2. **Set a group** — pick group (orchestrator/workers/reviewers/all) + model, use `action=set-group`
@@ -55,6 +66,12 @@ Ask the user what they want to do:
 6. **Done** — exit without changes
 
 When suggesting models, show the `availableModels` list from the snapshot so the user can pick from live-discovered models already available in their setup.
+
+For the first end-to-end happy path, support at least:
+- **Bootstrap recommended config** through question-panel steps
+- or **Set a single agent** through question-panel steps
+
+Every step in those flows should remain structured: action choice → target choice → model choice → confirmation.
 
 ### Step 3: Execute and summarize
 
