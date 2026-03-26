@@ -36,10 +36,9 @@ What it does:
 export const resolveSuggestedModels = async (rootDir: string, discoveredModels: string[]) => {
   const configPath = `${rootDir}/opencode.json`
   const hpConfigPath = `${rootDir}/.opencode/hyperpowers-routing.json`
-  if (!existsSync(configPath)) return [...new Set(discoveredModels)].sort()
 
   try {
-    const parsed = JSON.parse(await readFile(configPath, "utf8"))
+    const parsed = existsSync(configPath) ? JSON.parse(await readFile(configPath, "utf8")) : { $schema: "https://opencode.ai/config.json" }
     const hpParsed = existsSync(hpConfigPath) ? JSON.parse(await readFile(hpConfigPath, "utf8")) : {}
     const configModels = discoverAvailableModels(parsed, hpParsed)
     return [...new Set([...discoveredModels, ...configModels])].sort()

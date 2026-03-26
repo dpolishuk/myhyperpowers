@@ -108,6 +108,28 @@ test("resolveSuggestedModels merges live discovery with config-derived models", 
   }
 })
 
+test("resolveSuggestedModels includes override-only models when opencode.json is absent", async () => {
+  const { root, cleanup } = await createTempRoot(
+    undefined,
+    {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": { model: "custom-provider/reviewer-only" },
+        },
+      },
+    },
+  )
+
+  try {
+    const suggested = await resolveSuggestedModels(root, ["anthropic/claude-sonnet-4-5"])
+
+    expect(suggested).toContain("anthropic/claude-sonnet-4-5")
+    expect(suggested).toContain("custom-provider/reviewer-only")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("writeRecommendedRoutingPlan preserves unrelated config and verifyRecommendedRoutingPlan reads back planned routing", async () => {
   const { root, cleanup } = await createTempRoot(
     {
