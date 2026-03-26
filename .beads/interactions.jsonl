@@ -58,3 +58,4 @@
 {"id":"int-db3752e2","kind":"field_change","created_at":"2026-03-26T07:47:12.671084667Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-18g","extra":{"field":"status","new_value":"open","old_value":"closed"}}
 {"id":"int-337314cb","kind":"field_change","created_at":"2026-03-26T07:48:07.951672143Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-829","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
 {"id":"int-12c642a2","kind":"field_change","created_at":"2026-03-26T07:51:58.059820235Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-829","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-b8c4f264","kind":"field_change","created_at":"2026-03-26T07:52:45.039486002Z","actor":"Dmitry Polishuk","issue_id":"myhyperpowers-18g","extra":{"field":"status","new_value":"open","old_value":"closed"}}
