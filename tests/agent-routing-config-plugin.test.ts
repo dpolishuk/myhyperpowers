@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import agentRoutingConfigPlugin from "../.opencode/plugins/agent-routing-config"
+import { AGENT_GROUPS, PRESET_NAMES } from "../.opencode/plugins/agent-routing-config"
 
 const createTempRoot = async (configText?: string, hpConfigText?: string) => {
   const root = await mkdtemp(join(tmpdir(), "agent-routing-plugin-"))
@@ -205,6 +206,299 @@ test("unsupported_agent_and_workflow_return_actionable_errors", async () => {
     expect(agentResult.error.code).toBe("unsupported_agent")
     expect(workflowResult.ok).toBe(false)
     expect(workflowResult.error.code).toBe("unsupported_workflow")
+  } finally {
+    await cleanup()
+  }
+})
+
+// --- New tests for agent groups, model discovery, presets ---
+
+test("get_snapshot_includes_available_models_extracted_from_config", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "anthropic/claude-sonnet-4-5",
+      small_model: "anthropic/claude-haiku-4-5",
+      agent: {
+        ralph: { model: "anthropic/claude-sonnet-4-5" },
+        "test-runner": { model: "anthropic/claude-haiku-4-5" },
+        "code-reviewer": { model: "openai/gpt-4o" },
+      },
+    }),
+  )
+
+  try {
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(Array.isArray(result.availableModels)).toBe(true)
+    expect(result.availableModels).toContain("anthropic/claude-sonnet-4-5")
+    expect(result.availableModels).toContain("anthropic/claude-haiku-4-5")
+    expect(result.availableModels).toContain("openai/gpt-4o")
+    // Should be deduplicated
+    const unique = [...new Set(result.availableModels)]
+    expect(result.availableModels.length).toBe(unique.length)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("get_snapshot_includes_models_from_provider_blocks", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "proxy/model-a",
+      provider: {
+        proxy: {
+          models: {
+            "model-a": { name: "Model A" },
+            "model-b": { name: "Model B" },
+          },
+        },
+      },
+    }),
+  )
+
+  try {
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(result.availableModels).toContain("proxy/model-a")
+    expect(result.availableModels).toContain("proxy/model-b")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("get_snapshot_includes_agent_groups", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(result.agentGroups).toBeDefined()
+    expect(result.agentGroups.orchestrator).toContain("ralph")
+    expect(result.agentGroups.workers).toContain("test-runner")
+    expect(result.agentGroups.workers).toContain("codebase-investigator")
+    expect(result.agentGroups.workers).toContain("internet-researcher")
+    expect(result.agentGroups.reviewers).toContain("autonomous-reviewer")
+    expect(result.agentGroups.reviewers).toContain("code-reviewer")
+    expect(result.agentGroups.reviewers.length).toBe(8)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_applies_model_to_all_workers", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "strong/model",
+      agent: {
+        ralph: { model: "strong/model" },
+        "test-runner": { model: "old/model" },
+      },
+    }),
+  )
+
+  try {
+    const result = await runTool(root, {
+      action: "set-group",
+      group: "workers",
+      model: "fast/model",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    expect(result.updatedAgents).toContain("test-runner")
+    expect(result.updatedAgents).toContain("codebase-investigator")
+    expect(result.updatedAgents).toContain("internet-researcher")
+    expect(persisted.agent["test-runner"].model).toBe("fast/model")
+    expect(persisted.agent["codebase-investigator"].model).toBe("fast/model")
+    expect(persisted.agent["internet-researcher"].model).toBe("fast/model")
+    // ralph should NOT be changed
+    expect(persisted.agent.ralph.model).toBe("strong/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_applies_model_to_all_reviewers", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, {
+      action: "set-group",
+      group: "reviewers",
+      model: "capable/model",
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.updatedAgents.length).toBe(8)
+    expect(result.updatedAgents).toContain("autonomous-reviewer")
+    expect(result.updatedAgents).toContain("code-reviewer")
+    expect(result.updatedAgents).toContain("review-quality")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_all_applies_to_every_agent", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, {
+      action: "set-group",
+      group: "all",
+      model: "universal/model",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    expect(result.updatedAgents.length).toBe(12)
+    expect(persisted.agent.ralph.model).toBe("universal/model")
+    expect(persisted.agent["test-runner"].model).toBe("universal/model")
+    expect(persisted.agent["autonomous-reviewer"].model).toBe("universal/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_group_unknown_group_returns_error", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, {
+      action: "set-group",
+      group: "validators",
+      model: "any/model",
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.error.code).toBe("unsupported_group")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_cost_optimized", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "anthropic/claude-sonnet-4-5",
+      small_model: "anthropic/claude-haiku-4-5",
+    }),
+  )
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "cost-optimized",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    expect(result.appliedPreset).toBe("cost-optimized")
+    // Workers get fast model (small_model)
+    expect(persisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
+    expect(persisted.agent["codebase-investigator"].model).toBe("anthropic/claude-haiku-4-5")
+    // Orchestrator and reviewers get strong model
+    expect(persisted.agent.ralph.model).toBe("anthropic/claude-sonnet-4-5")
+    expect(persisted.agent["autonomous-reviewer"].model).toBe("anthropic/claude-sonnet-4-5")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_quality_first", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "anthropic/claude-sonnet-4-5",
+      small_model: "anthropic/claude-haiku-4-5",
+    }),
+  )
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "quality-first",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    expect(result.appliedPreset).toBe("quality-first")
+    // ALL agents get strong model
+    expect(persisted.agent.ralph.model).toBe("anthropic/claude-sonnet-4-5")
+    expect(persisted.agent["test-runner"].model).toBe("anthropic/claude-sonnet-4-5")
+    expect(persisted.agent["autonomous-reviewer"].model).toBe("anthropic/claude-sonnet-4-5")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_without_small_model_uses_main_model_for_all", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({
+      model: "glm/glm-4.7",
+    }),
+  )
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "cost-optimized",
+    })
+    const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    expect(result.ok).toBe(true)
+    // Without small_model, workers fallback to main model
+    expect(persisted.agent["test-runner"].model).toBe("glm/glm-4.7")
+    expect(persisted.agent.ralph.model).toBe("glm/glm-4.7")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_unknown_returns_error", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "ultra-turbo",
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.error.code).toBe("unsupported_preset")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("apply_preset_without_config_returns_error", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const result = await runTool(root, {
+      action: "apply-preset",
+      preset: "quality-first",
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.error.code).toBe("config_not_found")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("get_snapshot_includes_preset_names", async () => {
+  const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "x/y" }))
+
+  try {
+    const result = await runTool(root, { action: "get" })
+
+    expect(result.ok).toBe(true)
+    expect(Array.isArray(result.presets)).toBe(true)
+    expect(result.presets).toContain("cost-optimized")
+    expect(result.presets).toContain("quality-first")
+    expect(result.presets.length).toBe(2)
   } finally {
     await cleanup()
   }

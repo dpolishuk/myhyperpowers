@@ -64,18 +64,21 @@ function readConfigValue(configPath, key) {
 
   const content = fs.readFileSync(configPath, "utf8")
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const match = content.match(new RegExp(`^${escapedKey}:\\s*(.+)$`, "m"))
+  // Match key line — value may be empty (e.g. `api-key: ""`)
+  const match = content.match(new RegExp(`^${escapedKey}:\\s*(.*)$`, "m"))
   if (!match) {
     return null
   }
 
   const rawValue = stripInlineYamlComment(match[1]).replace(/^['\"]|['\"]$/g, "")
   const normalizedValue = trimValue(rawValue)
-  if (!normalizedValue || normalizedValue.includes("(not set)")) {
+  if (normalizedValue && normalizedValue.includes("(not set)")) {
     return null
   }
 
-  return normalizedValue
+  // Return empty string (not null) when key exists but value is explicitly
+  // empty — callers can distinguish "not configured" (null) from "cleared" ("").
+  return normalizedValue || ""
 }
 
 function readBackendConfigValue(configKey) {

@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import { HYPERPOWERS_AGENTS } from "./agent-routing-config"
 import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
@@ -401,7 +402,10 @@ const detectWorkflowOverride = (
   return null
 }
 
+const isValidAgentName = (name: string) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)
+
 const getAgentFrontmatterPaths = (rootDir: string, agentName: string) => {
+  if (!isValidAgentName(agentName)) return []
   const fileName = `${agentName}.md`
   const homeDir = process.env.HOME || homedir()
   const xdgConfigHome = process.env.XDG_CONFIG_HOME || join(homeDir, ".config")
@@ -546,15 +550,46 @@ const loadConfig = async (configPath: string) => {
   }
 }
 
+const buildRoutingSummary = async (rootDir: string, errorLogPath: string, logLevel: "silent" | "warn") => {
+  const ocConfig = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
+  const defaultModel = getString(ocConfig.model) ?? "(session default)"
+  const agentMap = asRecord(ocConfig.agent)
+
+  const lines: string[] = ["Agent Model Routing:"]
+  for (const agent of HYPERPOWERS_AGENTS) {
+    const model = getString(asRecord(agentMap[agent]).model) ?? defaultModel
+    lines.push(`  ${agent}: ${model}`)
+  }
+  return lines.join("\n")
+}
+
+const showToastSafe = async (client: any, title: string, message: string, variant: "info" | "success" = "info") => {
+  try {
+    await client.tui.showToast({ body: { title, message, variant, duration: 4000 } })
+  } catch {
+    // Toast is informational — never block execution on display failure.
+  }
+}
+
 const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
   const configPath = join(ctx.directory, ".opencode", "task-context.json")
   const config = await loadConfig(configPath)
   const cacheDir = join(ctx.directory, ".opencode", "cache", "task-context")
   const errorLogPath = join(cacheDir, "errors.log")
+  let shownRoutingSummary = false
   const lastContextPath = join(cacheDir, "last-context.json")
   const summariesPath = join(cacheDir, "summaries.json")
 
   return {
+    "experimental.chat.system.transform": async (_input, output) => {
+      if (!config.enabled) return
+      try {
+        const summary = await buildRoutingSummary(ctx.directory, errorLogPath, config.logLevel)
+        output.system.push(summary)
+      } catch {
+        // System prompt injection is best-effort — never block the session.
+      }
+    },
     "tool.execute.before": async (input, output) => {
       if (!config.enabled) return
       if (input.tool !== "task") return
@@ -567,6 +602,18 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       const resolvedModel = await resolveTaskModel(ctx.directory, args, prompt, errorLogPath, config.logLevel)
       if (resolvedModel) {
         args.model = resolvedModel
+      }
+
+      // Show routing info via toast
+      const agentName = extractTaskAgentName(args)
+      if (agentName) {
+        const displayModel = resolvedModel ?? "(inherited)"
+        if (!shownRoutingSummary) {
+          shownRoutingSummary = true
+          const summary = await buildRoutingSummary(ctx.directory, errorLogPath, config.logLevel)
+          showToastSafe(ctx.client, "Hyperpowers Routing", summary)
+        }
+        showToastSafe(ctx.client, "Agent Dispatch", `${agentName} → ${displayModel}`)
       }
 
       const commandIntent = detectCommandIntent(prompt)
@@ -715,6 +762,15 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       const resultPayload = (output as any)?.result
       const status = typeof resultPayload?.status === "string" ? resultPayload.status : "unknown"
       const resultText = typeof resultPayload?.message === "string" ? resultPayload.message : ""
+
+      // Show completion toast
+      const agentName = extractTaskAgentName(args)
+      const resolvedModel = getString(args.model)
+      if (agentName) {
+        const modelInfo = resolvedModel ? ` (${resolvedModel})` : ""
+        const variant = status === "ok" || status === "success" ? "success" as const : "info" as const
+        showToastSafe(ctx.client, "Agent Complete", `${agentName}${modelInfo}: ${status}`, variant)
+      }
 
       const jsonSummary = {
         run_id: runId,

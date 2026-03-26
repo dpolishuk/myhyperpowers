@@ -857,3 +857,168 @@ test("task_model_routing_preserves_explicit_model_argument", async () => {
     await cleanup()
   }
 })
+
+// --- Toast and system prompt routing display tests ---
+
+const createMockClient = () => {
+  const toasts: Array<{ title?: string; message: string; variant: string }> = []
+  return {
+    client: {
+      tui: {
+        showToast: async (opts: any) => {
+          toasts.push({
+            title: opts.body?.title,
+            message: opts.body?.message,
+            variant: opts.body?.variant,
+          })
+        },
+      },
+    },
+    toasts,
+  }
+}
+
+test("system_prompt_transform_injects_routing_summary", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "anthropic/claude-sonnet-4-5",
+      agent: {
+        ralph: { model: "anthropic/claude-sonnet-4-5" },
+        "test-runner": { model: "anthropic/claude-haiku-4-5" },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+
+    const output = { system: [] as string[] }
+    await plugin["experimental.chat.system.transform"]?.({}, output)
+
+    expect(output.system.length).toBeGreaterThan(0)
+    const systemText = output.system.join("\n")
+    expect(systemText).toContain("Agent Model Routing:")
+    expect(systemText).toContain("ralph: anthropic/claude-sonnet-4-5")
+    expect(systemText).toContain("test-runner: anthropic/claude-haiku-4-5")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("dispatch_toast_fires_with_agent_and_resolved_model", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "anthropic/claude-sonnet-4-5",
+      agent: {
+        "test-runner": { model: "anthropic/claude-haiku-4-5" },
+      },
+    },
+  })
+
+  try {
+    const mock = createMockClient()
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+      ...mock,
+    })
+
+    const output = {
+      args: {
+        prompt: "Run tests",
+        agent: "test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    const dispatchToast = mock.toasts.find((t) => t.title === "Agent Dispatch")
+    expect(dispatchToast).toBeDefined()
+    expect(dispatchToast!.message).toContain("test-runner")
+    expect(dispatchToast!.message).toContain("anthropic/claude-haiku-4-5")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("first_dispatch_shows_routing_summary_toast_once", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "glm/glm-4.7",
+      agent: {
+        ralph: { model: "glm/glm-4.7" },
+      },
+    },
+  })
+
+  try {
+    const mock = createMockClient()
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+      ...mock,
+    })
+
+    // First dispatch
+    await plugin["tool.execute.before"]({ tool: "task" }, {
+      args: { prompt: "First task", agent: "ralph" },
+    })
+
+    const summaryToasts = mock.toasts.filter((t) => t.title === "Hyperpowers Routing")
+    expect(summaryToasts.length).toBe(1)
+    expect(summaryToasts[0].message).toContain("Agent Model Routing:")
+
+    // Second dispatch — no summary toast
+    await plugin["tool.execute.before"]({ tool: "task" }, {
+      args: { prompt: "Second task", agent: "ralph" },
+    })
+
+    const summaryToastsAfter = mock.toasts.filter((t) => t.title === "Hyperpowers Routing")
+    expect(summaryToastsAfter.length).toBe(1) // Still just 1
+  } finally {
+    await cleanup()
+  }
+})
+
+test("completion_toast_fires_with_agent_model_and_status", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "glm/glm-4.7",
+      agent: {
+        "code-reviewer": { model: "glm/glm-4.7" },
+      },
+    },
+  })
+
+  try {
+    const mock = createMockClient()
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+      ...mock,
+    })
+
+    const output = {
+      args: {
+        prompt: "Review code",
+        agent: "code-reviewer",
+        model: "glm/glm-4.7",
+      },
+      result: { status: "ok", message: "done" },
+    }
+
+    await plugin["tool.execute.after"]?.({ tool: "task" }, output)
+
+    const completeToast = mock.toasts.find((t) => t.title === "Agent Complete")
+    expect(completeToast).toBeDefined()
+    expect(completeToast!.message).toContain("code-reviewer")
+    expect(completeToast!.message).toContain("glm/glm-4.7")
+    expect(completeToast!.message).toContain("ok")
+    expect(completeToast!.variant).toBe("success")
+  } finally {
+    await cleanup()
+  }
+})
