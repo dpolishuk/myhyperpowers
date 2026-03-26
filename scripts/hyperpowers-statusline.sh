@@ -12,6 +12,11 @@ set -euo pipefail
 
 input=$(cat)
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "hyperpowers (jq not installed)"
+  exit 0
+fi
+
 model=$(echo "$input" | jq -r '.model.display_name // .model.id // "unknown"')
 agent=$(echo "$input" | jq -r '.agent.name // empty')
 context_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')

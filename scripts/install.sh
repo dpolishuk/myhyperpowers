@@ -668,7 +668,24 @@ validate_gemini() {
 # ---------------------------------------------------------------------------
 
 uninstall_claude() {
-  uninstall_from_manifest "${AGENT_PATHS[claude]:-${HOME}/.claude}"
+  local home="${AGENT_PATHS[claude]:-${HOME}/.claude}"
+  uninstall_from_manifest "$home"
+
+  # Remove statusline setting from settings.json if it points to our script
+  local settings="${home}/settings.json"
+  if [[ -f "$settings" ]] && grep -q "hyperpowers-statusline" "$settings" 2>/dev/null; then
+    local tmp; tmp=$(mktemp)
+    python3 -c "
+import json
+with open('$settings') as f:
+    d = json.load(f)
+d.pop('statusline', None)
+with open('$tmp', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+" 2>/dev/null && mv "$tmp" "$settings" || rm -f "$tmp"
+    echo "  Removed statusline from settings.json"
+  fi
 }
 
 uninstall_opencode() {
