@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "comment": "Direct agent routing example for Hyperpowers on OpenCode",
+  "comment": "Direct agent routing example for Hyperpowers on OpenCode. Workflow overrides live in .opencode/hyperpowers-routing.json (see docs/opencode.example.hyperpowers-routing.json).",
   "model": "anthropic/claude-sonnet-4-5-20250514",
   "small_model": "anthropic/claude-haiku-4-5-20250514",
   "agent": {
@@ -43,21 +43,6 @@
     },
     "autonomous-reviewer": {
       "model": "anthropic/claude-opus-4-5"
-    }
-  },
-  "hyperpowers": {
-    "comment": "workflowOverrides is active for Hyperpowers task-tool dispatch paths and resolves before the global direct agent map above.",
-    "workflowOverrides": {
-      "execute-ralph": {
-        "autonomous-reviewer": {
-          "model": "anthropic/claude-opus-4-5"
-        }
-      },
-      "brainstorming": {
-        "internet-researcher": {
-          "model": "anthropic/claude-sonnet-4-5-20250514"
-        }
-      }
     }
   }
 }

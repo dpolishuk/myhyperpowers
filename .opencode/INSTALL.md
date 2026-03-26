@@ -56,11 +56,15 @@ To start from the documented contract example:
 
 ```bash
 cp docs/opencode.example.agent-routing.json opencode.json
+mkdir -p .opencode
+cp docs/opencode.example.hyperpowers-routing.json .opencode/hyperpowers-routing.json
 ```
 
-Note: the `hyperpowers.workflowOverrides` block in that example is active for Hyperpowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
+Note: workflow overrides live in `.opencode/hyperpowers-routing.json` (not in `opencode.json`) because OpenCode strictly validates its config schema and rejects unknown keys. The `workflowOverrides` block is active for Hyperpowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
 
-The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads and writes the same project-root `opencode.json` file instead of maintaining plugin-only routing state.
+The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads agent mappings from `opencode.json` and workflow overrides from `.opencode/hyperpowers-routing.json` instead of maintaining plugin-only routing state.
+
+The primary settings-like entry point is `/routing-settings`, a plugin-owned slash-command wizard that uses `hyperpowers_agent_routing_config` as its backend.
 
 ### Option 2: Manual Install
 

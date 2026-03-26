@@ -44,9 +44,10 @@ type WorkflowOverrideMap = Record<string, Record<string, AgentModelSettings>>
 type OpenCodeRoutingConfig = {
   model?: string
   agent?: Record<string, AgentModelSettings>
-  hyperpowers?: {
-    workflowOverrides?: WorkflowOverrideMap
-  }
+}
+
+type HyperpowersRoutingConfig = {
+  workflowOverrides?: WorkflowOverrideMap
 }
 
 const DEFAULT_CONFIG: Required<TaskContextConfig> = {
@@ -324,6 +325,36 @@ const loadOpenCodeRoutingConfig = async (
   }
 }
 
+const loadHyperpowersRoutingConfig = async (
+  configPath: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+): Promise<HyperpowersRoutingConfig> => {
+  if (!existsSync(configPath)) return {}
+  try {
+    const raw = await readFile(configPath, "utf8")
+    const parsed = JSON.parse(raw)
+    return asRecord(parsed) as HyperpowersRoutingConfig
+  } catch (error) {
+    try {
+      await appendStructuredLog(
+        errorLogPath,
+        {
+          level: "warn",
+          source: "task-context-orchestrator.loadHyperpowersRoutingConfig",
+          message: "Failed to read or parse Hyperpowers routing configuration",
+          configPath,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        logLevel,
+      )
+    } catch {
+      // Swallow logging failures to avoid blocking task execution.
+    }
+    return {}
+  }
+}
+
 const extractTaskAgentName = (args: Record<string, unknown>) => {
   return normalizePrefixedLookupName(
     getString(args.agent) ??
@@ -349,8 +380,14 @@ const detectWorkflowOverride = (
       getNestedString(args.metadata, "workflow") ??
       getNestedString(args.metadata, "hyperpowersWorkflow"),
   )
-  const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
-  if (explicitMatch && explicitWorkflow) return explicitWorkflow
+  if (explicitWorkflow) {
+    const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
+    if (explicitMatch) return explicitWorkflow
+    // Explicit workflow arguments are authoritative; if a caller provided one
+    // that has no configured override, do not guess a different workflow from
+    // prompt text or command intent.
+    return null
+  }
 
   const commandIntent = detectCommandIntent(prompt)
   const intentMatch = findConfigEntry(workflowOverrides, commandIntent)
@@ -410,8 +447,13 @@ const resolveTaskModel = async (
   if (!agentName) return null
 
   const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
-  const workflowName = detectWorkflowOverride(args, prompt, config.hyperpowers?.workflowOverrides)
-  const workflowSettings = findConfigEntry(config.hyperpowers?.workflowOverrides, workflowName)
+  const hpConfig = await loadHyperpowersRoutingConfig(
+    join(rootDir, ".opencode", "hyperpowers-routing.json"),
+    errorLogPath,
+    logLevel,
+  )
+  const workflowName = detectWorkflowOverride(args, prompt, hpConfig.workflowOverrides)
+  const workflowSettings = findConfigEntry(hpConfig.workflowOverrides, workflowName)
   const workflowModel = getString(findConfigEntry(workflowSettings, agentName)?.model)
   if (workflowModel) return workflowModel
 

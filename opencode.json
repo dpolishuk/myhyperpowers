@@ -54,5 +54,21 @@
     "list": "allow",
     "lsp": "allow",
     "patch": "allow"
+  },
+  "model": "glm/glm-4.7",
+  "small_model": "glm/glm-4.5",
+  "agent": {
+    "ralph": { "model": "glm/glm-4.7" },
+    "test-runner": { "model": "glm/glm-4.5" },
+    "codebase-investigator": { "model": "glm/glm-4.5" },
+    "internet-researcher": { "model": "glm/glm-4.5" },
+    "code-reviewer": { "model": "glm/glm-4.7" },
+    "review-quality": { "model": "glm/glm-4.7" },
+    "review-implementation": { "model": "glm/glm-4.7" },
+    "review-testing": { "model": "glm/glm-4.7" },
+    "review-simplification": { "model": "glm/glm-4.7" },
+    "review-documentation": { "model": "glm/glm-4.7" },
+    "test-effectiveness-analyst": { "model": "glm/glm-4.7" },
+    "autonomous-reviewer": { "model": "glm/glm-4.7" }
   }
 }

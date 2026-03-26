@@ -1,37 +1,122 @@
 #!/usr/bin/env node
 "use strict"
 
+const fs = require("node:fs")
+const path = require("node:path")
 const { spawnSync } = require("node:child_process")
 
-/**
- * Load a config value from: env var → bd config → null
- */
-function loadConfigValue(envVar, bdConfigKey) {
-  // Explicit empty env var overrides bd config (allows disabling with LINEAR_API_KEY="")
-  if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
-    const envVal = (process.env[envVar] || "").trim()
-    if (!envVal) return null
-    return envVal
+function trimValue(value) {
+  return (value || "").trim()
+}
+
+function stripInlineYamlComment(value) {
+  const input = value || ""
+  let inSingle = false
+  let inDouble = false
+  let output = ""
+
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i]
+    const prev = i > 0 ? input[i - 1] : ""
+
+    if (ch === '"' && !inSingle && prev !== "\\") {
+      inDouble = !inDouble
+      output += ch
+      continue
+    }
+
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle
+      output += ch
+      continue
+    }
+
+    if (ch === "#" && !inSingle && !inDouble && (i === 0 || /\s/.test(prev))) {
+      break
+    }
+
+    output += ch
   }
 
-  const result = spawnSync("bd", ["config", "get", bdConfigKey], {
+  return trimValue(output)
+}
+
+function findRepoRoot(startDir = process.cwd()) {
+  if (process.env.TM_REPO_ROOT && fs.existsSync(path.join(process.env.TM_REPO_ROOT, ".beads"))) {
+    return process.env.TM_REPO_ROOT
+  }
+
+  let current = startDir
+  while (current && current !== path.dirname(current)) {
+    if (fs.existsSync(path.join(current, ".beads"))) {
+      return current
+    }
+    current = path.dirname(current)
+  }
+
+  return null
+}
+
+function readConfigValue(configPath, key) {
+  if (!configPath || !fs.existsSync(configPath)) {
+    return null
+  }
+
+  const content = fs.readFileSync(configPath, "utf8")
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = content.match(new RegExp(`^${escapedKey}:\\s*(.+)$`, "m"))
+  if (!match) {
+    return null
+  }
+
+  const rawValue = stripInlineYamlComment(match[1]).replace(/^['\"]|['\"]$/g, "")
+  const normalizedValue = trimValue(rawValue)
+  if (!normalizedValue || normalizedValue.includes("(not set)")) {
+    return null
+  }
+
+  return normalizedValue
+}
+
+function readBackendConfigValue(configKey) {
+  const backend = trimValue(process.env.TM_BACKEND || "bd") || "bd"
+  if (backend === "linear") return null
+
+  const result = spawnSync(backend, ["config", "get", configKey], {
     encoding: "utf8",
     timeout: 5000,
   })
 
   if (result.error || result.status !== 0) {
-    const detail = result.error ? result.error.message : (result.stderr || "").trim() || `exit ${result.status}`
-    throw new Error(`bd config get ${bdConfigKey} failed: ${detail}`)
+    return null
   }
 
-  const val = (result.stdout || "").trim()
-  // bd config get returns "key (not set)" when unconfigured
-  if (!val || val.endsWith("(not set)")) return null
-  return val
+  const rawValue = trimValue(result.stdout || "")
+  if (!rawValue || rawValue.includes("(not set)")) {
+    return null
+  }
+
+  return rawValue
 }
 
 /**
- * Load Linear configuration from environment and bd config.
+ * Load a config value from: env var → .beads/config.yaml → backend config → null
+ */
+function loadConfigValue(envVar, configKey) {
+  // Explicit empty env var overrides project config (allows disabling with LINEAR_API_KEY="")
+  if (Object.prototype.hasOwnProperty.call(process.env, envVar)) {
+    const envVal = trimValue(process.env[envVar] || "")
+    if (!envVal) return null
+    return envVal
+  }
+
+  const repoRoot = findRepoRoot()
+  const configPath = repoRoot ? path.join(repoRoot, ".beads", "config.yaml") : null
+  return readConfigValue(configPath, configKey) ?? readBackendConfigValue(configKey)
+}
+
+/**
+ * Load Linear configuration from environment, .beads/config.yaml, and backend config.
  * Returns { apiKey, teamKey } or null if not configured.
  */
 function loadLinearConfig() {

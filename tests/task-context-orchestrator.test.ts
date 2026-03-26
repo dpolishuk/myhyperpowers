@@ -49,6 +49,7 @@ type ShellSetup = {
 type TempRootOptions = {
   taskContextOverrides?: Record<string, unknown>
   opencodeConfig?: Record<string, unknown>
+  hpConfig?: Record<string, unknown>
   agentFiles?: Record<string, string>
 }
 
@@ -85,12 +86,21 @@ const createShell = (responses: ShellSetup = {}) => {
 const createTempRootWithConfig = async ({
   taskContextOverrides = {},
   opencodeConfig,
+  hpConfig,
   agentFiles = {},
 }: TempRootOptions = {}) => {
   const base = await createTempRoot(taskContextOverrides)
 
   if (opencodeConfig) {
     await writeFile(join(base.root, "opencode.json"), JSON.stringify(opencodeConfig, null, 2), "utf8")
+  }
+
+  if (hpConfig) {
+    await writeFile(
+      join(base.root, ".opencode", "hyperpowers-routing.json"),
+      JSON.stringify(hpConfig, null, 2),
+      "utf8",
+    )
   }
 
   const agentEntries = Object.entries(agentFiles)
@@ -368,12 +378,12 @@ test("task_model_routing_prefers_workflow_override", async () => {
           model: "agent/model",
         },
       },
-      hyperpowers: {
-        workflowOverrides: {
-          "execute-ralph": {
-            "autonomous-reviewer": {
-              model: "workflow/model",
-            },
+    },
+    hpConfig: {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": {
+            model: "workflow/model",
           },
         },
       },
@@ -407,17 +417,17 @@ test("task_model_routing_prefers_explicit_workflow_argument_over_prompt_detectio
   const { root, cleanup } = await createTempRootWithConfig({
     opencodeConfig: {
       model: "global/model",
-      hyperpowers: {
-        workflowOverrides: {
-          brainstorming: {
-            "internet-researcher": {
-              model: "brainstorm/model",
-            },
+    },
+    hpConfig: {
+      workflowOverrides: {
+        brainstorming: {
+          "internet-researcher": {
+            model: "brainstorm/model",
           },
-          "execute-ralph": {
-            "internet-researcher": {
-              model: "ralph/model",
-            },
+        },
+        "execute-ralph": {
+          "internet-researcher": {
+            model: "ralph/model",
           },
         },
       },
@@ -445,15 +455,54 @@ test("task_model_routing_prefers_explicit_workflow_argument_over_prompt_detectio
   }
 })
 
-test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
+test("task_model_routing_does_not_guess_other_overrides_when_explicit_workflow_is_unmapped", async () => {
   const { root, cleanup } = await createTempRootWithConfig({
     opencodeConfig: {
-      hyperpowers: {
-        workflowOverrides: {
-          "execute-ralph": {
-            "autonomous-reviewer": {
-              model: "workflow/model",
-            },
+      agent: {
+        "internet-researcher": {
+          model: "agent/model",
+        },
+      },
+    },
+    hpConfig: {
+      workflowOverrides: {
+        "execute-ralph": {
+          "internet-researcher": {
+            model: "ralph/model",
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run execute-ralph research prep",
+        workflow: "brainstorming",
+        agent: "internet-researcher",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("agent/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    hpConfig: {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": {
+            model: "workflow/model",
           },
         },
       },
@@ -776,12 +825,12 @@ test("task_model_routing_preserves_explicit_model_argument", async () => {
           model: "agent/model",
         },
       },
-      hyperpowers: {
-        workflowOverrides: {
-          "execute-ralph": {
-            "autonomous-reviewer": {
-              model: "workflow/model",
-            },
+    },
+    hpConfig: {
+      workflowOverrides: {
+        "execute-ralph": {
+          "autonomous-reviewer": {
+            model: "workflow/model",
           },
         },
       },

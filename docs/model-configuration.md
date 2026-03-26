@@ -55,6 +55,7 @@ For Hyperpowers on OpenCode, **direct agent→model mapping** is the canonical r
 - Hyperpowers-specific workflow overrides are resolved at runtime for Hyperpowers task-tool dispatch paths.
 - Any plugin/options UX should edit the same underlying map, not a separate plugin-only state store.
 - The first plugin/options editing surface is the `hyperpowers_agent_routing_config` tool, which reads/writes project-root `opencode.json` directly.
+- The primary settings-like UX on top of that backend is the `/routing-settings` slash-command wizard.
 
 In short: plugin/options edit the same underlying map.
 
@@ -90,9 +91,9 @@ Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-Today, the practical plugin/options surface is the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. Use it to inspect or update global `agent.<agent>.model` entries and `hyperpowers.workflowOverrides.<workflow>.<agent>.model` entries in the same file.
+Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. It uses that backend to inspect or update global `agent.<agent>.model` entries in `opencode.json` and `workflowOverrides.<workflow>.<agent>.model` entries in `.opencode/hyperpowers-routing.json`.
 
-See `docs/opencode.example.agent-routing.json` for an example of the current direct-agent mapping plus workflow overrides.
+See `docs/opencode.example.agent-routing.json` for the agent mapping example and `docs/opencode.example.hyperpowers-routing.json` for the workflow overrides example.
 
 ---
 
