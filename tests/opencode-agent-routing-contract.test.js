@@ -169,6 +169,17 @@ test("routing settings command documents a question-panel happy path without dir
   assert.equal(commandSource.includes("Never edit `opencode.json` directly"), true)
 })
 
+test("routing settings command documents question-panel flow coverage for every supported action", () => {
+  const commandSource = read(".opencode/commands/routing-settings.md")
+
+  assert.equal(commandSource.includes("Bootstrap recommended config") && commandSource.includes("scope → target → model/preset/workflow → confirmation"), true)
+  assert.equal(commandSource.includes("Set a single agent") && commandSource.includes("single-agent edit"), true)
+  assert.equal(commandSource.includes("Set a group") && commandSource.includes("group edit"), true)
+  assert.equal(commandSource.includes("Apply a preset") && commandSource.includes("preset application"), true)
+  assert.equal(commandSource.includes("Set a workflow override") && commandSource.includes("workflow override edit"), true)
+  assert.equal(commandSource.includes("question-panel driven") || commandSource.includes("question-panel wizard"), true)
+})
+
 test("OpenCode CLI routing wizard script exists and uses the canonical split-file contract", () => {
   const scriptPath = path.join(repoRoot, "scripts", "opencode-routing-wizard.ts")
   assert.equal(fs.existsSync(scriptPath), true)

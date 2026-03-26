@@ -73,6 +73,38 @@ For the first end-to-end happy path, support at least:
 
 Every step in those flows should remain structured: action choice → target choice → model choice → confirmation.
 
+For full action coverage, drive every supported action through question-panel driven steps:
+
+- **Bootstrap recommended config** — question-panel driven sequence: scope → target → model/preset/workflow → confirmation
+  - ask for bootstrap as the action choice
+  - ask for strong model
+  - ask for optional fast model
+  - ask for optional top-review model
+  - ask for final confirmation before `action=bootstrap`
+
+- **Set a single agent** — question-panel driven single-agent edit sequence: scope → target → model/preset/workflow → confirmation
+  - ask for the concrete agent
+  - ask for the target model
+  - ask for confirmation before `action=set`
+
+- **Set a group** — question-panel driven group edit sequence: scope → target → model/preset/workflow → confirmation
+  - ask for the group (`all`, `orchestrator`, `workers`, `reviewers`)
+  - ask for the target model
+  - ask for confirmation before `action=set-group`
+
+- **Apply a preset** — question-panel driven preset application sequence: scope → target → model/preset/workflow → confirmation
+  - ask for the preset name (`cost-optimized` or `quality-first`)
+  - explain the preset effect
+  - ask for confirmation before `action=apply-preset`
+
+- **Set a workflow override** — question-panel driven workflow override edit sequence: scope → target → model/preset/workflow → confirmation
+  - ask for the workflow name
+  - ask for the concrete agent within that workflow
+  - ask for the target model
+  - ask for confirmation before workflow `action=set`
+
+If any action path cannot yet be driven through the question-panel mechanism in the current runtime, say so explicitly instead of implying complete support.
+
 ### Step 3: Execute and summarize
 
 After applying changes, call `action=get` again and re-render the table to show the updated state.
