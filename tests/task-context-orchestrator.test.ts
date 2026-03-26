@@ -46,6 +46,12 @@ type ShellSetup = {
   supermemorySave?: ShellResponse
 }
 
+type TempRootOptions = {
+  taskContextOverrides?: Record<string, unknown>
+  opencodeConfig?: Record<string, unknown>
+  agentFiles?: Record<string, string>
+}
+
 const createShell = (responses: ShellSetup = {}) => {
   const savedCalls: string[] = []
   const shell = (strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -74,6 +80,29 @@ const createShell = (responses: ShellSetup = {}) => {
   }
 
   return { shell, savedCalls }
+}
+
+const createTempRootWithConfig = async ({
+  taskContextOverrides = {},
+  opencodeConfig,
+  agentFiles = {},
+}: TempRootOptions = {}) => {
+  const base = await createTempRoot(taskContextOverrides)
+
+  if (opencodeConfig) {
+    await writeFile(join(base.root, "opencode.json"), JSON.stringify(opencodeConfig, null, 2), "utf8")
+  }
+
+  const agentEntries = Object.entries(agentFiles)
+  if (agentEntries.length > 0) {
+    const agentsDir = join(base.root, ".opencode", "agents")
+    await mkdir(agentsDir, { recursive: true })
+    for (const [name, contents] of agentEntries) {
+      await writeFile(join(agentsDir, `${name}.md`), contents, "utf8")
+    }
+  }
+
+  return base
 }
 
 test("task_only_interception", async () => {
@@ -325,6 +354,456 @@ test("idempotency_key_prevents_duplicate_summary_entries", async () => {
     const summariesPath = join(root, ".opencode", "cache", "task-context", "summaries.json")
     const summaries = JSON.parse(await readFile(summariesPath, "utf8")) as Array<Record<string, unknown>>
     expect(summaries.length).toBe(1)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_prefers_workflow_override", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      agent: {
+        "autonomous-reviewer": {
+          model: "agent/model",
+        },
+      },
+      hyperpowers: {
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": {
+              model: "workflow/model",
+            },
+          },
+        },
+      },
+    },
+    agentFiles: {
+      "autonomous-reviewer": `---\ndescription: reviewer\nmode: subagent\nmodel: frontmatter/model\n---\nPrompt`,
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run execute-ralph final validation",
+        agent: "autonomous-reviewer",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("workflow/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_prefers_explicit_workflow_argument_over_prompt_detection", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      hyperpowers: {
+        workflowOverrides: {
+          brainstorming: {
+            "internet-researcher": {
+              model: "brainstorm/model",
+            },
+          },
+          "execute-ralph": {
+            "internet-researcher": {
+              model: "ralph/model",
+            },
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run execute-ralph research prep",
+        workflow: "brainstorming",
+        agent: "internet-researcher",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("brainstorm/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      hyperpowers: {
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": {
+              model: "workflow/model",
+            },
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run final validation",
+        workflow: "hyperpowers:execute-ralph",
+        agent: "autonomous-reviewer",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("workflow/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_uses_agent_mapping_before_global_model", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      agent: {
+        "test-runner": {
+          model: "agent/model",
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run targeted verification",
+        agent: "test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("agent/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_normalizes_prefixed_subagent_type_names", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      agent: {
+        "test-runner": {
+          model: "agent/model",
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run targeted verification",
+        subagent_type: "hyperpowers:test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("agent/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_preserves_native_inheritance_when_only_top_level_model_exists", async () => {
+  const withGlobal = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: withGlobal.root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review these tests",
+        agent: "review-testing",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBeUndefined()
+  } finally {
+    await withGlobal.cleanup()
+  }
+})
+
+test("task_model_routing_falls_back_to_frontmatter_when_available", async () => {
+  const frontmatterOnly = await createTempRootWithConfig({
+    agentFiles: {
+      "review-documentation": `---\ndescription: reviewer\nmode: subagent\nmodel: frontmatter/model\n---\nPrompt`,
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: frontmatterOnly.root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review docs",
+        agent: "review-documentation",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("frontmatter/model")
+  } finally {
+    await frontmatterOnly.cleanup()
+  }
+})
+
+test("task_model_routing_falls_back_to_xdg_global_agent_frontmatter", async () => {
+  const previousXdg = process.env.XDG_CONFIG_HOME
+  const { root, cleanup } = await createTempRoot()
+  const xdgConfigHome = join(root, "xdg")
+  const globalAgentsDir = join(xdgConfigHome, "opencode", "agents")
+  await mkdir(globalAgentsDir, { recursive: true })
+  await writeFile(
+    join(globalAgentsDir, "review-documentation.md"),
+    `---\ndescription: reviewer\nmode: subagent\nmodel: xdg/model\n---\nPrompt`,
+    "utf8",
+  )
+  process.env.XDG_CONFIG_HOME = xdgConfigHome
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review docs",
+        agent: "review-documentation",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("xdg/model")
+  } finally {
+    if (previousXdg === undefined) {
+      delete process.env.XDG_CONFIG_HOME
+    } else {
+      process.env.XDG_CONFIG_HOME = previousXdg
+    }
+    await cleanup()
+  }
+})
+
+test("task_model_routing_local_inherit_stops_global_fallback", async () => {
+  const previousXdg = process.env.XDG_CONFIG_HOME
+  const { root, cleanup } = await createTempRoot()
+
+  // Create a global agent file with a concrete model
+  const xdgConfigHome = join(root, "xdg")
+  const globalAgentsDir = join(xdgConfigHome, "opencode", "agents")
+  await mkdir(globalAgentsDir, { recursive: true })
+  await writeFile(
+    join(globalAgentsDir, "review-documentation.md"),
+    `---\ndescription: reviewer\nmode: subagent\nmodel: global/should-not-win\n---\nPrompt`,
+    "utf8",
+  )
+  process.env.XDG_CONFIG_HOME = xdgConfigHome
+
+  // Create a local agent file with explicit model: inherit
+  const localAgentsDir = join(root, ".opencode", "agents")
+  await mkdir(localAgentsDir, { recursive: true })
+  await writeFile(
+    join(localAgentsDir, "review-documentation.md"),
+    `---\ndescription: reviewer\nmode: subagent\nmodel: inherit\n---\nPrompt`,
+    "utf8",
+  )
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review docs",
+        agent: "review-documentation",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    // model: inherit in local file should NOT fall through to global xdg/model
+    expect(output.args.model).toBeUndefined()
+  } finally {
+    if (previousXdg === undefined) {
+      delete process.env.XDG_CONFIG_HOME
+    } else {
+      process.env.XDG_CONFIG_HOME = previousXdg
+    }
+    await cleanup()
+  }
+})
+
+test("task_model_routing_reads_frontmatter_with_crlf_line_endings", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    agentFiles: {
+      "review-quality": "---\r\ndescription: reviewer\r\nmode: subagent\r\nmodel: crlf/model\r\n---\r\nPrompt\r\n",
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review code quality",
+        agent: "review-quality",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("crlf/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_ignores_inline_yaml_comments_in_frontmatter_model", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    agentFiles: {
+      "review-simplification": `---\ndescription: reviewer\nmode: subagent\nmodel: comment/model # inline comment\n---\nPrompt`,
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Review simplification opportunities",
+        agent: "review-simplification",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("comment/model")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_logs_malformed_opencode_config_warnings", async () => {
+  const { root, cleanup } = await createTempRoot()
+  await writeFile(join(root, "opencode.json"), "{", "utf8")
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run targeted verification",
+        agent: "test-runner",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    const errorLog = await readFile(join(root, ".opencode", "cache", "task-context", "errors.log"), "utf8")
+    expect(errorLog.includes("loadOpenCodeRoutingConfig")).toBe(true)
+    expect(errorLog.includes("opencode.json")).toBe(true)
+  } finally {
+    await cleanup()
+  }
+})
+
+test("task_model_routing_preserves_explicit_model_argument", async () => {
+  const { root, cleanup } = await createTempRootWithConfig({
+    opencodeConfig: {
+      model: "global/model",
+      agent: {
+        "autonomous-reviewer": {
+          model: "agent/model",
+        },
+      },
+      hyperpowers: {
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": {
+              model: "workflow/model",
+            },
+          },
+        },
+      },
+    },
+  })
+
+  try {
+    const plugin = await taskContextOrchestratorPlugin({
+      directory: root,
+      $: createShell({}).shell,
+    })
+    const output = {
+      args: {
+        prompt: "Run execute-ralph final validation",
+        agent: "autonomous-reviewer",
+        model: "explicit/model",
+      },
+    }
+
+    await plugin["tool.execute.before"]({ tool: "task" }, output)
+
+    expect(output.args.model).toBe("explicit/model")
   } finally {
     await cleanup()
   }

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "comment": "Direct agent routing example for Hyperpowers on OpenCode",
+  "model": "anthropic/claude-sonnet-4-5-20250514",
+  "small_model": "anthropic/claude-haiku-4-5-20250514",
+  "agent": {
+    "ralph": {
+      "model": "anthropic/claude-sonnet-4-5-20250514",
+      "comment": "Primary orchestrator/executor"
+    },
+    "test-runner": {
+      "model": "anthropic/claude-haiku-4-5-20250514",
+      "comment": "Fast test execution"
+    },
+    "codebase-investigator": {
+      "model": "anthropic/claude-haiku-4-5-20250514",
+      "comment": "Fast repo scanning"
+    },
+    "internet-researcher": {
+      "model": "anthropic/claude-haiku-4-5-20250514",
+      "comment": "Fast external research"
+    },
+    "review-quality": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-implementation": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-testing": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-simplification": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "review-documentation": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "code-reviewer": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "test-effectiveness-analyst": {
+      "model": "anthropic/claude-sonnet-4-5-20250514"
+    },
+    "autonomous-reviewer": {
+      "model": "anthropic/claude-opus-4-5"
+    }
+  },
+  "hyperpowers": {
+    "comment": "workflowOverrides is active for Hyperpowers task-tool dispatch paths and resolves before the global direct agent map above.",
+    "workflowOverrides": {
+      "execute-ralph": {
+        "autonomous-reviewer": {
+          "model": "anthropic/claude-opus-4-5"
+        }
+      },
+      "brainstorming": {
+        "internet-researcher": {
+          "model": "anthropic/claude-sonnet-4-5-20250514"
+        }
+      }
+    }
+  }
+}

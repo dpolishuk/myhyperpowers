@@ -98,7 +98,7 @@
     }
   },
   
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "proxy2/claude-haiku-4-5",
       "comment": "Use proxy2 for test-runner (cheaper/faster)"

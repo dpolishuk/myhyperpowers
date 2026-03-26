@@ -38,11 +38,61 @@ This format eliminates ambiguity when multiple providers offer models with simil
 
 ## Configuration Methods
 
-There are three ways to configure agent models, in order of precedence:
+This guide covers four common model-configuration patterns across Hyperpowers hosts and OpenCode usage.
 
 1. **Agent Frontmatter** - Set default model in the agent definition
 2. **OpenCode Config** - Override per-agent models in `opencode.json`
-3. **Environment Variables** - Dynamic configuration via env vars
+3. **Multiple Providers with Same Models** - Route different concrete agents across providers
+4. **Claude Code Configuration** - Host-specific model configuration
+
+---
+
+## OpenCode Hyperpowers Direct Agent Routing Contract
+
+For Hyperpowers on OpenCode, **direct agent→model mapping** is the canonical routing model.
+
+- Global defaults use OpenCode’s native `agent.<agent>.model` shape.
+- Hyperpowers-specific workflow overrides are resolved at runtime for Hyperpowers task-tool dispatch paths.
+- Any plugin/options UX should edit the same underlying map, not a separate plugin-only state store.
+- The first plugin/options editing surface is the `hyperpowers_agent_routing_config` tool, which reads/writes project-root `opencode.json` directly.
+
+In short: plugin/options edit the same underlying map.
+
+### Canonical global mapping
+
+Use `agent.<agent>.model` as the canonical global map for direct agent routing.
+
+Examples of concrete agents you may route directly:
+- `ralph`
+- `test-runner`
+- `codebase-investigator`
+- `internet-researcher`
+- `review-quality`
+- `review-implementation`
+- `review-testing`
+- `review-simplification`
+- `review-documentation`
+- `test-effectiveness-analyst`
+- `autonomous-reviewer`
+
+### Hyperpowers workflow overrides
+
+Workflow-specific overrides are active for Hyperpowers task-tool dispatch paths in OpenCode.
+
+The active Hyperpowers-injected precedence is:
+
+1. Explicit workflow override for the concrete agent
+2. Global `agent.<agent>.model` mapping
+3. Agent frontmatter `model`
+4. Otherwise leave `model` unset so native OpenCode session inheritance, top-level `model`, and provider defaults continue to apply
+
+Plugin/options edit the same underlying map as config.
+
+If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
+
+Today, the practical plugin/options surface is the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. Use it to inspect or update global `agent.<agent>.model` entries and `hyperpowers.workflowOverrides.<workflow>.<agent>.model` entries in the same file.
+
+See `docs/opencode.example.agent-routing.json` for an example of the current direct-agent mapping plus workflow overrides.
 
 ---
 
@@ -110,7 +160,7 @@ In OpenCode, you can override agent models in your `opencode.json` file without 
 **Configuration precedence (highest to lowest):**
 
 ```
-1. opencode.json → agents.<agent-name>.model
+1. opencode.json → agent.<agent-name>.model
 2. opencode.json → model (top-level default)
 3. Agent frontmatter → model setting
 4. Provider default
@@ -133,7 +183,7 @@ In OpenCode, you can override agent models in your `opencode.json` file without 
   "$schema": "https://opencode.ai/config.json",
   "comment": "Optimize costs: fast models for simple tasks, capable for complex",
   "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "anthropic/claude-haiku-4-5"
     },
@@ -202,7 +252,7 @@ When using multiple providers (e.g., multiple API proxies or aggregation service
     }
   },
 
-  "agents": {
+  "agent": {
     "test-runner": {
       "model": "proxy2/claude-haiku-4-5"
     },
@@ -285,7 +335,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "anthropic/claude-sonnet-4-5",
-  "agents": {
+  "agent": {
     "test-runner": { "model": "anthropic/claude-haiku-4-5" },
     "codebase-investigator": { "model": "anthropic/claude-haiku-4-5" },
     "internet-researcher": { "model": "anthropic/claude-haiku-4-5" },
@@ -336,7 +386,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
       }
     }
   },
-  "agents": {
+  "agent": {
     "test-runner": { "model": "myproxy/claude-haiku-4-5" }
   },
   "disabled_providers": ["anthropic", "openai", "google"]
@@ -364,7 +414,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
       }
     }
   },
-  "agents": {
+  "agent": {
     "codebase-investigator": { "model": "ollama/qwen2.5-coder:32b" }
   }
 }
@@ -377,7 +427,7 @@ All agents with `model: inherit` will use `claude-sonnet-4-5`.
 In OpenCode's TUI, you can switch models dynamically:
 
 ```
-/model
+/models
 ```
 
 This shows all available `providerID/modelID` combinations. Select a different model to change the active model for the current session.

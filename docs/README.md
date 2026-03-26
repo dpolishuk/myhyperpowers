@@ -76,21 +76,35 @@ GLM models with optimized agent assignments:
 - Assign different providers to different agents
 - Mix official and third-party providers
 
+#### `opencode.example.agent-routing.json`
+**Hyperpowers direct-routing contract example.** Shows how to:
+
+- Map models directly to concrete Hyperpowers agents with the canonical `agent` key
+- Keep plugin/options editing aligned to the same underlying routing map
+- See the active `hyperpowers.workflowOverrides` shape for Hyperpowers task-tool dispatch paths
+- Use the `hyperpowers_agent_routing_config` plugin tool to read/write that same `opencode.json` routing map
+
 ### How to Use (OpenCode)
 
 1. **Copy** the example that matches your provider:
 
 ```bash
+cp docs/opencode.example.inherit.json opencode.json
+# or
 cp docs/opencode.example.anthropic.json opencode.json
 # or
 cp docs/opencode.example.glm.json opencode.json
 # or for multi-provider
 cp docs/opencode.example.multi-provider.json opencode.json
+# or for the direct Hyperpowers routing contract example
+cp docs/opencode.example.agent-routing.json opencode.json
 ```
 
 2. **Edit** the `model` field and provider configuration
 
 3. **Restart** OpenCode to apply changes
+
+For plugin/options-driven edits, use the `hyperpowers_agent_routing_config` tool. It reads and updates the same `opencode.json` routing map shown in the example instead of storing separate plugin state.
 
 ### Agent Frontmatter Configuration
 
@@ -118,10 +132,12 @@ model: anthropic/claude-haiku-4-5  # Full providerID/modelID
 
 **Precedence order:**
 
-1. `opencode.json` → `agents.<name>.model` (highest)
-2. Agent frontmatter → `model` field
-3. `opencode.json` → top-level `model`
-4. Provider default (lowest)
+For Hyperpowers task-tool dispatch paths:
+
+1. `opencode.json` → `hyperpowers.workflowOverrides.<workflow>.<name>.model` (highest)
+2. `opencode.json` → `agent.<name>.model`
+3. Agent frontmatter → `model` field
+4. Otherwise leave `model` unset so native OpenCode inheritance, top-level `model`, and provider defaults can apply
 
 ### Understanding `providerID/modelID` Format
 

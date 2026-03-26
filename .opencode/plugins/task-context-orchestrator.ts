@@ -1,6 +1,8 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
+import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
 type TaskContextConfig = {
@@ -32,6 +34,20 @@ type TaskSummaryRecord = {
 }
 
 type CommandIntent = "execute-ralph" | "execute-plan" | null
+
+type AgentModelSettings = {
+  model?: string
+}
+
+type WorkflowOverrideMap = Record<string, Record<string, AgentModelSettings>>
+
+type OpenCodeRoutingConfig = {
+  model?: string
+  agent?: Record<string, AgentModelSettings>
+  hyperpowers?: {
+    workflowOverrides?: WorkflowOverrideMap
+  }
+}
 
 const DEFAULT_CONFIG: Required<TaskContextConfig> = {
   enabled: true,
@@ -150,6 +166,49 @@ const asArray = (value: unknown) => (Array.isArray(value) ? value : [])
 
 const normalizeKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ")
 
+const asRecord = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+const getString = (value: unknown) => {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+const getNestedString = (value: unknown, key: string) => getString(asRecord(value)[key])
+
+const normalizePrefixedLookupName = (value: string | null) => {
+  if (!value) return null
+  const withoutLeadingSlash = value.replace(/^\/+/, "")
+  const segments = withoutLeadingSlash.split(":")
+  const candidate = segments[segments.length - 1]?.trim()
+  return candidate && candidate.length > 0 ? candidate : withoutLeadingSlash
+}
+
+const findConfigEntry = <T>(entries: Record<string, T> | undefined, key: string | null) => {
+  if (!entries || !key) return null
+  const normalizedKey = normalizeKey(key)
+  for (const [entryKey, entryValue] of Object.entries(entries)) {
+    if (normalizeKey(entryKey) === normalizedKey) return entryValue
+  }
+  return null
+}
+
+const INHERIT_SENTINEL = "__inherit__" as const
+
+const parseFrontmatterModel = (content: string): string | null => {
+  try {
+    const { data } = matter(content)
+    const value = getString((data as Record<string, unknown>).model)
+    if (value === "inherit") return INHERIT_SENTINEL
+    return value || null
+  } catch {
+    return null
+  }
+}
+
 const hashPrompt = (input: string) => {
   let hash = 0
   for (let i = 0; i < input.length; i += 1) {
@@ -233,6 +292,133 @@ const detectCommandIntent = (prompt: string): CommandIntent => {
     return "execute-plan"
   }
   return null
+}
+
+const loadOpenCodeRoutingConfig = async (
+  configPath: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+): Promise<OpenCodeRoutingConfig> => {
+  if (!existsSync(configPath)) return {}
+  try {
+    const raw = await readFile(configPath, "utf8")
+    const parsed = JSON.parse(raw)
+    return asRecord(parsed) as OpenCodeRoutingConfig
+  } catch (error) {
+    try {
+      await appendStructuredLog(
+        errorLogPath,
+        {
+          level: "warn",
+          source: "task-context-orchestrator.loadOpenCodeRoutingConfig",
+          message: "Failed to read or parse OpenCode routing configuration",
+          configPath,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        logLevel,
+      )
+    } catch {
+      // Swallow logging failures to avoid blocking task execution.
+    }
+    return {}
+  }
+}
+
+const extractTaskAgentName = (args: Record<string, unknown>) => {
+  return normalizePrefixedLookupName(
+    getString(args.agent) ??
+      getString(args.subagent) ??
+      getString(args.subagent_type) ??
+      getString(args.subagentType) ??
+      getNestedString(args.metadata, "agent") ??
+      getNestedString(args.metadata, "subagent") ??
+      getNestedString(args.metadata, "subagent_type"),
+  )
+}
+
+const detectWorkflowOverride = (
+  args: Record<string, unknown>,
+  prompt: string,
+  workflowOverrides: WorkflowOverrideMap | undefined,
+) => {
+  if (!workflowOverrides) return null
+
+  const explicitWorkflow = normalizePrefixedLookupName(
+    getString(args.workflow) ??
+      getString(args.hyperpowersWorkflow) ??
+      getNestedString(args.metadata, "workflow") ??
+      getNestedString(args.metadata, "hyperpowersWorkflow"),
+  )
+  const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
+  if (explicitMatch && explicitWorkflow) return explicitWorkflow
+
+  const commandIntent = detectCommandIntent(prompt)
+  const intentMatch = findConfigEntry(workflowOverrides, commandIntent)
+  if (intentMatch && commandIntent) return commandIntent
+
+  const searchableText = `${prompt}\n${getString(args.description) ?? ""}`.toLowerCase()
+  for (const workflowName of Object.keys(workflowOverrides).sort((a, b) => b.length - a.length || a.localeCompare(b))) {
+    if (searchableText.includes(workflowName.toLowerCase())) return workflowName
+  }
+
+  return null
+}
+
+const getAgentFrontmatterPaths = (rootDir: string, agentName: string) => {
+  const fileName = `${agentName}.md`
+  const homeDir = process.env.HOME || homedir()
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME || join(homeDir, ".config")
+
+  const candidates = [
+    join(rootDir, ".opencode", "agents", fileName),
+    join(xdgConfigHome, "opencode", "agents", fileName),
+    join(homeDir, ".opencode", "agents", fileName),
+  ]
+
+  return Array.from(new Set(candidates))
+}
+
+const readAgentFrontmatterModel = async (rootDir: string, agentName: string) => {
+  for (const agentPath of getAgentFrontmatterPaths(rootDir, agentName)) {
+    if (!existsSync(agentPath)) continue
+    try {
+      const raw = await readFile(agentPath, "utf8")
+      const model = parseFrontmatterModel(raw)
+      // Explicit `model: inherit` in a local file is terminal — do not fall
+      // through to global agent files which might override the intent.
+      if (model === INHERIT_SENTINEL) return null
+      if (model) return model
+    } catch {
+      // Ignore unreadable agent files and keep searching fallback locations.
+    }
+  }
+
+  return null
+}
+
+const resolveTaskModel = async (
+  rootDir: string,
+  args: Record<string, unknown>,
+  prompt: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+) => {
+  const explicitModel = getString(args.model)
+  if (explicitModel) return explicitModel
+
+  const agentName = extractTaskAgentName(args)
+  if (!agentName) return null
+
+  const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
+  const workflowName = detectWorkflowOverride(args, prompt, config.hyperpowers?.workflowOverrides)
+  const workflowSettings = findConfigEntry(config.hyperpowers?.workflowOverrides, workflowName)
+  const workflowModel = getString(findConfigEntry(workflowSettings, agentName)?.model)
+  if (workflowModel) return workflowModel
+
+  const agentModel = getString(findConfigEntry(config.agent, agentName)?.model)
+  if (agentModel) return agentModel
+
+  return readAgentFrontmatterModel(rootDir, agentName)
 }
 
 const filterEntriesForIntent = (entries: TaskMemoryEntry[], intent: CommandIntent): TaskMemoryEntry[] => {
@@ -331,10 +517,15 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       if (!config.enabled) return
       if (input.tool !== "task") return
 
-      const args = output.args ?? {}
+      const args = (output.args ?? {}) as Record<string, unknown>
       const prompt = typeof args.prompt === "string" ? args.prompt : ""
       if (!prompt.trim()) return
       if (prompt.startsWith("Task Context Pack")) return
+
+      const resolvedModel = await resolveTaskModel(ctx.directory, args, prompt, errorLogPath, config.logLevel)
+      if (resolvedModel) {
+        args.model = resolvedModel
+      }
 
       const commandIntent = detectCommandIntent(prompt)
 
