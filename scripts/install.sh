@@ -354,6 +354,33 @@ install_claude() {
     fi
   done
 
+  # Status line script
+  copy_item "${REPO_ROOT}/scripts/hyperpowers-statusline.sh" "${home}/hyperpowers-statusline.sh"
+  chmod +x "${home}/hyperpowers-statusline.sh"
+  manifest_add "hyperpowers-statusline.sh"
+
+  # Configure status line in settings.json if not already set
+  local settings="${home}/settings.json"
+  local statusline_cmd="${home}/hyperpowers-statusline.sh"
+  if [[ -f "$settings" ]]; then
+    if ! python3 -c "import json; d=json.load(open('$settings')); assert d.get('statusline')" 2>/dev/null; then
+      local tmp; tmp=$(mktemp)
+      python3 -c "
+import json
+with open('$settings') as f:
+    d = json.load(f)
+d['statusline'] = '$statusline_cmd'
+with open('$tmp', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+" 2>/dev/null && mv "$tmp" "$settings" || rm -f "$tmp"
+      echo "  Configured status line in settings.json"
+    fi
+  else
+    echo '{"statusline":"'"$statusline_cmd"'"}' | python3 -m json.tool > "$settings" 2>/dev/null || true
+    echo "  Created settings.json with status line"
+  fi
+
   manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
   write_manifest "$home"
