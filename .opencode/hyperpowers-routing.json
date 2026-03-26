@@ -1,7 +1,9 @@
 {
   "workflowOverrides": {
     "execute-ralph": {
-      "autonomous-reviewer": { "model": "glm/glm-4.7" }
+      "autonomous-reviewer": {
+        "model": "opencode/claude-opus-4-5"
+      }
     }
   }
 }

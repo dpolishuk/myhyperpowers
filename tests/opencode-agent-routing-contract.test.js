@@ -111,13 +111,17 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
 
 test("OpenCode plugin source registers the routing config tool and writes opencode.json", () => {
   const pluginPath = path.join(repoRoot, ".opencode", "plugins", "agent-routing-config.ts")
+  const corePath = path.join(repoRoot, ".opencode", "plugins", "routing-wizard-core.ts")
   assert.equal(fs.existsSync(pluginPath), true)
+  assert.equal(fs.existsSync(corePath), true)
 
   const pluginSource = fs.readFileSync(pluginPath, "utf8")
+  const coreSource = fs.readFileSync(corePath, "utf8")
   assert.equal(/hyperpowers_agent_routing_config/.test(pluginSource), true)
-  assert.equal(/action\s*===\s*"get"/.test(pluginSource), true)
   assert.equal(/enum\(\["get",\s*"set",\s*"set-group",\s*"apply-preset"\]\)/.test(pluginSource), true)
-  assert.equal(/opencode\.json/.test(pluginSource), true)
+  assert.equal(/executeRoutingAction/.test(pluginSource), true)
+  assert.equal(/action\s*===\s*"get"/.test(coreSource), true)
+  assert.equal(/opencode\.json/.test(coreSource), true)
 })
 
 test("OpenCode routing settings command exists and delegates to the routing config tool", () => {
@@ -140,6 +144,17 @@ test("OpenCode routing settings command exists and delegates to the routing conf
   assert.equal(commandSource.includes("availableModels"), true)
   assert.equal(commandSource.includes("cost-optimized"), true)
   assert.equal(commandSource.includes("quality-first"), true)
+})
+
+test("OpenCode CLI routing wizard script exists and uses the canonical split-file contract", () => {
+  const scriptPath = path.join(repoRoot, "scripts", "opencode-routing-wizard.ts")
+  assert.equal(fs.existsSync(scriptPath), true)
+
+  const scriptSource = fs.readFileSync(scriptPath, "utf8")
+  assert.equal(scriptSource.includes("opencode models"), true)
+  assert.equal(scriptSource.includes("opencode.json"), true)
+  assert.equal(scriptSource.includes(".opencode/hyperpowers-routing.json"), true)
+  assert.equal(scriptSource.includes("routing-wizard-core"), true)
 })
 
 test("OpenCode docs describe the routing settings command as the primary settings-like UX", () => {

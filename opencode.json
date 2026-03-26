@@ -55,20 +55,44 @@
     "lsp": "allow",
     "patch": "allow"
   },
-  "model": "glm/glm-4.7",
-  "small_model": "glm/glm-4.5",
+  "model": "opencode/claude-sonnet-4-5",
+  "small_model": "opencode/claude-haiku-4-5",
   "agent": {
-    "ralph": { "model": "glm/glm-4.7" },
-    "test-runner": { "model": "glm/glm-4.5" },
-    "codebase-investigator": { "model": "glm/glm-4.5" },
-    "internet-researcher": { "model": "glm/glm-4.5" },
-    "code-reviewer": { "model": "glm/glm-4.7" },
-    "review-quality": { "model": "glm/glm-4.7" },
-    "review-implementation": { "model": "glm/glm-4.7" },
-    "review-testing": { "model": "glm/glm-4.7" },
-    "review-simplification": { "model": "glm/glm-4.7" },
-    "review-documentation": { "model": "glm/glm-4.7" },
-    "test-effectiveness-analyst": { "model": "glm/glm-4.7" },
-    "autonomous-reviewer": { "model": "glm/glm-4.7" }
+    "autonomous-reviewer": {
+      "model": "opencode/claude-opus-4-5"
+    },
+    "code-reviewer": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "codebase-investigator": {
+      "model": "opencode/claude-haiku-4-5"
+    },
+    "internet-researcher": {
+      "model": "opencode/claude-haiku-4-5"
+    },
+    "ralph": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "review-documentation": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "review-implementation": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "review-quality": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "review-simplification": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "review-testing": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "test-effectiveness-analyst": {
+      "model": "opencode/claude-sonnet-4-5"
+    },
+    "test-runner": {
+      "model": "opencode/claude-haiku-4-5"
+    }
   }
 }

@@ -302,6 +302,13 @@ cd your-project/.opencode && bun install && cd ..
 opencode
 ```
 
+To generate a validated multi-agent routing config from live model names in the target project, run:
+
+```bash
+cd your-project
+bun /path/to/hyperpowers/scripts/opencode-routing-wizard.ts --yes
+```
+
 **Install via npm** (alternative):
 
 ```json

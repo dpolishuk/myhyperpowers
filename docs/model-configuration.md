@@ -115,6 +115,12 @@ Presets read the user's top-level `model` and `small_model` values. If `small_mo
 
 See `docs/opencode.example.agent-routing.json` for the agent mapping example and `docs/opencode.example.hyperpowers-routing.json` for the workflow overrides example.
 
+For a terminal-first bootstrap flow that discovers live model names from `opencode models` and writes the same split-file routing contract, run:
+
+```bash
+bun scripts/opencode-routing-wizard.ts --yes
+```
+
 ---
 
 ### Method 1: Agent Frontmatter (Default Configuration)

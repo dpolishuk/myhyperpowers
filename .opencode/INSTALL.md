@@ -60,6 +60,12 @@ mkdir -p .opencode
 cp docs/opencode.example.hyperpowers-routing.json .opencode/hyperpowers-routing.json
 ```
 
+Or bootstrap the same canonical split-file routing config from live `opencode models` discovery:
+
+```bash
+bun scripts/opencode-routing-wizard.ts --yes
+```
+
 Note: workflow overrides live in `.opencode/hyperpowers-routing.json` (not in `opencode.json`) because OpenCode strictly validates its config schema and rejects unknown keys. The `workflowOverrides` block is active for Hyperpowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
 
 The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads agent mappings from `opencode.json` and workflow overrides from `.opencode/hyperpowers-routing.json` instead of maintaining plugin-only routing state.
