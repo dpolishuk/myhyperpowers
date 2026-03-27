@@ -391,6 +391,30 @@ with open('$tmp', 'w') as f:
   manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
   write_manifest "$home"
+
+  # Offer to install memsearch for long-term memory
+  if [[ "$FORCE" != true ]] && [[ -t 0 ]]; then
+    echo ""
+    echo "  Would you like to install memsearch for long-term cross-session memory?"
+    echo "  Uses local ONNX embeddings (no API key needed for embeddings)."
+    echo "  Memories stored as plain markdown files in ~/.memsearch/memory/"
+    echo ""
+    read -r -p "  Install memsearch? [y/N] " answer
+    if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
+      if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+        local pip_cmd="pip3"
+        command -v pip3 >/dev/null 2>&1 || pip_cmd="pip"
+        echo "  Installing memsearch[onnx]..."
+        "$pip_cmd" install "memsearch[onnx]" --quiet 2>/dev/null && echo "  memsearch installed." || warn "memsearch install failed"
+        if command -v memsearch >/dev/null 2>&1; then
+          echo "  Initializing memsearch config..."
+          memsearch config init --non-interactive 2>/dev/null || memsearch config init 2>/dev/null || true
+        fi
+      else
+        warn "pip not found — install memsearch manually: pip install memsearch[onnx]"
+      fi
+    fi
+  fi
 }
 
 install_opencode() {
