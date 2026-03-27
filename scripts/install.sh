@@ -470,7 +470,7 @@ install_opencode() {
     echo ""
     read -r -p "  Run routing wizard? [y/N] " answer
     if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
-      (cd "${REPO_ROOT}" && bun scripts/opencode-routing-wizard.ts) || warn "Routing wizard failed"
+      bun "${REPO_ROOT}/scripts/opencode-routing-wizard.ts" || warn "Routing wizard failed"
     fi
   fi
 }

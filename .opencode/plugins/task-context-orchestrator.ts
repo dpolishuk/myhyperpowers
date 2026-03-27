@@ -667,7 +667,9 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         } else if (providerId.includes("openai") || providerId.includes("opencode")) {
           output.options = { ...existing, openai: { ...asRecord(existing.openai), reasoningEffort: effort } }
         } else if (providerId.includes("google")) {
-          output.options = { ...existing, google: { ...asRecord(existing.google), thinkingConfig: { thinkingLevel: effort } } }
+          const existingGoogle = asRecord(existing.google)
+          const existingThinkingConfig = asRecord(existingGoogle.thinkingConfig)
+          output.options = { ...existing, google: { ...existingGoogle, thinkingConfig: { ...existingThinkingConfig, thinkingLevel: effort } } }
         }
       } catch {
         // Effort injection is best-effort — never block execution.
