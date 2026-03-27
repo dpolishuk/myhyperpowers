@@ -628,6 +628,9 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
     return cachedRoutingConfig
   }
 
+  // Store resolved effort per agent during task dispatch for chat.params to use
+  const resolvedEffortByAgent = new Map<string, EffortLevel>()
+
   return {
     "experimental.chat.system.transform": async (_input, output) => {
       if (!config.enabled) return
@@ -644,9 +647,14 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         const agentName = input.agent
         if (!agentName) return
 
-        const ocConfig = await getCachedRoutingConfig()
-        const agentEntry = asRecord(findConfigEntry(ocConfig.agent, agentName))
-        const effort = getString(agentEntry.effort)
+        // Check dispatch-resolved effort first (includes workflow overrides),
+        // then fall back to global config
+        let effort: string | null = resolvedEffortByAgent.get(agentName) ?? null
+        if (!effort) {
+          const ocConfig = await getCachedRoutingConfig()
+          const agentEntry = asRecord(findConfigEntry(ocConfig.agent, agentName))
+          effort = getString(agentEntry.effort)
+        }
         if (!effort || !isValidEffort(effort)) return
 
         const providerId = input.provider?.info?.id ?? ""
@@ -681,6 +689,7 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       if (agentName) {
         const displayModel = resolvedModel ?? "(inherited)"
         const resolvedEffort = await resolveTaskEffort(ctx.directory, args, prompt, errorLogPath, config.logLevel)
+        if (resolvedEffort) resolvedEffortByAgent.set(agentName, resolvedEffort)
         const effortLabel = resolvedEffort ? ` [${resolvedEffort}]` : ""
         if (!shownRoutingSummary) {
           shownRoutingSummary = true
