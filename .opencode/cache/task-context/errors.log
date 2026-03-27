@@ -514,3 +514,9 @@
 {"timestamp":"2026-03-27T12:17:55.326Z","run_id":"1774613875310-5e8dd4489aea48","source":"supermemory","operation":"save","error":"Failed with exit code 1"}
 {"timestamp":"2026-03-27T12:18:43.525Z","run_id":"1774613923521-73f4dff7150438","source":"serena","operation":"save","error":"Failed with exit code 1"}
 {"timestamp":"2026-03-27T12:18:43.545Z","run_id":"1774613923521-73f4dff7150438","source":"supermemory","operation":"save","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:26:00.417Z","run_id":"1774614360410-9f0200665482b","source":"serena","operation":"fetch","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:26:00.418Z","run_id":"1774614360410-9f0200665482b","source":"supermemory","operation":"fetch","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:26:26.132Z","run_id":"1774614386129-afdfc6eef5b168","source":"serena","operation":"save","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:26:26.146Z","run_id":"1774614386129-afdfc6eef5b168","source":"supermemory","operation":"save","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:27:53.269Z","run_id":"1774614473255-e23518a10ee1c8","source":"serena","operation":"save","error":"Failed with exit code 1"}
+{"timestamp":"2026-03-27T12:27:53.271Z","run_id":"1774614473255-e23518a10ee1c8","source":"supermemory","operation":"save","error":"Failed with exit code 1"}

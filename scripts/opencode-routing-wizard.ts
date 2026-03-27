@@ -10,15 +10,21 @@ import {
   HYPERPOWERS_AGENTS,
   discoverAvailableModels,
   discoverOpencodeModels,
+  isValidEffort,
   planRecommendedRouting,
   verifyRecommendedRoutingPlan,
   writeRecommendedRoutingPlan,
 } from "../.opencode/plugins/routing-wizard-core"
 
+import type { EffortLevel } from "../.opencode/plugins/routing-wizard-core"
+
 type ParsedArgs = {
   strongModel?: string
   fastModel?: string
   topReviewModel?: string
+  strongEffort?: string
+  fastEffort?: string
+  topReviewEffort?: string
   yes: boolean
   help: boolean
 }
@@ -35,7 +41,7 @@ const getString = (value: unknown) => {
 }
 
 const usage = `Usage:
-  bun scripts/opencode-routing-wizard.ts [--strong-model provider/model] [--fast-model provider/model] [--top-review-model provider/model] [--yes]
+  bun scripts/opencode-routing-wizard.ts [--strong-model provider/model] [--fast-model provider/model] [--top-review-model provider/model] [--strong-effort low|medium|high] [--fast-effort low|medium|high] [--top-review-effort low|medium|high] [--yes]
 
 What it does:
   - shells out to \`opencode models\` to discover live available provider/model ids
@@ -111,6 +117,18 @@ const parseArgs = (argv: string[]): ParsedArgs => {
         break
       case "--top-review-model":
         parsed.topReviewModel = requireValue(argv, index, arg)
+        index += 1
+        break
+      case "--strong-effort":
+        parsed.strongEffort = requireValue(argv, index, arg)
+        index += 1
+        break
+      case "--fast-effort":
+        parsed.fastEffort = requireValue(argv, index, arg)
+        index += 1
+        break
+      case "--top-review-effort":
+        parsed.topReviewEffort = requireValue(argv, index, arg)
         index += 1
         break
       case "--yes":
@@ -320,7 +338,19 @@ const main = async () => {
       return
     }
 
-    const plan = planRecommendedRouting({ strongModel, fastModel, topReviewModel })
+    // Validate and resolve effort params (default to "high")
+    const strongEffort = args.strongEffort && isValidEffort(args.strongEffort) ? args.strongEffort as EffortLevel : undefined
+    const workerEffort = args.fastEffort && isValidEffort(args.fastEffort) ? args.fastEffort as EffortLevel : undefined
+    const reviewerEffort = args.topReviewEffort && isValidEffort(args.topReviewEffort) ? args.topReviewEffort as EffortLevel : undefined
+
+    const plan = planRecommendedRouting({
+      strongModel,
+      fastModel,
+      topReviewModel,
+      strongEffort,
+      workerEffort,
+      reviewerEffort,
+    })
     const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
     if (!writeResult.ok) {
       console.error(`Write failed: ${writeResult.error.message}`)

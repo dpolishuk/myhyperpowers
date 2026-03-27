@@ -55,15 +55,15 @@
     "lsp": "allow",
     "patch": "allow"
   },
-  "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+  "model": "openai/gpt-5.4",
   "small_model": "kimi-for-coding/k2p5",
   "agent": {
     "autonomous-reviewer": {
-      "model": "openai/gpt-5.4",
+      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
       "effort": "high"
     },
     "code-reviewer": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "codebase-investigator": {
@@ -75,31 +75,31 @@
       "effort": "high"
     },
     "ralph": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "review-documentation": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "review-implementation": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "review-quality": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "review-simplification": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "review-testing": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "test-effectiveness-analyst": {
-      "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "test-runner": {
