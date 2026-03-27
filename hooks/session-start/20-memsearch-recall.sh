@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Recall relevant memories from memsearch on session start.
-# Runs memsearch search with the current project name as query context.
-# Output is injected into the session as system context.
+# Output JSON with hookSpecificOutput.additionalContext format.
 
 set -euo pipefail
 
@@ -23,14 +22,15 @@ fi
 memories=$(memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
 
 if [[ -n "$memories" && "$memories" != "No results found"* ]]; then
+  # Escape for JSON embedding
+  escaped=$(echo "$memories" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
+
   cat <<EOF
-<context>
-## Long-term Memory (memsearch)
-The following memories from previous sessions may be relevant:
-
-${memories}
-
-Use these as background context. Do not repeat them unless asked.
-</context>
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "## Long-term Memory (memsearch)\\nThe following memories from previous sessions may be relevant:\\n\\n${escaped}\\n\\nUse these as background context. Do not repeat them unless asked."
+  }
+}
 EOF
 fi

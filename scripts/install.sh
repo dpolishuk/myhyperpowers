@@ -401,17 +401,15 @@ with open('$tmp', 'w') as f:
     echo ""
     read -r -p "  Install memsearch? [y/N] " answer
     if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
-      if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
-        local pip_cmd="pip3"
-        command -v pip3 >/dev/null 2>&1 || pip_cmd="pip"
+      if command -v python3 >/dev/null 2>&1; then
         echo "  Installing memsearch[onnx]..."
-        "$pip_cmd" install "memsearch[onnx]" --quiet 2>/dev/null && echo "  memsearch installed." || warn "memsearch install failed"
+        python3 -m pip install --user "memsearch[onnx]" --quiet && echo "  memsearch installed." || warn "memsearch install failed — try: python3 -m pip install --user memsearch[onnx]"
         if command -v memsearch >/dev/null 2>&1; then
           echo "  Initializing memsearch config..."
           memsearch config init --non-interactive 2>/dev/null || memsearch config init 2>/dev/null || true
         fi
       else
-        warn "pip not found — install memsearch manually: pip install memsearch[onnx]"
+        warn "python3 not found — install memsearch manually: python3 -m pip install --user memsearch[onnx]"
       fi
     fi
   fi

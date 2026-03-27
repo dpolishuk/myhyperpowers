@@ -1,7 +1,9 @@
 ---
-name: recall
-description: Search long-term memory from previous sessions using memsearch
+name: codex-skill-recall
+description: "Use when the original skill 'recall' applies. Search long-term memory from previous sessions using memsearch"
 ---
+
+<!-- Generated from skills/recall/SKILL.md -->
 
 # Memory Recall
 

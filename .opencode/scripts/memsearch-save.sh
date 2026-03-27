@@ -23,7 +23,9 @@ timestamp=$(date +"%Y-%m-%d %H:%M")
 memory_dir="${HOME}/.memsearch/memory"
 mkdir -p "$memory_dir"
 
-memory_file="${memory_dir}/$(date +%Y-%m-%d).md"
+# Use project-scoped filename to avoid mixing contexts
+safe_project=$(echo "$project_name" | tr -cd 'a-zA-Z0-9_-')
+memory_file="${memory_dir}/$(date +%Y-%m-%d)-${safe_project}.md"
 
 {
   if [[ ! -f "$memory_file" ]]; then

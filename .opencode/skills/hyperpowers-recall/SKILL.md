@@ -18,7 +18,7 @@ memsearch search "<user's query>" --top-k 10
 If the user didn't provide a specific query, search for recent work on the current project:
 
 ```bash
-memsearch search "recent work on $(basename $(git rev-parse --show-toplevel 2>/dev/null || pwd))" --top-k 10
+memsearch search "recent work on $(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")" --top-k 10
 ```
 
 ## Expanding results

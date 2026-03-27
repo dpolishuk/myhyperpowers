@@ -12,10 +12,15 @@ fi
 # Read the stop hook input (JSON with session context)
 input=$(cat 2>/dev/null || true)
 
-# Extract a summary from the stop context if available
+# Extract meaningful content from the stop payload
 summary=""
 if command -v jq >/dev/null 2>&1 && [[ -n "$input" ]]; then
-  summary=$(echo "$input" | jq -r '.stop_reason // .reason // empty' 2>/dev/null || true)
+  # Claude Code Stop hook provides { "text": "assistant's response" }
+  raw_text=$(echo "$input" | jq -r '.text // empty' 2>/dev/null || true)
+  if [[ -n "$raw_text" ]]; then
+    # Take the first 500 chars as a summary
+    summary="${raw_text:0:500}"
+  fi
 fi
 
 # Get project context
@@ -32,7 +37,9 @@ timestamp=$(date +"%Y-%m-%d %H:%M")
 memory_dir="${HOME}/.memsearch/memory"
 mkdir -p "$memory_dir"
 
-memory_file="${memory_dir}/$(date +%Y-%m-%d).md"
+# Use project-scoped filename to avoid mixing contexts
+safe_project=$(echo "$project_name" | tr -cd 'a-zA-Z0-9_-')
+memory_file="${memory_dir}/$(date +%Y-%m-%d)-${safe_project}.md"
 
 # Append session entry
 {
