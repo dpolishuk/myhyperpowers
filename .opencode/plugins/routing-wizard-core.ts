@@ -65,8 +65,11 @@ type CommandResult = {
 
 export type ModelsCommandRunner = (cwd: string) => Promise<CommandResult>
 
+export type EffortLevel = "low" | "medium" | "high"
+
 export type RoutingEntry = Record<string, unknown> & {
   model?: string
+  effort?: EffortLevel
 }
 
 export type OpenCodeConfig = Record<string, unknown> & {
@@ -84,6 +87,7 @@ export type RoutingToolArgs = {
   agent?: string
   workflow?: string
   model?: string
+  effort?: string
   group?: string
   preset?: string
   strongModel?: string
@@ -359,6 +363,31 @@ export const updateGlobalAgentModel = (config: OpenCodeConfig, agentName: AgentN
       ...existingEntry,
       model,
     },
+  }) as Record<string, RoutingEntry>
+
+  return nextConfig
+}
+
+const VALID_EFFORT_LEVELS: EffortLevel[] = ["low", "medium", "high"]
+
+export const isValidEffort = (value: unknown): value is EffortLevel =>
+  typeof value === "string" && VALID_EFFORT_LEVELS.includes(value as EffortLevel)
+
+export const updateGlobalAgentEffort = (config: OpenCodeConfig, agentName: AgentName, effort: EffortLevel | null) => {
+  const nextConfig: OpenCodeConfig = { ...config }
+  const existingAgentMap = asRecord(nextConfig.agent)
+  const existingEntry = asRecord(existingAgentMap[agentName])
+
+  const updated = { ...existingEntry }
+  if (effort) {
+    updated.effort = effort
+  } else {
+    delete updated.effort
+  }
+
+  nextConfig.agent = sortObject({
+    ...existingAgentMap,
+    [agentName]: updated,
   }) as Record<string, RoutingEntry>
 
   return nextConfig
@@ -971,7 +1000,14 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     }
   }
 
-  const nextConfig = updateGlobalAgentModel(current.config, agentName, model)
+  let nextConfig = updateGlobalAgentModel(current.config, agentName, model)
+
+  // Apply effort if provided
+  const effort = getString(args.effort)
+  if (effort && isValidEffort(effort)) {
+    nextConfig = updateGlobalAgentEffort(nextConfig, agentName, effort)
+  }
+
   await persistConfig(configPath, nextConfig)
 
   const hpConfig = hpState.config

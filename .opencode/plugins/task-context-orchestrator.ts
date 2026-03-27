@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { HYPERPOWERS_AGENTS } from "./agent-routing-config"
+import { type EffortLevel, isValidEffort } from "./routing-wizard-core"
 import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
@@ -467,6 +468,36 @@ const resolveTaskModel = async (
   return readAgentFrontmatterModel(rootDir, agentName)
 }
 
+const resolveTaskEffort = async (
+  rootDir: string,
+  args: Record<string, unknown>,
+  prompt: string,
+  errorLogPath: string,
+  logLevel: "silent" | "warn",
+): Promise<EffortLevel | null> => {
+  const agentName = extractTaskAgentName(args)
+  if (!agentName) return null
+
+  const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
+  const hpConfig = await loadHyperpowersRoutingConfig(
+    join(rootDir, ".opencode", "hyperpowers-routing.json"),
+    errorLogPath,
+    logLevel,
+  )
+
+  // Check workflow override first
+  const workflowName = detectWorkflowOverride(args, prompt, hpConfig.workflowOverrides)
+  const workflowSettings = findConfigEntry(hpConfig.workflowOverrides, workflowName)
+  const workflowEffort = getString(findConfigEntry(workflowSettings, agentName)?.effort)
+  if (workflowEffort && isValidEffort(workflowEffort)) return workflowEffort
+
+  // Then global agent config
+  const agentEffort = getString(findConfigEntry(config.agent, agentName)?.effort)
+  if (agentEffort && isValidEffort(agentEffort)) return agentEffort
+
+  return null
+}
+
 const filterEntriesForIntent = (entries: TaskMemoryEntry[], intent: CommandIntent): TaskMemoryEntry[] => {
   if (!intent) return entries
   return entries.filter((entry) => {
@@ -557,8 +588,11 @@ const buildRoutingSummary = async (rootDir: string, errorLogPath: string, logLev
 
   const lines: string[] = ["Agent Model Routing:"]
   for (const agent of HYPERPOWERS_AGENTS) {
-    const model = getString(asRecord(agentMap[agent]).model) ?? defaultModel
-    lines.push(`  ${agent}: ${model}`)
+    const entry = asRecord(agentMap[agent])
+    const model = getString(entry.model) ?? defaultModel
+    const effort = getString(entry.effort)
+    const effortSuffix = effort ? ` [effort: ${effort}]` : ""
+    lines.push(`  ${agent}: ${model}${effortSuffix}`)
   }
   return lines.join("\n")
 }
@@ -590,6 +624,29 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         // System prompt injection is best-effort — never block the session.
       }
     },
+    "chat.params": async (input, output) => {
+      if (!config.enabled) return
+      try {
+        const agentName = input.agent
+        if (!agentName) return
+
+        const ocConfig = await loadOpenCodeRoutingConfig(join(ctx.directory, "opencode.json"), errorLogPath, config.logLevel)
+        const agentEntry = asRecord(findConfigEntry(ocConfig.agent, agentName))
+        const effort = getString(agentEntry.effort)
+        if (!effort || !isValidEffort(effort)) return
+
+        const providerId = input.provider?.info?.id ?? ""
+        if (providerId.includes("anthropic")) {
+          output.options = { ...output.options, anthropic: { effort, thinking: { type: "adaptive" } } }
+        } else if (providerId.includes("openai") || providerId.includes("opencode")) {
+          output.options = { ...output.options, openai: { reasoningEffort: effort } }
+        } else if (providerId.includes("google")) {
+          output.options = { ...output.options, google: { thinkingConfig: { thinkingLevel: effort } } }
+        }
+      } catch {
+        // Effort injection is best-effort — never block execution.
+      }
+    },
     "tool.execute.before": async (input, output) => {
       if (!config.enabled) return
       if (input.tool !== "task") return
@@ -608,12 +665,14 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       const agentName = extractTaskAgentName(args)
       if (agentName) {
         const displayModel = resolvedModel ?? "(inherited)"
+        const resolvedEffort = await resolveTaskEffort(ctx.directory, args, prompt, errorLogPath, config.logLevel)
+        const effortLabel = resolvedEffort ? ` [${resolvedEffort}]` : ""
         if (!shownRoutingSummary) {
           shownRoutingSummary = true
           const summary = await buildRoutingSummary(ctx.directory, errorLogPath, config.logLevel)
           showToastSafe(ctx.client, "Hyperpowers Routing", summary)
         }
-        showToastSafe(ctx.client, "Agent Dispatch", `${agentName} → ${displayModel}`)
+        showToastSafe(ctx.client, "Agent Dispatch", `${agentName} → ${displayModel}${effortLabel}`)
       }
 
       const commandIntent = detectCommandIntent(prompt)
