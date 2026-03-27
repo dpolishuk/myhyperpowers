@@ -106,5 +106,14 @@
       "model": "kimi-for-coding/k2p5",
       "effort": "high"
     }
+  },
+  "experimental": {
+    "hook": {
+      "session_completed": [
+        {
+          "command": ["bash", ".opencode/scripts/memsearch-save.sh"]
+        }
+      ]
+    }
   }
 }
