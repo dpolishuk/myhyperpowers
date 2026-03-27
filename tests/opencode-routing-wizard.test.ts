@@ -341,6 +341,62 @@ test("verifyRecommendedRoutingPlan fails when backend read-back diverges from pl
   }
 })
 
+test("verifyRecommendedRoutingPlan detects effort drift in global agents", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const discoveredModels = ["anthropic/claude-sonnet-4-5"]
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      strongEffort: "high",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    // Tamper with persisted effort for ralph
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    ocPersisted.agent.ralph.effort = "low"
+    await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
+
+    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+    expect(verify.ok).toBe(false)
+    if (verify.ok) throw new Error("expected effort drift failure")
+    expect(verify.error.code).toBe("snapshot_mismatch")
+    expect(verify.error.message).toContain("effort")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("verifyRecommendedRoutingPlan detects effort drift in workflow overrides", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const discoveredModels = ["anthropic/claude-sonnet-4-5"]
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      reviewerEffort: "high",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    // Tamper with persisted workflow override effort
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort = "low"
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
+
+    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+    expect(verify.ok).toBe(false)
+    if (verify.ok) throw new Error("expected workflow effort drift failure")
+    expect(verify.error.code).toBe("snapshot_mismatch")
+    expect(verify.error.message).toContain("effort")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("CLI bootstrap script generates canonical routing files from discovered models", async () => {
   const { root, cleanup } = await createTempRoot({
     provider: {

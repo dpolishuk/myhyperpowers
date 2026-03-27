@@ -777,6 +777,16 @@ export const verifyRecommendedRoutingPlan = async (
         actual: actualModel,
       })
     }
+
+    const expectedEffort = getString(asRecord(plan.agent)[agentName]?.effort)
+    const actualEffort = getString(asRecord(snapshot.routing.agent)[agentName]?.effort)
+    if ((expectedEffort ?? null) !== (actualEffort ?? null)) {
+      return invalidResult(configPath, "snapshot_mismatch", `Routing snapshot diverged for agent ${agentName} effort`, {
+        agent: agentName,
+        expected: expectedEffort,
+        actual: actualEffort,
+      })
+    }
   }
 
   for (const workflowName of Object.keys(plan.workflowOverrides)) {
@@ -791,6 +801,17 @@ export const verifyRecommendedRoutingPlan = async (
           agent: agentName,
           expected: expectedModel,
           actual: actualModel,
+        })
+      }
+
+      const expectedEffort = getString(asRecord(expectedAgents[agentName]).effort)
+      const actualEffort = getString(asRecord(actualAgents[agentName]).effort)
+      if ((expectedEffort ?? null) !== (actualEffort ?? null)) {
+        return invalidResult(configPath, "snapshot_mismatch", `Workflow override diverged for ${workflowName}/${agentName} effort`, {
+          workflow: workflowName,
+          agent: agentName,
+          expected: expectedEffort,
+          actual: actualEffort,
         })
       }
     }
