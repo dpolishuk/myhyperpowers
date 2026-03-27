@@ -231,18 +231,17 @@ const selectModel = async (models: string[], message: string, currentModel?: str
 }
 
 const selectEffort = async (message: string) => {
-  const value = ensureNotCancelled(
+  return ensureNotCancelled(
     await p.select({
       message,
       options: [
-        { value: "none", label: "No effort setting", hint: "use provider default" },
+        { value: "none", label: "No effort setting", hint: "use provider default / clear existing" },
         { value: "low", label: "Low", hint: "fast, less reasoning" },
         { value: "medium", label: "Medium", hint: "balanced" },
         { value: "high", label: "High", hint: "thorough reasoning" },
       ],
     }),
   )
-  return value === "none" ? undefined : value
 }
 
 const runBootstrapFlow = async (models: string[], defaults: { strongModel: string; fastModel: string; topReviewModel: string }) => {

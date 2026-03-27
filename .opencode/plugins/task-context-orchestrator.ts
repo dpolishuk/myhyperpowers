@@ -644,8 +644,9 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
     "chat.params": async (input, output) => {
       if (!config.enabled) return
       try {
-        const agentName = input.agent
-        if (!agentName) return
+        const rawAgentName = input.agent
+        if (!rawAgentName) return
+        const agentName = normalizePrefixedLookupName(rawAgentName) ?? rawAgentName
 
         // Check dispatch-resolved effort first (includes workflow overrides),
         // then fall back to global config
