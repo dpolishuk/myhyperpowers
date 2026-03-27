@@ -689,7 +689,11 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       if (agentName) {
         const displayModel = resolvedModel ?? "(inherited)"
         const resolvedEffort = await resolveTaskEffort(ctx.directory, args, prompt, errorLogPath, config.logLevel)
-        if (resolvedEffort) resolvedEffortByAgent.set(agentName, resolvedEffort)
+        if (resolvedEffort) {
+          resolvedEffortByAgent.set(agentName, resolvedEffort)
+        } else {
+          resolvedEffortByAgent.delete(agentName)
+        }
         const effortLabel = resolvedEffort ? ` [${resolvedEffort}]` : ""
         if (!shownRoutingSummary) {
           shownRoutingSummary = true
