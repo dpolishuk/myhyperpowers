@@ -661,7 +661,9 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         const providerId = input.provider?.info?.id ?? ""
         const existing = asRecord(output.options)
         if (providerId.includes("anthropic")) {
-          output.options = { ...existing, anthropic: { ...asRecord(existing.anthropic), effort, thinking: { type: "adaptive" } } }
+          const existingAnthropic = asRecord(existing.anthropic)
+          const existingThinking = asRecord(existingAnthropic.thinking)
+          output.options = { ...existing, anthropic: { ...existingAnthropic, effort, thinking: { ...existingThinking, type: "adaptive" } } }
         } else if (providerId.includes("openai") || providerId.includes("opencode")) {
           output.options = { ...existing, openai: { ...asRecord(existing.openai), reasoningEffort: effort } }
         } else if (providerId.includes("google")) {

@@ -373,7 +373,7 @@ const VALID_EFFORT_LEVELS: EffortLevel[] = ["low", "medium", "high"]
 export const isValidEffort = (value: unknown): value is EffortLevel =>
   typeof value === "string" && VALID_EFFORT_LEVELS.includes(value as EffortLevel)
 
-export const updateGlobalAgentEffort = (config: OpenCodeConfig, agentName: AgentName, effort: EffortLevel | null) => {
+export const updateGlobalAgentEffort = (config: OpenCodeConfig, agentName: AgentName, effort: EffortLevel | null | undefined) => {
   const nextConfig: OpenCodeConfig = { ...config }
   const existingAgentMap = asRecord(nextConfig.agent)
   const existingEntry = asRecord(existingAgentMap[agentName])
@@ -599,9 +599,9 @@ export const planRecommendedRouting = ({
   const resolvedFastModel = configuredFastModel ?? canonicalStrong
   const resolvedTopReviewModel = configuredTopReviewModel ?? canonicalStrong
 
-  const resolvedStrongEffort: EffortLevel = strongEffort ?? "high"
-  const resolvedWorkerEffort: EffortLevel = workerEffort ?? "high"
-  const resolvedReviewerEffort: EffortLevel = reviewerEffort ?? "high"
+  const resolvedStrongEffort = strongEffort ?? undefined
+  const resolvedWorkerEffort = workerEffort ?? undefined
+  const resolvedReviewerEffort = reviewerEffort ?? undefined
 
   let nextConfig: OpenCodeConfig = {
     $schema: DEFAULT_SCHEMA,
