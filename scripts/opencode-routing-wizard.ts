@@ -261,7 +261,7 @@ const runSingleAgentFlow = async (models: string[], routing: Record<string, stri
       ],
     }),
   )
-  return { agent, model, effort: effort === "none" ? undefined : effort }
+  return { agent, model, effort }
 }
 
 const main = async () => {

@@ -980,12 +980,32 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   const invalidModel = validateModelAgainstAvailableSet(configPath, model, availableModels)
   if (invalidModel) return invalidModel
 
+  // Validate effort early (applies to both global and workflow paths)
+  const effort = getString(args.effort)
+  if (effort && effort !== "none" && !isValidEffort(effort)) {
+    return invalidResult(configPath, "invalid_effort", `Invalid effort level: ${effort}. Use low, medium, high, or none.`)
+  }
+
   if (workflowName) {
     const hpResult = await readHpConfigForWrite(hpConfigPath)
     if (!hpResult.ok) {
       return { ok: false as const, error: hpResult.error }
     }
-    const nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
+    let nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
+
+    // Apply effort to workflow override entry
+    if (effort) {
+      const overrides = asRecord(nextHpConfig.workflowOverrides)
+      const workflowEntry = asRecord(overrides[workflowName])
+      const agentEntry = asRecord(workflowEntry[agentName])
+      if (effort === "none") {
+        delete agentEntry.effort
+      } else {
+        agentEntry.effort = effort
+      }
+      nextHpConfig = { ...nextHpConfig, workflowOverrides: { ...overrides, [workflowName]: { ...workflowEntry, [agentName]: agentEntry } } } as HyperpowersRoutingConfig
+    }
+
     await persistConfig(hpConfigPath, nextHpConfig as Record<string, unknown>)
 
     const ocConfig = current.config
@@ -1003,14 +1023,11 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   let nextConfig = updateGlobalAgentModel(current.config, agentName, model)
 
   // Apply effort if provided ("none" clears existing effort)
-  const effort = getString(args.effort)
   if (effort) {
     if (effort === "none") {
       nextConfig = updateGlobalAgentEffort(nextConfig, agentName, null)
     } else if (isValidEffort(effort)) {
       nextConfig = updateGlobalAgentEffort(nextConfig, agentName, effort)
-    } else {
-      return invalidResult(configPath, "invalid_effort", `Invalid effort level: ${effort}. Use low, medium, high, or none.`)
     }
   }
 
