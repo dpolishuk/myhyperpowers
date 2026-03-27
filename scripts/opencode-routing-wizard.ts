@@ -250,7 +250,18 @@ const runSingleAgentFlow = async (models: string[], routing: Record<string, stri
   )
 
   const model = await selectModel(models, `Select model for ${agent}`, routing[agent])
-  return { agent, model }
+  const effort = ensureNotCancelled(
+    await p.select({
+      message: `Reasoning effort for ${agent}?`,
+      options: [
+        { value: "none", label: "No effort setting", hint: "use provider default" },
+        { value: "low", label: "Low", hint: "fast, less reasoning" },
+        { value: "medium", label: "Medium", hint: "balanced" },
+        { value: "high", label: "High", hint: "thorough reasoning" },
+      ],
+    }),
+  )
+  return { agent, model, effort: effort === "none" ? undefined : effort }
 }
 
 const main = async () => {
@@ -389,14 +400,15 @@ const main = async () => {
     }
 
     if (action === "single") {
-      const { agent, model } = await runSingleAgentFlow(suggestedModels, routing)
+      const { agent, model, effort } = await runSingleAgentFlow(suggestedModels, routing)
 
       // Use the shared core to write just this one agent
       const { executeRoutingAction } = await import("../.opencode/plugins/routing-wizard-core")
-      const result = await executeRoutingAction(cwd(), { action: "set", agent, model })
+      const result = await executeRoutingAction(cwd(), { action: "set", agent, model, effort })
       if ("ok" in result && result.ok) {
         routing[agent] = model
-        p.log.success(`${agent} → ${model}`)
+        const effortLabel = effort ? ` [effort: ${effort}]` : ""
+        p.log.success(`${agent} → ${model}${effortLabel}`)
         changed = true
       } else {
         p.log.error(`Failed to update ${agent}`)
