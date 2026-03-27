@@ -230,11 +230,31 @@ const selectModel = async (models: string[], message: string, currentModel?: str
   )
 }
 
+const selectEffort = async (message: string) => {
+  const value = ensureNotCancelled(
+    await p.select({
+      message,
+      options: [
+        { value: "none", label: "No effort setting", hint: "use provider default" },
+        { value: "low", label: "Low", hint: "fast, less reasoning" },
+        { value: "medium", label: "Medium", hint: "balanced" },
+        { value: "high", label: "High", hint: "thorough reasoning" },
+      ],
+    }),
+  )
+  return value === "none" ? undefined : value
+}
+
 const runBootstrapFlow = async (models: string[], defaults: { strongModel: string; fastModel: string; topReviewModel: string }) => {
   const strongModel = await selectModel(models, "Select strong model (orchestrator + reviewers)", defaults.strongModel)
   const fastModel = await selectModel(models, "Select fast model (workers — test-runner, investigators)", defaults.fastModel)
   const topReviewModel = await selectModel(models, "Select top-review model (autonomous-reviewer)", defaults.topReviewModel)
-  return { strongModel, fastModel, topReviewModel }
+
+  const strongEffort = await selectEffort("Effort for orchestrator + reviewers?")
+  const workerEffort = await selectEffort("Effort for workers (test-runner, investigators)?")
+  const reviewerEffort = await selectEffort("Effort for autonomous-reviewer?")
+
+  return { strongModel, fastModel, topReviewModel, strongEffort, workerEffort, reviewerEffort }
 }
 
 const runSingleAgentFlow = async (models: string[], routing: Record<string, string>) => {
@@ -388,6 +408,24 @@ const main = async () => {
         continue
       }
 
+      // Apply effort per group after bootstrap
+      const { executeRoutingAction } = await import("../.opencode/plugins/routing-wizard-core")
+      const effortMap: Array<[string[], string | undefined]> = [
+        [AGENT_GROUPS.orchestrator as unknown as string[], selections.strongEffort],
+        [AGENT_GROUPS.workers as unknown as string[], selections.workerEffort],
+        [["autonomous-reviewer"], selections.reviewerEffort],
+        [AGENT_GROUPS.reviewers.filter((a: string) => a !== "autonomous-reviewer") as unknown as string[], selections.strongEffort],
+      ]
+      for (const [agents, effort] of effortMap) {
+        if (!effort) continue
+        for (const agent of agents) {
+          const agentModel = plan.agent[agent]?.model
+          if (agentModel) {
+            await executeRoutingAction(cwd(), { action: "set", agent, model: agentModel, effort })
+          }
+        }
+      }
+
       s.stop("Routing config written and verified")
       changed = true
 
@@ -463,6 +501,24 @@ const main = async () => {
         s.stop("Verification failed")
         p.log.error(verifyResult.error.message)
         continue
+      }
+
+      // Apply effort per group after preset
+      const { executeRoutingAction: execPresetAction } = await import("../.opencode/plugins/routing-wizard-core")
+      const presetEffortMap: Array<[string[], string | undefined]> = [
+        [AGENT_GROUPS.orchestrator as unknown as string[], selections.strongEffort],
+        [AGENT_GROUPS.workers as unknown as string[], selections.workerEffort],
+        [["autonomous-reviewer"], selections.reviewerEffort],
+        [AGENT_GROUPS.reviewers.filter((a: string) => a !== "autonomous-reviewer") as unknown as string[], selections.strongEffort],
+      ]
+      for (const [agents, effort] of presetEffortMap) {
+        if (!effort) continue
+        for (const agent of agents) {
+          const agentModel = plan.agent[agent]?.model
+          if (agentModel) {
+            await execPresetAction(cwd(), { action: "set", agent, model: agentModel, effort })
+          }
+        }
       }
 
       s.stop("Preset applied and verified")
