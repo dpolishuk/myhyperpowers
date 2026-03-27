@@ -1002,10 +1002,16 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
 
   let nextConfig = updateGlobalAgentModel(current.config, agentName, model)
 
-  // Apply effort if provided
+  // Apply effort if provided ("none" clears existing effort)
   const effort = getString(args.effort)
-  if (effort && isValidEffort(effort)) {
-    nextConfig = updateGlobalAgentEffort(nextConfig, agentName, effort)
+  if (effort) {
+    if (effort === "none") {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, null)
+    } else if (isValidEffort(effort)) {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, effort)
+    } else {
+      return invalidResult(configPath, "invalid_effort", `Invalid effort level: ${effort}. Use low, medium, high, or none.`)
+    }
   }
 
   await persistConfig(configPath, nextConfig)

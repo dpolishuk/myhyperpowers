@@ -614,6 +614,20 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
   const lastContextPath = join(cacheDir, "last-context.json")
   const summariesPath = join(cacheDir, "summaries.json")
 
+  // Cached routing config to avoid re-reading files on every chat.params/dispatch
+  let cachedRoutingConfig: OpenCodeRoutingConfig | null = null
+  let cachedRoutingTimestamp = 0
+  const ROUTING_CACHE_TTL_MS = 10000 // 10 seconds
+  const getCachedRoutingConfig = async () => {
+    const now = Date.now()
+    if (cachedRoutingConfig && now - cachedRoutingTimestamp < ROUTING_CACHE_TTL_MS) {
+      return cachedRoutingConfig
+    }
+    cachedRoutingConfig = await loadOpenCodeRoutingConfig(join(ctx.directory, "opencode.json"), errorLogPath, config.logLevel)
+    cachedRoutingTimestamp = now
+    return cachedRoutingConfig
+  }
+
   return {
     "experimental.chat.system.transform": async (_input, output) => {
       if (!config.enabled) return
@@ -630,18 +644,19 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         const agentName = input.agent
         if (!agentName) return
 
-        const ocConfig = await loadOpenCodeRoutingConfig(join(ctx.directory, "opencode.json"), errorLogPath, config.logLevel)
+        const ocConfig = await getCachedRoutingConfig()
         const agentEntry = asRecord(findConfigEntry(ocConfig.agent, agentName))
         const effort = getString(agentEntry.effort)
         if (!effort || !isValidEffort(effort)) return
 
         const providerId = input.provider?.info?.id ?? ""
+        const existing = asRecord(output.options)
         if (providerId.includes("anthropic")) {
-          output.options = { ...output.options, anthropic: { effort, thinking: { type: "adaptive" } } }
+          output.options = { ...existing, anthropic: { ...asRecord(existing.anthropic), effort, thinking: { type: "adaptive" } } }
         } else if (providerId.includes("openai") || providerId.includes("opencode")) {
-          output.options = { ...output.options, openai: { reasoningEffort: effort } }
+          output.options = { ...existing, openai: { ...asRecord(existing.openai), reasoningEffort: effort } }
         } else if (providerId.includes("google")) {
-          output.options = { ...output.options, google: { thinkingConfig: { thinkingLevel: effort } } }
+          output.options = { ...existing, google: { ...asRecord(existing.google), thinkingConfig: { thinkingLevel: effort } } }
         }
       } catch {
         // Effort injection is best-effort — never block execution.

@@ -850,3 +850,73 @@ test("get_snapshot_includes_preset_names", async () => {
     await cleanup()
   }
 })
+
+// --- Effort tests ---
+
+test("set_persists_effort_in_agent_entry", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "test/model", agent: { "test-runner": { model: "test/model" } } }),
+  )
+
+  try {
+    await withFakeOpencodeModels(root, "test/model", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "test/model",
+        effort: "low",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+      expect(result.ok).toBe(true)
+      expect(persisted.agent["test-runner"].effort).toBe("low")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_rejects_invalid_effort_value", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "test/model", agent: { "test-runner": { model: "test/model" } } }),
+  )
+
+  try {
+    await withFakeOpencodeModels(root, "test/model", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "test/model",
+        effort: "turbo",
+      })
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe("invalid_effort")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
+test("set_effort_none_clears_existing_effort", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "test/model", agent: { "test-runner": { model: "test/model", effort: "high" } } }),
+  )
+
+  try {
+    await withFakeOpencodeModels(root, "test/model", async () => {
+      const result = await runTool(root, {
+        action: "set",
+        agent: "test-runner",
+        model: "test/model",
+        effort: "none",
+      })
+      const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+      expect(result.ok).toBe(true)
+      expect(persisted.agent["test-runner"].effort).toBeUndefined()
+    })
+  } finally {
+    await cleanup()
+  }
+})
