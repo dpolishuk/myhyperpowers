@@ -347,10 +347,17 @@ const main = async () => {
       return
     }
 
-    // Validate and resolve effort params (default to "high")
-    const strongEffort = args.strongEffort && isValidEffort(args.strongEffort) ? args.strongEffort as EffortLevel : undefined
-    const workerEffort = args.fastEffort && isValidEffort(args.fastEffort) ? args.fastEffort as EffortLevel : undefined
-    const reviewerEffort = args.topReviewEffort && isValidEffort(args.topReviewEffort) ? args.topReviewEffort as EffortLevel : undefined
+    // Validate effort flags — reject invalid values instead of silently ignoring
+    for (const [flag, value] of [["--strong-effort", args.strongEffort], ["--fast-effort", args.fastEffort], ["--top-review-effort", args.topReviewEffort]] as const) {
+      if (value && !isValidEffort(value)) {
+        console.error(`Invalid ${flag} value: ${value}. Use low, medium, or high.`)
+        exit(1)
+        return
+      }
+    }
+    const strongEffort = args.strongEffort as EffortLevel | undefined
+    const workerEffort = args.fastEffort as EffortLevel | undefined
+    const reviewerEffort = args.topReviewEffort as EffortLevel | undefined
 
     const plan = planRecommendedRouting({
       strongModel,
