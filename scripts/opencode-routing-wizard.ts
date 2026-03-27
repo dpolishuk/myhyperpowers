@@ -10,15 +10,21 @@ import {
   HYPERPOWERS_AGENTS,
   discoverAvailableModels,
   discoverOpencodeModels,
+  isValidEffort,
   planRecommendedRouting,
   verifyRecommendedRoutingPlan,
   writeRecommendedRoutingPlan,
 } from "../.opencode/plugins/routing-wizard-core"
 
+import type { EffortLevel } from "../.opencode/plugins/routing-wizard-core"
+
 type ParsedArgs = {
   strongModel?: string
   fastModel?: string
   topReviewModel?: string
+  strongEffort?: string
+  fastEffort?: string
+  topReviewEffort?: string
   yes: boolean
   help: boolean
 }
@@ -35,7 +41,7 @@ const getString = (value: unknown) => {
 }
 
 const usage = `Usage:
-  bun scripts/opencode-routing-wizard.ts [--strong-model provider/model] [--fast-model provider/model] [--top-review-model provider/model] [--yes]
+  bun scripts/opencode-routing-wizard.ts [--strong-model provider/model] [--fast-model provider/model] [--top-review-model provider/model] [--strong-effort low|medium|high] [--fast-effort low|medium|high] [--top-review-effort low|medium|high] [--yes]
 
 What it does:
   - shells out to \`opencode models\` to discover live available provider/model ids
@@ -113,6 +119,18 @@ const parseArgs = (argv: string[]): ParsedArgs => {
         parsed.topReviewModel = requireValue(argv, index, arg)
         index += 1
         break
+      case "--strong-effort":
+        parsed.strongEffort = requireValue(argv, index, arg)
+        index += 1
+        break
+      case "--fast-effort":
+        parsed.fastEffort = requireValue(argv, index, arg)
+        index += 1
+        break
+      case "--top-review-effort":
+        parsed.topReviewEffort = requireValue(argv, index, arg)
+        index += 1
+        break
       case "--yes":
         parsed.yes = true
         break
@@ -140,9 +158,13 @@ const getCurrentRouting = async (rootDir: string) => {
   try {
     const parsed = existsSync(configPath) ? JSON.parse(await readFile(configPath, "utf8")) : {}
     const agentMap = asRecord(asRecord(parsed).agent)
-    const result: Record<string, string> = {}
+    const result: Record<string, { model: string; effort?: string }> = {}
     for (const agent of HYPERPOWERS_AGENTS) {
-      result[agent] = getString(asRecord(agentMap[agent]).model) ?? getString(asRecord(parsed).model) ?? "(inherit)"
+      const entry = asRecord(agentMap[agent])
+      result[agent] = {
+        model: getString(entry.model) ?? getString(asRecord(parsed).model) ?? "(inherit)",
+        effort: getString(entry.effort) ?? undefined,
+      }
     }
     return result
   } catch {
@@ -150,7 +172,7 @@ const getCurrentRouting = async (rootDir: string) => {
   }
 }
 
-const renderCurrentState = (routing: Record<string, string>) => {
+const renderCurrentState = (routing: Record<string, { model: string; effort?: string }>) => {
   if (Object.keys(routing).length === 0) {
     p.log.warn("No routing config found. Run bootstrap to set up all agents.")
     return
@@ -160,8 +182,10 @@ const renderCurrentState = (routing: Record<string, string>) => {
   for (const [group, agents] of Object.entries(AGENT_GROUPS)) {
     lines.push(`  ${group}:`)
     for (const agent of agents) {
-      const model = routing[agent] ?? "(not set)"
-      lines.push(`    ${agent.padEnd(28)} ${model}`)
+      const entry = routing[agent]
+      const model = entry?.model ?? "(not set)"
+      const effortLabel = entry?.effort ? ` [effort: ${entry.effort}]` : ""
+      lines.push(`    ${agent.padEnd(28)} ${model}${effortLabel}`)
     }
   }
   p.note(lines.join("\n"), "Current Routing")
@@ -172,7 +196,9 @@ const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
   for (const [group, agents] of Object.entries(AGENT_GROUPS)) {
     lines.push(`  ${group}:`)
     for (const agent of agents) {
-      lines.push(`    ${agent.padEnd(28)} ${plan.agent[agent].model}`)
+      const entry = plan.agent[agent]
+      const effortLabel = entry.effort ? ` [effort: ${entry.effort}]` : ""
+      lines.push(`    ${agent.padEnd(28)} ${entry.model}${effortLabel}`)
     }
   }
 
@@ -182,7 +208,8 @@ const renderPreview = (plan: ReturnType<typeof planRecommendedRouting>) => {
     lines.push("  workflow overrides:")
     for (const [workflow, agents] of overrides) {
       for (const [agent, entry] of Object.entries(agents)) {
-        lines.push(`    ${workflow}.${agent}: ${entry.model}`)
+        const effortLabel = entry.effort ? ` [effort: ${entry.effort}]` : ""
+        lines.push(`    ${workflow}.${agent}: ${entry.model}${effortLabel}`)
       }
     }
   }
@@ -230,27 +257,57 @@ const selectModel = async (models: string[], message: string, currentModel?: str
   )
 }
 
+const selectEffort = async (message: string) => {
+  return ensureNotCancelled(
+    await p.select({
+      message,
+      options: [
+        { value: "none", label: "No effort setting", hint: "use provider default / clear existing" },
+        { value: "low", label: "Low", hint: "fast, less reasoning" },
+        { value: "medium", label: "Medium", hint: "balanced" },
+        { value: "high", label: "High", hint: "thorough reasoning" },
+      ],
+    }),
+  )
+}
+
 const runBootstrapFlow = async (models: string[], defaults: { strongModel: string; fastModel: string; topReviewModel: string }) => {
   const strongModel = await selectModel(models, "Select strong model (orchestrator + reviewers)", defaults.strongModel)
   const fastModel = await selectModel(models, "Select fast model (workers — test-runner, investigators)", defaults.fastModel)
   const topReviewModel = await selectModel(models, "Select top-review model (autonomous-reviewer)", defaults.topReviewModel)
-  return { strongModel, fastModel, topReviewModel }
+
+  const strongEffort = await selectEffort("Effort for orchestrator + reviewers?")
+  const workerEffort = await selectEffort("Effort for workers (test-runner, investigators)?")
+  const reviewerEffort = await selectEffort("Effort for autonomous-reviewer?")
+
+  return { strongModel, fastModel, topReviewModel, strongEffort, workerEffort, reviewerEffort }
 }
 
-const runSingleAgentFlow = async (models: string[], routing: Record<string, string>) => {
+const runSingleAgentFlow = async (models: string[], routing: Record<string, { model: string; effort?: string }>) => {
   const agent = ensureNotCancelled(
     await p.select({
       message: "Which agent?",
       options: HYPERPOWERS_AGENTS.map((a) => ({
         value: a,
         label: a,
-        hint: `${getAgentGroup(a)} — ${routing[a] ?? "(not set)"}`,
+        hint: `${getAgentGroup(a)} — ${routing[a]?.model ?? "(not set)"}`,
       })),
     }),
   )
 
-  const model = await selectModel(models, `Select model for ${agent}`, routing[agent])
-  return { agent, model }
+  const model = await selectModel(models, `Select model for ${agent}`, routing[agent]?.model)
+  const effort = ensureNotCancelled(
+    await p.select({
+      message: `Reasoning effort for ${agent}?`,
+      options: [
+        { value: "none", label: "No effort setting", hint: "use provider default" },
+        { value: "low", label: "Low", hint: "fast, less reasoning" },
+        { value: "medium", label: "Medium", hint: "balanced" },
+        { value: "high", label: "High", hint: "thorough reasoning" },
+      ],
+    }),
+  )
+  return { agent, model, effort }
 }
 
 const main = async () => {
@@ -290,7 +347,26 @@ const main = async () => {
       return
     }
 
-    const plan = planRecommendedRouting({ strongModel, fastModel, topReviewModel })
+    // Validate effort flags — reject invalid values instead of silently ignoring
+    for (const [flag, value] of [["--strong-effort", args.strongEffort], ["--fast-effort", args.fastEffort], ["--top-review-effort", args.topReviewEffort]] as const) {
+      if (value && !isValidEffort(value)) {
+        console.error(`Invalid ${flag} value: ${value}. Use low, medium, or high.`)
+        exit(1)
+        return
+      }
+    }
+    const strongEffort = args.strongEffort as EffortLevel | undefined
+    const workerEffort = args.fastEffort as EffortLevel | undefined
+    const reviewerEffort = args.topReviewEffort as EffortLevel | undefined
+
+    const plan = planRecommendedRouting({
+      strongModel,
+      fastModel,
+      topReviewModel,
+      strongEffort,
+      workerEffort,
+      reviewerEffort,
+    })
     const writeResult = await writeRecommendedRoutingPlan(cwd(), plan)
     if (!writeResult.ok) {
       console.error(`Write failed: ${writeResult.error.message}`)
@@ -351,10 +427,16 @@ const main = async () => {
 
     if (action === "bootstrap") {
       const selections = await runBootstrapFlow(suggestedModels, defaults)
+      const resolvedStrongEffort = selections.strongEffort === "none" ? undefined : selections.strongEffort as EffortLevel | undefined
+      const resolvedWorkerEffort = selections.workerEffort === "none" ? undefined : selections.workerEffort as EffortLevel | undefined
+      const resolvedReviewerEffort = selections.reviewerEffort === "none" ? undefined : selections.reviewerEffort as EffortLevel | undefined
       const plan = planRecommendedRouting({
         strongModel: selections.strongModel,
         fastModel: selections.fastModel,
         topReviewModel: selections.topReviewModel,
+        strongEffort: resolvedStrongEffort,
+        workerEffort: resolvedWorkerEffort,
+        reviewerEffort: resolvedReviewerEffort,
       })
 
       renderPreview(plan)
@@ -389,14 +471,15 @@ const main = async () => {
     }
 
     if (action === "single") {
-      const { agent, model } = await runSingleAgentFlow(suggestedModels, routing)
+      const { agent, model, effort } = await runSingleAgentFlow(suggestedModels, routing)
 
       // Use the shared core to write just this one agent
       const { executeRoutingAction } = await import("../.opencode/plugins/routing-wizard-core")
-      const result = await executeRoutingAction(cwd(), { action: "set", agent, model })
+      const result = await executeRoutingAction(cwd(), { action: "set", agent, model, effort })
       if ("ok" in result && result.ok) {
-        routing[agent] = model
-        p.log.success(`${agent} → ${model}`)
+        routing[agent] = { model, effort: effort !== "none" ? effort : undefined }
+        const effortLabel = effort ? ` [effort: ${effort}]` : ""
+        p.log.success(`${agent} → ${model}${effortLabel}`)
         changed = true
       } else {
         p.log.error(`Failed to update ${agent}`)
@@ -427,10 +510,16 @@ const main = async () => {
 
       // Presets need strong/fast/top models
       const selections = await runBootstrapFlow(suggestedModels, defaults)
+      const presetStrongEffort = selections.strongEffort === "none" ? undefined : selections.strongEffort as EffortLevel | undefined
+      const presetWorkerEffort = selections.workerEffort === "none" ? undefined : selections.workerEffort as EffortLevel | undefined
+      const presetReviewerEffort = selections.reviewerEffort === "none" ? undefined : selections.reviewerEffort as EffortLevel | undefined
       const plan = planRecommendedRouting({
         strongModel: selections.strongModel,
         fastModel: preset === "cost-optimized" ? selections.fastModel : selections.strongModel,
         topReviewModel: selections.topReviewModel,
+        strongEffort: presetStrongEffort,
+        workerEffort: presetWorkerEffort,
+        reviewerEffort: presetReviewerEffort,
       })
 
       renderPreview(plan)

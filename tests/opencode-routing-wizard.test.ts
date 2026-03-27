@@ -5,6 +5,8 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
 import {
+  AGENT_GROUPS,
+  HYPERPOWERS_AGENTS,
   discoverOpencodeModels,
   executeRoutingAction,
   parseOpencodeModelsOutput,
@@ -73,6 +75,113 @@ test("planRecommendedRouting uses safe defaults and creates execute-ralph review
   expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
     "anthropic/claude-sonnet-4-5",
   )
+})
+
+test("planRecommendedRouting with no effort params defaults all agents to effort high", () => {
+  const plan = planRecommendedRouting({
+    strongModel: "anthropic/claude-sonnet-4-5",
+  })
+
+  // Every agent in the plan must have effort: "high"
+  for (const agentName of HYPERPOWERS_AGENTS) {
+    expect(plan.agent[agentName].effort).toBe("high")
+  }
+
+  // Workflow override must also have effort
+  expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("high")
+})
+
+test("planRecommendedRouting with mixed effort applies per-group correctly", () => {
+  const plan = planRecommendedRouting({
+    strongModel: "anthropic/claude-sonnet-4-5",
+    fastModel: "anthropic/claude-haiku-4-5",
+    strongEffort: "high",
+    workerEffort: "low",
+    reviewerEffort: "medium",
+  })
+
+  // Orchestrator group uses strongEffort
+  for (const agent of AGENT_GROUPS.orchestrator) {
+    expect(plan.agent[agent].effort).toBe("high")
+  }
+
+  // Worker group uses workerEffort
+  for (const agent of AGENT_GROUPS.workers) {
+    expect(plan.agent[agent].effort).toBe("low")
+  }
+
+  // Reviewer group uses strongEffort, except autonomous-reviewer uses reviewerEffort
+  for (const agent of AGENT_GROUPS.reviewers) {
+    if (agent === "autonomous-reviewer") {
+      expect(plan.agent[agent].effort).toBe("medium")
+    } else {
+      expect(plan.agent[agent].effort).toBe("high")
+    }
+  }
+
+  // Workflow override gets reviewerEffort
+  expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("medium")
+})
+
+test("writeRecommendedRoutingPlan writes effort to opencode.json and workflow overrides", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      fastModel: "anthropic/claude-haiku-4-5",
+      workerEffort: "medium",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+
+    // Every agent in opencode.json should have effort
+    expect(ocPersisted.agent.ralph.effort).toBe("high")
+    expect(ocPersisted.agent["test-runner"].effort).toBe("medium")
+    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("medium")
+    expect(ocPersisted.agent["internet-researcher"].effort).toBe("medium")
+    expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
+    expect(ocPersisted.agent["autonomous-reviewer"].effort).toBe("high")
+
+    // Workflow override should have effort
+    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("high")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("writeRecommendedRoutingPlan with effort preserves unrelated config", async () => {
+  const { root, cleanup } = await createTempRoot(
+    {
+      provider: { openrouter: { apiKey: "{env:OPENROUTER_API_KEY}" } },
+      mcp: { context7: { type: "remote" } },
+      permission: { read: "allow" },
+    },
+  )
+
+  try {
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      strongEffort: "high",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    // Unrelated config preserved
+    expect(ocPersisted.provider.openrouter.apiKey).toBe("{env:OPENROUTER_API_KEY}")
+    expect(ocPersisted.mcp.context7.type).toBe("remote")
+    expect(ocPersisted.permission.read).toBe("allow")
+
+    // Effort also written
+    expect(ocPersisted.agent.ralph.effort).toBe("high")
+  } finally {
+    await cleanup()
+  }
 })
 
 test("resolveSuggestedModels merges live discovery with config-derived models", async () => {
@@ -232,6 +341,62 @@ test("verifyRecommendedRoutingPlan fails when backend read-back diverges from pl
   }
 })
 
+test("verifyRecommendedRoutingPlan detects effort drift in global agents", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const discoveredModels = ["anthropic/claude-sonnet-4-5"]
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      strongEffort: "high",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    // Tamper with persisted effort for ralph
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    ocPersisted.agent.ralph.effort = "low"
+    await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
+
+    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+    expect(verify.ok).toBe(false)
+    if (verify.ok) throw new Error("expected effort drift failure")
+    expect(verify.error.code).toBe("snapshot_mismatch")
+    expect(verify.error.message).toContain("effort")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("verifyRecommendedRoutingPlan detects effort drift in workflow overrides", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  try {
+    const discoveredModels = ["anthropic/claude-sonnet-4-5"]
+    const plan = planRecommendedRouting({
+      strongModel: "anthropic/claude-sonnet-4-5",
+      reviewerEffort: "high",
+    })
+
+    await writeRecommendedRoutingPlan(root, plan)
+
+    // Tamper with persisted workflow override effort
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort = "low"
+    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
+
+    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+    expect(verify.ok).toBe(false)
+    if (verify.ok) throw new Error("expected workflow effort drift failure")
+    expect(verify.error.code).toBe("snapshot_mismatch")
+    expect(verify.error.message).toContain("effort")
+  } finally {
+    await cleanup()
+  }
+})
+
 test("CLI bootstrap script generates canonical routing files from discovered models", async () => {
   const { root, cleanup } = await createTempRoot({
     provider: {
@@ -383,6 +548,113 @@ test("CLI --yes bootstraps without interactive model prompts", async () => {
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
     expect(ocPersisted.model).toBe("opencode/claude-haiku-4-5")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("CLI --yes with effort flags writes effort to config", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const wizardPath = resolve(import.meta.dir, "..", "scripts", "opencode-routing-wizard.ts")
+
+  try {
+    await mkdir(binDir, { recursive: true })
+    await writeFile(
+      opencodePath,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"models\" ]; then\n  printf 'Available models\\nanthropic/claude-sonnet-4-5\\nanthropic/claude-haiku-4-5\\n'\n  exit 0\nfi\nexit 1\n",
+      "utf8",
+    )
+    await chmod(opencodePath, 0o755)
+
+    const result = spawnSync(
+      "bun",
+      [
+        wizardPath,
+        "--strong-model", "anthropic/claude-sonnet-4-5",
+        "--fast-model", "anthropic/claude-haiku-4-5",
+        "--strong-effort", "high",
+        "--fast-effort", "medium",
+        "--top-review-effort", "low",
+        "--yes",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH}`,
+        },
+      },
+    )
+
+    expect(result.status).toBe(0)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+
+    // Orchestrator gets strongEffort
+    expect(ocPersisted.agent.ralph.effort).toBe("high")
+
+    // Workers get fastEffort
+    expect(ocPersisted.agent["test-runner"].effort).toBe("medium")
+    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("medium")
+
+    // Reviewers get strongEffort, autonomous-reviewer gets topReviewEffort
+    expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
+    expect(ocPersisted.agent["autonomous-reviewer"].effort).toBe("low")
+
+    // Workflow override gets topReviewEffort
+    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("low")
+  } finally {
+    await cleanup()
+  }
+})
+
+test("CLI --yes without effort flags defaults all effort to high", async () => {
+  const { root, cleanup } = await createTempRoot()
+
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const wizardPath = resolve(import.meta.dir, "..", "scripts", "opencode-routing-wizard.ts")
+
+  try {
+    await mkdir(binDir, { recursive: true })
+    await writeFile(
+      opencodePath,
+      "#!/usr/bin/env bash\nif [ \"$1\" = \"models\" ]; then\n  printf 'Available models\\nanthropic/claude-sonnet-4-5\\n'\n  exit 0\nfi\nexit 1\n",
+      "utf8",
+    )
+    await chmod(opencodePath, 0o755)
+
+    const result = spawnSync(
+      "bun",
+      [
+        wizardPath,
+        "--strong-model", "anthropic/claude-sonnet-4-5",
+        "--yes",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH}`,
+        },
+      },
+    )
+
+    expect(result.status).toBe(0)
+
+    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+
+    // All agents default to effort: high
+    expect(ocPersisted.agent.ralph.effort).toBe("high")
+    expect(ocPersisted.agent["test-runner"].effort).toBe("high")
+    expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
+    expect(ocPersisted.agent["autonomous-reviewer"].effort).toBe("high")
   } finally {
     await cleanup()
   }

@@ -22,6 +22,7 @@ const agentRoutingConfigPlugin: Plugin = async (ctx) => {
           agent: tool.schema.string().optional().describe("Concrete Hyperpowers agent name (for set)"),
           workflow: tool.schema.string().optional().describe("Optional workflow override name (for set)"),
           model: tool.schema.string().optional().describe("Provider/model value (for set, set-group)"),
+          effort: tool.schema.string().optional().describe("Reasoning effort level: low, medium, high (for set)"),
           group: tool.schema.string().optional().describe("Agent group: orchestrator, workers, reviewers, all (for set-group)"),
           preset: tool.schema.string().optional().describe("Preset profile: cost-optimized, quality-first (for apply-preset)"),
           strongModel: tool.schema.string().optional().describe("Strong provider/model value for bootstrap"),

@@ -65,8 +65,11 @@ type CommandResult = {
 
 export type ModelsCommandRunner = (cwd: string) => Promise<CommandResult>
 
+export type EffortLevel = "low" | "medium" | "high"
+
 export type RoutingEntry = Record<string, unknown> & {
   model?: string
+  effort?: EffortLevel
 }
 
 export type OpenCodeConfig = Record<string, unknown> & {
@@ -84,6 +87,7 @@ export type RoutingToolArgs = {
   agent?: string
   workflow?: string
   model?: string
+  effort?: string
   group?: string
   preset?: string
   strongModel?: string
@@ -364,6 +368,31 @@ export const updateGlobalAgentModel = (config: OpenCodeConfig, agentName: AgentN
   return nextConfig
 }
 
+const VALID_EFFORT_LEVELS: EffortLevel[] = ["low", "medium", "high"]
+
+export const isValidEffort = (value: unknown): value is EffortLevel =>
+  typeof value === "string" && VALID_EFFORT_LEVELS.includes(value as EffortLevel)
+
+export const updateGlobalAgentEffort = (config: OpenCodeConfig, agentName: AgentName, effort: EffortLevel | null | undefined) => {
+  const nextConfig: OpenCodeConfig = { ...config }
+  const existingAgentMap = asRecord(nextConfig.agent)
+  const existingEntry = asRecord(existingAgentMap[agentName])
+
+  const updated = { ...existingEntry }
+  if (effort) {
+    updated.effort = effort
+  } else {
+    delete updated.effort
+  }
+
+  nextConfig.agent = sortObject({
+    ...existingAgentMap,
+    [agentName]: updated,
+  }) as Record<string, RoutingEntry>
+
+  return nextConfig
+}
+
 export const updateWorkflowAgentModel = (
   hpConfig: HyperpowersRoutingConfig,
   workflowName: WorkflowName,
@@ -549,10 +578,16 @@ export const planRecommendedRouting = ({
   strongModel,
   fastModel,
   topReviewModel,
+  strongEffort,
+  workerEffort,
+  reviewerEffort,
 }: {
   strongModel: string
   fastModel?: string
   topReviewModel?: string
+  strongEffort?: EffortLevel
+  workerEffort?: EffortLevel
+  reviewerEffort?: EffortLevel
 }) => {
   const canonicalStrong = getString(strongModel)
   if (!canonicalStrong) {
@@ -564,6 +599,10 @@ export const planRecommendedRouting = ({
   const resolvedFastModel = configuredFastModel ?? canonicalStrong
   const resolvedTopReviewModel = configuredTopReviewModel ?? canonicalStrong
 
+  const resolvedStrongEffort = strongEffort ?? undefined
+  const resolvedWorkerEffort = workerEffort ?? undefined
+  const resolvedReviewerEffort = reviewerEffort ?? undefined
+
   let nextConfig: OpenCodeConfig = {
     $schema: DEFAULT_SCHEMA,
     model: canonicalStrong,
@@ -574,22 +613,27 @@ export const planRecommendedRouting = ({
 
   for (const agent of AGENT_GROUPS.orchestrator) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   for (const agent of AGENT_GROUPS.workers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, resolvedFastModel)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedWorkerEffort)
   }
 
   for (const agent of AGENT_GROUPS.reviewers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   nextConfig = updateGlobalAgentModel(nextConfig, "autonomous-reviewer", resolvedTopReviewModel)
+  nextConfig = updateGlobalAgentEffort(nextConfig, "autonomous-reviewer", resolvedReviewerEffort)
 
   const workflowOverrides = normalizeWorkflowOverrides({
     "execute-ralph": {
       "autonomous-reviewer": {
         model: resolvedTopReviewModel,
+        effort: resolvedReviewerEffort,
       },
     },
   })
@@ -624,9 +668,13 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
   }
 
   for (const agentName of HYPERPOWERS_AGENTS) {
-    const model = getString(asRecord(plan.agent)[agentName]?.model)
+    const entry = plan.agent[agentName]
+    const model = getString(entry?.model)
     if (!model) continue
     nextConfig = updateGlobalAgentModel(nextConfig, agentName, model)
+    if (entry?.effort && isValidEffort(entry.effort)) {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, entry.effort)
+    }
   }
 
   const hpResult = await readHpConfigForWrite(hpConfigPath)
@@ -641,9 +689,26 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
 
     const workflowAgents = asRecord(plan.workflowOverrides[canonicalWorkflow])
     for (const agentName of HYPERPOWERS_AGENTS) {
-      const model = getString(asRecord(workflowAgents[agentName]).model)
+      const agentEntry = asRecord(workflowAgents[agentName])
+      const model = getString(agentEntry.model)
       if (!model) continue
       nextHpConfig = updateWorkflowAgentModel(nextHpConfig, canonicalWorkflow, agentName, model)
+
+      // Write effort to workflow override entry alongside model
+      const effort = getString(agentEntry.effort)
+      if (effort && isValidEffort(effort)) {
+        const overrides = asRecord(nextHpConfig.workflowOverrides)
+        const workflowEntry = asRecord(overrides[canonicalWorkflow])
+        const existingAgentEntry = asRecord(workflowEntry[agentName])
+        existingAgentEntry.effort = effort
+        nextHpConfig = {
+          ...nextHpConfig,
+          workflowOverrides: {
+            ...overrides,
+            [canonicalWorkflow]: { ...workflowEntry, [agentName]: existingAgentEntry },
+          },
+        } as HyperpowersRoutingConfig
+      }
     }
   }
 
@@ -712,6 +777,16 @@ export const verifyRecommendedRoutingPlan = async (
         actual: actualModel,
       })
     }
+
+    const expectedEffort = getString(asRecord(plan.agent)[agentName]?.effort)
+    const actualEffort = getString(asRecord(snapshot.routing.agent)[agentName]?.effort)
+    if ((expectedEffort ?? null) !== (actualEffort ?? null)) {
+      return invalidResult(configPath, "snapshot_mismatch", `Routing snapshot diverged for agent ${agentName} effort`, {
+        agent: agentName,
+        expected: expectedEffort,
+        actual: actualEffort,
+      })
+    }
   }
 
   for (const workflowName of Object.keys(plan.workflowOverrides)) {
@@ -726,6 +801,17 @@ export const verifyRecommendedRoutingPlan = async (
           agent: agentName,
           expected: expectedModel,
           actual: actualModel,
+        })
+      }
+
+      const expectedEffort = getString(asRecord(expectedAgents[agentName]).effort)
+      const actualEffort = getString(asRecord(actualAgents[agentName]).effort)
+      if ((expectedEffort ?? null) !== (actualEffort ?? null)) {
+        return invalidResult(configPath, "snapshot_mismatch", `Workflow override diverged for ${workflowName}/${agentName} effort`, {
+          workflow: workflowName,
+          agent: agentName,
+          expected: expectedEffort,
+          actual: actualEffort,
         })
       }
     }
@@ -951,12 +1037,32 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   const invalidModel = validateModelAgainstAvailableSet(configPath, model, availableModels)
   if (invalidModel) return invalidModel
 
+  // Validate effort early (applies to both global and workflow paths)
+  const effort = getString(args.effort)
+  if (effort && effort !== "none" && !isValidEffort(effort)) {
+    return invalidResult(configPath, "invalid_effort", `Invalid effort level: ${effort}. Use low, medium, high, or none.`)
+  }
+
   if (workflowName) {
     const hpResult = await readHpConfigForWrite(hpConfigPath)
     if (!hpResult.ok) {
       return { ok: false as const, error: hpResult.error }
     }
-    const nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
+    let nextHpConfig = updateWorkflowAgentModel(hpResult.config, workflowName, agentName, model)
+
+    // Apply effort to workflow override entry
+    if (effort) {
+      const overrides = asRecord(nextHpConfig.workflowOverrides)
+      const workflowEntry = asRecord(overrides[workflowName])
+      const agentEntry = asRecord(workflowEntry[agentName])
+      if (effort === "none") {
+        delete agentEntry.effort
+      } else {
+        agentEntry.effort = effort
+      }
+      nextHpConfig = { ...nextHpConfig, workflowOverrides: { ...overrides, [workflowName]: { ...workflowEntry, [agentName]: agentEntry } } } as HyperpowersRoutingConfig
+    }
+
     await persistConfig(hpConfigPath, nextHpConfig as Record<string, unknown>)
 
     const ocConfig = current.config
@@ -971,7 +1077,17 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     }
   }
 
-  const nextConfig = updateGlobalAgentModel(current.config, agentName, model)
+  let nextConfig = updateGlobalAgentModel(current.config, agentName, model)
+
+  // Apply effort if provided ("none" clears existing effort)
+  if (effort) {
+    if (effort === "none") {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, null)
+    } else if (isValidEffort(effort)) {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, effort)
+    }
+  }
+
   await persistConfig(configPath, nextConfig)
 
   const hpConfig = hpState.config

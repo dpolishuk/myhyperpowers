@@ -460,6 +460,19 @@ install_opencode() {
   manifest_add ".hyperpowers-version"
   echo "${VERSION}" > "${home}/.hyperpowers-version"
   write_manifest "$home"
+
+  # Offer to run routing wizard for agent model + effort setup
+  if [[ "$FORCE" != true ]] && [[ -t 0 ]] && command -v bun &>/dev/null; then
+    echo ""
+    echo "  Would you like to configure agent models and effort levels now?"
+    echo "  This runs the interactive routing wizard (you can also run it later"
+    echo "  with: bun scripts/opencode-routing-wizard.ts)"
+    echo ""
+    read -r -p "  Run routing wizard? [y/N] " answer
+    if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
+      bun "${REPO_ROOT}/scripts/opencode-routing-wizard.ts" || warn "Routing wizard failed"
+    fi
+  fi
 }
 
 install_kimi() {

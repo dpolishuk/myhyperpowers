@@ -2,7 +2,8 @@
   "workflowOverrides": {
     "execute-ralph": {
       "autonomous-reviewer": {
-        "model": "opencode/claude-opus-4-5"
+        "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+        "effort": "high"
       }
     }
   }
