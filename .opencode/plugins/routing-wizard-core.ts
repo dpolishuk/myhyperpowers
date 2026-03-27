@@ -578,10 +578,16 @@ export const planRecommendedRouting = ({
   strongModel,
   fastModel,
   topReviewModel,
+  strongEffort,
+  workerEffort,
+  reviewerEffort,
 }: {
   strongModel: string
   fastModel?: string
   topReviewModel?: string
+  strongEffort?: EffortLevel
+  workerEffort?: EffortLevel
+  reviewerEffort?: EffortLevel
 }) => {
   const canonicalStrong = getString(strongModel)
   if (!canonicalStrong) {
@@ -593,6 +599,10 @@ export const planRecommendedRouting = ({
   const resolvedFastModel = configuredFastModel ?? canonicalStrong
   const resolvedTopReviewModel = configuredTopReviewModel ?? canonicalStrong
 
+  const resolvedStrongEffort: EffortLevel = strongEffort ?? "high"
+  const resolvedWorkerEffort: EffortLevel = workerEffort ?? "high"
+  const resolvedReviewerEffort: EffortLevel = reviewerEffort ?? "high"
+
   let nextConfig: OpenCodeConfig = {
     $schema: DEFAULT_SCHEMA,
     model: canonicalStrong,
@@ -603,22 +613,27 @@ export const planRecommendedRouting = ({
 
   for (const agent of AGENT_GROUPS.orchestrator) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   for (const agent of AGENT_GROUPS.workers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, resolvedFastModel)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedWorkerEffort)
   }
 
   for (const agent of AGENT_GROUPS.reviewers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   nextConfig = updateGlobalAgentModel(nextConfig, "autonomous-reviewer", resolvedTopReviewModel)
+  nextConfig = updateGlobalAgentEffort(nextConfig, "autonomous-reviewer", resolvedReviewerEffort)
 
   const workflowOverrides = normalizeWorkflowOverrides({
     "execute-ralph": {
       "autonomous-reviewer": {
         model: resolvedTopReviewModel,
+        effort: resolvedReviewerEffort,
       },
     },
   })
@@ -653,9 +668,13 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
   }
 
   for (const agentName of HYPERPOWERS_AGENTS) {
-    const model = getString(asRecord(plan.agent)[agentName]?.model)
+    const entry = plan.agent[agentName]
+    const model = getString(entry?.model)
     if (!model) continue
     nextConfig = updateGlobalAgentModel(nextConfig, agentName, model)
+    if (entry?.effort && isValidEffort(entry.effort)) {
+      nextConfig = updateGlobalAgentEffort(nextConfig, agentName, entry.effort)
+    }
   }
 
   const hpResult = await readHpConfigForWrite(hpConfigPath)
@@ -670,9 +689,26 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
 
     const workflowAgents = asRecord(plan.workflowOverrides[canonicalWorkflow])
     for (const agentName of HYPERPOWERS_AGENTS) {
-      const model = getString(asRecord(workflowAgents[agentName]).model)
+      const agentEntry = asRecord(workflowAgents[agentName])
+      const model = getString(agentEntry.model)
       if (!model) continue
       nextHpConfig = updateWorkflowAgentModel(nextHpConfig, canonicalWorkflow, agentName, model)
+
+      // Write effort to workflow override entry alongside model
+      const effort = getString(agentEntry.effort)
+      if (effort && isValidEffort(effort)) {
+        const overrides = asRecord(nextHpConfig.workflowOverrides)
+        const workflowEntry = asRecord(overrides[canonicalWorkflow])
+        const existingAgentEntry = asRecord(workflowEntry[agentName])
+        existingAgentEntry.effort = effort
+        nextHpConfig = {
+          ...nextHpConfig,
+          workflowOverrides: {
+            ...overrides,
+            [canonicalWorkflow]: { ...workflowEntry, [agentName]: existingAgentEntry },
+          },
+        } as HyperpowersRoutingConfig
+      }
     }
   }
 

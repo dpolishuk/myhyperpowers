@@ -2,7 +2,7 @@
   "workflowOverrides": {
     "execute-ralph": {
       "autonomous-reviewer": {
-        "model": "opencode/claude-opus-4-5"
+        "model": "openai/gpt-5.4"
       }
     }
   }

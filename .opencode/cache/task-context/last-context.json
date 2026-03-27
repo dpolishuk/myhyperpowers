@@ -1,0 +1,13 @@
+{
+  "run_id": "1774613732531-7329ddd07f91e",
+  "intent": null,
+  "entries": [
+    {
+      "key": "summary:0",
+      "content": "Task 0 finished with status unknown",
+      "score": 2,
+      "timestamp": 1774436811503,
+      "source": "serena"
+    }
+  ]
+}
