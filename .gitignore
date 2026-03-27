@@ -26,3 +26,4 @@ dist/
 .dolt/
 *.db
 .beads/.beads-credential-key
+.opencode/cache/
