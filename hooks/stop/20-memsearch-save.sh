@@ -57,6 +57,14 @@ memory_file="${memory_dir}/$(date +%Y-%m-%d)-${safe_project}.md"
   echo ""
 } >> "$memory_file"
 
-# Index the new memory (async, best-effort)
-memsearch index "$memory_file" >/dev/null 2>&1 &
+# Index the new memory (async, best-effort, debounced via lock file)
+lock_file="/tmp/memsearch-index-${safe_project}.lock"
+if ! mkdir "$lock_file" 2>/dev/null; then
+  # Another indexer is already running for this project — skip
+  exit 0
+fi
+(
+  memsearch index "$memory_file" >/dev/null 2>&1
+  rmdir "$lock_file" 2>/dev/null || true
+) &
 disown 2>/dev/null || true

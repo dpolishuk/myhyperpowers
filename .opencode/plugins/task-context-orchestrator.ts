@@ -650,13 +650,17 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         memsearchRecalled = true
         try {
           const projectName = ctx.directory.split("/").pop() ?? "project"
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 5000)
           const proc = Bun.spawn(["memsearch", "search", `recent work on ${projectName}`, "--top-k", "5", "--format", "compact"], {
             cwd: ctx.directory,
             stdout: "pipe",
             stderr: "pipe",
+            signal: controller.signal,
           })
           const text = await new Response(proc.stdout).text()
           const exitCode = await proc.exited
+          clearTimeout(timeout)
           if (exitCode === 0 && text.trim() && !text.startsWith("No results")) {
             memsearchContext = text.trim()
           }
