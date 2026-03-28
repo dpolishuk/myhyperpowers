@@ -146,17 +146,24 @@ const HOSTS: HostConfig[] = [
     id: "kimi",
     name: "Kimi CLI",
     detect: () => existsSync(join(xdgConfig(), "agents")) || existsSync(join(homedir(), ".kimi")),
-    targetDir: () => existsSync(join(homedir(), ".kimi")) ? join(homedir(), ".kimi") : join(xdgConfig(), "agents"),
+    targetDir: () => existsSync(join(xdgConfig(), "agents")) ? join(xdgConfig(), "agents") : join(homedir(), ".kimi"),
     sources: {
       skills: { from: ".kimi/skills" },
       agents: { from: ".kimi/agents" },
     },
     availableFeatures: [],
     postInstall: async (targetDir) => {
-      // Copy top-level config files
-      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
+      // Copy top-level config files to target dir
+      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md"]) {
         const src = join(REPO_ROOT, ".kimi", f)
         if (existsSync(src)) await copyFile(src, join(targetDir, f))
+      }
+      // MCP config goes to ~/.config/kimi/ (where Kimi reads it)
+      const kimiConfigDir = join(xdgConfig(), "kimi")
+      const mcpSrc = join(REPO_ROOT, ".kimi", "mcp.json")
+      if (existsSync(mcpSrc)) {
+        await mkdir(kimiConfigDir, { recursive: true })
+        await copyFile(mcpSrc, join(kimiConfigDir, "mcp.json"))
       }
     },
   },
