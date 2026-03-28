@@ -188,8 +188,10 @@ const FEATURES: FeatureConfig[] = [
           stderr: "pipe",
         })
         if (result.exitCode === 0) {
-          // Try to init config
-          Bun.spawnSync(["memsearch", "config", "init", "--non-interactive"], { stdout: "pipe", stderr: "pipe" })
+          // Try to init config (may fail if ~/.local/bin not on PATH yet)
+          if (commandExists("memsearch")) {
+            Bun.spawnSync(["memsearch", "config", "init", "--non-interactive"], { stdout: "pipe", stderr: "pipe" })
+          }
           return "memsearch[onnx] installed"
         }
         return "memsearch install failed"
@@ -292,6 +294,10 @@ const FEATURES: FeatureConfig[] = [
       if (!commandExists("bun")) return "skipped (bun not found)"
       const wizardPath = join(repoRoot, "scripts", "opencode-routing-wizard.ts")
       if (existsSync(wizardPath)) {
+        // Skip interactive wizard in non-TTY / --yes mode
+        if (!process.stdin.isTTY) {
+          return "skipped (non-interactive mode — run wizard manually later)"
+        }
         const result = Bun.spawnSync(["bun", wizardPath], { stdout: "inherit", stderr: "inherit", stdin: "inherit" })
         return result.exitCode === 0 ? "routing wizard completed" : "routing wizard failed"
       }
@@ -615,7 +621,10 @@ Options:
   // Phase 5: Install features
   for (const featureId of selectedFeatureIds) {
     const feature = FEATURES.find((f) => f.id === featureId)
-    if (!feature) continue
+    if (!feature) {
+      p.log.warn(`Unknown feature "${featureId}" — skipping. Supported: ${FEATURES.map((f) => f.id).join(", ")}`)
+      continue
+    }
 
     s.start(`Setting up ${feature.name}...`)
     const result = await feature.install(selectedHostIds, REPO_ROOT)
