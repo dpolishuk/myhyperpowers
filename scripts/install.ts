@@ -230,8 +230,13 @@ const FEATURES: FeatureConfig[] = [
         if (!existsSync(configPath)) continue
         try {
           const raw = await readFile(configPath, "utf8")
-          const cleaned = raw.replace(/"opencode-supermemory@[^"]*",?\s*/g, "")
-          await writeFile(configPath, cleaned, "utf8")
+          // Strip JSONC comments before parsing
+          const jsonClean = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
+          const config = JSON.parse(jsonClean)
+          if (Array.isArray(config.plugin)) {
+            config.plugin = config.plugin.filter((p: string) => !p.includes("opencode-supermemory"))
+            await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8")
+          }
         } catch { /* skip */ }
       }
       // Remove credentials
@@ -376,6 +381,12 @@ const uninstallHost = async (hostId: string, manifest: InstallManifest) => {
   const hostData = manifest.hosts[hostId]
   if (!hostData) return
 
+  // Clean generated artifacts not in manifest
+  if (hostId === "opencode") {
+    await rm(join(hostData.targetDir, "node_modules"), { recursive: true, force: true }).catch(() => {})
+    await unlink(join(hostData.targetDir, "bun.lock")).catch(() => {})
+  }
+
   for (const file of hostData.files) {
     const fullPath = join(hostData.targetDir, file)
     if (file.endsWith("/")) {
@@ -479,8 +490,17 @@ Options:
 
     const manifest = await readManifest()
     if (!manifest) {
-      p.log.error("No installation manifest found. Nothing to uninstall.")
-      p.outro("Done.")
+      p.log.warn("No new-format manifest found. Checking for legacy install...")
+      // Fall back to old install.sh if available
+      const legacyScript = join(REPO_ROOT, "scripts", "install.sh")
+      if (existsSync(legacyScript)) {
+        p.log.info("Running legacy uninstall via install.sh --uninstall --yes")
+        Bun.spawnSync(["bash", legacyScript, "--uninstall", "--yes"], { stdout: "inherit", stderr: "inherit" })
+        p.outro("Legacy uninstall completed.")
+      } else {
+        p.log.error("No manifest found and no legacy installer available.")
+        p.outro("Nothing to uninstall.")
+      }
       return
     }
 
@@ -523,7 +543,7 @@ Options:
   for (const h of detected) p.log.success(`${h.name} detected`)
   for (const h of notDetected) p.log.warn(`${h.name} not found`)
 
-  if (detected.length === 0) {
+  if (detected.length === 0 && args.hosts.length === 0) {
     p.log.error("No supported hosts detected. Install Claude Code, OpenCode, or another supported tool first.")
     p.outro("Nothing to install.")
     return
