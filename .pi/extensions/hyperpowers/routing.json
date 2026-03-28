@@ -1,0 +1,9 @@
+{
+  "subagents": {
+    "review": { "model": "inherit" },
+    "research": { "model": "inherit" },
+    "validation": { "model": "inherit" },
+    "test-runner": { "model": "inherit" },
+    "default": { "model": "inherit" }
+  }
+}

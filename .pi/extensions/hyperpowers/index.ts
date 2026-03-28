@@ -5,13 +5,15 @@
  * memsearch long memory integration, and subagent delegation tool.
  */
 
-import { readFileSync, existsSync } from "node:fs"
-import { execFileSync, spawnSync } from "node:child_process"
+import { readFileSync, existsSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { homedir } from "node:os"
 import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 
 // Resolve skill paths: try extension-local skills first, then repo root
 const EXTENSION_DIR = import.meta.dir ?? __dirname
+const ROUTING_CONFIG_PATH = join(EXTENSION_DIR, "routing.json")
 const SKILLS_DIRS = [
   join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/
   resolve(EXTENSION_DIR, "..", "..", "..", "skills"),    // dev: repo root skills/
@@ -46,6 +48,26 @@ function loadSkillContent(skillName: string): string | null {
     }
   }
   return null
+}
+
+// Subagent routing config
+type SubagentRouting = Record<string, { model?: string; effort?: string }>
+
+function loadRoutingConfig(): SubagentRouting {
+  try {
+    if (existsSync(ROUTING_CONFIG_PATH)) {
+      const config = JSON.parse(readFileSync(ROUTING_CONFIG_PATH, "utf8"))
+      return config.subagents || {}
+    }
+  } catch { /* skip */ }
+  return {}
+}
+
+function getSubagentModel(type: string): string | null {
+  const routing = loadRoutingConfig()
+  const entry = routing[type] || routing["default"]
+  if (!entry?.model || entry.model === "inherit") return null
+  return entry.model
 }
 
 function recallMemories(cwd: string): string | null {
@@ -124,18 +146,26 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     },
   })
 
-  // Subagent tool — delegates tasks to isolated Pi subprocess
+  // Subagent tool — delegates tasks to isolated Pi subprocess with model routing
   pi.registerTool({
     name: "hyperpowers_subagent",
     label: "Subagent",
-    description: "Delegate a task to an isolated Pi subagent. Runs in a separate process with its own context. Use for code review, test running, research, or any task benefiting from isolated context.",
+    description: "Delegate a task to an isolated Pi subagent. Optionally specify a type (review, research, validation, test-runner) to route to a configured model. Runs in a separate process with its own context.",
     parameters: Type.Object({
       task: Type.String({ description: "The task for the subagent to perform" }),
+      type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
     }),
-    async execute(params: { task: string }) {
+    async execute(params: { task: string; type?: string }) {
       try {
-        // Use spawnSync with argv array to prevent shell injection
-        const result = spawnSync("pi", ["--print", "--", params.task], {
+        // Build command with optional model routing
+        const args = ["--print"]
+        const model = params.type ? getSubagentModel(params.type) : null
+        if (model) {
+          args.push("--model", model)
+        }
+        args.push("--", params.task)
+
+        const result = spawnSync("pi", args, {
           encoding: "utf8",
           timeout: 120000,
           maxBuffer: 1024 * 1024 * 10,
@@ -158,6 +188,65 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     },
   })
 
+  // Subagent routing configuration
+  pi.registerCommand("configure-routing", {
+    description: "Configure which model each subagent type uses (routing.json)",
+    handler: async (_args: unknown, ctx: any) => {
+      const current = loadRoutingConfig()
+      const currentDisplay = Object.keys(current).length > 0
+        ? Object.entries(current).map(([k, v]) => `  ${k}: ${(v as any).model || "inherit"}`).join("\n")
+        : "  (no routing configured — all subagents use the session model)"
+
+      return `# Subagent Model Routing
+
+## Current Configuration
+${currentDisplay}
+
+## How to Configure
+
+Edit \`${ROUTING_CONFIG_PATH}\` with your model assignments:
+
+\`\`\`json
+{
+  "subagents": {
+    "review": { "model": "claude-haiku-4-5" },
+    "research": { "model": "claude-sonnet-4-5" },
+    "validation": { "model": "claude-opus-4-5" },
+    "test-runner": { "model": "claude-haiku-4-5" },
+    "default": { "model": "inherit" }
+  }
+}
+\`\`\`
+
+## Subagent Types
+
+| Type | Purpose | Recommended Model |
+|------|---------|-------------------|
+| \`review\` | Code review, quality checks | Fast (haiku) — high volume |
+| \`research\` | Codebase investigation, API docs | Balanced (sonnet) |
+| \`validation\` | Final review, complex analysis | Capable (opus) |
+| \`test-runner\` | Run tests, check results | Fast (haiku) |
+| \`default\` | Any untyped subagent | \`inherit\` (session model) |
+
+## Usage
+
+When calling the hyperpowers_subagent tool, specify the type:
+
+\`\`\`
+hyperpowers_subagent(task: "Review auth.ts", type: "review")
+→ runs with claude-haiku-4-5
+
+hyperpowers_subagent(task: "Analyze architecture", type: "validation")
+→ runs with claude-opus-4-5
+\`\`\`
+
+## Quick Setup
+
+To write a cost-optimized config now, use the Edit tool to create:
+\`${ROUTING_CONFIG_PATH}\``
+    },
+  })
+
   // Parallel review — dispatches multiple subagents
   pi.registerCommand("review-parallel", {
     description: "Run 3 parallel review subagents: quality, implementation, simplification",
@@ -166,13 +255,13 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
 Run these 3 reviews using the hyperpowers_subagent tool IN PARALLEL:
 
-1. **Quality review**: Use hyperpowers_subagent with task:
+1. **Quality review**: Use hyperpowers_subagent with type: "review", task:
    "Review the recent code changes for bugs, security issues, and race conditions. Check git diff HEAD~1. Return PASS or ISSUES_FOUND with file:line references."
 
-2. **Implementation review**: Use hyperpowers_subagent with task:
+2. **Implementation review**: Use hyperpowers_subagent with type: "validation", task:
    "Verify the recent changes achieve their stated goals. Check git log --oneline -5 for context. Return PASS or ISSUES_FOUND with missing items."
 
-3. **Simplification review**: Use hyperpowers_subagent with task:
+3. **Simplification review**: Use hyperpowers_subagent with type: "review", task:
    "Check for over-engineering in recent changes. Look for unnecessary abstractions. Return PASS or ISSUES_FOUND with recommendations."
 
 After all 3 complete, summarize the results in a table.`

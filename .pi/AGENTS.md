@@ -22,6 +22,7 @@ You have hyperpowers — structured workflows for software development.
 | `/setup-models` | Configure Pi model providers (Anthropic, OpenAI, Ollama) |
 | `/review-parallel` | Run 3 parallel review subagents (quality, implementation, simplification) |
 | `/review-branch` | Review code in isolated subprocess (won't affect main session) |
+| `/configure-routing` | Configure which model each subagent type uses |
 
 ## Subagent Tool
 
@@ -31,11 +32,16 @@ The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Use it for:
-- Code reviews (isolated context)
-- Test running (captures output without polluting main session)
-- Research tasks (separate investigation)
-- Parallel work (dispatch multiple subagents simultaneously)
+The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` to route to a configured model:
+
+```
+hyperpowers_subagent(task: "Review code", type: "review")      → uses fast model
+hyperpowers_subagent(task: "Analyze arch", type: "validation")  → uses capable model
+```
+
+Types: `review` (fast), `research` (balanced), `validation` (capable), `test-runner` (fast)
+
+Configure models per type: `/configure-routing`
 
 ## Core Principles
 
