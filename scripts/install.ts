@@ -522,10 +522,10 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
         if (existsSync(join(target, f))) installedFiles.push(f)
       }
     }
-    if (host.id === "pi") {
-      if (existsSync(join(target, "AGENTS.md"))) installedFiles.push("AGENTS.md")
-      if (existsSync(join(target, "extensions", "hyperpowers", "skills"))) installedFiles.push("extensions/hyperpowers/skills/")
-    }
+    // Pi: AGENTS.md and skills/ are NOT tracked in manifest because postUninstall
+    // handles them surgically (removes only Hyperpowers section from AGENTS.md,
+    // removes entire extensions/hyperpowers/ dir). Tracking them would cause
+    // uninstallHost to delete the whole AGENTS.md before postUninstall runs.
   }
 
   // Write version file last (after postInstall succeeds)
