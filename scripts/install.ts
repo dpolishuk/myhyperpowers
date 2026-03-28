@@ -454,13 +454,14 @@ const writeManifest = async (manifest: InstallManifest) => {
 type CliArgs = {
   yes: boolean
   uninstall: boolean
+  json: boolean
   hosts: string[]
   features: string[]
   help: boolean
 }
 
 const parseArgs = (): CliArgs => {
-  const args: CliArgs = { yes: false, uninstall: false, hosts: [], features: [], help: false }
+  const args: CliArgs = { yes: false, uninstall: false, json: false, hosts: [], features: [], help: false }
   const argv = process.argv.slice(2)
 
   for (let i = 0; i < argv.length; i++) {
@@ -472,6 +473,11 @@ const parseArgs = (): CliArgs => {
       case "--uninstall":
       case "--remove":
         args.uninstall = true
+        break
+      case "--json":
+      case "-j":
+        args.json = true
+        args.yes = true // JSON implies non-interactive
         break
       case "--hosts":
         args.hosts = (argv[++i] || "").split(",").filter(Boolean)
@@ -495,6 +501,16 @@ const parseArgs = (): CliArgs => {
 const main = async () => {
   const args = parseArgs()
 
+  // In JSON mode, redirect all non-JSON output to stderr
+  if (args.json) {
+    const origWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (chunk: any, ...rest: any[]) => {
+      // Only let through raw JSON lines (our explicit console.log at the end)
+      if (typeof chunk === "string" && chunk.startsWith("{")) return origWrite(chunk, ...rest)
+      return process.stderr.write(chunk, ...rest)
+    }
+  }
+
   if (args.help) {
     console.log(`Hyperpowers Installer v${VERSION}
 
@@ -503,9 +519,11 @@ Usage:
   bun scripts/install.ts --yes        # Install all detected hosts + all features
   bun scripts/install.ts --uninstall  # Remove everything
   bun scripts/install.ts --hosts claude,opencode --features memsearch,tm-cli
+  bun scripts/install.ts --yes --json    # Agent-friendly JSON output
 
 Options:
   --yes, -y          Auto-install all detected hosts and features
+  --json, -j         Output structured JSON (implies --yes, for AI agents)
   --uninstall        Remove all installed files and features
   --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini
   --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
@@ -659,9 +677,22 @@ Options:
 
   // Phase 6: Write manifest
   await writeManifest(manifest)
-  p.log.info(`Manifest written to ${manifestPath()}`)
 
-  p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+  if (args.json) {
+    // Structured JSON output for AI agents
+    console.log(JSON.stringify({
+      ok: true,
+      version: VERSION,
+      hosts: Object.keys(manifest.hosts),
+      features: Object.fromEntries(
+        Object.entries(manifest.features).map(([k, v]) => [k, v.installed]),
+      ),
+      manifestPath: manifestPath(),
+    }))
+  } else {
+    p.log.info(`Manifest written to ${manifestPath()}`)
+    p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+  }
 }
 
 await main()

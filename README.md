@@ -227,6 +227,42 @@ PHASE 5: Complete
 
 ## Installation
 
+### For AI Agents (non-interactive)
+
+If you are an AI agent installing this plugin, use the non-interactive installer:
+
+```bash
+# Install to all detected hosts with all features
+bun scripts/install.ts --yes
+
+# Install to specific hosts
+bun scripts/install.ts --yes --hosts claude,opencode
+
+# Install with specific features
+bun scripts/install.ts --yes --hosts claude --features memsearch,statusline
+
+# JSON output for parsing
+bun scripts/install.ts --yes --json
+
+# Uninstall
+bun scripts/install.ts --uninstall
+```
+
+Available hosts: `claude`, `opencode`, `kimi`, `gemini`
+Available features: `memsearch`, `supermemory`, `statusline`, `routing-wizard`, `tm-cli`
+
+### For Humans (interactive TUI)
+
+```bash
+git clone https://github.com/dpolishuk/myhyperpowers.git
+cd myhyperpowers
+bun scripts/install.ts
+```
+
+The interactive installer auto-detects your AI tools and offers checkboxes for hosts and optional features (memory, routing, status line).
+
+### Host-Specific Instructions
+
 <details>
 <summary><strong>Claude Code</strong></summary>
 
