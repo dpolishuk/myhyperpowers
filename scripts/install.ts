@@ -123,7 +123,7 @@ const HOSTS: HostConfig[] = [
       plugins: { from: ".opencode/plugins" },
       scripts: { from: ".opencode/scripts" },
     },
-    availableFeatures: ["memsearch", "routing-wizard"],
+    availableFeatures: ["memsearch", "supermemory", "routing-wizard"],
     postInstall: async (targetDir) => {
       // Copy package.json and run bun install
       const pkgSrc = join(REPO_ROOT, ".opencode", "package.json")
@@ -192,6 +192,47 @@ const FEATURES: FeatureConfig[] = [
     uninstall: async () => {
       if (commandExists("python3")) {
         Bun.spawnSync(["python3", "-m", "pip", "uninstall", "-y", "memsearch"], { stdout: "pipe", stderr: "pipe" })
+      }
+    },
+  },
+  {
+    id: "supermemory",
+    name: "supermemory (cloud)",
+    hint: "cloud-hosted memory by supermemory.ai — requires API key (free tier available)",
+    install: async (hosts) => {
+      if (!hosts.includes("opencode")) return "skipped (OpenCode not selected)"
+      if (!commandExists("bun")) return "skipped (bun not found)"
+
+      // Install the npm plugin
+      const result = Bun.spawnSync(["bunx", "opencode-supermemory@latest", "install", "--no-tui"], {
+        stdout: "pipe",
+        stderr: "pipe",
+      })
+      if (result.exitCode === 0) {
+        return "supermemory plugin installed — run /supermemory-login in OpenCode to authenticate"
+      }
+      return "supermemory install failed — try: bunx opencode-supermemory@latest install"
+    },
+    uninstall: async () => {
+      // Remove plugin from opencode.jsonc
+      const configPaths = [
+        join(xdgConfig(), "opencode", "opencode.jsonc"),
+        join(xdgConfig(), "opencode", "opencode.json"),
+      ]
+      for (const configPath of configPaths) {
+        if (!existsSync(configPath)) continue
+        try {
+          const raw = await readFile(configPath, "utf8")
+          const cleaned = raw.replace(/"opencode-supermemory@[^"]*",?\s*/g, "")
+          await writeFile(configPath, cleaned, "utf8")
+        } catch { /* skip */ }
+      }
+      // Remove credentials
+      await rm(join(homedir(), ".supermemory-opencode"), { recursive: true, force: true }).catch(() => {})
+      // Remove commands
+      const cmdDir = join(xdgConfig(), "opencode", "command")
+      for (const cmd of ["supermemory-init.md", "supermemory-login.md", "supermemory-logout.md"]) {
+        await unlink(join(cmdDir, cmd)).catch(() => {})
       }
     },
   },
@@ -421,7 +462,7 @@ Options:
   --yes, -y          Auto-install all detected hosts and features
   --uninstall        Remove all installed files and features
   --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,codex,gemini
-  --features <list>  Comma-separated feature IDs: memsearch,statusline,routing-wizard,tm-cli
+  --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
   --help, -h         Show this help
 `)
     return
