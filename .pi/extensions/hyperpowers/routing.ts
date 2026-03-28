@@ -1,0 +1,101 @@
+export type RoutingEntry = { model?: string; effort?: string }
+export type RoutingMap = Record<string, RoutingEntry>
+export interface RoutingConfig {
+  subagents: RoutingMap
+  agents: RoutingMap
+}
+
+export const DEFAULT_ROUTING_COMMENT =
+  "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model"
+
+const DEFAULT_SUBAGENTS: RoutingMap = {
+  review: { model: "inherit" },
+  research: { model: "inherit" },
+  validation: { model: "inherit" },
+  "test-runner": { model: "inherit" },
+  default: { model: "inherit" },
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
+
+const normalizeEntry = (value: unknown): RoutingEntry | undefined => {
+  if (!isObject(value)) return undefined
+  const entry: RoutingEntry = {}
+  if (typeof value.model === "string") entry.model = value.model
+  if (typeof value.effort === "string") entry.effort = value.effort
+  return entry.model !== undefined || entry.effort !== undefined ? entry : undefined
+}
+
+const normalizeMap = (value: unknown): RoutingMap => {
+  if (!isObject(value)) return {}
+  const map: RoutingMap = {}
+  for (const [key, raw] of Object.entries(value)) {
+    const entry = normalizeEntry(raw)
+    if (entry) map[key] = entry
+  }
+  return map
+}
+
+export function normalizeRoutingConfig(raw: unknown): RoutingConfig {
+  const source = isObject(raw) ? raw : {}
+  const subagents = { ...DEFAULT_SUBAGENTS, ...normalizeMap(source.subagents) }
+  const agents = normalizeMap(source.agents)
+  return { subagents, agents }
+}
+
+export function serializeRoutingConfig(config: RoutingConfig): string {
+  return JSON.stringify(
+    {
+      _comment: DEFAULT_ROUTING_COMMENT,
+      subagents: config.subagents,
+      agents: config.agents,
+    },
+    null,
+    2,
+  ) + "\n"
+}
+
+export interface ResolveRoutingParams {
+  explicitModel?: string
+  agent?: string
+  type?: string
+}
+
+export interface ResolvedRoutingEntry {
+  source: "explicit" | "agent" | "type" | "default" | "inherit"
+  model: string | null
+  effort?: string
+}
+
+const materialize = (
+  source: ResolvedRoutingEntry["source"],
+  entry: RoutingEntry | undefined,
+): ResolvedRoutingEntry => ({
+  source,
+  model: entry?.model && entry.model !== "inherit" ? entry.model : null,
+  effort: entry?.effort,
+})
+
+export function resolveRoutingEntry(
+  config: RoutingConfig,
+  params: ResolveRoutingParams,
+): ResolvedRoutingEntry {
+  if (params.explicitModel) {
+    return { source: "explicit", model: params.explicitModel }
+  }
+
+  if (params.agent && config.agents[params.agent]) {
+    return materialize("agent", config.agents[params.agent])
+  }
+
+  if (params.type && config.subagents[params.type]) {
+    return materialize("type", config.subagents[params.type])
+  }
+
+  if (config.subagents.default) {
+    const resolved = materialize("default", config.subagents.default)
+    if (resolved.model !== null || resolved.effort !== undefined) return resolved
+  }
+
+  return { source: "inherit", model: null }
+}
