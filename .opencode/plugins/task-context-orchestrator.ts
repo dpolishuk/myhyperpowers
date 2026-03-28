@@ -631,6 +631,10 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
   // Store resolved effort per agent during task dispatch for chat.params to use
   const resolvedEffortByAgent = new Map<string, EffortLevel>()
 
+  // Memsearch recall: fetch once on first system.transform call
+  let memsearchRecalled = false
+  let memsearchContext: string | null = null
+
   return {
     "experimental.chat.system.transform": async (_input, output) => {
       if (!config.enabled) return
@@ -639,6 +643,33 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         output.system.push(summary)
       } catch {
         // System prompt injection is best-effort — never block the session.
+      }
+
+      // Memsearch recall: fetch relevant memories on first call
+      if (!memsearchRecalled) {
+        memsearchRecalled = true
+        try {
+          const projectName = ctx.directory.split("/").pop() ?? "project"
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 5000)
+          const proc = Bun.spawn(["memsearch", "search", `recent work on ${projectName}`, "--top-k", "5", "--format", "compact"], {
+            cwd: ctx.directory,
+            stdout: "pipe",
+            stderr: "pipe",
+            signal: controller.signal,
+          })
+          const text = await new Response(proc.stdout).text()
+          const exitCode = await proc.exited
+          clearTimeout(timeout)
+          if (exitCode === 0 && text.trim() && !text.startsWith("No results")) {
+            memsearchContext = text.trim()
+          }
+        } catch {
+          // memsearch not installed or failed — skip silently
+        }
+      }
+      if (memsearchContext) {
+        output.system.push(`Long-term Memory (memsearch):\n${memsearchContext}`)
       }
     },
     "chat.params": async (input, output) => {

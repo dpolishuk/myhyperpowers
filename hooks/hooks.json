@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start/20-memsearch-recall.sh"
           }
         ]
       }
@@ -37,10 +41,6 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit/10-skill-activator.js"
-          },
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit/20-cass-context.js"
           }
         ]
       }
@@ -79,6 +79,10 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop/10-gentle-reminders.sh"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop/20-memsearch-save.sh"
           }
         ]
       }
