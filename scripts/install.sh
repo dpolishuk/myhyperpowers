@@ -495,6 +495,28 @@ install_opencode() {
       bun "${REPO_ROOT}/scripts/opencode-routing-wizard.ts" || warn "Routing wizard failed"
     fi
   fi
+
+  # Offer to install memsearch for long-term memory (same as Claude Code)
+  if [[ "$FORCE" != true ]] && [[ -t 0 ]]; then
+    echo ""
+    echo "  Would you like to install memsearch for long-term cross-session memory?"
+    echo "  Uses local ONNX embeddings (no API key needed for embeddings)."
+    echo "  Memories stored as plain markdown files in ~/.memsearch/memory/"
+    echo ""
+    read -r -p "  Install memsearch? [y/N] " answer
+    if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
+      if command -v python3 >/dev/null 2>&1; then
+        echo "  Installing memsearch[onnx]..."
+        python3 -m pip install --user "memsearch[onnx]" --quiet && echo "  memsearch installed." || warn "memsearch install failed"
+        if command -v memsearch >/dev/null 2>&1; then
+          echo "  Initializing memsearch config..."
+          memsearch config init --non-interactive 2>/dev/null || memsearch config init 2>/dev/null || true
+        fi
+      else
+        warn "python3 not found — install memsearch manually: python3 -m pip install --user memsearch[onnx]"
+      fi
+    fi
+  fi
 }
 
 install_kimi() {

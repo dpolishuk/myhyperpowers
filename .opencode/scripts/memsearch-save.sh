@@ -18,6 +18,22 @@ if [[ -z "$project_name" ]]; then
   project_name=$(basename "$PWD")
 fi
 
+# Capture meaningful session content from recent git activity
+session_content=""
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # Recent commits from the last hour (likely from this session)
+  recent_commits=$(git log --oneline --since="1 hour ago" 2>/dev/null | head -5 || true)
+  if [[ -n "$recent_commits" ]]; then
+    session_content="Recent commits:\n${recent_commits}"
+  fi
+
+  # Modified files (uncommitted work)
+  modified=$(git diff --name-only 2>/dev/null | head -10 || true)
+  if [[ -n "$modified" ]]; then
+    session_content="${session_content:+${session_content}\n\n}Modified files:\n${modified}"
+  fi
+fi
+
 # Create memory entry
 timestamp=$(date +"%Y-%m-%d %H:%M")
 memory_dir="${HOME}/.memsearch/memory"
@@ -34,7 +50,11 @@ memory_file="${memory_dir}/$(date +%Y-%m-%d)-${safe_project}.md"
   fi
   echo "## OpenCode Session ${timestamp}"
   echo ""
-  echo "- Session completed in ${project_name}"
+  if [[ -n "$session_content" ]]; then
+    echo -e "- ${session_content}"
+  else
+    echo "- Session completed in ${project_name}"
+  fi
   echo ""
 } >> "$memory_file"
 
