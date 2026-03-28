@@ -2,9 +2,14 @@ import { test, expect } from "bun:test"
 
 import {
   DEFAULT_ROUTING_COMMENT,
+  HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
+  resetAllAgentOverrides,
   resolveRoutingEntry,
   serializeRoutingConfig,
+  withAgentModel,
+  withSubagentModel,
+  withoutAgentOverride,
   type RoutingConfig,
 } from "../.pi/extensions/hyperpowers/routing"
 
@@ -113,6 +118,30 @@ test("resolveRoutingEntry treats inherit as null model even when coming from age
   expect(resolved.source).toBe("agent")
   expect(resolved.model).toBeNull()
   expect(resolved.effort).toBe("medium")
+})
+
+test("agent catalog exposes worker and reviewer routing targets", () => {
+  expect(HYPERPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
+    "code-reviewer",
+    "autonomous-reviewer",
+    "codebase-investigator",
+    "internet-researcher",
+    "test-runner",
+  ])
+})
+
+test("config update helpers preserve single source of truth semantics", () => {
+  const base = normalizeRoutingConfig({})
+  const withType = withSubagentModel(base, "review", "anthropic/claude-sonnet-4-5")
+  const withConcrete = withAgentModel(withType, "code-reviewer", "anthropic/claude-opus-4-5")
+  const withoutConcrete = withoutAgentOverride(withConcrete, "code-reviewer")
+  const resetConcrete = resetAllAgentOverrides(withConcrete)
+
+  expect(withType.subagents.review.model).toBe("anthropic/claude-sonnet-4-5")
+  expect(withConcrete.agents["code-reviewer"].model).toBe("anthropic/claude-opus-4-5")
+  expect(withoutConcrete.agents["code-reviewer"]).toBeUndefined()
+  expect(resetConcrete.agents).toEqual({})
+  expect(resetConcrete.subagents.review.model).toBe("anthropic/claude-sonnet-4-5")
 })
 
 test("serializeRoutingConfig writes canonical shape with comment and agents", () => {
