@@ -543,8 +543,13 @@ Options:
       const legacyScript = join(REPO_ROOT, "scripts", "install.sh")
       if (existsSync(legacyScript)) {
         p.log.info("Running legacy uninstall via install.sh --uninstall --yes")
-        Bun.spawnSync(["bash", legacyScript, "--uninstall", "--yes"], { stdout: "inherit", stderr: "inherit" })
-        p.outro("Legacy uninstall completed.")
+        const legacyResult = Bun.spawnSync(["bash", legacyScript, "--uninstall", "--yes"], { stdout: "inherit", stderr: "inherit" })
+        if (legacyResult.exitCode === 0) {
+          p.outro("Legacy uninstall completed.")
+        } else {
+          p.log.error(`Legacy uninstall failed (exit code ${legacyResult.exitCode})`)
+          p.outro("Partial uninstall — check output above for errors.")
+        }
       } else {
         p.log.error("No manifest found and no legacy installer available.")
         p.outro("Nothing to uninstall.")

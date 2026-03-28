@@ -27,8 +27,8 @@ else
 fi
 
 if [[ -n "$memories" && "$memories" != "No results found"* ]]; then
-  # Escape for JSON embedding
-  escaped=$(echo "$memories" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
+  # Escape for JSON embedding (backslashes, quotes, tabs, carriage returns, control chars)
+  escaped=$(echo "$memories" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/\t/\\t/g' | tr -d '\r' | tr -d '\000-\011\013-\037' | awk '{printf "%s\\n", $0}')
 
   cat <<EOF
 {
