@@ -146,7 +146,12 @@ const HOSTS: HostConfig[] = [
     id: "kimi",
     name: "Kimi CLI",
     detect: () => existsSync(join(xdgConfig(), "agents")) || existsSync(join(homedir(), ".kimi")),
-    targetDir: () => existsSync(join(xdgConfig(), "agents")) ? join(xdgConfig(), "agents") : join(homedir(), ".kimi"),
+    targetDir: () => {
+      // Prefer XDG agents path (modern); fall back to ~/.kimi only if it exists and XDG doesn't
+      if (existsSync(join(xdgConfig(), "agents"))) return join(xdgConfig(), "agents")
+      if (existsSync(join(homedir(), ".kimi"))) return join(homedir(), ".kimi")
+      return join(xdgConfig(), "agents") // default to XDG on fresh machines
+    },
     sources: {
       skills: { from: ".kimi/skills" },
       agents: { from: ".kimi/agents" },
@@ -628,8 +633,9 @@ Options:
   for (const h of detected) p.log.success(`${h.name} detected`)
   for (const h of notDetected) p.log.warn(`${h.name} not found`)
 
-  if (detected.length === 0 && args.hosts.length === 0) {
+  if (detected.length === 0 && args.hosts.length === 0 && args.features.length === 0) {
     p.log.error("No supported hosts detected. Install Claude Code, OpenCode, or another supported tool first.")
+    p.log.info("You can still install host-independent features: bun scripts/install.ts --features tm-cli")
     p.outro("Nothing to install.")
     return
   }
