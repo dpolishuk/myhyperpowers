@@ -255,10 +255,19 @@ const HOSTS: HostConfig[] = [
         await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
       }
       // Preserve user routing.json if it exists (don't overwrite custom model assignments)
-      const routingDest = join(targetDir, "extensions", "hyperpowers", "routing.json")
+      const extDir = join(targetDir, "extensions", "hyperpowers")
+      const routingDest = join(extDir, "routing.json")
       const routingSrc = join(REPO_ROOT, ".pi", "extensions", "hyperpowers", "routing.json")
       if (!existsSync(routingDest) && existsSync(routingSrc)) {
         await copyFile(routingSrc, routingDest)
+      }
+      // Install extension dependencies (pi-tui, typebox, etc.)
+      if (existsSync(join(extDir, "package.json"))) {
+        if (commandExists("bun")) {
+          Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+        } else if (commandExists("npm")) {
+          Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+        }
       }
     },
     postUninstall: async (targetDir) => {
@@ -283,10 +292,10 @@ const HOSTS: HostConfig[] = [
           }
         }
       }
-      // Remove skills directory
-      const skillsDir = join(targetDir, "extensions", "hyperpowers", "skills")
-      if (existsSync(skillsDir)) {
-        await rm(skillsDir, { recursive: true, force: true })
+      // Remove entire hyperpowers extension directory (includes skills, routing, node_modules)
+      const extDir = join(targetDir, "extensions", "hyperpowers")
+      if (existsSync(extDir)) {
+        await rm(extDir, { recursive: true, force: true })
       }
     },
   },
