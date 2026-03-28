@@ -155,7 +155,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       task: Type.String({ description: "The task for the subagent to perform" }),
       type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
     }),
-    async execute(params: { task: string; type?: string }) {
+    async execute(_toolCallId: string, params: { task: string; type?: string }) {
       try {
         // Build command with optional model routing
         const args = ["--print"]

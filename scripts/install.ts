@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import * as p from "@clack/prompts"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
@@ -221,10 +221,24 @@ const HOSTS: HostConfig[] = [
     },
     availableFeatures: ["memsearch"],
     postInstall: async (targetDir) => {
-      // Copy AGENTS.md to Pi's agent directory
+      // Append to AGENTS.md (preserve existing user instructions)
       const agentsMdSrc = join(REPO_ROOT, ".pi", "AGENTS.md")
+      const agentsMdDest = join(targetDir, "AGENTS.md")
       if (existsSync(agentsMdSrc)) {
-        await copyFile(agentsMdSrc, join(targetDir, "AGENTS.md"))
+        const newContent = readFileSync(agentsMdSrc, "utf8")
+        if (existsSync(agentsMdDest)) {
+          const existing = readFileSync(agentsMdDest, "utf8")
+          if (!existing.includes("# Hyperpowers for Pi")) {
+            // Append our section to existing AGENTS.md
+            await writeFile(agentsMdDest, existing + "\n\n" + newContent, "utf8")
+          } else {
+            // Replace our section (re-install)
+            const before = existing.split("# Hyperpowers for Pi")[0].trimEnd()
+            await writeFile(agentsMdDest, (before ? before + "\n\n" : "") + newContent, "utf8")
+          }
+        } else {
+          await copyFile(agentsMdSrc, agentsMdDest)
+        }
       }
       // Copy skills directory for runtime skill loading
       const skillsSrc = join(REPO_ROOT, "skills")
