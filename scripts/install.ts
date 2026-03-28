@@ -59,8 +59,8 @@ const manifestPath = () => join(homedir(), ".hyperpowers", "manifest.json")
 
 const commandExists = (cmd: string): boolean => {
   try {
-    Bun.spawnSync(["command", "-v", cmd], { stdout: "pipe", stderr: "pipe" })
-    return true
+    const result = Bun.spawnSync(["bash", "-c", `command -v ${cmd}`], { stdout: "pipe", stderr: "pipe" })
+    return result.exitCode === 0
   } catch {
     return false
   }
@@ -523,12 +523,13 @@ Options:
 
   // Phase 4: Install hosts
   const s = p.spinner()
+  const existingManifest = await readManifest()
   const manifest: InstallManifest = {
     version: VERSION,
     installedAt: new Date().toISOString(),
-    hosts: {},
-    features: {},
-    settingsModifications: {},
+    hosts: { ...(existingManifest?.hosts ?? {}) },
+    features: { ...(existingManifest?.features ?? {}) },
+    settingsModifications: { ...(existingManifest?.settingsModifications ?? {}) },
   }
 
   for (const hostId of selectedHostIds) {
@@ -548,7 +549,8 @@ Options:
 
     s.start(`Setting up ${feature.name}...`)
     const result = await feature.install(selectedHostIds, REPO_ROOT)
-    manifest.features[featureId] = { installed: true }
+    const success = !result.includes("failed") && !result.includes("not found") && !result.includes("skipped")
+    manifest.features[featureId] = { installed: success, metadata: { lastResult: result } }
     s.stop(result)
   }
 
