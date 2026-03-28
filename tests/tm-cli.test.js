@@ -299,39 +299,91 @@ exit 0
 })
 
 test("tm passes arguments with spaces unchanged to bd", () => {
-  // Use a temp directory with its own .beads to avoid polluting repo state
   const os = require("node:os")
   const fs = require("node:fs")
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-test-"))
   const tmpBeads = path.join(tmpDir, ".beads")
-  fs.mkdirSync(tmpBeads)
-  // Initialize minimal beads DB
-  spawnSync("bd", ["init"], { cwd: tmpDir, encoding: "utf8", timeout: 10000 })
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-test-bin-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
 
-  const title = "TM test issue with spaces"
-  const design = "Multi word design for testing"
-  const createResult = runTm([
-    "create", title,
-    "--type", "task",
-    "--priority", "4",
-    "--design", design,
-  ], { cwd: tmpDir })
-  assert.equal(createResult.status, 0, `tm create failed: ${createResult.stderr}`)
+  try {
+    fs.mkdirSync(tmpBeads)
 
-  // Extract issue ID from output (prefix varies by repo)
-  const idMatch = createResult.stdout.match(/(\S+-[0-9a-z]+)/)
-  assert.ok(idMatch, `Could not find issue ID in output: ${createResult.stdout}`)
-  const issueId = idMatch[1]
+    for (const commandName of ["awk", "bash", "cat", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
 
-  // Verify the title and design were preserved
-  const showResult = runTm(["show", issueId], { cwd: tmpDir })
-  assert.equal(showResult.status, 0)
-  assert.ok(showResult.stdout.includes(title), `Title not found in show output`)
-  assert.ok(showResult.stdout.includes(design), `Design not found in show output`)
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+set -euo pipefail
+store="${tmpDir}/issues.txt"
+command="$1"
+shift || true
 
-  // Clean up
-  runTm(["close", issueId, "--reason", "test cleanup"], { cwd: tmpDir })
-  fs.rmSync(tmpDir, { recursive: true, force: true })
+case "$command" in
+  create)
+    title="$1"
+    shift
+    design=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --design)
+          design="$2"
+          shift 2
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
+    printf '%s\n%s\n' "$title" "$design" > "$store"
+    printf '✓ Created issue: tmtest-1 — %s\n' "$title"
+    ;;
+  show)
+    issue_id="$1"
+    [[ "$issue_id" == "tmtest-1" ]] || exit 0
+    cat "$store"
+    ;;
+  close)
+    exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = { ...process.env, TM_BACKEND: "bd", PATH: tmpBinDir }
+    const title = "TM test issue with spaces"
+    const design = "Multi word design for testing"
+    const createResult = runTm([
+      "create", title,
+      "--type", "task",
+      "--priority", "4",
+      "--design", design,
+    ], { cwd: tmpDir, env })
+    assert.equal(createResult.status, 0, `tm create failed: ${createResult.stderr}`)
+
+    const idMatch = createResult.stdout.match(/(\S+-[0-9a-z]+)/)
+    assert.ok(idMatch, `Could not find issue ID in output: ${createResult.stdout}`)
+    const issueId = idMatch[1]
+
+    const showResult = runTm(["show", issueId], { cwd: tmpDir, env })
+    assert.equal(showResult.status, 0)
+    assert.ok(showResult.stdout.includes(title), `Title not found in show output`)
+    assert.ok(showResult.stdout.includes(design), `Design not found in show output`)
+
+    runTm(["close", issueId, "--reason", "test cleanup"], { cwd: tmpDir, env })
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  }
 })
 
 test("tm when bd not in PATH gives helpful error message", () => {
