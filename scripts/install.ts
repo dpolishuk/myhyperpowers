@@ -217,24 +217,33 @@ const HOSTS: HostConfig[] = [
     detect: () => commandExists("pi"),
     targetDir: () => join(homedir(), ".pi", "agent"),
     sources: {
-      "extensions/hyperpowers": { from: ".pi/extensions/hyperpowers" },
+      "extensions/hyperpowers": { from: ".pi/extensions/hyperpowers", exclude: ["routing.json"] },
     },
     availableFeatures: ["memsearch"],
     postInstall: async (targetDir) => {
-      // Append to AGENTS.md (preserve existing user instructions)
+      // Append/replace Hyperpowers section in AGENTS.md (preserve user content before AND after)
       const agentsMdSrc = join(REPO_ROOT, ".pi", "AGENTS.md")
       const agentsMdDest = join(targetDir, "AGENTS.md")
       if (existsSync(agentsMdSrc)) {
         const newContent = readFileSync(agentsMdSrc, "utf8")
         if (existsSync(agentsMdDest)) {
           const existing = readFileSync(agentsMdDest, "utf8")
-          if (!existing.includes("# Hyperpowers for Pi")) {
+          const marker = "# Hyperpowers for Pi"
+          const markerIdx = existing.indexOf(marker)
+          if (markerIdx === -1) {
             // Append our section to existing AGENTS.md
             await writeFile(agentsMdDest, existing + "\n\n" + newContent, "utf8")
           } else {
-            // Replace our section (re-install)
-            const before = existing.split("# Hyperpowers for Pi")[0].trimEnd()
-            await writeFile(agentsMdDest, (before ? before + "\n\n" : "") + newContent, "utf8")
+            // Replace our section, preserving content before AND after
+            const before = existing.slice(0, markerIdx).trimEnd()
+            // Find next top-level heading after our section to preserve trailing content
+            const afterSection = existing.slice(markerIdx + marker.length)
+            const nextHeadingMatch = afterSection.match(/\n(?=# [^#])/)
+            const after = nextHeadingMatch
+              ? afterSection.slice(nextHeadingMatch.index!).trimStart()
+              : ""
+            const parts = [before, newContent, after].filter(Boolean)
+            await writeFile(agentsMdDest, parts.join("\n\n") + "\n", "utf8")
           }
         } else {
           await copyFile(agentsMdSrc, agentsMdDest)
@@ -244,6 +253,40 @@ const HOSTS: HostConfig[] = [
       const skillsSrc = join(REPO_ROOT, "skills")
       if (existsSync(skillsSrc)) {
         await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
+      }
+      // Preserve user routing.json if it exists (don't overwrite custom model assignments)
+      const routingDest = join(targetDir, "extensions", "hyperpowers", "routing.json")
+      const routingSrc = join(REPO_ROOT, ".pi", "extensions", "hyperpowers", "routing.json")
+      if (!existsSync(routingDest) && existsSync(routingSrc)) {
+        await copyFile(routingSrc, routingDest)
+      }
+    },
+    postUninstall: async (targetDir) => {
+      // Remove Hyperpowers section from AGENTS.md (preserve user content)
+      const agentsMdPath = join(targetDir, "AGENTS.md")
+      if (existsSync(agentsMdPath)) {
+        const content = readFileSync(agentsMdPath, "utf8")
+        const marker = "# Hyperpowers for Pi"
+        const markerIdx = content.indexOf(marker)
+        if (markerIdx !== -1) {
+          const before = content.slice(0, markerIdx).trimEnd()
+          const afterSection = content.slice(markerIdx + marker.length)
+          const nextHeadingMatch = afterSection.match(/\n(?=# [^#])/)
+          const after = nextHeadingMatch
+            ? afterSection.slice(nextHeadingMatch.index!).trimStart()
+            : ""
+          const remaining = [before, after].filter(Boolean).join("\n\n").trim()
+          if (remaining) {
+            await writeFile(agentsMdPath, remaining + "\n", "utf8")
+          } else {
+            await rm(agentsMdPath, { force: true })
+          }
+        }
+      }
+      // Remove skills directory
+      const skillsDir = join(targetDir, "extensions", "hyperpowers", "skills")
+      if (existsSync(skillsDir)) {
+        await rm(skillsDir, { recursive: true, force: true })
       }
     },
   },

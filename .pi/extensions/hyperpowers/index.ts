@@ -35,7 +35,7 @@ const SKILLS = [
   { command: "tdd", skill: "test-driven-development", description: "Test-driven development: RED-GREEN-REFACTOR" },
   { command: "analyze-tests", skill: "analyzing-test-effectiveness", description: "Audit test quality for tautological tests" },
   { command: "verify", skill: "verification-before-completion", description: "Verify work before claiming complete" },
-  { command: "routing-settings", skill: "routing-settings", description: "Configure agent model routing" },
+  { command: "routing-settings", skill: "routing-settings", description: "Configure agent model routing (use /configure-routing for Pi TUI wizard)" },
 ]
 
 function loadSkillContent(skillName: string): string | null {
@@ -355,7 +355,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       task: Type.String({ description: "The task for the subagent to perform" }),
       type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
     }),
-    async execute(_toolCallId: string, params: { task: string; type?: string }) {
+    async execute(_toolCallId: string, params: { task: string; type?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       try {
         const args = ["--print"]
         const model = params.type ? getSubagentModel(params.type) : null
@@ -364,11 +364,13 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
         args.push("--", params.task)
 
+        // Use session cwd if available, fall back to process.cwd()
+        const cwd = ctx?.cwd || process.cwd()
         const result = spawnSync("pi", args, {
           encoding: "utf8",
           timeout: 120000,
           maxBuffer: 1024 * 1024 * 10,
-          cwd: process.cwd(),
+          cwd,
         })
         const output = result.stdout?.trim() || ""
         if (result.status !== 0) {
