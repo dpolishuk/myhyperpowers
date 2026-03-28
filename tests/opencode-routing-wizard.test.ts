@@ -77,18 +77,18 @@ test("planRecommendedRouting uses safe defaults and creates execute-ralph review
   )
 })
 
-test("planRecommendedRouting with no effort params defaults all agents to effort high", () => {
+test("planRecommendedRouting with no effort params leaves effort undefined", () => {
   const plan = planRecommendedRouting({
     strongModel: "anthropic/claude-sonnet-4-5",
   })
 
-  // Every agent in the plan must have effort: "high"
+  // When effort is not specified, agents should not have an effort field
   for (const agentName of HYPERPOWERS_AGENTS) {
-    expect(plan.agent[agentName].effort).toBe("high")
+    expect(plan.agent[agentName].effort).toBeUndefined()
   }
 
-  // Workflow override must also have effort
-  expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("high")
+  // Workflow override should also have no effort
+  expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBeUndefined()
 })
 
 test("planRecommendedRouting with mixed effort applies per-group correctly", () => {
@@ -123,14 +123,16 @@ test("planRecommendedRouting with mixed effort applies per-group correctly", () 
   expect(plan.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort).toBe("medium")
 })
 
-test("writeRecommendedRoutingPlan writes effort to opencode.json and workflow overrides", async () => {
+test("writeRecommendedRoutingPlan writes effort to opencode.json when specified", async () => {
   const { root, cleanup } = await createTempRoot()
 
   try {
     const plan = planRecommendedRouting({
       strongModel: "anthropic/claude-sonnet-4-5",
       fastModel: "anthropic/claude-haiku-4-5",
+      strongEffort: "high",
       workerEffort: "medium",
+      reviewerEffort: "high",
     })
 
     await writeRecommendedRoutingPlan(root, plan)
@@ -138,7 +140,7 @@ test("writeRecommendedRoutingPlan writes effort to opencode.json and workflow ov
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
     const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
 
-    // Every agent in opencode.json should have effort
+    // Agents with explicit effort should have it persisted
     expect(ocPersisted.agent.ralph.effort).toBe("high")
     expect(ocPersisted.agent["test-runner"].effort).toBe("medium")
     expect(ocPersisted.agent["codebase-investigator"].effort).toBe("medium")
@@ -613,7 +615,7 @@ test("CLI --yes with effort flags writes effort to config", async () => {
   }
 })
 
-test("CLI --yes without effort flags defaults all effort to high", async () => {
+test("CLI --yes without effort flags leaves effort undefined", async () => {
   const { root, cleanup } = await createTempRoot()
 
   const binDir = join(root, "bin")
@@ -650,11 +652,11 @@ test("CLI --yes without effort flags defaults all effort to high", async () => {
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
-    // All agents default to effort: high
-    expect(ocPersisted.agent.ralph.effort).toBe("high")
-    expect(ocPersisted.agent["test-runner"].effort).toBe("high")
-    expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
-    expect(ocPersisted.agent["autonomous-reviewer"].effort).toBe("high")
+    // Without explicit effort flags, effort should not be set
+    expect(ocPersisted.agent.ralph.effort).toBeUndefined()
+    expect(ocPersisted.agent["test-runner"].effort).toBeUndefined()
+    expect(ocPersisted.agent["code-reviewer"].effort).toBeUndefined()
+    expect(ocPersisted.agent["autonomous-reviewer"].effort).toBeUndefined()
   } finally {
     await cleanup()
   }
