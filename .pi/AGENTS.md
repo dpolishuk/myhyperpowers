@@ -22,7 +22,7 @@ You have hyperpowers — structured workflows for software development.
 | `/setup-models` | Configure Pi model providers (Anthropic, OpenAI, Ollama) |
 | `/review-parallel` | Run 3 parallel review subagents (quality, implementation, simplification) |
 | `/review-branch` | Review code in isolated subprocess (won't affect main session) |
-| `/configure-routing` | Configure which model each subagent type uses |
+| `/configure-routing` | Interactive TUI wizard to configure subagent model routing |
 
 ## Subagent Tool
 

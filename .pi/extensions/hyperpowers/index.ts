@@ -2,7 +2,8 @@
  * Hyperpowers extension for Pi coding agent (pi.dev)
  *
  * Registers all hyperpowers skills as slash commands, provides
- * memsearch long memory integration, and subagent delegation tool.
+ * memsearch long memory integration, subagent delegation tool,
+ * and TUI-based routing wizard.
  */
 
 import { readFileSync, existsSync, writeFileSync } from "node:fs"
@@ -10,6 +11,7 @@ import { spawnSync } from "node:child_process"
 import { homedir } from "node:os"
 import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
+import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 
 // Resolve skill paths: try extension-local skills first, then repo root
 const EXTENSION_DIR = import.meta.dir ?? __dirname
@@ -27,7 +29,7 @@ const SKILLS = [
   { command: "execute-ralph", skill: "execute-ralph", description: "Execute entire epic autonomously without stopping" },
   { command: "review-impl", skill: "review-implementation", description: "Verify implementation matches requirements" },
   { command: "recall", skill: "recall", description: "Search long-term memory from previous sessions" },
-  { command: "refactor", skill: "refactoring-safely", description: "Refactor code with tests staying green" },
+  { command: "refactor", skill: "refactoring-safely", description: "Refactor code safely with tests green" },
   { command: "fix-bug", skill: "fixing-bugs", description: "Systematic bug fixing workflow" },
   { command: "debug", skill: "debugging-with-tools", description: "Systematic debugging using debuggers and agents" },
   { command: "tdd", skill: "test-driven-development", description: "Test-driven development: RED-GREEN-REFACTOR" },
@@ -63,6 +65,14 @@ function loadRoutingConfig(): SubagentRouting {
   return {}
 }
 
+function saveRoutingConfig(subagents: SubagentRouting): void {
+  const config = {
+    _comment: "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model",
+    subagents,
+  }
+  writeFileSync(ROUTING_CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8")
+}
+
 function getSubagentModel(type: string): string | null {
   const routing = loadRoutingConfig()
   const entry = routing[type] || routing["default"]
@@ -70,10 +80,78 @@ function getSubagentModel(type: string): string | null {
   return entry.model
 }
 
+// Discover available models from Pi's built-in providers and models.json
+function discoverModels(): Array<{ provider: string; model: string; label: string }> {
+  const models: Array<{ provider: string; model: string; label: string }> = []
+
+  // Built-in models (always available)
+  const builtins: Record<string, string[]> = {
+    anthropic: ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5"],
+    openai: ["o3", "o3-mini", "o4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+    google: ["gemini-2.5-pro", "gemini-2.5-flash"],
+  }
+  for (const [provider, ids] of Object.entries(builtins)) {
+    for (const id of ids) {
+      models.push({ provider, model: `${provider}/${id}`, label: `${provider}/${id}` })
+    }
+  }
+
+  // Custom models from ~/.pi/agent/models.json
+  try {
+    const modelsPath = join(homedir(), ".pi", "agent", "models.json")
+    if (existsSync(modelsPath)) {
+      const config = JSON.parse(readFileSync(modelsPath, "utf8"))
+      for (const [provider, providerConfig] of Object.entries(config.providers || {})) {
+        for (const m of (providerConfig as any).models || []) {
+          const id = m.id || m.name
+          if (id) {
+            models.push({ provider, model: `${provider}/${id}`, label: `${provider}/${id}` })
+          }
+        }
+      }
+    }
+  } catch { /* skip */ }
+
+  return models
+}
+
+// Subagent types with descriptions
+const SUBAGENT_TYPES = [
+  { type: "review", description: "Code review, quality checks", recommended: "Fast (haiku)" },
+  { type: "research", description: "Codebase investigation, API docs", recommended: "Balanced (sonnet)" },
+  { type: "validation", description: "Final review, complex analysis", recommended: "Capable (opus)" },
+  { type: "test-runner", description: "Run tests, check results", recommended: "Fast (haiku)" },
+  { type: "default", description: "Any untyped subagent", recommended: "inherit (session model)" },
+]
+
+// Presets for quick configuration
+const PRESETS: Record<string, SubagentRouting> = {
+  "cost-optimized": {
+    review: { model: "anthropic/claude-haiku-4-5" },
+    research: { model: "anthropic/claude-haiku-4-5" },
+    validation: { model: "anthropic/claude-sonnet-4-5" },
+    "test-runner": { model: "anthropic/claude-haiku-4-5" },
+    default: { model: "inherit" },
+  },
+  performance: {
+    review: { model: "anthropic/claude-sonnet-4-5" },
+    research: { model: "anthropic/claude-sonnet-4-5" },
+    validation: { model: "anthropic/claude-opus-4-5" },
+    "test-runner": { model: "anthropic/claude-haiku-4-5" },
+    default: { model: "inherit" },
+  },
+  "all-inherit": {
+    review: { model: "inherit" },
+    research: { model: "inherit" },
+    validation: { model: "inherit" },
+    "test-runner": { model: "inherit" },
+    default: { model: "inherit" },
+  },
+}
+
 function recallMemories(cwd: string): string | null {
   try {
     const projectName = basename(cwd) || "project"
-    // Use spawnSync with argv array to avoid shell injection
     const result = spawnSync("memsearch", ["search", `recent work on ${projectName}`, "--top-k", "5", "--format", "compact"], {
       cwd,
       encoding: "utf8",
@@ -87,6 +165,128 @@ function recallMemories(cwd: string): string | null {
     // memsearch not installed or failed — skip silently
   }
   return null
+}
+
+// TUI wizard helpers
+interface SelectItem {
+  label: string
+  value: string | null
+  description: string
+}
+
+function createSelectUI(
+  items: SelectItem[],
+  title: string,
+  ctx: any,
+  maxVisible = 10,
+): Promise<string | null> {
+  return ctx.ui.custom<string | null>(
+    (tui: any, theme: any, _keybindings: any, done: (v: string | null) => void) => {
+      const container = new Container()
+      container.addChild(new Text(theme.fg("accent", theme.bold(title))))
+      container.addChild(new Spacer(1))
+
+      const selectList = new SelectList(
+        items,
+        Math.min(items.length, maxVisible),
+        {
+          selectedPrefix: (text: string) => theme.fg("accent", text),
+          description: (text: string) => theme.fg("muted", text),
+          scrollInfo: (text: string) => theme.fg("muted", text),
+          noMatch: (text: string) => theme.fg("warning", text),
+        }
+      )
+      selectList.onSelect = (item: any) => done(item.value)
+      container.addChild(selectList)
+
+      return {
+        render(width: number) { return container.render(width) },
+        invalidate() { container.invalidate() },
+        handleInput(data: string) {
+          if (data === "\x1b") { done(null); return true }
+          selectList.handleInput(data)
+          return true
+        },
+      }
+    }
+  )
+}
+
+function createSearchableSelectUI(
+  items: SelectItem[],
+  title: string,
+  subtitle: string,
+  ctx: any,
+): Promise<string | null> {
+  return ctx.ui.custom<string | null>(
+    (tui: any, theme: any, _keybindings: any, done: (v: string | null) => void) => {
+      const container = new Container()
+      container.addChild(new Text(theme.fg("accent", theme.bold(title))))
+      container.addChild(new Text(theme.fg("muted", subtitle)))
+      container.addChild(new Spacer(1))
+
+      let filterText = ""
+
+      const selectList = new SelectList(
+        items,
+        Math.min(items.length, 12),
+        {
+          selectedPrefix: (text: string) => theme.fg("accent", text),
+          description: (text: string) => theme.fg("muted", text),
+          scrollInfo: (text: string) => theme.fg("muted", text),
+          noMatch: (text: string) => theme.fg("warning", text),
+        }
+      )
+      selectList.onSelect = (item: any) => done(item.value)
+      container.addChild(selectList)
+
+      const applyFilter = () => {
+        if (!filterText) {
+          selectList.setItems(items)
+          return
+        }
+        const q = filterText.toLowerCase()
+        const filtered = items.filter((item) =>
+          item.label.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q)
+        )
+        selectList.setItems(filtered.length > 0 ? filtered : [
+          { label: `No match for "${filterText}"`, value: null, description: "Backspace to clear" },
+        ])
+      }
+
+      return {
+        render(width: number) { return container.render(width) },
+        invalidate() { container.invalidate() },
+        handleInput(data: string) {
+          // Printable character — add to filter
+          if (data.length === 1 && data >= " " && data <= "~") {
+            filterText += data
+            applyFilter()
+            return true
+          }
+          // Backspace — remove from filter
+          if (data === "\x7f" || data === "\b") {
+            filterText = filterText.slice(0, -1)
+            applyFilter()
+            return true
+          }
+          // Escape — clear filter or exit
+          if (data === "\x1b") {
+            if (filterText) {
+              filterText = ""
+              applyFilter()
+            } else {
+              done(null)
+            }
+            return true
+          }
+          selectList.handleInput(data)
+          return true
+        },
+      }
+    }
+  )
 }
 
 export default function (pi: any) {
@@ -157,7 +357,6 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     }),
     async execute(_toolCallId: string, params: { task: string; type?: string }) {
       try {
-        // Build command with optional model routing
         const args = ["--print"]
         const model = params.type ? getSubagentModel(params.type) : null
         if (model) {
@@ -188,64 +387,149 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     },
   })
 
-  // Subagent routing configuration
+  // TUI-based routing wizard — interactive model assignment
   pi.registerCommand("configure-routing", {
-    description: "Configure which model each subagent type uses (routing.json)",
+    description: "Interactive TUI wizard to configure subagent model routing",
     handler: async (_args: unknown, ctx: any) => {
-      const current = loadRoutingConfig()
-      const currentDisplay = Object.keys(current).length > 0
-        ? Object.entries(current).map(([k, v]) => `  ${k}: ${(v as any).model || "inherit"}`).join("\n")
-        : "  (no routing configured — all subagents use the session model)"
+      // Main wizard loop
+      while (true) {
+        const routing = loadRoutingConfig()
 
-      return `# Subagent Model Routing
+        // Build current config display for the main menu title
+        const configLines = SUBAGENT_TYPES.map(({ type }) => {
+          const entry = routing[type]
+          const model = entry?.model || "inherit"
+          const effort = entry?.effort ? ` (effort: ${entry.effort})` : ""
+          return `  ${type.padEnd(12)} -> ${model}${effort}`
+        })
 
-## Current Configuration
-${currentDisplay}
+        // Step 1: Choose action
+        const action = await ctx.ui.custom<string | null>(
+          (tui: any, theme: any, _keybindings: any, done: (v: string | null) => void) => {
+            const container = new Container()
 
-## How to Configure
+            container.addChild(new Text(theme.fg("accent", theme.bold("Hyperpowers Routing Wizard"))))
+            container.addChild(new Spacer(1))
 
-Use \`provider/model\` format (same as Pi's models.json). This ensures the right provider is used when multiple providers offer models with similar names.
+            // Current routing table
+            container.addChild(new Text(theme.fg("accent", "Current Configuration:")))
+            for (const { type } of SUBAGENT_TYPES) {
+              const entry = routing[type]
+              const model = entry?.model || "inherit"
+              const effort = entry?.effort ? ` (effort: ${entry.effort})` : ""
+              const modelStr = model === "inherit"
+                ? theme.fg("muted", "inherit (session model)")
+                : theme.fg("success", model)
+              container.addChild(new Text(
+                `  ${theme.bold(type.padEnd(12))} ${modelStr}${effort}`
+              ))
+            }
+            container.addChild(new Spacer(1))
 
-Edit \`${ROUTING_CONFIG_PATH}\` with your model assignments:
+            const actions: SelectItem[] = [
+              { label: "Configure single agent", value: "single", description: "Set model for one subagent type" },
+              { label: "Apply preset", value: "preset", description: "Cost-optimized, performance, or all-inherit" },
+              { label: "Reset all to inherit", value: "reset", description: "All subagents use session model" },
+              { label: "Done", value: "done", description: "Save and exit wizard" },
+            ]
 
-\`\`\`json
-{
-  "subagents": {
-    "review": { "model": "anthropic/claude-haiku-4-5" },
-    "research": { "model": "anthropic/claude-sonnet-4-5" },
-    "validation": { "model": "anthropic/claude-opus-4-5" },
-    "test-runner": { "model": "anthropic/claude-haiku-4-5" },
-    "default": { "model": "inherit" }
-  }
-}
-\`\`\`
+            const selectList = new SelectList(actions, actions.length, {
+              selectedPrefix: (text: string) => theme.fg("accent", text),
+              description: (text: string) => theme.fg("muted", text),
+            })
+            selectList.onSelect = (item: any) => done(item.value)
+            container.addChild(selectList)
 
-## Subagent Types
+            return {
+              render(width: number) { return container.render(width) },
+              invalidate() { container.invalidate() },
+              handleInput(data: string) {
+                if (data === "\x1b") { done("done"); return true }
+                selectList.handleInput(data)
+                return true
+              },
+            }
+          }
+        )
 
-| Type | Purpose | Recommended Model |
-|------|---------|-------------------|
-| \`review\` | Code review, quality checks | Fast (haiku) — high volume |
-| \`research\` | Codebase investigation, API docs | Balanced (sonnet) |
-| \`validation\` | Final review, complex analysis | Capable (opus) |
-| \`test-runner\` | Run tests, check results | Fast (haiku) |
-| \`default\` | Any untyped subagent | \`inherit\` (session model) |
+        if (!action || action === "done") break
 
-## Usage
+        if (action === "reset") {
+          saveRoutingConfig(PRESETS["all-inherit"])
+          ctx.ui.notify("All subagents reset to inherit", "success")
+          continue
+        }
 
-When calling the hyperpowers_subagent tool, specify the type:
+        if (action === "preset") {
+          const presetItems: SelectItem[] = [
+            { label: "Cost-optimized", value: "cost-optimized", description: "Haiku for review/research/test, Sonnet for validation" },
+            { label: "Performance", value: "performance", description: "Sonnet for review/research, Opus for validation, Haiku for tests" },
+            { label: "All inherit", value: "all-inherit", description: "All subagents use your current session model" },
+            { label: "Back", value: null, description: "Return to main menu" },
+          ]
 
-\`\`\`
-hyperpowers_subagent(task: "Review auth.ts", type: "review")
-→ runs with anthropic/claude-haiku-4-5
+          const presetName = await createSelectUI(presetItems, "Select Preset", ctx)
+          if (presetName && PRESETS[presetName]) {
+            saveRoutingConfig(PRESETS[presetName])
+            ctx.ui.notify(`Applied "${presetName}" preset`, "success")
+          }
+          continue
+        }
 
-hyperpowers_subagent(task: "Analyze architecture", type: "validation")
-→ runs with anthropic/claude-opus-4-5
-\`\`\`
+        if (action === "single") {
+          // Choose which subagent to configure
+          const agentItems: SelectItem[] = SUBAGENT_TYPES.map(({ type, description, recommended }) => {
+            const current = routing[type]?.model || "inherit"
+            return {
+              label: `${type} (current: ${current})`,
+              value: type,
+              description: `${description} | recommended: ${recommended}`,
+            }
+          })
+          agentItems.push({ label: "Back", value: null, description: "Return to main menu" })
 
-## Quick Setup
+          const agentType = await createSelectUI(agentItems, "Select Subagent Type", ctx)
+          if (!agentType) continue
 
-To write a cost-optimized config now, use the Edit tool to create:
-\`${ROUTING_CONFIG_PATH}\``
+          // Choose model — searchable list grouped by provider
+          const models = discoverModels()
+          const providers = [...new Set(models.map((m) => m.provider))]
+
+          const modelItems: SelectItem[] = [
+            { label: "inherit (use session model)", value: "inherit", description: "Subagent uses whatever model the session is running" },
+          ]
+          for (const provider of providers) {
+            const providerModels = models.filter((m) => m.provider === provider)
+            for (const m of providerModels) {
+              modelItems.push({ label: m.label, value: m.model, description: provider })
+            }
+          }
+          modelItems.push({ label: "Back", value: null, description: "Return to agent selection" })
+
+          const selectedModel = await createSearchableSelectUI(
+            modelItems,
+            `Select Model for "${agentType}"`,
+            "Type to filter, Enter to select, Esc to go back",
+            ctx,
+          )
+
+          if (selectedModel === null) continue
+
+          const updated = { ...routing }
+          updated[agentType] = { ...updated[agentType], model: selectedModel }
+          saveRoutingConfig(updated)
+          ctx.ui.notify(`${agentType} -> ${selectedModel}`, "success")
+        }
+      }
+
+      // Return summary after wizard closes
+      const finalRouting = loadRoutingConfig()
+      const lines = SUBAGENT_TYPES.map(({ type }) => {
+        const entry = finalRouting[type]
+        const model = entry?.model || "inherit"
+        return `  ${type}: ${model}`
+      })
+      return `Routing configuration saved:\n${lines.join("\n")}\n\nConfig file: ${ROUTING_CONFIG_PATH}`
     },
   })
 
