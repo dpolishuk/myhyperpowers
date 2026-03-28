@@ -158,12 +158,24 @@ const HOSTS: HostConfig[] = [
         const src = join(REPO_ROOT, ".kimi", f)
         if (existsSync(src)) await copyFile(src, join(targetDir, f))
       }
-      // MCP config goes to ~/.config/kimi/ (where Kimi reads it)
+      // MCP config: merge into ~/.config/kimi/mcp.json (don't overwrite existing entries)
       const kimiConfigDir = join(xdgConfig(), "kimi")
       const mcpSrc = join(REPO_ROOT, ".kimi", "mcp.json")
+      const mcpDest = join(kimiConfigDir, "mcp.json")
       if (existsSync(mcpSrc)) {
         await mkdir(kimiConfigDir, { recursive: true })
-        await copyFile(mcpSrc, join(kimiConfigDir, "mcp.json"))
+        try {
+          const newConfig = JSON.parse(await readFile(mcpSrc, "utf8"))
+          let existing: Record<string, unknown> = {}
+          if (existsSync(mcpDest)) {
+            existing = JSON.parse(await readFile(mcpDest, "utf8"))
+          }
+          const merged = { ...existing, ...newConfig }
+          await writeFile(mcpDest, JSON.stringify(merged, null, 2) + "\n", "utf8")
+        } catch {
+          // Fall back to copy if merge fails
+          await copyFile(mcpSrc, mcpDest)
+        }
       }
     },
   },
@@ -259,7 +271,7 @@ const FEATURES: FeatureConfig[] = [
       // Remove credentials
       await rm(join(homedir(), ".supermemory-opencode"), { recursive: true, force: true }).catch(() => {})
       // Remove commands
-      const cmdDir = join(xdgConfig(), "opencode", "command")
+      const cmdDir = join(xdgConfig(), "opencode", "commands")
       for (const cmd of ["supermemory-init.md", "supermemory-login.md", "supermemory-logout.md"]) {
         await unlink(join(cmdDir, cmd)).catch(() => {})
       }
