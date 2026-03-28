@@ -1,18 +1,21 @@
 /**
  * Hyperpowers extension for Pi coding agent (pi.dev)
  *
- * Registers all hyperpowers skills as slash commands and provides
- * memsearch long memory integration via session_start hook.
+ * Registers all hyperpowers skills as slash commands, provides
+ * memsearch long memory integration, and subagent delegation tool.
  */
 
 import { readFileSync, existsSync } from "node:fs"
-import { execSync, spawn } from "node:child_process"
-import { join, resolve } from "node:path"
+import { execFileSync, spawnSync } from "node:child_process"
+import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 
-// Resolve the hyperpowers repo root (extension is at .pi/extensions/hyperpowers/)
+// Resolve skill paths: try extension-local skills first, then repo root
 const EXTENSION_DIR = import.meta.dir ?? __dirname
-const REPO_ROOT = resolve(EXTENSION_DIR, "..", "..", "..")
+const SKILLS_DIRS = [
+  join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/
+  resolve(EXTENSION_DIR, "..", "..", "..", "skills"),    // dev: repo root skills/
+]
 
 // Skills to register as slash commands
 const SKILLS = [
@@ -32,13 +35,8 @@ const SKILLS = [
 ]
 
 function loadSkillContent(skillName: string): string | null {
-  // Try multiple locations for skill files
-  const paths = [
-    join(REPO_ROOT, "skills", skillName, "SKILL.md"),
-    join(REPO_ROOT, "skills", `${skillName}`, "SKILL.md"),
-  ]
-
-  for (const p of paths) {
+  for (const dir of SKILLS_DIRS) {
+    const p = join(dir, skillName, "SKILL.md")
     if (existsSync(p)) {
       try {
         return readFileSync(p, "utf8")
@@ -52,13 +50,16 @@ function loadSkillContent(skillName: string): string | null {
 
 function recallMemories(cwd: string): string | null {
   try {
-    const projectName = cwd.split("/").pop() || "project"
-    const result = execSync(
-      `timeout 5 memsearch search "recent work on ${projectName}" --top-k 5 --format compact 2>/dev/null || true`,
-      { cwd, encoding: "utf8", timeout: 6000 },
-    )
-    if (result.trim() && !result.startsWith("No results")) {
-      return result.trim()
+    const projectName = basename(cwd) || "project"
+    // Use spawnSync with argv array to avoid shell injection
+    const result = spawnSync("memsearch", ["search", `recent work on ${projectName}`, "--top-k", "5", "--format", "compact"], {
+      cwd,
+      encoding: "utf8",
+      timeout: 5000,
+    })
+    const output = result.stdout?.trim() || ""
+    if (output && !output.startsWith("No results")) {
+      return output
     }
   } catch {
     // memsearch not installed or failed — skip silently
@@ -107,24 +108,7 @@ No config needed — built-in. Just set \`OPENAI_API_KEY\` env var.
       "apiKey": "ollama",
       "models": [
         { "id": "llama3.1:8b", "name": "Llama 3.1 8B" },
-        { "id": "qwen2.5-coder:7b", "name": "Qwen 2.5 Coder 7B" },
-        { "id": "deepseek-coder-v2:16b", "name": "DeepSeek Coder V2" }
-      ]
-    }
-  }
-}
-\`\`\`
-
-### Custom OpenAI-compatible API
-\`\`\`json
-{
-  "providers": {
-    "my-proxy": {
-      "baseUrl": "https://your-proxy.example.com/v1",
-      "api": "openai-completions",
-      "apiKey": "your-key",
-      "models": [
-        { "id": "model-name", "name": "Display Name", "contextWindow": 128000 }
+        { "id": "qwen2.5-coder:7b", "name": "Qwen 2.5 Coder 7B" }
       ]
     }
   }
@@ -133,14 +117,8 @@ No config needed — built-in. Just set \`OPENAI_API_KEY\` env var.
 
 ## Tips
 - Switch models during session: \`/model\` or \`Ctrl+L\`
-- Use fast models for routine tasks, capable models for complex reasoning
 - Set \`"reasoning": true\` for models that support extended thinking
 - Set \`"cost"\` to track token spending
-
-## Recommended Setup for Hyperpowers
-- **Main model**: Claude Sonnet 4.5 or GPT-5.1 (balanced)
-- **Fast tasks**: Claude Haiku 4.5 or local Ollama model
-- **Complex reasoning**: Claude Opus 4.5 with \`"reasoning": true\`
 
 Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     },
@@ -150,24 +128,27 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   pi.registerTool({
     name: "hyperpowers_subagent",
     label: "Subagent",
-    description: "Delegate a task to an isolated Pi subagent. The subagent runs in a separate process with its own context, executes the task, and returns the result. Use for: code review, test running, research, or any task that benefits from isolated context.",
+    description: "Delegate a task to an isolated Pi subagent. Runs in a separate process with its own context. Use for code review, test running, research, or any task benefiting from isolated context.",
     parameters: Type.Object({
       task: Type.String({ description: "The task for the subagent to perform" }),
-      maxTokens: Type.Optional(Type.Number({ description: "Max output tokens (default: 4096)" })),
     }),
-    async execute(params: { task: string; maxTokens?: number }) {
+    async execute(params: { task: string }) {
       try {
-        const result = execSync(
-          `pi --print -- ${JSON.stringify(params.task)}`,
-          {
-            encoding: "utf8",
-            timeout: 120000, // 2 minute timeout
-            maxBuffer: 1024 * 1024 * 10, // 10MB
-            cwd: process.cwd(),
-          },
-        )
+        // Use spawnSync with argv array to prevent shell injection
+        const result = spawnSync("pi", ["--print", "--", params.task], {
+          encoding: "utf8",
+          timeout: 120000,
+          maxBuffer: 1024 * 1024 * 10,
+          cwd: process.cwd(),
+        })
+        const output = result.stdout?.trim() || ""
+        if (result.status !== 0) {
+          return {
+            content: [{ type: "text" as const, text: `Subagent failed (exit ${result.status}): ${result.stderr?.trim() || output || "unknown error"}` }],
+          }
+        }
         return {
-          content: [{ type: "text" as const, text: result.trim() || "(subagent returned empty result)" }],
+          content: [{ type: "text" as const, text: output || "(subagent returned empty result)" }],
         }
       } catch (err: any) {
         return {
@@ -177,7 +158,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     },
   })
 
-  // Parallel review — dispatches multiple subagents for review
+  // Parallel review — dispatches multiple subagents
   pi.registerCommand("review-parallel", {
     description: "Run 3 parallel review subagents: quality, implementation, simplification",
     handler: async (_args: unknown, ctx: any) => {
@@ -192,30 +173,22 @@ Run these 3 reviews using the hyperpowers_subagent tool IN PARALLEL:
    "Verify the recent changes achieve their stated goals. Check git log --oneline -5 for context. Return PASS or ISSUES_FOUND with missing items."
 
 3. **Simplification review**: Use hyperpowers_subagent with task:
-   "Check for over-engineering in recent changes. Look for unnecessary abstractions, premature generalization. Return PASS or ISSUES_FOUND with recommendations."
+   "Check for over-engineering in recent changes. Look for unnecessary abstractions. Return PASS or ISSUES_FOUND with recommendations."
 
 After all 3 complete, summarize the results in a table.`
     },
   })
 
-  // Session-aware review using Pi's session branching
+  // Session-aware review
   pi.registerCommand("review-branch", {
-    description: "Review code in a branched session context (isolated, won't affect main session)",
+    description: "Review code in an isolated subprocess (won't affect main session)",
     handler: async (_args: unknown, ctx: any) => {
       return `# Branched Review
 
-To review code without affecting your main session context:
-
-1. Use the hyperpowers_subagent tool to delegate the review task
-2. The subagent runs in a completely isolated Pi process
-3. Its context, tool calls, and findings don't pollute your main session
-4. Only the final result comes back
-
-This is Pi's equivalent of Claude Code's "context: fork" — full isolation via subprocess.
+Use the hyperpowers_subagent tool to delegate the review. The subagent runs in a completely isolated Pi process — its context won't affect your main session.
 
 Example: Call hyperpowers_subagent with task:
-"Read the files changed in the last commit (git diff HEAD~1 --name-only), then review each file for bugs, security issues, and code quality. Provide a structured report."
-`
+"Read the files changed in the last commit (git diff HEAD~1 --name-only), then review each file for bugs, security issues, and code quality. Provide a structured report."`
     },
   })
 

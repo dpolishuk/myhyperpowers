@@ -456,6 +456,10 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
         if (existsSync(join(target, f))) installedFiles.push(f)
       }
     }
+    if (host.id === "pi") {
+      if (existsSync(join(target, "AGENTS.md"))) installedFiles.push("AGENTS.md")
+      if (existsSync(join(target, "extensions", "hyperpowers", "skills"))) installedFiles.push("extensions/hyperpowers/skills/")
+    }
   }
 
   // Write version file last (after postInstall succeeds)
