@@ -19,11 +19,16 @@ if [[ -z "$project_name" ]]; then
 fi
 
 # Search for recent relevant memories (5s timeout, silent failure)
-memories=$(timeout 5 memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
+# Use timeout if available (GNU), fall back to direct call (macOS)
+if command -v timeout >/dev/null 2>&1; then
+  memories=$(timeout 5 memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
+else
+  memories=$(memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
+fi
 
 if [[ -n "$memories" && "$memories" != "No results found"* ]]; then
-  # Escape for JSON embedding
-  escaped=$(echo "$memories" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
+  # Escape for JSON embedding (backslashes, quotes, tabs, carriage returns, control chars)
+  escaped=$(echo "$memories" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/\t/\\t/g' | tr -d '\r' | tr -d '\000-\011\013-\037' | awk '{printf "%s\\n", $0}')
 
   cat <<EOF
 {
