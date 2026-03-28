@@ -149,8 +149,16 @@ const HOSTS: HostConfig[] = [
     targetDir: () => existsSync(join(homedir(), ".kimi")) ? join(homedir(), ".kimi") : join(xdgConfig(), "agents"),
     sources: {
       skills: { from: ".kimi/skills" },
+      agents: { from: ".kimi/agents" },
     },
     availableFeatures: [],
+    postInstall: async (targetDir) => {
+      // Copy top-level config files
+      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
+        const src = join(REPO_ROOT, ".kimi", f)
+        if (existsSync(src)) await copyFile(src, join(targetDir, f))
+      }
+    },
   },
   {
     id: "gemini",
@@ -377,8 +385,24 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
   await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
   installedFiles.push(".hyperpowers-version")
 
-  // Run post-install
-  if (host.postInstall) await host.postInstall(target)
+  // Run post-install and track additional files
+  if (host.postInstall) {
+    await host.postInstall(target)
+    // Re-scan for files that postInstall may have added
+    if (host.id === "opencode") {
+      for (const f of ["package.json", "task-context.json", "cass-memory.json"]) {
+        if (existsSync(join(target, f))) installedFiles.push(f)
+      }
+    }
+    if (host.id === "claude") {
+      if (existsSync(join(target, "hyperpowers-statusline.sh"))) installedFiles.push("hyperpowers-statusline.sh")
+    }
+    if (host.id === "kimi") {
+      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
+        if (existsSync(join(target, f))) installedFiles.push(f)
+      }
+    }
+  }
 
   return installedFiles
 }
