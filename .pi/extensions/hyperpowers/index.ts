@@ -12,6 +12,13 @@ import { homedir } from "node:os"
 import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
+import {
+  normalizeRoutingConfig,
+  resolveRoutingEntry,
+  serializeRoutingConfig,
+  type RoutingConfig,
+  type RoutingMap,
+} from "./routing"
 
 // Resolve skill paths: try extension-local skills first, then repo root
 const EXTENSION_DIR = import.meta.dir ?? __dirname
@@ -53,31 +60,25 @@ function loadSkillContent(skillName: string): string | null {
 }
 
 // Subagent routing config
-type SubagentRouting = Record<string, { model?: string; effort?: string }>
-
-function loadRoutingConfig(): SubagentRouting {
+function loadRoutingConfig(): RoutingConfig {
   try {
     if (existsSync(ROUTING_CONFIG_PATH)) {
-      const config = JSON.parse(readFileSync(ROUTING_CONFIG_PATH, "utf8"))
-      return config.subagents || {}
+      return normalizeRoutingConfig(JSON.parse(readFileSync(ROUTING_CONFIG_PATH, "utf8")))
     }
   } catch { /* skip */ }
-  return {}
+  return normalizeRoutingConfig({})
 }
 
-function saveRoutingConfig(subagents: SubagentRouting): void {
-  const config = {
-    _comment: "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model",
-    subagents,
-  }
-  writeFileSync(ROUTING_CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8")
+function saveRoutingConfig(config: RoutingConfig): void {
+  writeFileSync(ROUTING_CONFIG_PATH, serializeRoutingConfig(config), "utf8")
 }
 
-function getSubagentModel(type: string): string | null {
-  const routing = loadRoutingConfig()
-  const entry = routing[type] || routing["default"]
-  if (!entry?.model || entry.model === "inherit") return null
-  return entry.model
+function getRoutingMap(config: RoutingConfig): RoutingMap {
+  return config.subagents
+}
+
+function resolveSubagentRouting(type?: string, agent?: string, explicitModel?: string) {
+  return resolveRoutingEntry(loadRoutingConfig(), { type, agent, explicitModel })
 }
 
 // Discover available models from Pi's built-in providers and models.json
@@ -125,28 +126,34 @@ const SUBAGENT_TYPES = [
 ]
 
 // Presets for quick configuration
-const PRESETS: Record<string, SubagentRouting> = {
-  "cost-optimized": {
-    review: { model: "anthropic/claude-haiku-4-5" },
-    research: { model: "anthropic/claude-haiku-4-5" },
-    validation: { model: "anthropic/claude-sonnet-4-5" },
-    "test-runner": { model: "anthropic/claude-haiku-4-5" },
-    default: { model: "inherit" },
-  },
-  performance: {
-    review: { model: "anthropic/claude-sonnet-4-5" },
-    research: { model: "anthropic/claude-sonnet-4-5" },
-    validation: { model: "anthropic/claude-opus-4-5" },
-    "test-runner": { model: "anthropic/claude-haiku-4-5" },
-    default: { model: "inherit" },
-  },
-  "all-inherit": {
-    review: { model: "inherit" },
-    research: { model: "inherit" },
-    validation: { model: "inherit" },
-    "test-runner": { model: "inherit" },
-    default: { model: "inherit" },
-  },
+const PRESETS: Record<string, RoutingConfig> = {
+  "cost-optimized": normalizeRoutingConfig({
+    subagents: {
+      review: { model: "anthropic/claude-haiku-4-5" },
+      research: { model: "anthropic/claude-haiku-4-5" },
+      validation: { model: "anthropic/claude-sonnet-4-5" },
+      "test-runner": { model: "anthropic/claude-haiku-4-5" },
+      default: { model: "inherit" },
+    },
+  }),
+  performance: normalizeRoutingConfig({
+    subagents: {
+      review: { model: "anthropic/claude-sonnet-4-5" },
+      research: { model: "anthropic/claude-sonnet-4-5" },
+      validation: { model: "anthropic/claude-opus-4-5" },
+      "test-runner": { model: "anthropic/claude-haiku-4-5" },
+      default: { model: "inherit" },
+    },
+  }),
+  "all-inherit": normalizeRoutingConfig({
+    subagents: {
+      review: { model: "inherit" },
+      research: { model: "inherit" },
+      validation: { model: "inherit" },
+      "test-runner": { model: "inherit" },
+      default: { model: "inherit" },
+    },
+  }),
 }
 
 function recallMemories(cwd: string): string | null {
@@ -350,17 +357,18 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   pi.registerTool({
     name: "hyperpowers_subagent",
     label: "Subagent",
-    description: "Delegate a task to an isolated Pi subagent. Optionally specify a type (review, research, validation, test-runner) to route to a configured model. Runs in a separate process with its own context.",
+    description: "Delegate a task to an isolated Pi subagent. Optionally specify a concrete agent and/or abstract type to route to a configured model. Runs in a separate process with its own context.",
     parameters: Type.Object({
       task: Type.String({ description: "The task for the subagent to perform" }),
       type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
+      agent: Type.Optional(Type.String({ description: "Concrete Hyperpowers agent name for routing precedence (optional, e.g. code-reviewer, internet-researcher, autonomous-reviewer)" })),
     }),
-    async execute(_toolCallId: string, params: { task: string; type?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
+    async execute(_toolCallId: string, params: { task: string; type?: string; agent?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       try {
         const args = ["--print"]
-        const model = params.type ? getSubagentModel(params.type) : null
-        if (model) {
-          args.push("--model", model)
+        const routing = resolveSubagentRouting(params.type, params.agent)
+        if (routing.model) {
+          args.push("--model", routing.model)
         }
         args.push("--", params.task)
 
@@ -396,10 +404,11 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       // Main wizard loop
       while (true) {
         const routing = loadRoutingConfig()
+        const subagentRouting = getRoutingMap(routing)
 
         // Build current config display for the main menu title
         const configLines = SUBAGENT_TYPES.map(({ type }) => {
-          const entry = routing[type]
+          const entry = subagentRouting[type]
           const model = entry?.model || "inherit"
           const effort = entry?.effort ? ` (effort: ${entry.effort})` : ""
           return `  ${type.padEnd(12)} -> ${model}${effort}`
@@ -416,7 +425,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
             // Current routing table
             container.addChild(new Text(theme.fg("accent", "Current Configuration:")))
             for (const { type } of SUBAGENT_TYPES) {
-              const entry = routing[type]
+              const entry = subagentRouting[type]
               const model = entry?.model || "inherit"
               const effort = entry?.effort ? ` (effort: ${entry.effort})` : ""
               const modelStr = model === "inherit"
@@ -481,7 +490,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         if (action === "single") {
           // Choose which subagent to configure
           const agentItems: SelectItem[] = SUBAGENT_TYPES.map(({ type, description, recommended }) => {
-            const current = routing[type]?.model || "inherit"
+            const current = subagentRouting[type]?.model || "inherit"
             return {
               label: `${type} (current: ${current})`,
               value: type,
@@ -517,8 +526,8 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
           if (selectedModel === null) continue
 
-          const updated = { ...routing }
-          updated[agentType] = { ...updated[agentType], model: selectedModel }
+          const updated = loadRoutingConfig()
+          updated.subagents[agentType] = { ...updated.subagents[agentType], model: selectedModel }
           saveRoutingConfig(updated)
           ctx.ui.notify(`${agentType} -> ${selectedModel}`, "success")
         }
@@ -527,7 +536,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       // Return summary after wizard closes
       const finalRouting = loadRoutingConfig()
       const lines = SUBAGENT_TYPES.map(({ type }) => {
-        const entry = finalRouting[type]
+        const entry = finalRouting.subagents[type]
         const model = entry?.model || "inherit"
         return `  ${type}: ${model}`
       })
