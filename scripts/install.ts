@@ -211,6 +211,28 @@ const HOSTS: HostConfig[] = [
       }
     },
   },
+  {
+    id: "pi",
+    name: "Pi Agent",
+    detect: () => commandExists("pi"),
+    targetDir: () => join(homedir(), ".pi", "agent"),
+    sources: {
+      "extensions/hyperpowers": { from: ".pi/extensions/hyperpowers" },
+    },
+    availableFeatures: ["memsearch"],
+    postInstall: async (targetDir) => {
+      // Copy AGENTS.md to Pi's agent directory
+      const agentsMdSrc = join(REPO_ROOT, ".pi", "AGENTS.md")
+      if (existsSync(agentsMdSrc)) {
+        await copyFile(agentsMdSrc, join(targetDir, "AGENTS.md"))
+      }
+      // Copy skills directory for runtime skill loading
+      const skillsSrc = join(REPO_ROOT, "skills")
+      if (existsSync(skillsSrc)) {
+        await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
+      }
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -561,7 +583,7 @@ Options:
   --yes, -y          Auto-install all detected hosts and features
   --json, -j         Output structured JSON (implies --yes, for AI agents)
   --uninstall        Remove all installed files and features
-  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini
+  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini,pi
   --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
   --help, -h         Show this help
 `)
