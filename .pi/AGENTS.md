@@ -19,6 +19,7 @@ You have hyperpowers — structured workflows for software development.
 | `/analyze-tests` | Audit test quality |
 | `/verify` | Verify before claiming complete |
 | `/routing-settings` | Configure agent model routing |
+| `/setup-models` | Configure Pi model providers (Anthropic, OpenAI, Ollama) |
 
 ## Core Principles
 

@@ -80,6 +80,71 @@ export default function (pi: any) {
     })
   }
 
+  // Model setup wizard — generates ~/.pi/agent/models.json
+  pi.registerCommand("setup-models", {
+    description: "Configure Pi model providers (Anthropic, OpenAI, Ollama, etc.)",
+    handler: async (_args: unknown, ctx: any) => {
+      return `# Pi Model Setup
+
+To configure your AI model providers, edit \`~/.pi/agent/models.json\`.
+
+## Quick Setup Examples
+
+### Anthropic (Claude)
+No config needed — built-in. Just set \`ANTHROPIC_API_KEY\` env var.
+
+### OpenAI
+No config needed — built-in. Just set \`OPENAI_API_KEY\` env var.
+
+### Ollama (local models, free)
+\`\`\`json
+{
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "models": [
+        { "id": "llama3.1:8b", "name": "Llama 3.1 8B" },
+        { "id": "qwen2.5-coder:7b", "name": "Qwen 2.5 Coder 7B" },
+        { "id": "deepseek-coder-v2:16b", "name": "DeepSeek Coder V2" }
+      ]
+    }
+  }
+}
+\`\`\`
+
+### Custom OpenAI-compatible API
+\`\`\`json
+{
+  "providers": {
+    "my-proxy": {
+      "baseUrl": "https://your-proxy.example.com/v1",
+      "api": "openai-completions",
+      "apiKey": "your-key",
+      "models": [
+        { "id": "model-name", "name": "Display Name", "contextWindow": 128000 }
+      ]
+    }
+  }
+}
+\`\`\`
+
+## Tips
+- Switch models during session: \`/model\` or \`Ctrl+L\`
+- Use fast models for routine tasks, capable models for complex reasoning
+- Set \`"reasoning": true\` for models that support extended thinking
+- Set \`"cost"\` to track token spending
+
+## Recommended Setup for Hyperpowers
+- **Main model**: Claude Sonnet 4.5 or GPT-5.1 (balanced)
+- **Fast tasks**: Claude Haiku 4.5 or local Ollama model
+- **Complex reasoning**: Claude Opus 4.5 with \`"reasoning": true\`
+
+Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
+    },
+  })
+
   // Memory recall on session start
   pi.on("session_start", async (event: any) => {
     const cwd = event?.cwd || process.cwd()
