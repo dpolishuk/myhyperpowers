@@ -204,15 +204,17 @@ ${currentDisplay}
 
 ## How to Configure
 
+Use \`provider/model\` format (same as Pi's models.json). This ensures the right provider is used when multiple providers offer models with similar names.
+
 Edit \`${ROUTING_CONFIG_PATH}\` with your model assignments:
 
 \`\`\`json
 {
   "subagents": {
-    "review": { "model": "claude-haiku-4-5" },
-    "research": { "model": "claude-sonnet-4-5" },
-    "validation": { "model": "claude-opus-4-5" },
-    "test-runner": { "model": "claude-haiku-4-5" },
+    "review": { "model": "anthropic/claude-haiku-4-5" },
+    "research": { "model": "anthropic/claude-sonnet-4-5" },
+    "validation": { "model": "anthropic/claude-opus-4-5" },
+    "test-runner": { "model": "anthropic/claude-haiku-4-5" },
     "default": { "model": "inherit" }
   }
 }
@@ -234,10 +236,10 @@ When calling the hyperpowers_subagent tool, specify the type:
 
 \`\`\`
 hyperpowers_subagent(task: "Review auth.ts", type: "review")
-→ runs with claude-haiku-4-5
+→ runs with anthropic/claude-haiku-4-5
 
 hyperpowers_subagent(task: "Analyze architecture", type: "validation")
-→ runs with claude-opus-4-5
+→ runs with anthropic/claude-opus-4-5
 \`\`\`
 
 ## Quick Setup
