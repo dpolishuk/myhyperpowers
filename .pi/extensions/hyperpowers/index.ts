@@ -13,9 +13,14 @@ import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import {
+  HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
+  resetAllAgentOverrides,
   resolveRoutingEntry,
   serializeRoutingConfig,
+  withAgentModel,
+  withSubagentModel,
+  withoutAgentOverride,
   type RoutingConfig,
   type RoutingMap,
 } from "./routing"
@@ -399,31 +404,20 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
   // TUI-based routing wizard — interactive model assignment
   pi.registerCommand("configure-routing", {
-    description: "Interactive TUI wizard to configure subagent model routing",
+    description: "Interactive TUI wizard to configure Hyperpowers subagent type defaults and concrete agent overrides",
     handler: async (_args: unknown, ctx: any) => {
-      // Main wizard loop
       while (true) {
         const routing = loadRoutingConfig()
         const subagentRouting = getRoutingMap(routing)
 
-        // Build current config display for the main menu title
-        const configLines = SUBAGENT_TYPES.map(({ type }) => {
-          const entry = subagentRouting[type]
-          const model = entry?.model || "inherit"
-          const effort = entry?.effort ? ` (effort: ${entry.effort})` : ""
-          return `  ${type.padEnd(12)} -> ${model}${effort}`
-        })
-
-        // Step 1: Choose action
         const action = await ctx.ui.custom<string | null>(
-          (tui: any, theme: any, _keybindings: any, done: (v: string | null) => void) => {
+          (_tui: any, theme: any, _keybindings: any, done: (v: string | null) => void) => {
             const container = new Container()
 
             container.addChild(new Text(theme.fg("accent", theme.bold("Hyperpowers Routing Wizard"))))
             container.addChild(new Spacer(1))
 
-            // Current routing table
-            container.addChild(new Text(theme.fg("accent", "Current Configuration:")))
+            container.addChild(new Text(theme.fg("accent", "Subagent Type Defaults:")))
             for (const { type } of SUBAGENT_TYPES) {
               const entry = subagentRouting[type]
               const model = entry?.model || "inherit"
@@ -431,14 +425,32 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
               const modelStr = model === "inherit"
                 ? theme.fg("muted", "inherit (session model)")
                 : theme.fg("success", model)
-              container.addChild(new Text(
-                `  ${theme.bold(type.padEnd(12))} ${modelStr}${effort}`
-              ))
+              container.addChild(new Text(`  ${theme.bold(type.padEnd(12))} ${modelStr}${effort}`))
+            }
+
+            container.addChild(new Spacer(1))
+            container.addChild(new Text(theme.fg("accent", "Concrete Agent Overrides:")))
+            if (Object.keys(routing.agents).length === 0) {
+              container.addChild(new Text(`  ${theme.fg("muted", "(none configured)")}`))
+            } else {
+              for (const agent of HYPERPOWERS_AGENTS) {
+                const entry = routing.agents[agent.name]
+                if (!entry) continue
+                const model = entry.model || "inherit"
+                const effort = entry.effort ? ` (effort: ${entry.effort})` : ""
+                const modelStr = model === "inherit"
+                  ? theme.fg("muted", "inherit (session model)")
+                  : theme.fg("success", model)
+                container.addChild(new Text(`  ${theme.bold(agent.name.padEnd(24))} ${modelStr}${effort}`))
+              }
             }
             container.addChild(new Spacer(1))
 
             const actions: SelectItem[] = [
-              { label: "Configure single agent", value: "single", description: "Set model for one subagent type" },
+              { label: "Configure subagent type default", value: "single", description: "Set model for one abstract subagent type" },
+              { label: "Configure concrete agent override", value: "agent", description: "Set model for one Hyperpowers agent name" },
+              { label: "Reset one concrete agent override", value: "reset-agent", description: "Remove one per-agent override and fall back to type/default" },
+              { label: "Reset all concrete agent overrides", value: "reset-agents", description: "Keep type defaults, remove per-agent overrides" },
               { label: "Apply preset", value: "preset", description: "Cost-optimized, performance, or all-inherit" },
               { label: "Reset all to inherit", value: "reset", description: "All subagents use session model" },
               { label: "Done", value: "done", description: "Save and exit wizard" },
@@ -460,14 +472,43 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
                 return true
               },
             }
-          }
+          },
         )
 
         if (!action || action === "done") break
 
         if (action === "reset") {
           saveRoutingConfig(PRESETS["all-inherit"])
-          ctx.ui.notify("All subagents reset to inherit", "success")
+          ctx.ui.notify("All subagent defaults and concrete agent overrides reset to inherit", "success")
+          continue
+        }
+
+        if (action === "reset-agents") {
+          saveRoutingConfig(resetAllAgentOverrides(routing))
+          ctx.ui.notify("All concrete agent overrides removed", "success")
+          continue
+        }
+
+        if (action === "reset-agent") {
+          const configuredAgents: SelectItem[] = HYPERPOWERS_AGENTS
+            .filter((agent) => routing.agents[agent.name])
+            .map((agent) => ({
+              label: `${agent.name} (current: ${routing.agents[agent.name]?.model || "inherit"})`,
+              value: agent.name,
+              description: `${agent.group} | falls back to ${agent.type}`,
+            }))
+
+          if (configuredAgents.length === 0) {
+            ctx.ui.notify("No concrete agent overrides are currently configured", "warning")
+            continue
+          }
+
+          configuredAgents.push({ label: "Back", value: null, description: "Return to main menu" })
+          const agentName = await createSelectUI(configuredAgents, "Select Concrete Agent Override to Reset", ctx)
+          if (!agentName) continue
+
+          saveRoutingConfig(withoutAgentOverride(routing, agentName))
+          ctx.ui.notify(`Removed concrete override for ${agentName}`, "success")
           continue
         }
 
@@ -487,8 +528,20 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           continue
         }
 
+        const models = discoverModels()
+        const providers = [...new Set(models.map((m) => m.provider))]
+        const modelItems: SelectItem[] = [
+          { label: "inherit (use session model)", value: "inherit", description: "Subagent uses whatever model the session is running" },
+        ]
+        for (const provider of providers) {
+          const providerModels = models.filter((m) => m.provider === provider)
+          for (const m of providerModels) {
+            modelItems.push({ label: m.label, value: m.model, description: provider })
+          }
+        }
+        modelItems.push({ label: "Back", value: null, description: "Return to previous menu" })
+
         if (action === "single") {
-          // Choose which subagent to configure
           const agentItems: SelectItem[] = SUBAGENT_TYPES.map(({ type, description, recommended }) => {
             const current = subagentRouting[type]?.model || "inherit"
             return {
@@ -502,44 +555,59 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           const agentType = await createSelectUI(agentItems, "Select Subagent Type", ctx)
           if (!agentType) continue
 
-          // Choose model — searchable list grouped by provider
-          const models = discoverModels()
-          const providers = [...new Set(models.map((m) => m.provider))]
-
-          const modelItems: SelectItem[] = [
-            { label: "inherit (use session model)", value: "inherit", description: "Subagent uses whatever model the session is running" },
-          ]
-          for (const provider of providers) {
-            const providerModels = models.filter((m) => m.provider === provider)
-            for (const m of providerModels) {
-              modelItems.push({ label: m.label, value: m.model, description: provider })
-            }
-          }
-          modelItems.push({ label: "Back", value: null, description: "Return to agent selection" })
-
           const selectedModel = await createSearchableSelectUI(
             modelItems,
-            `Select Model for "${agentType}"`,
+            `Select Model for subagent type "${agentType}"`,
             "Type to filter, Enter to select, Esc to go back",
             ctx,
           )
 
           if (selectedModel === null) continue
 
-          const updated = loadRoutingConfig()
-          updated.subagents[agentType] = { ...updated.subagents[agentType], model: selectedModel }
-          saveRoutingConfig(updated)
+          saveRoutingConfig(withSubagentModel(routing, agentType, selectedModel))
           ctx.ui.notify(`${agentType} -> ${selectedModel}`, "success")
+          continue
+        }
+
+        if (action === "agent") {
+          const agentItems: SelectItem[] = HYPERPOWERS_AGENTS.map((agent) => {
+            const current = routing.agents[agent.name]?.model || "inherit"
+            return {
+              label: `${agent.name} (current: ${current})`,
+              value: agent.name,
+              description: `${agent.group} | fallback type: ${agent.type} | ${agent.description}`,
+            }
+          })
+          agentItems.push({ label: "Back", value: null, description: "Return to main menu" })
+
+          const agentName = await createSelectUI(agentItems, "Select Concrete Hyperpowers Agent", ctx)
+          if (!agentName) continue
+
+          const selectedModel = await createSearchableSelectUI(
+            modelItems,
+            `Select Model for concrete agent "${agentName}"`,
+            "Type to filter, Enter to select, Esc to go back",
+            ctx,
+          )
+
+          if (selectedModel === null) continue
+
+          saveRoutingConfig(withAgentModel(routing, agentName, selectedModel))
+          ctx.ui.notify(`${agentName} -> ${selectedModel}`, "success")
         }
       }
 
-      // Return summary after wizard closes
       const finalRouting = loadRoutingConfig()
-      const lines = SUBAGENT_TYPES.map(({ type }) => {
-        const entry = finalRouting.subagents[type]
-        const model = entry?.model || "inherit"
-        return `  ${type}: ${model}`
-      })
+      const lines = [
+        ...SUBAGENT_TYPES.map(({ type }) => {
+          const entry = finalRouting.subagents[type]
+          const model = entry?.model || "inherit"
+          return `  type:${type} -> ${model}`
+        }),
+        ...HYPERPOWERS_AGENTS
+          .filter((agent) => finalRouting.agents[agent.name])
+          .map((agent) => `  agent:${agent.name} -> ${finalRouting.agents[agent.name]?.model || "inherit"}`),
+      ]
       return `Routing configuration saved:\n${lines.join("\n")}\n\nConfig file: ${ROUTING_CONFIG_PATH}`
     },
   })

@@ -5,8 +5,23 @@ export interface RoutingConfig {
   agents: RoutingMap
 }
 
+export interface HyperpowersAgentDefinition {
+  name: string
+  type: string
+  group: "workers" | "reviewers"
+  description: string
+}
+
 export const DEFAULT_ROUTING_COMMENT =
   "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model"
+
+export const HYPERPOWERS_AGENTS: HyperpowersAgentDefinition[] = [
+  { name: "code-reviewer", type: "review", group: "reviewers", description: "Code review, quality checks" },
+  { name: "autonomous-reviewer", type: "validation", group: "reviewers", description: "Final review and validation" },
+  { name: "codebase-investigator", type: "research", group: "workers", description: "Find existing patterns in the codebase" },
+  { name: "internet-researcher", type: "research", group: "workers", description: "Research external docs and APIs" },
+  { name: "test-runner", type: "test-runner", group: "workers", description: "Run tests in isolated subprocesses" },
+]
 
 const DEFAULT_SUBAGENTS: RoutingMap = {
   review: { model: "inherit" },
@@ -98,4 +113,40 @@ export function resolveRoutingEntry(
   }
 
   return { source: "inherit", model: null }
+}
+
+export function withSubagentModel(config: RoutingConfig, type: string, model: string): RoutingConfig {
+  return {
+    subagents: {
+      ...config.subagents,
+      [type]: { ...config.subagents[type], model },
+    },
+    agents: { ...config.agents },
+  }
+}
+
+export function withAgentModel(config: RoutingConfig, agent: string, model: string): RoutingConfig {
+  return {
+    subagents: { ...config.subagents },
+    agents: {
+      ...config.agents,
+      [agent]: { ...config.agents[agent], model },
+    },
+  }
+}
+
+export function withoutAgentOverride(config: RoutingConfig, agent: string): RoutingConfig {
+  const agents = { ...config.agents }
+  delete agents[agent]
+  return {
+    subagents: { ...config.subagents },
+    agents,
+  }
+}
+
+export function resetAllAgentOverrides(config: RoutingConfig): RoutingConfig {
+  return {
+    subagents: { ...config.subagents },
+    agents: {},
+  }
 }

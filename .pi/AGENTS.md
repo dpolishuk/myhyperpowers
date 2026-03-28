@@ -22,7 +22,7 @@ You have hyperpowers — structured workflows for software development.
 | `/setup-models` | Configure Pi model providers (Anthropic, OpenAI, Ollama) |
 | `/review-parallel` | Run 3 parallel review subagents (quality, implementation, simplification) |
 | `/review-branch` | Review code in isolated subprocess (won't affect main session) |
-| `/configure-routing` | Interactive TUI wizard to configure subagent model routing |
+| `/configure-routing` | Interactive TUI wizard to configure subagent type defaults and concrete agent overrides |
 
 ## Subagent Tool
 
@@ -32,16 +32,24 @@ The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` to route to a configured model:
+The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` for abstract routing, or add `agent` for a concrete override:
 
 ```
-hyperpowers_subagent(task: "Review code", type: "review")      → uses fast model
-hyperpowers_subagent(task: "Analyze arch", type: "validation")  → uses capable model
+hyperpowers_subagent(task: "Review code", type: "review")
+hyperpowers_subagent(task: "Review auth.ts", type: "review", agent: "code-reviewer")
+hyperpowers_subagent(task: "Analyze architecture", type: "validation", agent: "autonomous-reviewer")
 ```
+
+Routing precedence:
+1. Explicit tool-call model
+2. Concrete `agent` override
+3. Abstract `type` override
+4. Default route
+5. Inherit current session model
 
 Types: `review` (fast), `research` (balanced), `validation` (capable), `test-runner` (fast)
 
-Configure models per type: `/configure-routing`
+Configure models per type or concrete agent: `/configure-routing`
 
 ## Core Principles
 
