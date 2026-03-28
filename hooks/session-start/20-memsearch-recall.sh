@@ -18,8 +18,8 @@ if [[ -z "$project_name" ]]; then
   project_name=$(basename "$PWD")
 fi
 
-# Search for recent relevant memories (silent failure)
-memories=$(memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
+# Search for recent relevant memories (5s timeout, silent failure)
+memories=$(timeout 5 memsearch search "recent work on ${project_name}" --top-k 5 --format compact 2>/dev/null || true)
 
 if [[ -n "$memories" && "$memories" != "No results found"* ]]; then
   # Escape for JSON embedding

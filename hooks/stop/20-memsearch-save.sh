@@ -64,7 +64,7 @@ if ! mkdir "$lock_file" 2>/dev/null; then
   exit 0
 fi
 (
-  memsearch index "$memory_file" >/dev/null 2>&1
+  memsearch index "$memory_file" >/dev/null 2>&1 || true
   rmdir "$lock_file" 2>/dev/null || true
 ) &
 disown 2>/dev/null || true
