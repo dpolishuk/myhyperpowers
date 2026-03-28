@@ -165,12 +165,20 @@ const HOSTS: HostConfig[] = [
       if (existsSync(mcpSrc)) {
         await mkdir(kimiConfigDir, { recursive: true })
         try {
-          const newConfig = JSON.parse(await readFile(mcpSrc, "utf8"))
+          const newConfig = JSON.parse(await readFile(mcpSrc, "utf8")) as Record<string, unknown>
           let existing: Record<string, unknown> = {}
           if (existsSync(mcpDest)) {
-            existing = JSON.parse(await readFile(mcpDest, "utf8"))
+            existing = JSON.parse(await readFile(mcpDest, "utf8")) as Record<string, unknown>
           }
-          const merged = { ...existing, ...newConfig }
+          // Deep-merge mcpServers to preserve user's existing entries
+          const merged = { ...existing }
+          for (const [key, value] of Object.entries(newConfig)) {
+            if (key === "mcpServers" && typeof value === "object" && typeof merged[key] === "object") {
+              merged[key] = { ...(merged[key] as Record<string, unknown>), ...(value as Record<string, unknown>) }
+            } else {
+              merged[key] = value
+            }
+          }
           await writeFile(mcpDest, JSON.stringify(merged, null, 2) + "\n", "utf8")
         } catch {
           // Fall back to copy if merge fails
@@ -187,9 +195,10 @@ const HOSTS: HostConfig[] = [
     sources: {},
     availableFeatures: [],
     postInstall: async () => {
-      if (commandExists("gemini")) {
-        Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      if (!commandExists("gemini")) {
+        throw new Error("gemini CLI not found — cannot install extension")
       }
+      Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
     },
     postUninstall: async () => {
       if (commandExists("gemini")) {
@@ -683,9 +692,13 @@ Options:
     }
 
     s.start(`Installing to ${host.name}...`)
-    const files = await installHost(host)
-    manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
-    s.stop(`${host.name}: ${files.length} items installed`)
+    try {
+      const files = await installHost(host)
+      manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
+      s.stop(`${host.name}: ${files.length} items installed`)
+    } catch (err) {
+      s.stop(`${host.name}: install failed — ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   // Phase 5: Install features
