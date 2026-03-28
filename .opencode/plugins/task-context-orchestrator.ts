@@ -5,7 +5,7 @@ import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 
 type TaskContextConfig = {
   enabled?: boolean
@@ -649,7 +649,7 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
       if (!memsearchRecalled) {
         memsearchRecalled = true
         try {
-          const projectName = ctx.directory.split("/").pop() ?? "project"
+          const projectName = basename(ctx.directory) || "project"
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 5000)
           const proc = Bun.spawn(["memsearch", "search", `recent work on ${projectName}`, "--top-k", "5", "--format", "compact"], {

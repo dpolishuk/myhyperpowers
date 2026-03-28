@@ -47,7 +47,6 @@ type InstallManifest = {
   installedAt: string
   hosts: Record<string, { targetDir: string; files: string[] }>
   features: Record<string, { installed: boolean; metadata?: Record<string, unknown> }>
-  settingsModifications: Record<string, Record<string, unknown>>
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +80,10 @@ const listItems = async (dir: string, pattern?: string, exclude?: string[]): Pro
   const items = await readdir(dir)
   return items.filter((item) => {
     if (exclude?.includes(item)) return false
-    if (pattern && !item.match(new RegExp(pattern.replace("*", ".*")))) return false
+    if (pattern) {
+      const regex = new RegExp("^(" + pattern.replace(/\*/g, ".*") + ")$")
+      if (!regex.test(item)) return false
+    }
     return true
   })
 }
@@ -160,6 +162,11 @@ const HOSTS: HostConfig[] = [
     postInstall: async () => {
       if (commandExists("gemini")) {
         Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      }
+    },
+    postUninstall: async () => {
+      if (commandExists("gemini")) {
+        Bun.spawnSync(["gemini", "extensions", "uninstall", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
       }
     },
   },
@@ -246,15 +253,16 @@ const FEATURES: FeatureConfig[] = [
       const scriptPath = join(home, "hyperpowers-statusline.sh")
       const settingsPath = join(home, "settings.json")
 
-      if (existsSync(settingsPath)) {
-        try {
-          const settings = JSON.parse(await readFile(settingsPath, "utf8"))
-          if (!settings.statusline) {
-            settings.statusline = scriptPath
-            await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8")
-          }
-        } catch { /* skip if settings.json is invalid */ }
-      }
+      try {
+        let settings: Record<string, unknown> = {}
+        if (existsSync(settingsPath)) {
+          settings = JSON.parse(await readFile(settingsPath, "utf8"))
+        }
+        if (!settings.statusline) {
+          settings.statusline = scriptPath
+          await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8")
+        }
+      } catch { /* skip if settings.json is invalid */ }
       return "status line configured"
     },
     uninstall: async () => {
@@ -279,8 +287,8 @@ const FEATURES: FeatureConfig[] = [
       if (!commandExists("bun")) return "skipped (bun not found)"
       const wizardPath = join(repoRoot, "scripts", "opencode-routing-wizard.ts")
       if (existsSync(wizardPath)) {
-        Bun.spawnSync(["bun", wizardPath], { stdout: "inherit", stderr: "inherit", stdin: "inherit" })
-        return "routing wizard completed"
+        const result = Bun.spawnSync(["bun", wizardPath], { stdout: "inherit", stderr: "inherit", stdin: "inherit" })
+        return result.exitCode === 0 ? "routing wizard completed" : "routing wizard failed"
       }
       return "wizard script not found"
     },
@@ -299,9 +307,6 @@ const FEATURES: FeatureConfig[] = [
       const tmSrc = join(REPO_ROOT, "scripts", "tm")
       if (existsSync(tmSrc)) {
         await copyFile(tmSrc, join(binDir, "tm"))
-        await Bun.write(join(binDir, "tm"), await readFile(tmSrc))
-        const f = Bun.file(join(binDir, "tm"))
-        // Make executable
         Bun.spawnSync(["chmod", "+x", join(binDir, "tm")])
 
         // Copy companion files
@@ -461,7 +466,7 @@ Usage:
 Options:
   --yes, -y          Auto-install all detected hosts and features
   --uninstall        Remove all installed files and features
-  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,codex,gemini
+  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini
   --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
   --help, -h         Show this help
 `)
@@ -496,6 +501,8 @@ Options:
     for (const hostId of Object.keys(manifest.hosts)) {
       s.start(`Removing from ${hostId}...`)
       await uninstallHost(hostId, manifest)
+      const host = HOSTS.find((h) => h.id === hostId)
+      if (host?.postUninstall) await host.postUninstall(manifest.hosts[hostId].targetDir)
       s.stop(`${hostId} removed`)
     }
 
@@ -570,12 +577,14 @@ Options:
     installedAt: new Date().toISOString(),
     hosts: { ...(existingManifest?.hosts ?? {}) },
     features: { ...(existingManifest?.features ?? {}) },
-    settingsModifications: { ...(existingManifest?.settingsModifications ?? {}) },
   }
 
   for (const hostId of selectedHostIds) {
     const host = HOSTS.find((h) => h.id === hostId)
-    if (!host) continue
+    if (!host) {
+      p.log.warn(`Unknown host "${hostId}" — skipping. Supported: ${HOSTS.map((h) => h.id).join(", ")}`)
+      continue
+    }
 
     s.start(`Installing to ${host.name}...`)
     const files = await installHost(host)
