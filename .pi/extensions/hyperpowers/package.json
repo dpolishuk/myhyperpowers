@@ -1,9 +1,12 @@
 {
   "name": "hyperpowers-pi-extension",
   "version": "2.13.0",
-  "description": "Hyperpowers skills and workflows for Pi coding agent",
+  "description": "Hyperpowers skills, subagents, and workflows for Pi coding agent",
   "main": "index.ts",
   "keywords": ["pi-package"],
   "author": "Dmitry Polishuk",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  }
 }
