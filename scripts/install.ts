@@ -228,25 +228,9 @@ const HOSTS: HostConfig[] = [
         const newContent = readFileSync(agentsMdSrc, "utf8")
         if (existsSync(agentsMdDest)) {
           const existing = readFileSync(agentsMdDest, "utf8")
-          const marker = "# Hyperpowers for Pi"
-          const markerIdx = existing.indexOf(marker)
-          if (markerIdx === -1) {
-            // Append our section to existing AGENTS.md
-            await writeFile(agentsMdDest, existing + "\n\n" + newContent, "utf8")
-          } else {
-            // Replace our section, preserving content before AND after
-            const before = existing.slice(0, markerIdx).trimEnd()
-            // Find next top-level heading after our section to preserve trailing content
-            const afterSection = existing.slice(markerIdx + marker.length)
-            const nextHeadingMatch = afterSection.match(/\n(?=# [^#])/)
-            const after = nextHeadingMatch
-              ? afterSection.slice(nextHeadingMatch.index!).trimStart()
-              : ""
-            const parts = [before, newContent, after].filter(Boolean)
-            await writeFile(agentsMdDest, parts.join("\n\n") + "\n", "utf8")
-          }
+          await writeFile(agentsMdDest, replacePiAgentsSection(existing, newContent), "utf8")
         } else {
-          await copyFile(agentsMdSrc, agentsMdDest)
+          await writeFile(agentsMdDest, wrapPiAgentsSection(newContent) + "\n", "utf8")
         }
       }
       // Copy skills directory for runtime skill loading
@@ -275,21 +259,11 @@ const HOSTS: HostConfig[] = [
       const agentsMdPath = join(targetDir, "AGENTS.md")
       if (existsSync(agentsMdPath)) {
         const content = readFileSync(agentsMdPath, "utf8")
-        const marker = "# Hyperpowers for Pi"
-        const markerIdx = content.indexOf(marker)
-        if (markerIdx !== -1) {
-          const before = content.slice(0, markerIdx).trimEnd()
-          const afterSection = content.slice(markerIdx + marker.length)
-          const nextHeadingMatch = afterSection.match(/\n(?=# [^#])/)
-          const after = nextHeadingMatch
-            ? afterSection.slice(nextHeadingMatch.index!).trimStart()
-            : ""
-          const remaining = [before, after].filter(Boolean).join("\n\n").trim()
-          if (remaining) {
-            await writeFile(agentsMdPath, remaining + "\n", "utf8")
-          } else {
-            await rm(agentsMdPath, { force: true })
-          }
+        const remaining = removePiAgentsSection(content)
+        if (remaining) {
+          await writeFile(agentsMdPath, remaining + "\n", "utf8")
+        } else {
+          await rm(agentsMdPath, { force: true })
         }
       }
       // Remove entire hyperpowers extension directory (includes skills, routing, node_modules)
@@ -304,6 +278,53 @@ const HOSTS: HostConfig[] = [
 // ---------------------------------------------------------------------------
 // Feature Configurations
 // ---------------------------------------------------------------------------
+
+const PI_AGENTS_SECTION_BEGIN = "<!-- BEGIN HYPERPOWERS PI -->"
+const PI_AGENTS_SECTION_END = "<!-- END HYPERPOWERS PI -->"
+
+function wrapPiAgentsSection(content: string): string {
+  return `${PI_AGENTS_SECTION_BEGIN}\n${content.trim()}\n${PI_AGENTS_SECTION_END}`
+}
+
+function replacePiAgentsSection(existing: string, newContent: string): string {
+  const wrapped = wrapPiAgentsSection(newContent)
+  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
+  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    const before = existing.slice(0, beginIdx).trimEnd()
+    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+    return [...[before, wrapped, after].filter(Boolean)].join("\n\n") + "\n"
+  }
+
+  const legacyMarker = "# Hyperpowers for Pi"
+  const markerIdx = existing.indexOf(legacyMarker)
+  if (markerIdx !== -1) {
+    const before = existing.slice(0, markerIdx).trimEnd()
+    return [...[before, wrapped].filter(Boolean)].join("\n\n") + "\n"
+  }
+
+  return [...[existing.trimEnd(), wrapped].filter(Boolean)].join("\n\n") + "\n"
+}
+
+function removePiAgentsSection(existing: string): string {
+  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
+  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    const before = existing.slice(0, beginIdx).trimEnd()
+    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+    return [...[before, after].filter(Boolean)].join("\n\n").trim()
+  }
+
+  const legacyMarker = "# Hyperpowers for Pi"
+  const markerIdx = existing.indexOf(legacyMarker)
+  if (markerIdx !== -1) {
+    return existing.slice(0, markerIdx).trim()
+  }
+
+  return existing.trim()
+}
 
 const FEATURES: FeatureConfig[] = [
   {

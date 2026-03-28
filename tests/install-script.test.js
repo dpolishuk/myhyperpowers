@@ -134,6 +134,69 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
 
+test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-test-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const agentsPath = path.join(piHome, "AGENTS.md")
+  const trailingNotes = "User notes without heading\n- keep this list item\nplain trailing text"
+
+  fs.mkdirSync(piHome, { recursive: true })
+  fs.writeFileSync(
+    agentsPath,
+    [
+      "# Existing Pi Instructions",
+      "Keep the user's original preface.",
+      "",
+      "<!-- BEGIN HYPERPOWERS PI -->",
+      "# Hyperpowers for Pi",
+      "Old installed content",
+      "<!-- END HYPERPOWERS PI -->",
+      "",
+      trailingNotes,
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-bin-"))
+  const piShimPath = path.join(tmpBinDir, "pi")
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+
+  const env = { ...process.env, HOME: home, NO_COLOR: "1", PATH: `${tmpBinDir}:${process.env.PATH}` }
+
+  const installResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(installResult.status, 0)
+  const installedAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.match(installedAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
+  assert.match(installedAgents, /# Hyperpowers for Pi/)
+  assert.match(installedAgents, /User notes without heading/)
+  assert.match(installedAgents, /plain trailing text/)
+
+  const uninstallResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(uninstallResult.status, 0)
+  const uninstalledAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
+  assert.doesNotMatch(uninstalledAgents, /# Hyperpowers for Pi/)
+  assert.match(uninstalledAgents, /Keep the user's original preface\./)
+  assert.match(uninstalledAgents, /User notes without heading/)
+  assert.match(uninstalledAgents, /plain trailing text/)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const opencodeHome = path.join(home, ".config", "opencode")
