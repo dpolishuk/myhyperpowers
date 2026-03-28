@@ -259,13 +259,12 @@ const FEATURES: FeatureConfig[] = [
         if (!existsSync(configPath)) continue
         try {
           const raw = await readFile(configPath, "utf8")
-          // Strip JSONC comments before parsing
-          const jsonClean = raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
-          const config = JSON.parse(jsonClean)
-          if (Array.isArray(config.plugin)) {
-            config.plugin = config.plugin.filter((p: string) => !p.includes("opencode-supermemory"))
-            await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8")
-          }
+          // Remove the supermemory plugin entry via line-level filtering
+          // to avoid breaking JSONC (trailing commas, comments)
+          const lines = raw.split("\n")
+          const filtered = lines.filter((line) => !line.includes("opencode-supermemory"))
+          const cleaned = filtered.join("\n").replace(/,(\s*[\]\}])/g, "$1") // fix trailing commas
+          await writeFile(configPath, cleaned, "utf8")
         } catch { /* skip */ }
       }
       // Remove credentials
@@ -354,6 +353,10 @@ const FEATURES: FeatureConfig[] = [
             await copyFile(src, join(libDir, name))
             await symlink(join(libDir, name), join(binDir, name)).catch(() => {})
           }
+        }
+        // Install @linear/sdk for Linear sync support
+        if (commandExists("npm")) {
+          Bun.spawnSync(["npm", "install", "--prefix", libDir, "@linear/sdk", "--save", "--silent"], { stdout: "pipe", stderr: "pipe" })
         }
         return "tm CLI installed to ~/.local/bin/"
       }
@@ -568,6 +571,7 @@ Options:
         } else {
           p.log.error(`Legacy uninstall failed (exit code ${legacyResult.exitCode})`)
           p.outro("Partial uninstall — check output above for errors.")
+          process.exit(1)
         }
       } else {
         p.log.error("No manifest found and no legacy installer available.")
