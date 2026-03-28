@@ -202,7 +202,7 @@ const HOSTS: HostConfig[] = [
     },
     postUninstall: async () => {
       if (commandExists("gemini")) {
-        Bun.spawnSync(["gemini", "extensions", "uninstall", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+        Bun.spawnSync(["gemini", "extensions", "uninstall", "hyperpowers"], { stdout: "pipe", stderr: "pipe" })
       }
     },
   },
@@ -412,11 +412,7 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
     }
   }
 
-  // Write version file
-  await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
-  installedFiles.push(".hyperpowers-version")
-
-  // Run post-install and track additional files
+  // Run post-install and track additional files (before writing version marker)
   if (host.postInstall) {
     await host.postInstall(target)
     // Re-scan for files that postInstall may have added
@@ -434,6 +430,10 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
       }
     }
   }
+
+  // Write version file last (after postInstall succeeds)
+  await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
+  installedFiles.push(".hyperpowers-version")
 
   return installedFiles
 }
