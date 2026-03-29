@@ -117,6 +117,48 @@ test("runLinearBackendCommand resolves parent internal ids through direct issue 
   assert.match(result.stdout, /ENG-11 Child issue/)
 })
 
+test("runLinearBackendCommand rejects cross-team parent lookups during direct issue resolution", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--parent", "lin-parent-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async () => ({ id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue", teamId: "team-2" }),
+      issueSearch: async () => {
+        throw new Error("should not fall back to issueSearch for cross-team direct matches")
+      },
+      issues: async () => {
+        throw new Error("should not list issues when parent belongs to another team")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Linear issue "lin-parent-10" not found/)
+})
+
+test("runLinearBackendCommand preserves direct lookup errors for internal-id parents", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--parent", "lin-parent-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async () => {
+        throw new Error("Linear API unavailable")
+      },
+      issueSearch: async () => {
+        throw new Error("should not fall back to issueSearch when direct lookup fails")
+      },
+      issues: async () => {
+        throw new Error("should not list issues when direct lookup fails")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Linear API unavailable/)
+})
+
 test("runLinearBackendCommand returns a clear error when parent lookup fails during list", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 

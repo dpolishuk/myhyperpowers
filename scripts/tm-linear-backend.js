@@ -84,11 +84,13 @@ async function listIssues(context, statusFilter, parentRef = null) {
 
 async function findIssueByRef(context, ref) {
   if (!looksLikeLinearIdentifier(ref) && typeof context.issue === "function") {
-    try {
-      const directIssue = await context.issue(ref)
-      if (directIssue?.id === ref || directIssue?.identifier === ref) return directIssue
-    } catch {
-      // Fall back to issueSearch so identifier lookups and not-found behavior stay consistent.
+    const directIssue = await context.issue(ref)
+    if (directIssue?.id === ref || directIssue?.identifier === ref) {
+      if (context.team?.id && directIssue.teamId && directIssue.teamId !== context.team.id) {
+        throw new Error(`Linear issue "${ref}" not found.`)
+      }
+
+      return directIssue
     }
   }
 
