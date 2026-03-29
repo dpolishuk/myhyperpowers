@@ -166,7 +166,16 @@ You (local)                    Linear (cloud)
 | status: open | State: Todo |
 | status: in_progress | State: In Progress |
 | status: closed | State: Done |
+| status: blocked | Explicit `Blocked` state only; otherwise left unchanged |
 | design (markdown) | Description (markdown) |
+
+### Sync Ownership Contract
+
+- `tm sync` is a one-way sync from local bd/tm issues to Linear.
+- The integration owns the synced issue title, description, priority, state, and type label for mapped issues.
+- Type labels are synced as an owned set, so the Linear issue is updated with the single bd-derived type label (`Epic`, `Feature`, `Task`, or `Bug`).
+- `blocked` only maps when the Linear team has an explicit workflow state whose name includes `Blocked`; otherwise the sync leaves the state unchanged instead of silently degrading it to Todo/Backlog.
+- Duplicate prevention and relinking rely on `<!-- [bd:ID] -->` markers in the Linear description. Do not remove them.
 
 ## Daily Workflow
 

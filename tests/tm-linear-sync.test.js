@@ -188,7 +188,7 @@ test("mapStatus maps all 4 statuses correctly", () => {
   assert.equal(mapStatus("open", teamStates), "s1")       // "todo" match
   assert.equal(mapStatus("in_progress", teamStates), "s2") // "progress" match
   assert.equal(mapStatus("closed", teamStates), "s3")      // "done" match
-  assert.equal(mapStatus("blocked", teamStates), "s1")     // falls back to "todo"
+  assert.equal(mapStatus("blocked", teamStates), null)     // requires explicit blocked state
 })
 
 test("mapStatus with custom state names still matches", () => {
@@ -211,6 +211,28 @@ test("mapStatus open falls back to unstarted when no backlog state exists", () =
   ]
 
   assert.equal(mapStatus("open", states), "u1")
+})
+
+test("mapStatus blocked returns null when team has no explicit blocked workflow state", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "u1", name: "Todo", type: "unstarted" },
+    { id: "s1", name: "In Progress", type: "started" },
+    { id: "c1", name: "Done", type: "completed" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), null)
+})
+
+test("mapStatus blocked prefers an explicit blocked workflow state when available", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "u1", name: "Todo", type: "unstarted" },
+    { id: "b1", name: "Blocked", type: "unstarted" },
+    { id: "c1", name: "Done", type: "completed" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), "b1")
 })
 
 test("mapStatus with unknown status returns fallback via type", () => {
@@ -858,6 +880,92 @@ test("syncExistingIssue preserves forceLabelSync when retrying after relink", as
       },
     },
   ])
+})
+
+test("syncExistingIssue reports rate-limit failures as deterministic per-issue errors", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-rate-limit": {
+      linearId: "lin-rate-limit",
+      linearIdentifier: "ENG-429",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("Rate limit exceeded")
+      },
+    },
+    issue: {
+      id: "bd-rate-limit",
+      title: "Rate limited",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+    existing: mapping["bd-rate-limit"],
+    bdId: "bd-rate-limit",
+    designText: "design",
+    designHash: "hash-rate-limit",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.equal(mapping["bd-rate-limit"].linearId, "lin-rate-limit")
+})
+
+test("syncExistingIssue uses a single owned type label set when syncing labels", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const updateCalls = []
+
+  await syncExistingIssue({
+    client: {
+      updateIssue: async (id, params) => {
+        updateCalls.push({ id, params })
+      },
+    },
+    issue: {
+      id: "bd-owned-labels",
+      title: "Owned labels",
+      status: "open",
+      priority: 2,
+      issue_type: "bug",
+    },
+    existing: {
+      linearId: "lin-owned-labels",
+      linearIdentifier: "ENG-120",
+      lastSyncedFields: { issueType: "task" },
+    },
+    bdId: "bd-owned-labels",
+    designText: "design",
+    designHash: "hash-owned-labels",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Bug",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => "label-bug",
+    mapping: {},
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(updateCalls, [{
+    id: "lin-owned-labels",
+    params: {
+      title: "Owned labels",
+      description: "design\n\n<!-- [bd:bd-owned-labels] -->",
+      priority: 3,
+      stateId: "state-1",
+      labelIds: ["label-bug"],
+    },
+  }])
 })
 
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {

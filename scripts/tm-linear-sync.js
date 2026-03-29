@@ -26,11 +26,17 @@ function mapType(bdType) {
 }
 
 function mapStatus(bdStatus, teamStates) {
+  if (bdStatus === "blocked") {
+    const explicitBlocked = teamStates.find(s =>
+      s.name.toLowerCase().includes("blocked")
+    )
+    return explicitBlocked ? explicitBlocked.id : null
+  }
+
   const matchers = {
     open: ["todo", "backlog", "triage"],
     in_progress: ["progress", "started", "active"],
     closed: ["done", "complete", "closed"],
-    blocked: ["blocked", "todo", "backlog"],
   }
 
   const candidates = matchers[bdStatus] || matchers.open
@@ -46,7 +52,6 @@ function mapStatus(bdStatus, teamStates) {
     open: ["backlog", "unstarted"],
     in_progress: ["started"],
     closed: ["completed"],
-    blocked: ["unstarted", "backlog"],
   }
 
   for (const type of (typeMap[bdStatus] || ["backlog", "unstarted"])) {
