@@ -140,7 +140,7 @@ async function searchAllIssuesByRef(context, ref) {
 }
 
 function looksLikeLinearIdentifier(ref) {
-  return /^[A-Z][A-Z0-9_]*-\d+$/.test(ref)
+  return /^[A-Z][A-Z0-9_]*(?:-[A-Z0-9_]+)*-\d+$/.test(ref)
 }
 
 async function renderIssueDetails(issue) {

@@ -340,6 +340,46 @@ test("runLinearBackendCommand paginates issueSearch results when resolving ident
   assert.match(result.stdout, /Found on page two/)
 })
 
+test("runLinearBackendCommand treats hyphenated Linear identifiers as searchable keys", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const searchCalls = []
+
+  const result = await runLinearBackendCommand(["show", "ENG-CORE-123"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async () => {
+        throw new Error("should not use direct issue lookup for hyphenated identifiers")
+      },
+      issueSearch: async (query, args) => {
+        searchCalls.push({ query, args })
+        return {
+          nodes: [
+            {
+              id: "lin-hyphen-123",
+              identifier: "ENG-CORE-123",
+              title: "Hyphenated backend contract",
+              description: "Resolved through issueSearch",
+              priority: 2,
+              state: { name: "Todo", type: "unstarted" },
+              labels: async () => ({ nodes: [{ name: "Task" }] }),
+            },
+          ],
+        }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(searchCalls, [
+    {
+      query: "ENG-CORE-123",
+      args: { first: 10, filter: { team: { id: { eq: "team-1" } } } },
+    },
+  ])
+  assert.match(result.stdout, /ENG-CORE-123: Hyphenated backend contract/)
+  assert.match(result.stdout, /Resolved through issueSearch/)
+})
+
 test("runLinearBackendCommand returns clear error when show target is missing", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
