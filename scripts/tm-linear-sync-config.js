@@ -99,7 +99,27 @@ function readBackendConfigValue(configKey) {
     return null
   }
 
+  if (!isValidLinearFallbackValue(configKey, rawValue)) {
+    return null
+  }
+
   return rawValue
+}
+
+function isValidLinearFallbackValue(configKey, value) {
+  if (!value || /\s/.test(value)) {
+    return false
+  }
+
+  if (configKey === "linear.api-key") {
+    return value.startsWith("lin_")
+  }
+
+  if (configKey === "linear.team-key") {
+    return /^[A-Z0-9_-]+$/.test(value)
+  }
+
+  return true
 }
 
 /**

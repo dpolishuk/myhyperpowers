@@ -765,6 +765,76 @@ test("tm sync under br does not duplicate an explicit flush-only flag", () => {
   }
 })
 
+test("tm sync under br preserves surrounding args when flush-only is already present", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-br-sync-ordered-flush-"))
+  const argsCapturePath = path.join(tmpBinDir, "br-args-ordered.txt")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBrPath = path.join(tmpBinDir, "br")
+    fs.writeFileSync(fakeBrPath, `#!${bashPath}\nif [[ "$1" == "sync" ]]; then\n  printf '%s\\n' "$*" > "${argsCapturePath}"\n  exit 0\nfi\nif [[ "$1" == "config" && "$2" == "get" ]]; then\n  echo "$3 (not set)"\n  exit 0\nfi\nexit 0\n`)
+    fs.chmodSync(fakeBrPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync", "--dry-run", "--flush-only", "--verbose"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "br", PATH: tmpBinDir },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(fs.readFileSync(argsCapturePath, "utf8").trim(), "sync --dry-run --flush-only --verbose")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync under br propagates local sync failure and skips follow-on sync", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-br-sync-fail-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBrPath = path.join(tmpBinDir, "br")
+    fs.writeFileSync(fakeBrPath, `#!${bashPath}\nif [[ "$1" == "sync" ]]; then exit 37; fi\nif [[ "$1" == "config" && "$2" == "get" ]]; then\n  echo "$3 (not set)"\n  exit 0\nfi\nexit 0\n`)
+    fs.chmodSync(fakeBrPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "br",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "lin_api_test123",
+        LINEAR_TEAM_KEY: "ENG",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 37)
+    assert.match(result.stderr, /br sync failed \(exit 37\), skipping follow-on sync/)
+    assert.doesNotMatch(result.stderr, /follow-on sync was skipped/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
 test("tm sync under tk performs direct local sync and reports unsupported follow-on sync", () => {
   const os = require("node:os")
   const fs = require("node:fs")

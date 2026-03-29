@@ -93,3 +93,10 @@ test("README and QUICKSTART describe the same peer backend set and per-project b
   assert.deepEqual(readmeBackendLines, expectedReadmeBackendLines)
   assert.deepEqual(quickstartBackendLines, expectedQuickstartBackendLines)
 })
+
+test("README version badge matches the Claude plugin version", () => {
+  const readme = read("README.md")
+  const plugin = JSON.parse(read(".claude-plugin/plugin.json"))
+
+  assert.match(readme, new RegExp(`version-${plugin.version.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}-green`))
+})
