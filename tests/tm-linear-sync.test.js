@@ -1468,6 +1468,43 @@ test("runSyncBatch acquires and releases the mapping lock around sync work", asy
   assert.deepEqual(calls, ["acquire", "load", "save", "log", "release"])
 })
 
+test("runSyncBatch releases the mapping lock when sync work throws", async () => {
+  const { runSyncBatch } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+
+  await assert.rejects(
+    () => runSyncBatch({
+      client: {
+        issueSearch: async () => ({ nodes: [] }),
+        createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+      },
+      teamId: "team-1",
+      teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+      issues: [
+        { id: "bd-lock-fail", title: "Locked fail", status: "open", priority: 2, issue_type: "task", design: "Lock" },
+      ],
+      getOrCreateLabel: async () => "label-task",
+      loadMapping: () => {
+        calls.push("load")
+        return {}
+      },
+      saveMapping: () => {
+        calls.push("save")
+        throw new Error("save failed")
+      },
+      log: () => calls.push("log"),
+      sleep: async () => {},
+      acquireLock: async () => {
+        calls.push("acquire")
+        return () => calls.push("release")
+      },
+    }),
+    /save failed/
+  )
+
+  assert.deepEqual(calls, ["acquire", "load", "save", "release"])
+})
+
 test("createLabelResolver creates a team-scoped label when no team label exists", async () => {
   const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
   const calls = []
@@ -1488,6 +1525,66 @@ test("createLabelResolver creates a team-scoped label when no team label exists"
   const labelId = await resolveLabel("Task")
 
   assert.equal(labelId, "label-task")
+  assert.deepEqual(calls, [
+    {
+      type: "query",
+      options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+    },
+    {
+      type: "create",
+      options: { name: "Task", teamId: "team-1" },
+    },
+  ])
+})
+
+test("createLabelResolver reuses an existing team-scoped label without creating a duplicate", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [{ id: "label-existing", name: "Task" }] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-created" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const labelId = await resolveLabel("Task")
+
+  assert.equal(labelId, "label-existing")
+  assert.deepEqual(calls, [{
+    type: "query",
+    options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+  }])
+})
+
+test("createLabelResolver caches repeated resolutions to avoid duplicate queries and creates", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-task" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const first = await resolveLabel("Task")
+  const second = await resolveLabel("Task")
+
+  assert.equal(first, "label-task")
+  assert.equal(second, "label-task")
   assert.deepEqual(calls, [
     {
       type: "query",
