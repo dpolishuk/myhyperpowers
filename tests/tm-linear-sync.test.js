@@ -142,6 +142,24 @@ test("loadBdIssues uses a larger maxBuffer for bd list output", () => {
   assert.ok(calls.every(call => call.options.maxBuffer === BD_LIST_MAX_BUFFER))
 })
 
+test("loadBdIssues surfaces spawn failures with status context", () => {
+  const { loadBdIssues } = requireFresh("../scripts/tm-linear-sync")
+
+  assert.throws(
+    () => loadBdIssues(() => ({ status: 1, stdout: "", stderr: "permission denied" })),
+    /bd list --status open failed \(exit 1\): permission denied/
+  )
+})
+
+test("loadBdIssues rejects invalid JSON from bd list", () => {
+  const { loadBdIssues } = requireFresh("../scripts/tm-linear-sync")
+
+  assert.throws(
+    () => loadBdIssues(() => ({ status: 0, stdout: "not-json", stderr: "" })),
+    /bd list --status open returned invalid JSON/
+  )
+})
+
 test("loadLinearConfig rejects apiKey without teamKey", () => {
   const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
@@ -188,7 +206,7 @@ test("mapStatus maps all 4 statuses correctly", () => {
   assert.equal(mapStatus("open", teamStates), "s1")       // "todo" match
   assert.equal(mapStatus("in_progress", teamStates), "s2") // "progress" match
   assert.equal(mapStatus("closed", teamStates), "s3")      // "done" match
-  assert.equal(mapStatus("blocked", teamStates), "s1")     // falls back to "todo"
+  assert.equal(mapStatus("blocked", teamStates), null)     // requires explicit blocked state
 })
 
 test("mapStatus with custom state names still matches", () => {
@@ -211,6 +229,37 @@ test("mapStatus open falls back to unstarted when no backlog state exists", () =
   ]
 
   assert.equal(mapStatus("open", states), "u1")
+})
+
+test("mapStatus blocked returns null when team has no explicit blocked workflow state", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "u1", name: "Todo", type: "unstarted" },
+    { id: "s1", name: "In Progress", type: "started" },
+    { id: "c1", name: "Done", type: "completed" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), null)
+})
+
+test("mapStatus blocked prefers an explicit blocked workflow state when available", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "u1", name: "Todo", type: "unstarted" },
+    { id: "b1", name: "Blocked", type: "unstarted" },
+    { id: "c1", name: "Done", type: "completed" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), "b1")
+})
+
+test("mapStatus blocked matches custom blocked state names case-insensitively", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "b1", name: "Temporarily BLOCKED - Vendor", type: "unstarted" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), "b1")
 })
 
 test("mapStatus with unknown status returns fallback via type", () => {
@@ -364,7 +413,7 @@ test("reconcileExistingIssueByMarker removes stale mapping when marker no longer
   assert.deepEqual(mapping, {})
 })
 
-test("reconcileExistingIssueByMarker keeps existing mapping when issue still exists without marker", async () => {
+test("reconcileExistingIssueByMarker clears synced fields when issue still exists without marker so marker is restored", async () => {
   const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
     "bd-keep": {
@@ -386,6 +435,8 @@ test("reconcileExistingIssueByMarker keeps existing mapping when issue still exi
 
   assert.equal(result.linearId, "lin-keep")
   assert.equal(mapping["bd-keep"].linearId, "lin-keep")
+  assert.equal("lastSyncedFields" in result, false)
+  assert.equal("lastSyncedFields" in mapping["bd-keep"], false)
 })
 
 test("reconcileExistingIssueByMarker clears stale synced fields when marker finds replacement issue", async () => {
@@ -440,6 +491,27 @@ test("reconcileExistingIssueByMarker rejects ambiguous replacement matches", asy
       mapping
     ),
     /multiple Linear issues found for \[bd:bd-dup\]/
+  )
+})
+
+test("findIssueByMarker rejects ambiguous matches even when one matches existingLinearId", async () => {
+  const { findIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+
+  await assert.rejects(
+    () => findIssueByMarker({
+      client: {
+        issueSearch: async () => ({
+          nodes: [
+            { id: "lin-current", identifier: "ENG-10" },
+            { id: "lin-duplicate", identifier: "ENG-11" },
+          ],
+        }),
+      },
+      teamId: "team-1",
+      bdId: "bd-ambiguous",
+      existingLinearId: "lin-current",
+    }),
+    /multiple Linear issues found for \[bd:bd-ambiguous\]/
   )
 })
 
@@ -505,6 +577,49 @@ test("issueNeedsLabelRepair detects missing type label on unchanged issue", asyn
   assert.equal(needsRepair, true)
 })
 
+test("issueNeedsLabelRepair detects extra stale owned type labels on unchanged issue", async () => {
+  const { issueNeedsLabelRepair } = requireFresh("../scripts/tm-linear-sync")
+
+  const needsRepair = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: async () => ({ nodes: [{ name: "Task" }, { name: "Bug" }] }),
+      }),
+    },
+    existing: { linearId: "lin-stale-labels" },
+    labelName: "Task",
+  })
+
+  assert.equal(needsRepair, true)
+})
+
+test("issueNeedsLabelRepair accepts direct label arrays and only passes exact owned label set", async () => {
+  const { issueNeedsLabelRepair } = requireFresh("../scripts/tm-linear-sync")
+
+  const exactOwned = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: [{ name: "Task" }],
+      }),
+    },
+    existing: { linearId: "lin-direct-labels" },
+    labelName: "Task",
+  })
+
+  const extraLabel = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: [{ name: "Task" }, { name: "Customer" }],
+      }),
+    },
+    existing: { linearId: "lin-direct-extra" },
+    labelName: "Task",
+  })
+
+  assert.equal(exactOwned, false)
+  assert.equal(extraLabel, true)
+})
+
 test("prepareExistingIssueForSync forces label repair even when other fields changed", async () => {
   const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
   const existing = {
@@ -528,6 +643,9 @@ test("prepareExistingIssueForSync forces label repair even when other fields cha
 
   const prepared = await prepareExistingIssueForSync({
     client: {
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-55", identifier: "ENG-55" }],
+      }),
       issue: async id => {
         assert.equal(id, "lin-55")
         return {
@@ -598,6 +716,51 @@ test("prepareExistingIssueForSync recomputes changed after relink clears lastSyn
   assert.deepEqual(prepared.prev, {})
 })
 
+test("prepareExistingIssueForSync relinks moved marker before applying changed-field updates", async () => {
+  const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
+  const existing = {
+    linearId: "lin-stale",
+    linearIdentifier: "ENG-stale",
+    lastSyncedFields: {
+      title: "Old title",
+      status: "open",
+      priority: 2,
+      issueType: "task",
+      designHash: "same-hash",
+    },
+  }
+  const mapping = { "bd-moved": existing }
+  const issue = {
+    id: "bd-moved",
+    title: "New title",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+
+  const prepared = await prepareExistingIssueForSync({
+    client: {
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-current", identifier: "ENG-44" }],
+      }),
+      issue: async () => ({
+        labels: async () => ({ nodes: [{ name: "Task" }] }),
+      }),
+    },
+    teamId: "team-1",
+    bdId: "bd-moved",
+    issue,
+    designHash: "same-hash",
+    labelName: "Task",
+    existing,
+    mapping,
+  })
+
+  assert.equal(prepared.existing.linearId, "lin-current")
+  assert.equal(mapping["bd-moved"].linearId, "lin-current")
+  assert.equal(prepared.skipUpdate, false)
+})
+
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
   const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
@@ -638,7 +801,7 @@ test("syncExistingIssue recreates deleted Linear issue in the same run", async (
     stateId: "state-1",
     labelName: "Task",
     prev: mapping["bd-404"].lastSyncedFields,
-    getOrCreateLabel: async () => null,
+    getOrCreateLabel: async () => "label-task",
     mapping,
     teamId: "team-1",
   })
@@ -860,6 +1023,777 @@ test("syncExistingIssue preserves forceLabelSync when retrying after relink", as
   ])
 })
 
+test("syncExistingIssue reports rate-limit failures as deterministic per-issue errors", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-rate-limit": {
+      linearId: "lin-rate-limit",
+      linearIdentifier: "ENG-429",
+      lastSyncedAt: "2026-03-29T00:00:00.000Z",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-rate-limit"]))
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("Rate limit exceeded")
+      },
+    },
+    issue: {
+      id: "bd-rate-limit",
+      title: "Rate limited",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+    existing: mapping["bd-rate-limit"],
+    bdId: "bd-rate-limit",
+    designText: "design",
+    designHash: "hash-rate-limit",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Task",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.deepEqual(mapping["bd-rate-limit"], originalEntry)
+})
+
+test("syncExistingIssue uses a single owned type label set when syncing labels", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const updateCalls = []
+
+  await syncExistingIssue({
+    client: {
+      updateIssue: async (id, params) => {
+        updateCalls.push({ id, params })
+      },
+    },
+    issue: {
+      id: "bd-owned-labels",
+      title: "Owned labels",
+      status: "open",
+      priority: 2,
+      issue_type: "bug",
+    },
+    existing: {
+      linearId: "lin-owned-labels",
+      linearIdentifier: "ENG-120",
+      lastSyncedFields: { issueType: "task" },
+    },
+    bdId: "bd-owned-labels",
+    designText: "design",
+    designHash: "hash-owned-labels",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Bug",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => "label-bug",
+    mapping: {},
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(updateCalls, [{
+    id: "lin-owned-labels",
+    params: {
+      title: "Owned labels",
+      description: "design\n\n<!-- [bd:bd-owned-labels] -->",
+      priority: 3,
+      stateId: "state-1",
+      labelIds: ["label-bug"],
+    },
+  }])
+})
+
+test("syncExistingIssue treats label lookup failure as a per-issue error", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-label-error": {
+      linearId: "lin-label-error",
+      linearIdentifier: "ENG-130",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-label-error"]))
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("should not update without required label")
+      },
+    },
+    issue: {
+      id: "bd-label-error",
+      title: "Label lookup error",
+      status: "open",
+      priority: 2,
+      issue_type: "bug",
+    },
+    existing: mapping["bd-label-error"],
+    bdId: "bd-label-error",
+    designText: "design",
+    designHash: "hash-label-error",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Bug",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.deepEqual(mapping["bd-label-error"], originalEntry)
+})
+
+test("syncExistingIssue treats thrown label lookup failure as a per-issue error", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-label-throw": {
+      linearId: "lin-label-throw",
+      linearIdentifier: "ENG-131",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-label-throw"]))
+  const errors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => errors.push(args.join(" "))
+
+  try {
+    const result = await syncExistingIssue({
+      client: {
+        updateIssue: async () => {
+          throw new Error("should not update when label lookup throws")
+        },
+      },
+      issue: {
+        id: "bd-label-throw",
+        title: undefined,
+        status: "open",
+        priority: 2,
+        issue_type: "bug",
+      },
+      existing: mapping["bd-label-throw"],
+      bdId: "bd-label-throw",
+      designText: "design",
+      designHash: "hash-label-throw",
+      priority: 3,
+      stateId: "state-1",
+      labelName: "Bug",
+      prev: { issueType: "task" },
+      getOrCreateLabel: async () => {
+        throw new Error("lookup boom")
+      },
+      mapping,
+      teamId: "team-1",
+    })
+
+    assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+    assert.deepEqual(mapping["bd-label-throw"], originalEntry)
+    assert.match(errors[0], /bd-label-throw/)
+  } finally {
+    console.error = originalConsoleError
+  }
+})
+
+test("syncIssuesToLinear continues after per-issue failures and records failed summary", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {}
+  const savedMappings = []
+  const logMessages = []
+  const sleepCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        if (params.title === "Will fail") {
+          throw new Error("Rate limit exceeded")
+        }
+        return { issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }
+      },
+      issueLabels: async () => ({ nodes: [] }),
+      createIssueLabel: async ({ name }) => ({ success: true, issueLabel: Promise.resolve({ id: `label-${name}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-ok-1", title: "One", status: "open", priority: 2, issue_type: "task", design: "A" },
+      { id: "bd-fail", title: "Will fail", status: "open", priority: 2, issue_type: "task", design: "B" },
+      { id: "bd-ok-2", title: "Two", status: "open", priority: 2, issue_type: "bug", design: "C" },
+    ],
+    mapping,
+    getOrCreateLabel: async labelName => `label-${labelName}`,
+    saveMapping: next => savedMappings.push(JSON.parse(JSON.stringify(next))),
+    log: message => logMessages.push(message),
+    sleep: async ms => sleepCalls.push(ms),
+  })
+
+  assert.deepEqual(result, { created: 2, updated: 0, unchanged: 0, errors: 1 })
+  assert.equal(mapping["bd-ok-1"].linearIdentifier, "ENG-One")
+  assert.equal(mapping["bd-ok-2"].linearIdentifier, "ENG-Two")
+  assert.equal("bd-fail" in mapping, false)
+  assert.equal(savedMappings.length, 1)
+  assert.match(logMessages.at(-1), /2 created, 0 updated, 0 unchanged, 1 failed/)
+  assert.deepEqual(sleepCalls, [])
+})
+
+test("syncIssuesToLinear continues when an existing issue update fails mid-batch", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-existing": {
+      linearId: "lin-existing",
+      linearIdentifier: "ENG-150",
+      lastSyncedFields: {
+        title: "Existing",
+        status: "open",
+        priority: 2,
+        issueType: "task",
+        designHash: "old-hash",
+      },
+    },
+  }
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async query => query === "[bd:bd-new]" ? { nodes: [] } : { nodes: [{ id: "lin-existing", identifier: "ENG-150" }] },
+      issue: async () => ({ labels: async () => ({ nodes: [{ name: "Task" }] }) }),
+      updateIssue: async () => {
+        throw new Error("Rate limit exceeded")
+      },
+      createIssue: async params => ({ issue: Promise.resolve({ id: "lin-new", identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-existing", title: "Existing updated", status: "open", priority: 2, issue_type: "task", design: "Updated" },
+      { id: "bd-new", title: "New issue", status: "open", priority: 2, issue_type: "task", design: "New" },
+    ],
+    mapping,
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 1 })
+  assert.equal(mapping["bd-existing"].linearId, "lin-existing")
+  assert.equal(mapping["bd-new"].linearId, "lin-new")
+})
+
+test("syncIssuesToLinear recreates an issue in the same batch after stale mapping removal", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-stale": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-180",
+      lastSyncedFields: {
+        title: "Stale title",
+        status: "open",
+        priority: 2,
+        issueType: "task",
+        designHash: "hash-stale",
+      },
+    },
+  }
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async query => query === "[bd:bd-stale]" ? { nodes: [] } : { nodes: [] },
+      issue: async () => {
+        throw new Error("404 not found")
+      },
+      createIssue: async params => ({ issue: Promise.resolve({ id: "lin-recreated", identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-stale", title: "Stale recreated", status: "open", priority: 2, issue_type: "task", design: "Recreated" },
+    ],
+    mapping,
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 0 })
+  assert.equal(mapping["bd-stale"].linearId, "lin-recreated")
+})
+
+test("syncIssuesToLinear rejects creating blocked issues when no explicit blocked state exists", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        createCalls.push(params)
+        return { issue: Promise.resolve({ id: "lin-blocked", identifier: "ENG-160" }) }
+      },
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-blocked", title: "Blocked issue", status: "blocked", priority: 2, issue_type: "task", design: "Blocked" },
+    ],
+    mapping: {},
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+  assert.deepEqual(createCalls, [])
+})
+
+test("syncIssuesToLinear fails create-path sync when required type label cannot be resolved", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+  const errors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => errors.push(args.join(" "))
+
+  try {
+    const result = await syncIssuesToLinear({
+      client: {
+        issueSearch: async () => ({ nodes: [] }),
+        createIssue: async params => {
+          createCalls.push(params)
+          return { issue: Promise.resolve({ id: "lin-create-fail", identifier: "ENG-170" }) }
+        },
+      },
+      teamId: "team-1",
+      teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+      issues: [
+        { id: "bd-create-fail", title: undefined, status: "open", priority: 2, issue_type: "task", design: "Create" },
+      ],
+      mapping: {},
+      getOrCreateLabel: async () => null,
+      saveMapping: () => {},
+      log: () => {},
+      sleep: async () => {},
+      reportError: message => errors.push(message),
+    })
+
+    assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+    assert.deepEqual(createCalls, [])
+    assert.match(errors[0], /bd-create-fail/)
+  } finally {
+    console.error = originalConsoleError
+  }
+})
+
+test("syncIssuesToLinear fails create-path sync when type label lookup throws", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        createCalls.push(params)
+        return { issue: Promise.resolve({ id: "lin-create-throw", identifier: "ENG-171" }) }
+      },
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-create-throw", title: "Create throw", status: "open", priority: 2, issue_type: "task", design: "Create" },
+    ],
+    mapping: {},
+    getOrCreateLabel: async () => {
+      throw new Error("label lookup failed")
+    },
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+  assert.deepEqual(createCalls, [])
+})
+
+test("acquireMappingLock removes stale lock files before proceeding", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    const staleCreatedAt = Date.now() - 60_000
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: staleCreatedAt }), "utf8")
+    const oldTime = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(fs.existsSync(lockPath), true)
+    assert.equal(currentLock.pid, process.pid)
+    assert.notEqual(currentLock.createdAt, staleCreatedAt)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock ignores active lock held by current live process", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, createdAt: Date.now() - 60_000 }), "utf8")
+    const oldTime = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    await assert.rejects(
+      () => acquireMappingLock({ timeoutMs: 25, pollMs: 5 }),
+      /timed out waiting for Linear mapping lock/
+    )
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("isProcessAlive treats EPERM as alive", () => {
+  const { isProcessAlive } = requireFresh("../scripts/tm-linear-sync")
+  const originalKill = process.kill
+
+  process.kill = () => {
+    const err = new Error("operation not permitted")
+    err.code = "EPERM"
+    throw err
+  }
+
+  try {
+    assert.equal(isProcessAlive(12345), true)
+  } finally {
+    process.kill = originalKill
+  }
+})
+
+test("acquireMappingLock removes fresh lock files owned by dead processes", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: Date.now() }), "utf8")
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("runSyncBatch acquires and releases the mapping lock around sync work", async () => {
+  const { runSyncBatch } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+
+  const result = await runSyncBatch({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-lock", title: "Locked", status: "open", priority: 2, issue_type: "task", design: "Lock" },
+    ],
+    getOrCreateLabel: async () => "label-task",
+    loadMapping: () => {
+      calls.push("load")
+      return {}
+    },
+    saveMapping: () => calls.push("save"),
+    log: () => calls.push("log"),
+    sleep: async () => {},
+    acquireLock: async () => {
+      calls.push("acquire")
+      return () => calls.push("release")
+    },
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 0 })
+  assert.deepEqual(calls, ["acquire", "load", "save", "log", "release"])
+})
+
+test("runSyncBatch releases the mapping lock when sync work throws", async () => {
+  const { runSyncBatch } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+
+  await assert.rejects(
+    () => runSyncBatch({
+      client: {
+        issueSearch: async () => ({ nodes: [] }),
+        createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+      },
+      teamId: "team-1",
+      teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+      issues: [
+        { id: "bd-lock-fail", title: "Locked fail", status: "open", priority: 2, issue_type: "task", design: "Lock" },
+      ],
+      getOrCreateLabel: async () => "label-task",
+      loadMapping: () => {
+        calls.push("load")
+        return {}
+      },
+      saveMapping: () => {
+        calls.push("save")
+        throw new Error("save failed")
+      },
+      log: () => calls.push("log"),
+      sleep: async () => {},
+      acquireLock: async () => {
+        calls.push("acquire")
+        return () => calls.push("release")
+      },
+    }),
+    /save failed/
+  )
+
+  assert.deepEqual(calls, ["acquire", "load", "save", "release"])
+})
+
+test("createLabelResolver creates a team-scoped label when no team label exists", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-task" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const labelId = await resolveLabel("Task")
+
+  assert.equal(labelId, "label-task")
+  assert.deepEqual(calls, [
+    {
+      type: "query",
+      options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+    },
+    {
+      type: "create",
+      options: { name: "Task", teamId: "team-1" },
+    },
+  ])
+})
+
+test("createLabelResolver reuses an existing team-scoped label without creating a duplicate", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [{ id: "label-existing", name: "Task" }] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-created" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const labelId = await resolveLabel("Task")
+
+  assert.equal(labelId, "label-existing")
+  assert.deepEqual(calls, [{
+    type: "query",
+    options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+  }])
+})
+
+test("createLabelResolver caches repeated resolutions to avoid duplicate queries and creates", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-task" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const first = await resolveLabel("Task")
+  const second = await resolveLabel("Task")
+
+  assert.equal(first, "label-task")
+  assert.equal(second, "label-task")
+  assert.deepEqual(calls, [
+    {
+      type: "query",
+      options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+    },
+    {
+      type: "create",
+      options: { name: "Task", teamId: "team-1" },
+    },
+  ])
+})
+
+test("acquireMappingLock removes stale lock files with malformed metadata", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, "not-json", "utf8")
+    const oldTime = new Date(Date.now() - 10 * 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock expires very old locks even if the pid is currently alive", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    const veryOld = Date.now() - 10 * 60_000
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, createdAt: veryOld }), "utf8")
+    const oldTime = new Date(veryOld)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    assert.notEqual(currentLock.createdAt, veryOld)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock refreshes active lock timestamps so long syncs are not stolen by age", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const release = await acquireMappingLock({ timeoutMs: 20, pollMs: 2, maxAgeMs: 30, heartbeatMs: 5 })
+    const lockPath = getMappingLockPath()
+    const before = fs.statSync(lockPath).mtimeMs
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const after = fs.statSync(lockPath).mtimeMs
+
+    await assert.rejects(
+      () => acquireMappingLock({ timeoutMs: 15, pollMs: 2, maxAgeMs: 30, heartbeatMs: 5 }),
+      /timed out waiting for Linear mapping lock/
+    )
+
+    assert.ok(after > before)
+    release()
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("removeLockFileIfUnchanged does not delete a newly replaced live lock", () => {
+  const { removeLockFileIfUnchanged } = requireFresh("../scripts/tm-linear-sync")
+  const tempRepoRoot = makeTempRepoRoot()
+  const savedEnv = saveEnv()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = path.join(tempRepoRoot, ".beads", "linear-map.json.lock")
+    const staleToken = JSON.stringify({ pid: 111, createdAt: Date.now() - 1000 })
+    const newToken = JSON.stringify({ pid: 222, createdAt: Date.now() })
+
+    fs.writeFileSync(lockPath, newToken, "utf8")
+    removeLockFileIfUnchanged(lockPath, staleToken)
+
+    assert.equal(fs.readFileSync(lockPath, "utf8"), newToken)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("syncIssuesToLinear throttles after every five created issues", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const sleepCalls = []
+
+  await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: Array.from({ length: 6 }, (_, index) => ({
+      id: `bd-${index + 1}`,
+      title: `Issue-${index + 1}`,
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+      design: `Design ${index + 1}`,
+    })),
+    mapping: {},
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async ms => sleepCalls.push(ms),
+  })
+
+  assert.deepEqual(sleepCalls, [500])
+})
+
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
   const { logSyncInfo } = requireFresh("../scripts/tm-linear-sync")
   const writes = { stdout: [], stderr: [] }
@@ -877,9 +1811,13 @@ test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
 
 test("hashDesign produces consistent MD5 for same input", () => {
   const { hashDesign } = require("../scripts/tm-linear-sync")
-  const hash1 = hashDesign("# Hello World\n\nSome design content")
-  const hash2 = hashDesign("# Hello World\n\nSome design content")
+  const crypto = require("node:crypto")
+  const design = "# Hello World\n\nSome design content"
+  const expectedMd5 = crypto.createHash("md5").update(design).digest("hex")
+  const hash1 = hashDesign(design)
+  const hash2 = hashDesign(design)
   assert.equal(hash1, hash2)
+  assert.equal(hash1, expectedMd5)
   assert.equal(hash1.length, 32) // MD5 hex length
 
   // Different content → different hash
@@ -894,18 +1832,6 @@ test("hashDesign produces consistent MD5 for same input", () => {
 // ── tm sync integration tests ───────────────────────────────────────────────
 
 test("sync with no config exits 0 with not-configured message", () => {
-  const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: { ...process.env, LINEAR_API_KEY: "" },
-    timeout: 10000,
-  })
-  assert.equal(result.status, 0)
-  assert.match(result.stderr, /not configured/)
-})
-
-test("tm sync invokes linear sync script when available", () => {
-  // The script should exit cleanly when Linear sync is available but not configured.
   const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
     cwd: repoRoot,
     encoding: "utf8",

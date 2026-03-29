@@ -40,14 +40,18 @@ export LINEAR_TEAM_KEY="ENG"   # Your team key from Step 1
 
 Add these to your `~/.bashrc` or `~/.zshrc` to persist across sessions.
 
-### Option B: bd Config (per-repo, persistent)
+### Option B: bd Config (supported, but avoid storing secrets in tracked repos)
 
 ```bash
 tm config set linear.api-key "lin_api_your_key_here"
 tm config set linear.team-key "ENG"
 ```
 
-These are stored in `.beads/config.yaml` and persist across sessions.
+`tm sync` supports reading both values from config, but use environment variables or another secret manager for `LINEAR_API_KEY` whenever possible.
+
+> **Do not store live API keys in `.beads/config.yaml`** unless you are certain that file is excluded from version control in your environment.
+
+The team key can safely live in `.beads/config.yaml`; the API key only should if the file is definitely kept out of version control.
 
 ### Verify it works
 
@@ -78,7 +82,7 @@ Add to `~/.claude/settings.local.json`:
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "lin_api_your_key_here"
+        "LINEAR_API_KEY": "{env:LINEAR_API_KEY}"
       }
     }
   }
@@ -121,7 +125,7 @@ If you also want direct Linear MCP read access in Gemini CLI, add the MCP server
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "lin_api_your_key_here"
+        "LINEAR_API_KEY": "{env:LINEAR_API_KEY}"
       }
     }
   }
@@ -163,10 +167,22 @@ You (local)                    Linear (cloud)
 | priority P2 (medium) | Priority 3 (Medium) |
 | priority P3 (low) | Priority 4 (Low) |
 | priority P4 (backlog) | Priority 0 (No priority) |
-| status: open | State: Todo |
-| status: in_progress | State: In Progress |
-| status: closed | State: Done |
+| status: open | First matching state name like Todo/Backlog/Triage, else unstarted/backlog fallback |
+| status: in_progress | First matching state name containing Progress/Started/Active, else started fallback |
+| status: closed | First matching state name containing Done/Complete/Closed, else completed fallback |
+| status: blocked | Explicit `Blocked` state only; otherwise that issue fails sync and the remote state is left untouched |
 | design (markdown) | Description (markdown) |
+
+### Sync Ownership Contract
+
+- `tm sync` is a one-way sync from local bd/tm issues to Linear.
+- The integration owns the synced issue title, description, priority, state, and type label for mapped issues.
+- Type labels are synced as an owned single-label set. Synced issues are expected to keep exactly one bd-derived type label (`Epic`, `Feature`, `Task`, or `Bug`), and unknown bd types fall back to `Task`.
+- `blocked` only maps when the Linear team has an explicit workflow state whose name includes `Blocked`; otherwise that issue fails sync and the remote state is left untouched instead of silently degrading it to Todo/Backlog.
+- Duplicate prevention and relinking rely on `<!-- [bd:ID] -->` markers in the Linear description. Do not remove them.
+- Sync uses local mapping locks plus marker-based relinking to reduce duplicate creation, but concurrent syncs from different clones or machines can still race before Linear records the marker. If that happens, remove the duplicate in Linear and run `tm sync` again so marker-based relinking can converge.
+- If an existing mapping points at a deleted issue, `tm sync` recreates the issue; if the marker has moved to a different issue, `tm sync` re-links to that issue before applying updates.
+- Per-issue API failures (including rate limits) are tolerated so the rest of the batch can continue. The final sync summary reports failed issues and exits non-zero when any issue fails.
 
 ## Daily Workflow
 
@@ -185,7 +201,7 @@ tm sync
 
 ## Troubleshooting
 
-**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` and `LINEAR_TEAM_KEY` via env vars or `tm config set`.
+**"Linear not configured, skipping"** — Set `LINEAR_API_KEY` via environment variable and set `LINEAR_TEAM_KEY` via environment variable or `tm config set linear.team-key ...`.
 
 **"LINEAR_API_KEY is set but LINEAR_TEAM_KEY is missing"** — You need both. Set the team key: `export LINEAR_TEAM_KEY="ENG"` or `tm config set linear.team-key "ENG"`.
 

@@ -8,6 +8,9 @@ const crypto = require("node:crypto")
 const { loadLinearConfig } = require("./tm-linear-sync-config")
 const BD_LIST_MAX_BUFFER = 10 * 1024 * 1024
 const MARKER_SEARCH_LIMIT = 10
+const MAPPING_LOCK_TIMEOUT_MS = 10000
+const MAPPING_LOCK_POLL_MS = 50
+const MAPPING_LOCK_MAX_AGE_MS = 10 * 60 * 1000
 
 // ── Field mapping ───────────────────────────────────────────────────────────
 
@@ -26,11 +29,17 @@ function mapType(bdType) {
 }
 
 function mapStatus(bdStatus, teamStates) {
+  if (bdStatus === "blocked") {
+    const explicitBlocked = teamStates.find(s =>
+      s.name.toLowerCase().includes("blocked")
+    )
+    return explicitBlocked ? explicitBlocked.id : null
+  }
+
   const matchers = {
     open: ["todo", "backlog", "triage"],
     in_progress: ["progress", "started", "active"],
     closed: ["done", "complete", "closed"],
-    blocked: ["blocked", "todo", "backlog"],
   }
 
   const candidates = matchers[bdStatus] || matchers.open
@@ -46,7 +55,6 @@ function mapStatus(bdStatus, teamStates) {
     open: ["backlog", "unstarted"],
     in_progress: ["started"],
     closed: ["completed"],
-    blocked: ["unstarted", "backlog"],
   }
 
   for (const type of (typeMap[bdStatus] || ["backlog", "unstarted"])) {
@@ -166,6 +174,36 @@ function buildLastSyncedFields(issue, designHash) {
   }
 }
 
+function createLabelResolver({ client, teamId }) {
+  const labelCache = {}
+
+  return async function getOrCreateLabel(labelName) {
+    if (labelCache[labelName]) return labelCache[labelName]
+
+    const existing = await client.issueLabels({
+      first: 1,
+      filter: { name: { eq: labelName }, team: { id: { eq: teamId } } },
+    })
+    if (existing.nodes.length > 0) {
+      labelCache[labelName] = existing.nodes[0].id
+      return existing.nodes[0].id
+    }
+
+    const payload = await client.createIssueLabel({
+      name: labelName,
+      teamId,
+    })
+    if (payload.success) {
+      const label = await payload.issueLabel
+      if (label) {
+        labelCache[labelName] = label.id
+        return label.id
+      }
+    }
+    return null
+  }
+}
+
 async function issueNeedsLabelRepair({ client, existing, labelName }) {
   if (!labelName || typeof client.issue !== "function") {
     return false
@@ -202,10 +240,14 @@ async function issueNeedsLabelRepair({ client, existing, labelName }) {
     return false
   }
 
-  return !labels.some(label => label && label.name === labelName)
+  const labelNames = labels
+    .map(label => label && label.name)
+    .filter(Boolean)
+
+  return labelNames.length !== 1 || labelNames[0] !== labelName
 }
 
-async function findIssueByMarker({ client, teamId, bdId, existingLinearId }) {
+async function findIssueByMarker({ client, teamId, bdId }) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
     first: MARKER_SEARCH_LIMIT,
     filter: { team: { id: { eq: teamId } } },
@@ -217,13 +259,6 @@ async function findIssueByMarker({ client, teamId, bdId, existingLinearId }) {
 
   if (search.nodes.length === 1) {
     return search.nodes[0]
-  }
-
-  if (existingLinearId) {
-    const currentMatch = search.nodes.find(node => node.id === existingLinearId)
-    if (currentMatch) {
-      return currentMatch
-    }
   }
 
   throw new Error(`multiple Linear issues found for [bd:${bdId}]`)
@@ -250,14 +285,21 @@ async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
 }
 
 async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
-  const found = await findIssueByMarker({ client, teamId, bdId, existingLinearId: existing.linearId })
+  const found = await findIssueByMarker({ client, teamId, bdId })
 
   if (!found) {
     if (typeof client.issue === "function") {
       try {
         const currentIssue = await client.issue(existing.linearId)
         if (currentIssue && currentIssue.id === existing.linearId) {
-          return existing
+          const { lastSyncedFields, ...relinkBase } = existing
+          const refreshed = {
+            ...relinkBase,
+            lastSyncedAt: new Date().toISOString(),
+          }
+          mapping[bdId] = refreshed
+          logSyncInfo(`Re-linked ${bdId} → ${existing.linearIdentifier} (marker restored on next sync)`) 
+          return refreshed
         }
       } catch (err) {
         if (!err.message || !/not found|does not exist|404/i.test(err.message)) {
@@ -293,6 +335,12 @@ async function prepareExistingIssueForSync({ client, teamId, bdId, issue, design
   let skipUpdate = false
 
   if (existing) {
+    existing = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
+    if (!existing) {
+      return { existing: null, prev: {}, forceLabelSync: false, skipUpdate: false }
+    }
+
+    prev = existing.lastSyncedFields || {}
     let changed = prev.title !== issue.title ||
       prev.status !== issue.status ||
       prev.priority !== issue.priority ||
@@ -300,11 +348,7 @@ async function prepareExistingIssueForSync({ client, teamId, bdId, issue, design
       prev.designHash !== designHash
 
     if (!changed) {
-      existing = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
-      if (!existing) {
-        return { existing: null, prev: {}, forceLabelSync: false, skipUpdate: false }
-      }
-      // Recompute prev and changed after relink may have cleared lastSyncedFields
+      // Recompute after reconciliation may have cleared lastSyncedFields
       prev = existing.lastSyncedFields || {}
       changed = prev.title !== issue.title ||
         prev.status !== issue.status ||
@@ -325,21 +369,28 @@ async function prepareExistingIssueForSync({ client, teamId, bdId, issue, design
 }
 
 async function createLinearIssue({ client, teamId, issue, bdId, designText, designHash, priority, stateId, labelName, getOrCreateLabel, mapping }) {
+  const issueLabel = issue.title || bdId
   const descWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
   const createParams = {
     teamId,
-    title: issue.title || bdId,
+    title: issueLabel,
     description: descWithMarker,
     priority,
   }
   if (stateId) createParams.stateId = stateId
 
+  let labelId
   try {
-    const labelId = await getOrCreateLabel(labelName)
-    if (labelId) createParams.labelIds = [labelId]
+    labelId = await getOrCreateLabel(labelName)
   } catch (err) {
-    console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+    console.error(`tm-sync: Label lookup failed for "${issueLabel}" (${labelName}): ${err.message}`)
+    return { created: 0, updated: 0, errors: 1 }
   }
+  if (!labelId) {
+    console.error(`tm-sync: Failed to resolve required type label "${labelName}" for "${issueLabel}"`)
+    return { created: 0, updated: 0, errors: 1 }
+  }
+  createParams.labelIds = [labelId]
 
   try {
     const payload = await client.createIssue(createParams)
@@ -354,30 +405,37 @@ async function createLinearIssue({ client, teamId, issue, bdId, designText, desi
       return { created: 1, updated: 0, errors: 0 }
     }
   } catch (err) {
-    console.error(`tm-sync: Failed to create "${issue.title}": ${err.message}`)
+    console.error(`tm-sync: Failed to create "${issueLabel}": ${err.message}`)
     return { created: 0, updated: 0, errors: 1 }
   }
 
-  console.error(`tm-sync: Failed to create "${issue.title}": Linear did not return an issue object`)
+  console.error(`tm-sync: Failed to create "${issueLabel}": Linear did not return an issue object`)
   return { created: 0, updated: 0, errors: 1 }
 }
 
 async function syncExistingIssue({ client, issue, existing, bdId, designText, designHash, priority, stateId, labelName, prev, forceLabelSync = false, getOrCreateLabel, mapping, teamId }) {
+  const issueLabel = issue.title || bdId
   const updateDescWithMarker = `${designText}\n\n<!-- [bd:${bdId}] -->`.trim()
   const updateParams = {
-    title: issue.title,
+    title: issueLabel,
     description: updateDescWithMarker,
     priority,
   }
   if (stateId) updateParams.stateId = stateId
 
   if (forceLabelSync || prev.issueType !== issue.issue_type) {
+    let labelId
     try {
-      const labelId = await getOrCreateLabel(labelName)
-      if (labelId) updateParams.labelIds = [labelId]
+      labelId = await getOrCreateLabel(labelName)
     } catch (err) {
-      console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+      console.error(`tm-sync: Label lookup failed for "${issueLabel}" (${labelName}): ${err.message}`)
+      return { created: 0, updated: 0, errors: 1 }
     }
+    if (!labelId) {
+      console.error(`tm-sync: Failed to resolve required type label "${labelName}" for "${issueLabel}"`)
+      return { created: 0, updated: 0, errors: 1 }
+    }
+    updateParams.labelIds = [labelId]
   }
 
   try {
@@ -391,22 +449,257 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
       try {
         relinked = await reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping)
       } catch (relinkErr) {
-        console.error(`tm-sync: Failed to re-link stale mapping for "${issue.title}": ${relinkErr.message}`)
+        console.error(`tm-sync: Failed to re-link stale mapping for "${issueLabel}": ${relinkErr.message}`)
         return { created: 0, updated: 0, errors: 1 }
       }
       if (relinked && relinked.linearId !== existing.linearId) {
         return syncExistingIssue({ client, issue, existing: relinked, bdId, designText, designHash, priority, stateId, labelName, prev, forceLabelSync, getOrCreateLabel, mapping, teamId })
       }
       if (relinked) {
-        console.error(`tm-sync: Failed to update "${issue.title}": stale mapping could not be refreshed safely`)
+        console.error(`tm-sync: Failed to update "${issueLabel}": stale mapping could not be refreshed safely`)
         return { created: 0, updated: 0, errors: 1 }
       }
       console.error(`tm-sync: Linear issue ${existing.linearIdentifier} was deleted, recreating ${bdId}`)
       return createLinearIssue({ client, teamId, issue, bdId, designText, designHash, priority, stateId, labelName, getOrCreateLabel, mapping })
     }
 
-    console.error(`tm-sync: Failed to update "${issue.title}": ${err.message}`)
+    console.error(`tm-sync: Failed to update "${issueLabel}": ${err.message}`)
     return { created: 0, updated: 0, errors: 1 }
+  }
+}
+
+async function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function getMappingLockPath() {
+  return `${getMappingPath()}.lock`
+}
+
+function readLockMetadata(lockPath) {
+  try {
+    const raw = fs.readFileSync(lockPath, "utf8").trim()
+    if (!raw) return {}
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === "object" ? parsed : {}
+    }
+    const pid = Number(raw)
+    return Number.isInteger(pid) ? { pid } : {}
+  } catch {
+    return {}
+  }
+}
+
+function removeLockFileIfUnchanged(lockPath, expectedToken) {
+  try {
+    if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === expectedToken) {
+      fs.rmSync(lockPath, { force: true })
+      return true
+    }
+  } catch {
+    // best effort cleanup
+  }
+  return false
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    if (err && err.code === "ESRCH") {
+      return false
+    }
+    return true
+  }
+}
+
+async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS, maxAgeMs = MAPPING_LOCK_MAX_AGE_MS, heartbeatMs = Math.max(1000, Math.floor(MAPPING_LOCK_TIMEOUT_MS / 2)) } = {}) {
+  const lockPath = getMappingLockPath()
+  const startedAt = Date.now()
+  let token = null
+
+  while (true) {
+    try {
+      token = JSON.stringify({ pid: process.pid, createdAt: Date.now() })
+      fs.writeFileSync(lockPath, token, { flag: "wx" })
+      const heartbeat = setInterval(() => {
+        try {
+          if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === token) {
+            const now = new Date()
+            fs.utimesSync(lockPath, now, now)
+          }
+        } catch {
+          // best effort heartbeat
+        }
+      }, heartbeatMs)
+      heartbeat.unref?.()
+      return () => {
+        try {
+          clearInterval(heartbeat)
+          removeLockFileIfUnchanged(lockPath, token)
+        } catch {
+          // best effort cleanup
+        }
+      }
+    } catch (err) {
+      if (err && err.code !== "EEXIST") {
+        throw err
+      }
+      try {
+        const stats = fs.statSync(lockPath)
+        const raw = fs.readFileSync(lockPath, "utf8")
+        const metadata = readLockMetadata(lockPath)
+        const ageMs = Date.now() - stats.mtimeMs
+        const staleByPid = metadata.pid ? !isProcessAlive(metadata.pid) : false
+        const staleByAge = ageMs >= maxAgeMs
+
+        if (staleByAge || staleByPid) {
+          if (removeLockFileIfUnchanged(lockPath, raw)) {
+            continue
+          }
+        }
+      } catch {
+        // Ignore transient stat/remove races and retry normally.
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error(`timed out waiting for Linear mapping lock at ${lockPath}`)
+      }
+      await wait(pollMs)
+    }
+  }
+}
+
+async function syncIssuesToLinear({ client, teamId, teamStates, issues, mapping, getOrCreateLabel, saveMapping: persistMapping = saveMapping, log = logSyncInfo, sleep = wait, reportError = console.error }) {
+  let created = 0
+  let updated = 0
+  let unchanged = 0
+  let errors = 0
+
+  for (const issue of issues) {
+    const bdId = issue.id
+    const designText = issue.design || issue.description || ""
+    const designHash = hashDesign(designText)
+    const stateId = mapStatus(issue.status, teamStates)
+    const priority = mapPriority(issue.priority)
+    const labelName = mapType(issue.issue_type)
+
+    if (issue.status === "blocked" && !stateId) {
+      reportError(`tm-sync: Cannot sync blocked issue "${issue.title || bdId}" without an explicit Blocked workflow state in Linear.`)
+      errors++
+      continue
+    }
+
+    let existing = mapping[bdId]
+
+    if (!existing) {
+      try {
+        existing = await linkIssueByMarkerSearch({ client, teamId, bdId, mapping })
+      } catch (err) {
+        reportError(`tm-sync: Search failed for ${bdId}, skipping to avoid duplicate: ${err.message}`)
+        errors++
+        continue
+      }
+    }
+
+    let prev = existing ? existing.lastSyncedFields || {} : {}
+    let forceLabelSync = false
+
+    if (existing) {
+      try {
+        const prepared = await prepareExistingIssueForSync({
+          client,
+          teamId,
+          bdId,
+          issue,
+          designHash,
+          labelName,
+          existing,
+          mapping,
+        })
+        existing = prepared.existing
+        prev = prepared.prev
+        forceLabelSync = prepared.forceLabelSync
+        if (prepared.skipUpdate) {
+          unchanged++
+          continue
+        }
+      } catch (err) {
+        reportError(`tm-sync: Failed to prepare sync for "${issue.title || bdId}": ${err.message}`)
+        errors++
+        continue
+      }
+    }
+
+    if (!existing) {
+      const result = await createLinearIssue({
+        client,
+        teamId,
+        issue,
+        bdId,
+        designText,
+        designHash,
+        priority,
+        stateId,
+        labelName,
+        getOrCreateLabel,
+        mapping,
+      })
+      created += result.created
+      updated += result.updated
+      errors += result.errors
+
+      if (created > 0 && created % 5 === 0) {
+        await sleep(500)
+      }
+    } else {
+      const result = await syncExistingIssue({
+        client,
+        issue,
+        existing,
+        bdId,
+        designText,
+        designHash,
+        priority,
+        stateId,
+        labelName,
+        prev,
+        forceLabelSync,
+        getOrCreateLabel,
+        mapping,
+        teamId,
+      })
+      created += result.created
+      updated += result.updated
+      errors += result.errors
+    }
+  }
+
+  persistMapping(mapping)
+  log(`Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged${errors > 0 ? `, ${errors} failed` : ""})`)
+
+  return { created, updated, unchanged, errors }
+}
+
+async function runSyncBatch({ client, teamId, teamStates, issues, getOrCreateLabel, loadMapping: readMapping = loadMapping, saveMapping: persistMapping = saveMapping, log = logSyncInfo, sleep = wait, acquireLock = acquireMappingLock }) {
+  const releaseMappingLock = await acquireLock()
+  try {
+    const mapping = readMapping()
+    return await syncIssuesToLinear({
+      client,
+      teamId,
+      teamStates,
+      issues,
+      mapping,
+      getOrCreateLabel,
+      saveMapping: persistMapping,
+      log,
+      sleep,
+    })
+  } finally {
+    releaseMappingLock()
   }
 }
 
@@ -456,152 +749,18 @@ async function syncToLinear() {
     type: s.type,
   }))
 
-  // Find or create labels for issue types
-  const labelCache = {}
-  async function getOrCreateLabel(labelName) {
-    if (labelCache[labelName]) return labelCache[labelName]
+  const getOrCreateLabel = createLabelResolver({ client, teamId: team.id })
 
-    const existing = await client.issueLabels({
-      first: 1,
-      filter: { name: { eq: labelName }, team: { id: { eq: team.id } } },
-    })
-    if (existing.nodes.length > 0) {
-      labelCache[labelName] = existing.nodes[0].id
-      return existing.nodes[0].id
-    }
-
-    // Try workspace-level labels
-    const workspace = await client.issueLabels({
-      first: 1,
-      filter: { name: { eq: labelName } },
-    })
-    if (workspace.nodes.length > 0) {
-      labelCache[labelName] = workspace.nodes[0].id
-      return workspace.nodes[0].id
-    }
-
-    // Create the label
-    const payload = await client.createIssueLabel({
-      name: labelName,
-      teamId: team.id,
-    })
-    if (payload.success) {
-      const label = await payload.issueLabel
-      if (label) {
-        labelCache[labelName] = label.id
-        return label.id
-      }
-    }
-    return null
-  }
-
-  // Load mapping and bd issues
-  const mapping = loadMapping()
   const issues = loadBdIssues()
+  const result = await runSyncBatch({
+    client,
+    teamId: team.id,
+    teamStates,
+    issues,
+    getOrCreateLabel,
+  })
 
-  let created = 0
-  let updated = 0
-  let unchanged = 0
-  let errors = 0
-
-  for (const issue of issues) {
-    const bdId = issue.id
-    const designText = issue.design || issue.description || ""
-    const designHash = hashDesign(designText)
-    const stateId = mapStatus(issue.status, teamStates)
-    const priority = mapPriority(issue.priority)
-    const labelName = mapType(issue.issue_type)
-
-    let existing = mapping[bdId]
-
-    // If no local mapping, search Linear by bd ID marker to avoid duplicates (e.g. fresh clone)
-    if (!existing) {
-      try {
-        existing = await linkIssueByMarkerSearch({ client, teamId: team.id, bdId, mapping })
-      } catch (err) {
-        // Search failed — skip this issue to avoid creating duplicates
-        console.error(`tm-sync: Search failed for ${bdId}, skipping to avoid duplicate: ${err.message}`)
-        errors++
-        continue
-      }
-    }
-
-    let prev = existing ? existing.lastSyncedFields || {} : {}
-    let forceLabelSync = false
-
-    if (existing) {
-      try {
-        const prepared = await prepareExistingIssueForSync({
-          client,
-          teamId: team.id,
-          bdId,
-          issue,
-          designHash,
-          labelName,
-          existing,
-          mapping,
-        })
-        existing = prepared.existing
-        prev = prepared.prev
-        forceLabelSync = prepared.forceLabelSync
-        if (prepared.skipUpdate) {
-          unchanged++
-          continue
-        }
-      } catch (err) {
-        console.error(`tm-sync: Failed to prepare sync for "${issue.title}": ${err.message}`)
-        errors++
-        continue
-      }
-    }
-
-    if (!existing) {
-      const result = await createLinearIssue({
-        client,
-        teamId: team.id,
-        issue,
-        bdId,
-        designText,
-        designHash,
-        priority,
-        stateId,
-        labelName,
-        getOrCreateLabel,
-        mapping,
-      })
-      created += result.created
-      updated += result.updated
-      errors += result.errors
-
-      // Rate limit protection
-      if (created > 0 && created % 5 === 0) {
-        await new Promise(r => setTimeout(r, 500))
-      }
-    } else {
-      const result = await syncExistingIssue({
-        client,
-        issue,
-        existing,
-        bdId,
-        designText,
-        designHash,
-        priority,
-        stateId,
-        labelName,
-        prev,
-        forceLabelSync,
-        getOrCreateLabel,
-        mapping,
-        teamId: team.id,
-      })
-      created += result.created
-      updated += result.updated
-      errors += result.errors
-    }
-  }
-
-  saveMapping(mapping)
-  logSyncInfo(`Synced ${issues.length} issues (${created} created, ${updated} updated, ${unchanged} unchanged${errors > 0 ? `, ${errors} failed` : ""})`)
+  const { errors } = result
   if (errors > 0) {
     process.exitCode = 1
   }
@@ -616,4 +775,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, getMappingLockPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue, syncIssuesToLinear, acquireMappingLock, runSyncBatch, createLabelResolver, isProcessAlive, removeLockFileIfUnchanged }
