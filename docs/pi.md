@@ -48,7 +48,10 @@ hyperpowers_subagent(task: "Review src/auth.ts for race conditions", type: "revi
 hyperpowers_subagent(task: "Verify recent implementation matches requirements", agent: "review-implementation")
 hyperpowers_subagent(task: "Run tests and summarize failures", agent: "test-runner")
 hyperpowers_subagent(task: "Review this once with a stronger model", model: "anthropic/claude-opus-4-5", type: "validation")
+hyperpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
 ```
+
+Structured mode asks the subagent to return JSON only and parses that JSON before returning it to the caller. This improves machine readability, but it does not guarantee that the model's findings are semantically correct.
 
 ## Supported concrete agents for routing
 

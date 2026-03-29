@@ -32,13 +32,14 @@ The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` for abstract routing, add `agent` for a concrete override, or set `model` for a one-off explicit override:
+The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
 
 ```
 hyperpowers_subagent(task: "Review code", type: "review")
 hyperpowers_subagent(task: "Review auth.ts", type: "review", agent: "code-reviewer")
 hyperpowers_subagent(task: "Analyze architecture", type: "validation", agent: "autonomous-reviewer")
 hyperpowers_subagent(task: "Use a specific model just once", model: "anthropic/claude-opus-4-5", type: "review")
+hyperpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
 ```
 
 Routing precedence:

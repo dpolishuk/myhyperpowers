@@ -579,14 +579,19 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       model: Type.Optional(Type.String({ description: "Explicit one-off provider/model override with highest precedence (optional)" })),
       type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
       agent: Type.Optional(Type.String({ description: "Concrete Hyperpowers agent name for routing precedence (optional, e.g. code-reviewer, internet-researcher, autonomous-reviewer)" })),
+      format: Type.Optional(Type.Union([
+        Type.Literal("text"),
+        Type.Literal("structured"),
+      ], { description: "Response format: raw text or structured JSON parsed by the helper (optional, defaults to text)" })),
     }),
-    async execute(_toolCallId: string, params: { task: string; model?: string; type?: string; agent?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
+    async execute(_toolCallId: string, params: { task: string; model?: string; type?: string; agent?: string; format?: "text" | "structured" }, _signal?: unknown, _update?: unknown, ctx?: any) {
       try {
         const routing = resolveSubagentRouting(params.type, params.agent, params.model)
         return executePiSubagent({
           task: params.task,
           model: routing.model,
           cwd: ctx?.cwd || process.cwd(),
+          format: params.format,
         })
       } catch (err: any) {
         return {
