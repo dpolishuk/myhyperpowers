@@ -594,6 +594,100 @@ test("tm sync under tk performs direct local sync and reports unsupported follow
   }
 })
 
+test("tm sync under tk propagates local sync failure and skips follow-on sync", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-tk-sync-fail-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeTkPath = path.join(tmpBinDir, "tk")
+    fs.writeFileSync(fakeTkPath, `#!${bashPath}\nif [[ \"$1\" == \"sync\" ]]; then exit 23; fi\nexit 0\n`)
+    fs.chmodSync(fakeTkPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "tk",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "lin_api_test123",
+        LINEAR_TEAM_KEY: "ENG",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 23)
+    assert.match(result.stderr, /tk sync failed \(exit 23\), skipping follow-on sync/)
+    assert.doesNotMatch(result.stderr, /follow-on sync was skipped/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync honors explicitly empty Linear config values and skips backend-config fallback", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-empty-config-"))
+  const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-empty-config-repo-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    fs.mkdirSync(path.join(tmpRepo, ".beads"), { recursive: true })
+    fs.writeFileSync(path.join(tmpRepo, ".beads", "config.yaml"), "linear.api-key:\nlinear.team-key:\n")
+
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+if [[ "$1" == "sync" ]]; then exit 0; fi
+if [[ "$1" == "config" && "$2" == "get" ]]; then
+  if [[ "$3" == "linear.api-key" ]]; then echo "lin_api_cfg"; exit 0; fi
+  if [[ "$3" == "linear.team-key" ]]; then echo "ENG"; exit 0; fi
+  echo "$3 (not set)"
+  exit 0
+fi
+exit 0
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "bd",
+      PATH: tmpBinDir,
+    }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: tmpRepo,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+    fs.rmSync(tmpRepo, { recursive: true, force: true })
+  }
+})
+
 function findCommandPath(commandName) {
   const fs = require("node:fs")
   for (const dir of (process.env.PATH || "").split(path.delimiter)) {

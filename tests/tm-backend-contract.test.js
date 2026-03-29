@@ -49,12 +49,29 @@ test("tm help backend list stays aligned with backend registry", () => {
   }
 })
 
+test("tm backend sync contract is explicit in the shell registry", () => {
+  const result = spawnSync("bash", ["-lc", `source "${backendRegistryPath}" && printf '%s,%s,%s,%s,%s,%s,%s,%s' "$(tm_backend_sync_mode bd)" "$(tm_backend_sync_mode br)" "$(tm_backend_sync_mode tk)" "$(tm_backend_sync_mode linear)" "$(tm_backend_supports_follow_on_linear_sync bd && echo yes || echo no)" "$(tm_backend_supports_follow_on_linear_sync br && echo yes || echo no)" "$(tm_backend_supports_follow_on_linear_sync tk && echo yes || echo no)" "$(tm_backend_supports_follow_on_linear_sync linear && echo yes || echo no)"`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 10000,
+  })
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), "direct,flush-only,direct,direct,yes,no,no,no")
+})
+
 test("README and QUICKSTART describe the same peer backend set and per-project backend model", () => {
   const readme = read("README.md")
   const quickstart = read("docs/QUICKSTART.md")
 
   assert.equal(readme.includes("one backend selected per project"), true)
   assert.equal(quickstart.includes("one backend selected per project"), true)
+  assert.equal(readme.includes("`linear` = Linear-native backend option (not yet implemented on this repo branch)"), true)
+  assert.equal(quickstart.includes("`linear` = Linear-native backend option (not yet implemented on this repo branch)"), true)
+  assert.equal(readme.includes("`bd` remains the active backend"), true)
+  assert.equal(quickstart.includes("`bd` is the active backend"), true)
+  assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
+  assert.equal(quickstart.includes("not interchangeable day-to-day commands"), true)
 
   for (const backend of ["bd", "br", "tk", "linear"]) {
     assert.equal(readme.includes(`\`${backend}\``), true)

@@ -60,7 +60,7 @@ Located in `~/.config/agents/skills/`:
 | Skill | Description |
 |-------|-------------|
 | `brainstorming` | Socratic questioning for requirements refinement |
-| `writing-plans` | Create detailed bd epics with tasks |
+| `writing-plans` | Create detailed tm-first implementation plans with tracked tasks |
 | `executing-plans` | Execute tasks iteratively with checkpoints |
 | `execute-ralph` | Autonomous execution without user interruption |
 | `test-driven-development` | RED-GREEN-REFACTOR cycle |
