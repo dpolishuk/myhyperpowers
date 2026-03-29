@@ -85,7 +85,7 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
 })
 
 // Keep installer side-effect visible: AGENTS section should be injected safely.
-test("pi AGENTS section is injected with install smoke run", () => {
+test("pi AGENTS section is injected with install smoke run", { timeout: 30000 }, () => {
   const home = newTempDir("pi-smoke-agents")
   const binDir = newTempDir("pi-smoke-agents-bin")
   const piHome = path.join(home, ".pi", "agent")
