@@ -102,6 +102,88 @@ test("tm discovers repo config from the script location when cwd is outside the 
   }
 })
 
+test("tm discovers repo config when invoked through a symlinked entrypoint", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-script-symlink-root-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeBeadsDir = path.join(fakeRepo, ".beads")
+  const outsideDir = path.join(tmpRoot, "outside")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const symlinkTmPath = path.join(outsideDir, "tm")
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.mkdirSync(fakeBeadsDir, { recursive: true })
+    fs.mkdirSync(outsideDir)
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
+    fs.chmodSync(fakeTmPath, 0o755)
+    fs.symlinkSync(fakeTmPath, symlinkTmPath)
+    fs.writeFileSync(path.join(fakeBeadsDir, "config.yaml"), 'tm.backend: "linear"\n')
+
+    const result = spawnSync(symlinkTmPath, ["--version"], {
+      cwd: outsideDir,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "" },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.match(result.stdout, /backend: linear/)
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
+})
+
+test("tm sync resolves tm-linear-sync.js from the real script directory when invoked via symlink", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-symlink-root-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeBeadsDir = path.join(fakeRepo, ".beads")
+  const outsideDir = path.join(tmpRoot, "outside")
+  const symlinkBinDir = path.join(tmpRoot, "bin")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const symlinkTmPath = path.join(symlinkBinDir, "tm")
+  const markerPath = path.join(fakeRepo, "linear-sync-called.txt")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.mkdirSync(fakeBeadsDir, { recursive: true })
+    fs.mkdirSync(outsideDir)
+    fs.mkdirSync(symlinkBinDir)
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
+    fs.writeFileSync(path.join(fakeScriptDir, "tm-linear-sync.js"), `require('node:fs').writeFileSync(${JSON.stringify(markerPath)}, 'called')\n`)
+    fs.chmodSync(fakeTmPath, 0o755)
+    fs.symlinkSync(fakeTmPath, symlinkTmPath)
+
+    const fakeBdPath = path.join(symlinkBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}\nif [[ \"$1\" == \"sync\" ]]; then exit 0; fi\nif [[ \"$1\" == \"config\" && \"$2\" == \"get\" ]]; then\n  if [[ \"$3\" == \"linear.api-key\" ]]; then echo \"lin_api_cfg\"; exit 0; fi\n  if [[ \"$3\" == \"linear.team-key\" ]]; then echo \"ENG\"; exit 0; fi\n  echo \"$3 (not set)\"\n  exit 0\nfi\nexit 0\n`)
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = { ...process.env, TM_BACKEND: "bd", PATH: `${symlinkBinDir}${path.delimiter}${process.env.PATH || ""}` }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(symlinkTmPath, ["sync"], {
+      cwd: outsideDir,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(fs.readFileSync(markerPath, "utf8"), "called")
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
+})
+
 test("tm passes through arguments unchanged to bd", () => {
   // Running 'tm list --status open' should produce the same output as 'bd list --status open'
   const tmResult = runTm(["list", "--status", "open"])
@@ -309,6 +391,55 @@ test("tm sync ignores unsupported backend config stdout when checking Linear con
 if [[ "$1" == "sync" ]]; then exit 0; fi
 if [[ "$1" == "config" && "$2" == "get" ]]; then
   echo "config get is not supported"
+  exit 0
+fi
+exit 0
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "bd",
+      PATH: tmpBinDir,
+    }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync ignores single-token bogus backend config output when checking Linear config", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-bogus-config-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+if [[ "$1" == "sync" ]]; then exit 0; fi
+if [[ "$1" == "config" && "$2" == "get" ]]; then
+  echo "unsupported"
   exit 0
 fi
 exit 0

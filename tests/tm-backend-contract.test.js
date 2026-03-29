@@ -64,16 +64,32 @@ test("README and QUICKSTART describe the same peer backend set and per-project b
   const quickstart = read("docs/QUICKSTART.md")
   const readmeModelSection = readme.split("## Task Management Model")[1]?.split("## Features")[0] || ""
   const quickstartModelSection = quickstart.split("## Core Model")[1]?.split("## Daily Workflow")[0] || ""
+  const readmeBackendLines = readmeModelSection.split("\n").filter(line => /^- `(?:tm|bd|br|tk|linear)`/.test(line.trim()))
+  const quickstartBackendLines = quickstartModelSection.split("\n").filter(line => /^- `(?:tm|bd|br|tk|linear)`/.test(line.trim()))
+  const expectedReadmeBackendLines = [
+    "- `tm` = canonical user-facing task-management interface",
+    "- `bd` = current local tracker backend in this repo",
+    "- `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option",
+    "- `tk` = Ticket, a git-backed markdown ticket workflow alternative",
+    "- `linear` = Linear-native backend option (not yet implemented on this repo branch)",
+  ]
+  const expectedQuickstartBackendLines = [
+    "- `tm` = canonical user-facing interface",
+    "- `bd` = current backend in this repo",
+    "- `br` = Beads Rust / classic beads-compatible alternative",
+    "- `tk` = Ticket / git-backed markdown alternative",
+    "- `linear` = Linear-native backend option (not yet implemented on this repo branch)",
+  ]
 
   assert.match(readmeModelSection, /one backend selected per project/)
   assert.match(quickstartModelSection, /one backend selected per project/)
   assert.match(readmeModelSection, /bd` \/ `br` \/ `tk` \/ `linear/)
-  assert.match(readmeModelSection, /`linear` = Linear-native backend option \(not yet implemented on this repo branch\)/)
-  assert.match(quickstartModelSection, /- `linear` = Linear-native backend option \(not yet implemented on this repo branch\)/)
   assert.match(readmeModelSection, /`bd` remains the active backend/)
   assert.match(quickstartModelSection, /`bd` is the active backend/)
   assert.match(readmeModelSection, /not interchangeable day-to-day commands/)
   assert.match(quickstartModelSection, /not interchangeable day-to-day commands/)
   assert.doesNotMatch(quickstartModelSection, /fully supported backend/)
   assert.doesNotMatch(readmeModelSection, /are interchangeable day-to-day commands/)
+  assert.deepEqual(readmeBackendLines, expectedReadmeBackendLines)
+  assert.deepEqual(quickstartBackendLines, expectedQuickstartBackendLines)
 })

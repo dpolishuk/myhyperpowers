@@ -171,13 +171,29 @@ load_linear_config_value() {
   if [[ -n "$backend_cmd" && "$backend_cmd" != "linear" ]] && command -v "$backend_cmd" >/dev/null 2>&1; then
     config_val="$($backend_cmd config get "$config_key" 2>/dev/null || true)"
     config_val="$(trim "$config_val")"
-    if [[ -n "$config_val" && "$config_val" != *"(not set)" && "$config_val" != *[[:space:]]* ]]; then
+    if [[ -n "$config_val" && "$config_val" != *"(not set)" && "$config_val" != *[[:space:]]* ]] && is_valid_linear_fallback_value "$config_key" "$config_val"; then
       printf '%s\n' "$config_val"
       return
     fi
   fi
 
   printf '\n'
+}
+
+is_valid_linear_fallback_value() {
+  local config_key="$1"
+  local config_val="$2"
+  case "$config_key" in
+    linear.api-key)
+      [[ "$config_val" == lin_* ]]
+      ;;
+    linear.team-key)
+      [[ "$config_val" =~ ^[A-Z0-9_-]+$ ]]
+      ;;
+    *)
+      [[ -n "$config_val" ]]
+      ;;
+  esac
 }
 
 linear_sync_configured() {
