@@ -2,8 +2,11 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process"
 
 export type PiSubagentFormat = "text" | "structured"
 
+export const STRUCTURED_SUBAGENT_STATUSES = ["PASS", "ISSUES_FOUND", "FAIL"] as const
+export type StructuredSubagentStatus = typeof STRUCTURED_SUBAGENT_STATUSES[number]
+
 export interface StructuredSubagentOutput {
-  status: string
+  status: StructuredSubagentStatus
   summary: string
   findings: unknown[]
   nextAction?: string
@@ -47,6 +50,9 @@ export function parseStructuredSubagentOutput(output: string): StructuredSubagen
   if (typeof candidate.status !== "string") {
     throw new Error("Structured subagent output must include string field 'status'")
   }
+  if (!STRUCTURED_SUBAGENT_STATUSES.includes(candidate.status as StructuredSubagentStatus)) {
+    throw new Error("Structured subagent output field 'status' must be one of PASS, ISSUES_FOUND, FAIL")
+  }
   if (typeof candidate.summary !== "string") {
     throw new Error("Structured subagent output must include string field 'summary'")
   }
@@ -58,7 +64,7 @@ export function parseStructuredSubagentOutput(output: string): StructuredSubagen
   }
 
   return {
-    status: candidate.status,
+    status: candidate.status as StructuredSubagentStatus,
     summary: candidate.summary,
     findings: candidate.findings,
     nextAction: candidate.nextAction as string | undefined,
@@ -95,11 +101,31 @@ export function executePiSubagent(
   if (result.status === null) {
     const signalInfo = result.signal ? `; signal: ${result.signal}` : ""
     const errorInfo = result.error?.message ? `; error: ${result.error.message}` : ""
+    if (params.format === "structured") {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({
+          status: "FAIL",
+          summary: `Subagent failed (no exit status${signalInfo}${errorInfo})`,
+          findings: [{ message: details }],
+          nextAction: "Check Pi subprocess availability and runtime logs",
+        }) }],
+      }
+    }
     return {
       content: [{ type: "text" as const, text: `Subagent failed (no exit status${signalInfo}${errorInfo}): ${details}` }],
     }
   }
   if (result.status !== 0) {
+    if (params.format === "structured") {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({
+          status: "FAIL",
+          summary: `Subagent failed (exit ${result.status})`,
+          findings: [{ message: details }],
+          nextAction: "Inspect stderr/stdout details and retry once the subprocess issue is resolved",
+        }) }],
+      }
+    }
     return {
       content: [{ type: "text" as const, text: `Subagent failed (exit ${result.status}): ${details}` }],
     }
@@ -113,7 +139,12 @@ export function executePiSubagent(
       }
     } catch (error: any) {
       return {
-        content: [{ type: "text" as const, text: error?.message || "Structured subagent output was not valid JSON" }],
+        content: [{ type: "text" as const, text: JSON.stringify({
+          status: "FAIL",
+          summary: error?.message || "Structured subagent output was not valid JSON",
+          findings: [{ message: output || "(empty output)" }],
+          nextAction: "Retry with a clearer task or inspect the raw subagent output",
+        }) }],
       }
     }
   }
