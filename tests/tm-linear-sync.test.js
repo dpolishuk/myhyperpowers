@@ -1134,6 +1134,49 @@ test("syncExistingIssue treats label lookup failure as a per-issue error", async
   assert.deepEqual(mapping["bd-label-error"], originalEntry)
 })
 
+test("syncExistingIssue treats thrown label lookup failure as a per-issue error", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-label-throw": {
+      linearId: "lin-label-throw",
+      linearIdentifier: "ENG-131",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-label-throw"]))
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("should not update when label lookup throws")
+      },
+    },
+    issue: {
+      id: "bd-label-throw",
+      title: "Label lookup throw",
+      status: "open",
+      priority: 2,
+      issue_type: "bug",
+    },
+    existing: mapping["bd-label-throw"],
+    bdId: "bd-label-throw",
+    designText: "design",
+    designHash: "hash-label-throw",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Bug",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => {
+      throw new Error("lookup boom")
+    },
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.deepEqual(mapping["bd-label-throw"], originalEntry)
+})
+
 test("syncIssuesToLinear continues after per-issue failures and records failed summary", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {}
@@ -1313,7 +1356,8 @@ test("acquireMappingLock removes stale lock files before proceeding", async () =
   try {
     process.env.TM_REPO_ROOT = tempRepoRoot
     const lockPath = getMappingLockPath()
-    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: Date.now() - 60_000 }), "utf8")
+    const staleCreatedAt = Date.now() - 60_000
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: staleCreatedAt }), "utf8")
     const oldTime = new Date(Date.now() - 60_000)
     fs.utimesSync(lockPath, oldTime, oldTime)
 
@@ -1321,7 +1365,7 @@ test("acquireMappingLock removes stale lock files before proceeding", async () =
     const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
     assert.equal(fs.existsSync(lockPath), true)
     assert.equal(currentLock.pid, process.pid)
-    assert.notEqual(currentLock.createdAt, Date.now() - 60_000)
+    assert.notEqual(currentLock.createdAt, staleCreatedAt)
     release()
     assert.equal(fs.existsSync(lockPath), false)
   } finally {
@@ -1346,6 +1390,29 @@ test("acquireMappingLock ignores active lock held by current live process", asyn
       () => acquireMappingLock({ timeoutMs: 25, pollMs: 5 }),
       /timed out waiting for Linear mapping lock/
     )
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock removes stale lock files with malformed metadata", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, "not-json", "utf8")
+    const oldTime = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
   } finally {
     restoreEnv(savedEnv)
     fs.rmSync(tempRepoRoot, { recursive: true, force: true })

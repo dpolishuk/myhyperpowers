@@ -40,17 +40,18 @@ export LINEAR_TEAM_KEY="ENG"   # Your team key from Step 1
 
 Add these to your `~/.bashrc` or `~/.zshrc` to persist across sessions.
 
-### Option B: bd Config for non-secret team metadata only (per-repo, persistent)
+### Option B: bd Config (supported, but avoid storing secrets in tracked repos)
 
 ```bash
+tm config set linear.api-key "lin_api_your_key_here"
 tm config set linear.team-key "ENG"
 ```
 
-Use environment variables or another secret manager for `LINEAR_API_KEY`.
+`tm sync` supports reading both values from config, but use environment variables or another secret manager for `LINEAR_API_KEY` whenever possible.
 
 > **Do not store live API keys in `.beads/config.yaml`** unless you are certain that file is excluded from version control in your environment.
 
-The team key can be stored in `.beads/config.yaml` because it is not a secret.
+The team key can safely live in `.beads/config.yaml`; the API key only should if the file is definitely kept out of version control.
 
 ### Verify it works
 
