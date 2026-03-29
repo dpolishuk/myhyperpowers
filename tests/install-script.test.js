@@ -144,7 +144,7 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
 
-test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", () => {
+test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", { timeout: 60000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-test-"))
   const piHome = path.join(home, ".pi", "agent")
   const agentsPath = path.join(piHome, "AGENTS.md")
@@ -207,7 +207,7 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", () => {
+test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", { timeout: 60000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-bin-"))
   const piHome = path.join(home, ".pi", "agent")
@@ -240,7 +240,7 @@ test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", (
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("pi installer fails when dependency install tooling is unavailable", () => {
+test("pi installer fails when dependency install tooling is unavailable", { timeout: 30000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-deps-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-bin-"))
   const piHome = path.join(home, ".pi", "agent")
@@ -271,7 +271,7 @@ test("pi installer fails when dependency install tooling is unavailable", () => 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("pi installer json mode reports failure when host install fails", () => {
+test("pi installer json mode reports failure when host install fails", { timeout: 30000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-json-fail-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-json-bin-"))
   const piHome = path.join(home, ".pi", "agent")
@@ -298,7 +298,7 @@ test("pi installer json mode reports failure when host install fails", () => {
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("pi installer rollback preserves pre-existing extension files on failure", () => {
+test("pi installer rollback preserves pre-existing extension files on failure", { timeout: 30000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-bin-"))
   const piHome = path.join(home, ".pi", "agent")
