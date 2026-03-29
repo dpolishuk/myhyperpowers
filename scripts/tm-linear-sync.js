@@ -491,6 +491,18 @@ function readLockMetadata(lockPath) {
   }
 }
 
+function removeLockFileIfUnchanged(lockPath, expectedToken) {
+  try {
+    if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === expectedToken) {
+      fs.rmSync(lockPath, { force: true })
+      return true
+    }
+  } catch {
+    // best effort cleanup
+  }
+  return false
+}
+
 function isProcessAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try {
@@ -527,9 +539,7 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
       return () => {
         try {
           clearInterval(heartbeat)
-          if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === token) {
-            fs.rmSync(lockPath, { force: true })
-          }
+          removeLockFileIfUnchanged(lockPath, token)
         } catch {
           // best effort cleanup
         }
@@ -540,14 +550,16 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
       }
       try {
         const stats = fs.statSync(lockPath)
+        const raw = fs.readFileSync(lockPath, "utf8")
         const metadata = readLockMetadata(lockPath)
         const ageMs = Date.now() - stats.mtimeMs
         const staleByPid = metadata.pid ? !isProcessAlive(metadata.pid) : false
         const staleByAge = ageMs >= maxAgeMs
 
         if (staleByAge || staleByPid) {
-          fs.rmSync(lockPath, { force: true })
-          continue
+          if (removeLockFileIfUnchanged(lockPath, raw)) {
+            continue
+          }
         }
       } catch {
         // Ignore transient stat/remove races and retry normally.
@@ -763,4 +775,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, getMappingLockPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue, syncIssuesToLinear, acquireMappingLock, runSyncBatch, createLabelResolver, isProcessAlive }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, getMappingLockPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue, syncIssuesToLinear, acquireMappingLock, runSyncBatch, createLabelResolver, isProcessAlive, removeLockFileIfUnchanged }

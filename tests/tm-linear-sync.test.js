@@ -1744,6 +1744,27 @@ test("acquireMappingLock refreshes active lock timestamps so long syncs are not 
   }
 })
 
+test("removeLockFileIfUnchanged does not delete a newly replaced live lock", () => {
+  const { removeLockFileIfUnchanged } = requireFresh("../scripts/tm-linear-sync")
+  const tempRepoRoot = makeTempRepoRoot()
+  const savedEnv = saveEnv()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = path.join(tempRepoRoot, ".beads", "linear-map.json.lock")
+    const staleToken = JSON.stringify({ pid: 111, createdAt: Date.now() - 1000 })
+    const newToken = JSON.stringify({ pid: 222, createdAt: Date.now() })
+
+    fs.writeFileSync(lockPath, newToken, "utf8")
+    removeLockFileIfUnchanged(lockPath, staleToken)
+
+    assert.equal(fs.readFileSync(lockPath, "utf8"), newToken)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("syncIssuesToLinear throttles after every five created issues", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const sleepCalls = []
