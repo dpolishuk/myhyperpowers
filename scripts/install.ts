@@ -519,6 +519,11 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
   const createdPaths: string[] = []
   const piExtensionDir = join(target, "extensions", "hyperpowers")
   const piExtensionExistedBeforeInstall = host.id === "pi" && existsSync(piExtensionDir)
+  const piAgentsPath = host.id === "pi" ? join(target, "AGENTS.md") : null
+  const piAgentsExistedBeforeInstall = piAgentsPath ? existsSync(piAgentsPath) : false
+  const piAgentsOriginalContent = piAgentsExistedBeforeInstall && piAgentsPath
+    ? readFileSync(piAgentsPath, "utf8")
+    : null
 
   try {
     for (const [category, source] of Object.entries(host.sources)) {
@@ -592,6 +597,13 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
     for (const { originalPath, backupPath } of backupEntries.reverse()) {
       if (existsSync(backupPath)) {
         await rename(backupPath, originalPath).catch(() => {})
+      }
+    }
+    if (host.id === "pi" && piAgentsPath) {
+      if (piAgentsExistedBeforeInstall) {
+        await writeFile(piAgentsPath, piAgentsOriginalContent ?? "", "utf8").catch(() => {})
+      } else {
+        await rm(piAgentsPath, { force: true }).catch(() => {})
       }
     }
     if (host.id === "pi" && !piExtensionExistedBeforeInstall) {
