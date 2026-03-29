@@ -399,6 +399,25 @@ For full extension-specific installation and troubleshooting, see `.gemini-exten
 </details>
 
 <details>
+<summary><strong>Kimi CLI</strong></summary>
+
+Use the shared installer to provision Kimi support and the same tm-first workflow described throughout this branch:
+
+```bash
+./scripts/install.sh --kimi
+```
+
+Or install all detected hosts at once:
+
+```bash
+./scripts/install.sh --all
+```
+
+For Kimi-specific manual install, directory layout, and tm/Linear preview notes, see `.kimi/INSTALL.md`.
+
+</details>
+
+<details>
 <summary><strong>Codex CLI</strong></summary>
 
 Use the unified installer to install wrappers to `~/.codex/skills` (auto-syncs if needed):

@@ -117,3 +117,16 @@ test("Kimi and Codex host docs stay tm-first", () => {
   assert.equal(codexInstall.includes("bd ready"), false)
   assert.equal(codexInstall.includes("tm ready"), true)
 })
+
+test("Kimi install docs describe the linear preview contract and agent paths consistently", () => {
+  const readme = read("README.md")
+  const kimiInstall = read(".kimi/INSTALL.md")
+  const kimiHostSection = readme.split("<summary><strong>Kimi CLI</strong></summary>")[1]?.split("</details>")[0] || ""
+
+  assert.equal(kimiHostSection.includes(".kimi/INSTALL.md"), true)
+  assert.equal(kimiInstall.includes("TM_BACKEND=linear"), true)
+  assert.equal(kimiInstall.includes("preview backend command surface"), true)
+  assert.equal(kimiInstall.includes("separate integration-oriented workflow"), true)
+  assert.equal(kimiInstall.includes("not yet implemented on this repo branch"), false)
+  assert.equal(kimiInstall.includes("Located in `~/.config/agents/agents/`"), true)
+})

@@ -83,7 +83,7 @@ Located in `~/.config/agents/skills/`:
 
 ### Agents (6 subagents)
 
-Located in `~/.config/agents/`:
+Located in `~/.config/agents/agents/`:
 
 | Agent | Purpose |
 |-------|---------|
