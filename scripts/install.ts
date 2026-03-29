@@ -221,6 +221,27 @@ const HOSTS: HostConfig[] = [
     },
     availableFeatures: ["memsearch"],
     postInstall: async (targetDir) => {
+      const extDir = join(targetDir, "extensions", "hyperpowers")
+
+      // Install extension dependencies (pi-tui, typebox, etc.) before mutating user files.
+      if (existsSync(join(extDir, "package.json"))) {
+        const installResult = commandExists("bun")
+          ? Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+          : commandExists("npm")
+            ? Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+            : null
+
+        if (!installResult) {
+          throw new Error("Pi install requires bun or npm to install extension dependencies")
+        }
+
+        if (installResult.exitCode !== 0) {
+          const stderr = installResult.stderr.toString().trim()
+          const stdout = installResult.stdout.toString().trim()
+          throw new Error(`Pi extension dependency install failed${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
+        }
+      }
+
       // Append/replace Hyperpowers section in AGENTS.md (preserve user content before AND after)
       const agentsMdSrc = join(REPO_ROOT, ".pi", "AGENTS.md")
       const agentsMdDest = join(targetDir, "AGENTS.md")
@@ -239,29 +260,10 @@ const HOSTS: HostConfig[] = [
         await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
       }
       // Preserve user routing.json if it exists (don't overwrite custom model assignments)
-      const extDir = join(targetDir, "extensions", "hyperpowers")
       const routingDest = join(extDir, "routing.json")
       const routingSrc = join(REPO_ROOT, ".pi", "extensions", "hyperpowers", "routing.json")
       if (!existsSync(routingDest) && existsSync(routingSrc)) {
         await copyFile(routingSrc, routingDest)
-      }
-      // Install extension dependencies (pi-tui, typebox, etc.)
-      if (existsSync(join(extDir, "package.json"))) {
-        const installResult = commandExists("bun")
-          ? Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-          : commandExists("npm")
-            ? Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-            : null
-
-        if (!installResult) {
-          throw new Error("Pi install requires bun or npm to install extension dependencies")
-        }
-
-        if (installResult.exitCode !== 0) {
-          const stderr = installResult.stderr.toString().trim()
-          const stdout = installResult.stdout.toString().trim()
-          throw new Error(`Pi extension dependency install failed${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
-        }
       }
     },
     postUninstall: async (targetDir) => {
