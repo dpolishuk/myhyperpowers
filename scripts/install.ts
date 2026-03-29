@@ -517,6 +517,8 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
   const installedFiles: string[] = []
   const backupEntries: Array<{ originalPath: string, backupPath: string }> = []
   const createdPaths: string[] = []
+  const piExtensionDir = join(target, "extensions", "hyperpowers")
+  const piExtensionExistedBeforeInstall = host.id === "pi" && existsSync(piExtensionDir)
 
   try {
     for (const [category, source] of Object.entries(host.sources)) {
@@ -592,8 +594,8 @@ const installHost = async (host: HostConfig): Promise<string[]> => {
         await rename(backupPath, originalPath).catch(() => {})
       }
     }
-    if (host.id === "pi") {
-      await rm(join(target, "extensions", "hyperpowers"), { recursive: true, force: true }).catch(() => {})
+    if (host.id === "pi" && !piExtensionExistedBeforeInstall) {
+      await rm(piExtensionDir, { recursive: true, force: true }).catch(() => {})
     }
     throw error
   }

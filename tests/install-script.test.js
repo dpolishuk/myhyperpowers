@@ -255,6 +255,36 @@ test("pi installer json mode reports failure when host install fails", () => {
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
+test("pi installer rollback preserves pre-existing extension files on failure", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-test-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-bin-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const piShimPath = path.join(tmpBinDir, "pi")
+  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const routingPath = path.join(extDir, "routing.json")
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  const originalRouting = '{\n  "default": "existing-model"\n}\n'
+
+  fs.mkdirSync(extDir, { recursive: true })
+  fs.writeFileSync(routingPath, originalRouting, "utf8")
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+  fs.symlinkSync(bunPath, path.join(tmpBinDir, "bun"))
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1", PATH: tmpBinDir },
+    timeout: 120000,
+  })
+
+  assert.notEqual(result.status, 0)
+  assert.equal(fs.existsSync(extDir), true)
+  assert.equal(fs.readFileSync(routingPath, "utf8"), originalRouting)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const opencodeHome = path.join(home, ".config", "opencode")
