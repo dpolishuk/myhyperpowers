@@ -172,7 +172,7 @@ tm close <id>
 tm sync               # Sync local work and integrations
 ```
 
-Current backend note for this repo: `bd` is the active backend. `br`, `tk`, and `linear` are peer backend options in the `tm` model, but projects still select exactly one canonical backend, and `linear` is not yet implemented on this repo branch.
+Current backend note for this repo: `bd` is the active backend. `br`, `tk`, and `linear` are peer backend options in the `tm` model, but projects still select exactly one canonical backend. On this repo branch, `TM_BACKEND=linear` is available as a preview backend command surface, while the existing `tm sync` Linear path remains the separate integration-oriented workflow.
 
 Optional Linear setup for `tm sync` follow-on integration:
 
