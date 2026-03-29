@@ -24,8 +24,9 @@ Hyperpowers is **tm-first** on this branch: use `tm` as the day-to-day task-mana
 - `bd` — current backend in this repo
 - `br` — Beads Rust / classic beads-compatible backend alternative
 - `tk` — Ticket / git-backed markdown tracker alternative
+- `linear` — Linear-native backend preview (core commands only on this repo branch)
 
-These backends and alternatives are related, but they are **not interchangeable day-to-day commands**.
+These backends and alternatives are related, but they are **not interchangeable day-to-day commands**. `tm` uses **one backend per project**.
 
 ## Configuration Examples
 

@@ -108,7 +108,7 @@ test("loadConfigValue falls back to backend config when project config is missin
 
   childProcess.spawnSync = (command, args, options) => {
     calls.push({ command, args, options })
-    return { status: 0, stdout: "backend_cfg_value\n", stderr: "" }
+    return { status: 0, stdout: "lin_api_cfg\n", stderr: "" }
   }
 
   try {
@@ -117,10 +117,103 @@ test("loadConfigValue falls back to backend config when project config is missin
     process.env.TM_BACKEND = "bd"
 
     const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
-    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), "backend_cfg_value")
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), "lin_api_cfg")
     assert.equal(calls.length, 1)
     assert.equal(calls[0].command, "bd")
     assert.deepEqual(calls[0].args, ["config", "get", "linear.api-key"])
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
+test("loadConfigValue ignores multi-word unsupported backend config output", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = () => ({ status: 0, stdout: "config get is not supported\n", stderr: "" })
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), null)
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
+test("loadConfigValue ignores single-token bogus backend config output", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = () => ({ status: 0, stdout: "unsupported\n", stderr: "" })
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.equal(loadConfigValue("LINEAR_API_KEY", "linear.api-key"), null)
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
+test("loadConfigValue ignores invalid backend team-key output", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = (_command, args) => {
+    const key = args[2]
+    if (key === "linear.team-key") {
+      return { status: 0, stdout: "unsupported\n", stderr: "" }
+    }
+    return { status: 0, stdout: "lin_api_cfg\n", stderr: "" }
+  }
+
+  try {
+    delete process.env.LINEAR_TEAM_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.equal(loadConfigValue("LINEAR_TEAM_KEY", "linear.team-key"), null)
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
+test("loadLinearConfig raises misconfigured error when backend fallback gives valid api key but invalid team key", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = (_command, args) => {
+    const key = args[2]
+    if (key === "linear.api-key") {
+      return { status: 0, stdout: "lin_api_cfg\n", stderr: "" }
+    }
+    return { status: 0, stdout: "unsupported\n", stderr: "" }
+  }
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    delete process.env.LINEAR_TEAM_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.throws(() => loadLinearConfig(), { code: "MISCONFIGURED" })
   } finally {
     childProcess.spawnSync = originalSpawnSync
     restoreEnv(saved)
