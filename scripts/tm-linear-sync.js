@@ -209,10 +209,14 @@ async function issueNeedsLabelRepair({ client, existing, labelName }) {
     return false
   }
 
-  return !labels.some(label => label && label.name === labelName)
+  const labelNames = labels
+    .map(label => label && label.name)
+    .filter(Boolean)
+
+  return labelNames.length !== 1 || labelNames[0] !== labelName
 }
 
-async function findIssueByMarker({ client, teamId, bdId, existingLinearId }) {
+async function findIssueByMarker({ client, teamId, bdId }) {
   const search = await client.issueSearch(`[bd:${bdId}]`, {
     first: MARKER_SEARCH_LIMIT,
     filter: { team: { id: { eq: teamId } } },
@@ -250,7 +254,7 @@ async function linkIssueByMarkerSearch({ client, teamId, bdId, mapping }) {
 }
 
 async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, mapping) {
-  const found = await findIssueByMarker({ client, teamId, bdId, existingLinearId: existing.linearId })
+  const found = await findIssueByMarker({ client, teamId, bdId })
 
   if (!found) {
     if (typeof client.issue === "function") {
@@ -336,12 +340,18 @@ async function createLinearIssue({ client, teamId, issue, bdId, designText, desi
   }
   if (stateId) createParams.stateId = stateId
 
+  let labelId
   try {
-    const labelId = await getOrCreateLabel(labelName)
-    if (labelId) createParams.labelIds = [labelId]
+    labelId = await getOrCreateLabel(labelName)
   } catch (err) {
     console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+    return { created: 0, updated: 0, errors: 1 }
   }
+  if (!labelId) {
+    console.error(`tm-sync: Failed to resolve required type label "${labelName}" for "${issue.title}"`)
+    return { created: 0, updated: 0, errors: 1 }
+  }
+  createParams.labelIds = [labelId]
 
   try {
     const payload = await client.createIssue(createParams)
@@ -374,12 +384,18 @@ async function syncExistingIssue({ client, issue, existing, bdId, designText, de
   if (stateId) updateParams.stateId = stateId
 
   if (forceLabelSync || prev.issueType !== issue.issue_type) {
+    let labelId
     try {
-      const labelId = await getOrCreateLabel(labelName)
-      if (labelId) updateParams.labelIds = [labelId]
+      labelId = await getOrCreateLabel(labelName)
     } catch (err) {
       console.error(`tm-sync: Label lookup failed for "${labelName}": ${err.message}`)
+      return { created: 0, updated: 0, errors: 1 }
     }
+    if (!labelId) {
+      console.error(`tm-sync: Failed to resolve required type label "${labelName}" for "${issue.title}"`)
+      return { created: 0, updated: 0, errors: 1 }
+    }
+    updateParams.labelIds = [labelId]
   }
 
   try {
@@ -459,6 +475,12 @@ async function syncIssuesToLinear({ client, teamId, teamStates, issues, mapping,
     const stateId = mapStatus(issue.status, teamStates)
     const priority = mapPriority(issue.priority)
     const labelName = mapType(issue.issue_type)
+
+    if (issue.status === "blocked" && !stateId) {
+      console.error(`tm-sync: Cannot sync blocked issue "${issue.title}" without an explicit Blocked workflow state in Linear.`)
+      errors++
+      continue
+    }
 
     let existing = mapping[bdId]
 
@@ -609,16 +631,6 @@ async function syncToLinear() {
     if (existing.nodes.length > 0) {
       labelCache[labelName] = existing.nodes[0].id
       return existing.nodes[0].id
-    }
-
-    // Try workspace-level labels
-    const workspace = await client.issueLabels({
-      first: 1,
-      filter: { name: { eq: labelName } },
-    })
-    if (workspace.nodes.length > 0) {
-      labelCache[labelName] = workspace.nodes[0].id
-      return workspace.nodes[0].id
     }
 
     // Create the label

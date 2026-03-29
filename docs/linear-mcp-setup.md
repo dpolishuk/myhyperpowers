@@ -78,7 +78,7 @@ Add to `~/.claude/settings.local.json`:
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "lin_api_your_key_here"
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
       }
     }
   }
@@ -121,7 +121,7 @@ If you also want direct Linear MCP read access in Gemini CLI, add the MCP server
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "lin_api_your_key_here"
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
       }
     }
   }
@@ -163,9 +163,9 @@ You (local)                    Linear (cloud)
 | priority P2 (medium) | Priority 3 (Medium) |
 | priority P3 (low) | Priority 4 (Low) |
 | priority P4 (backlog) | Priority 0 (No priority) |
-| status: open | State: Todo |
-| status: in_progress | State: In Progress |
-| status: closed | State: Done |
+| status: open | First matching state name like Todo/Backlog/Triage, else unstarted/backlog fallback |
+| status: in_progress | First matching state name containing Progress/Started/Active, else started fallback |
+| status: closed | First matching state name containing Done/Complete/Closed, else completed fallback |
 | status: blocked | Explicit `Blocked` state only; otherwise left unchanged |
 | design (markdown) | Description (markdown) |
 
@@ -173,7 +173,7 @@ You (local)                    Linear (cloud)
 
 - `tm sync` is a one-way sync from local bd/tm issues to Linear.
 - The integration owns the synced issue title, description, priority, state, and type label for mapped issues.
-- Type labels are synced as an owned set, so the Linear issue is updated with the single bd-derived type label (`Epic`, `Feature`, `Task`, or `Bug`).
+- Type labels are synced as an owned single-label set. Synced issues are expected to keep exactly one bd-derived type label (`Epic`, `Feature`, `Task`, or `Bug`), and unknown bd types fall back to `Task`.
 - `blocked` only maps when the Linear team has an explicit workflow state whose name includes `Blocked`; otherwise the sync leaves the state unchanged instead of silently degrading it to Todo/Backlog.
 - Duplicate prevention and relinking rely on `<!-- [bd:ID] -->` markers in the Linear description. Do not remove them.
 - If an existing mapping points at a deleted issue, `tm sync` recreates the issue; if the marker has moved to a different issue, `tm sync` re-links to that issue before applying updates.

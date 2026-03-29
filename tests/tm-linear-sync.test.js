@@ -557,6 +557,49 @@ test("issueNeedsLabelRepair detects missing type label on unchanged issue", asyn
   assert.equal(needsRepair, true)
 })
 
+test("issueNeedsLabelRepair detects extra stale owned type labels on unchanged issue", async () => {
+  const { issueNeedsLabelRepair } = requireFresh("../scripts/tm-linear-sync")
+
+  const needsRepair = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: async () => ({ nodes: [{ name: "Task" }, { name: "Bug" }] }),
+      }),
+    },
+    existing: { linearId: "lin-stale-labels" },
+    labelName: "Task",
+  })
+
+  assert.equal(needsRepair, true)
+})
+
+test("issueNeedsLabelRepair accepts direct label arrays and only passes exact owned label set", async () => {
+  const { issueNeedsLabelRepair } = requireFresh("../scripts/tm-linear-sync")
+
+  const exactOwned = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: { nodes: [{ name: "Task" }] },
+      }),
+    },
+    existing: { linearId: "lin-direct-labels" },
+    labelName: "Task",
+  })
+
+  const extraLabel = await issueNeedsLabelRepair({
+    client: {
+      issue: async () => ({
+        labels: { nodes: [{ name: "Task" }, { name: "Customer" }] },
+      }),
+    },
+    existing: { linearId: "lin-direct-extra" },
+    labelName: "Task",
+  })
+
+  assert.equal(exactOwned, false)
+  assert.equal(extraLabel, true)
+})
+
 test("prepareExistingIssueForSync forces label repair even when other fields changed", async () => {
   const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
   const existing = {
@@ -738,7 +781,7 @@ test("syncExistingIssue recreates deleted Linear issue in the same run", async (
     stateId: "state-1",
     labelName: "Task",
     prev: mapping["bd-404"].lastSyncedFields,
-    getOrCreateLabel: async () => null,
+    getOrCreateLabel: async () => "label-task",
     mapping,
     teamId: "team-1",
   })
@@ -1048,6 +1091,47 @@ test("syncExistingIssue uses a single owned type label set when syncing labels",
   }])
 })
 
+test("syncExistingIssue treats label lookup failure as a per-issue error", async () => {
+  const { syncExistingIssue } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-label-error": {
+      linearId: "lin-label-error",
+      linearIdentifier: "ENG-130",
+      lastSyncedFields: { issueType: "task" },
+    },
+  }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-label-error"]))
+
+  const result = await syncExistingIssue({
+    client: {
+      updateIssue: async () => {
+        throw new Error("should not update without required label")
+      },
+    },
+    issue: {
+      id: "bd-label-error",
+      title: "Label lookup error",
+      status: "open",
+      priority: 2,
+      issue_type: "bug",
+    },
+    existing: mapping["bd-label-error"],
+    bdId: "bd-label-error",
+    designText: "design",
+    designHash: "hash-label-error",
+    priority: 3,
+    stateId: "state-1",
+    labelName: "Bug",
+    prev: { issueType: "task" },
+    getOrCreateLabel: async () => null,
+    mapping,
+    teamId: "team-1",
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+  assert.deepEqual(mapping["bd-label-error"], originalEntry)
+})
+
 test("syncIssuesToLinear continues after per-issue failures and records failed summary", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {}
@@ -1090,6 +1174,77 @@ test("syncIssuesToLinear continues after per-issue failures and records failed s
   assert.deepEqual(sleepCalls, [])
 })
 
+test("syncIssuesToLinear continues when an existing issue update fails mid-batch", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-existing": {
+      linearId: "lin-existing",
+      linearIdentifier: "ENG-150",
+      lastSyncedFields: {
+        title: "Existing",
+        status: "open",
+        priority: 2,
+        issueType: "task",
+        designHash: "old-hash",
+      },
+    },
+  }
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async query => query === "[bd:bd-new]" ? { nodes: [] } : { nodes: [{ id: "lin-existing", identifier: "ENG-150" }] },
+      issue: async () => ({ labels: async () => ({ nodes: [{ name: "Task" }] }) }),
+      updateIssue: async () => {
+        throw new Error("Rate limit exceeded")
+      },
+      createIssue: async params => ({ issue: Promise.resolve({ id: "lin-new", identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-existing", title: "Existing updated", status: "open", priority: 2, issue_type: "task", design: "Updated" },
+      { id: "bd-new", title: "New issue", status: "open", priority: 2, issue_type: "task", design: "New" },
+    ],
+    mapping,
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 1 })
+  assert.equal(mapping["bd-existing"].linearId, "lin-existing")
+  assert.equal(mapping["bd-new"].linearId, "lin-new")
+})
+
+test("syncIssuesToLinear rejects creating blocked issues when no explicit blocked state exists", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        createCalls.push(params)
+        return { issue: Promise.resolve({ id: "lin-blocked", identifier: "ENG-160" }) }
+      },
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-blocked", title: "Blocked issue", status: "blocked", priority: 2, issue_type: "task", design: "Blocked" },
+    ],
+    mapping: {},
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+  assert.deepEqual(createCalls, [])
+})
+
 test("syncIssuesToLinear throttles after every five created issues", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const sleepCalls = []
@@ -1110,7 +1265,7 @@ test("syncIssuesToLinear throttles after every five created issues", async () =>
       design: `Design ${index + 1}`,
     })),
     mapping: {},
-    getOrCreateLabel: async () => null,
+    getOrCreateLabel: async () => "label-task",
     saveMapping: () => {},
     log: () => {},
     sleep: async ms => sleepCalls.push(ms),
