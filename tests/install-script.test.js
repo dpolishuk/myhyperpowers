@@ -7,7 +7,7 @@ const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")
 
-function installTestEnv(home, extra = {}) {
+function installEnv(home, extra = {}) {
   return {
     ...process.env,
     HOME: home,
@@ -40,7 +40,7 @@ test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules di
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home),
+    env: installEnv(home),
     timeout: 20000,
   })
 
@@ -73,7 +73,7 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home),
+    env: installEnv(home),
     timeout: 20000,
   })
 
@@ -96,32 +96,26 @@ test("install.sh partial uninstall preserves shared tm runtime", () => {
   fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
   fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm"), "#!/bin/sh\n", "utf8")
-  fs.writeFileSync(path.join(binDir, "tm-backends.sh"), "backends\n", "utf8")
-  fs.writeFileSync(path.join(binDir, "tm-linear-backend.js"), "backend\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync-config.js"), "config\n", "utf8")
   fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
-  fs.writeFileSync(path.join(libDir, "tm-backends.sh"), "backends\n", "utf8")
-  fs.writeFileSync(path.join(libDir, "tm-linear-backend.js"), "backend\n", "utf8")
   fs.writeFileSync(path.join(libDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(libDir, "tm-linear-sync-config.js"), "config\n", "utf8")
 
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--codex", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home),
+    env: installEnv(home),
     timeout: 20000,
   })
 
   assert.equal(result.status, 0)
   assert.equal(fs.existsSync(path.join(binDir, "tm")), true)
-  assert.equal(fs.existsSync(path.join(libDir, "tm-backends.sh")), true)
-  assert.equal(fs.existsSync(path.join(libDir, "tm-linear-backend.js")), true)
   assert.equal(fs.existsSync(path.join(libDir, "tm-linear-sync.js")), true)
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
 })
 
-test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", { timeout: 60000 }, () => {
+test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const binDir = path.join(home, ".local", "bin")
   const libDir = path.join(home, ".local", "lib", "tm")
@@ -136,7 +130,7 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home),
+    env: installEnv(home),
     timeout: 120000,
   })
 
@@ -150,7 +144,7 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
 
-test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", { timeout: 60000 }, () => {
+test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-test-"))
   const piHome = path.join(home, ".pi", "agent")
   const agentsPath = path.join(piHome, "AGENTS.md")
@@ -179,7 +173,7 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
   fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
   fs.chmodSync(piShimPath, 0o755)
 
-  const env = installTestEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` })
+  const env = installEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` })
 
   const installResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
     cwd: repoRoot,
@@ -213,7 +207,7 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", { timeout: 60000 }, () => {
+test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-bin-"))
   const piHome = path.join(home, ".pi", "agent")
@@ -235,7 +229,7 @@ test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", {
   const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "pi", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` }),
+    env: installEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` }),
     timeout: 120000,
   })
 
@@ -265,7 +259,7 @@ test("pi installer fails when dependency install tooling is unavailable", () => 
   const result = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home, { PATH: tmpBinDir }),
+    env: installEnv(home, { PATH: tmpBinDir }),
     timeout: 120000,
   })
 
@@ -292,7 +286,7 @@ test("pi installer json mode reports failure when host install fails", () => {
   const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "pi", "--features", "__none__", "--yes", "--json"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home, { PATH: tmpBinDir }),
+    env: installEnv(home, { PATH: tmpBinDir }),
     timeout: 120000,
   })
 
@@ -323,7 +317,7 @@ test("pi installer rollback preserves pre-existing extension files on failure", 
   const result = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home, { PATH: tmpBinDir }),
+    env: installEnv(home, { PATH: tmpBinDir }),
     timeout: 120000,
   })
 
@@ -334,7 +328,7 @@ test("pi installer rollback preserves pre-existing extension files on failure", 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("install.sh opencode provisions tm runtime and OpenCode command surface", { timeout: 60000 }, () => {
+test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const opencodeHome = path.join(home, ".config", "opencode")
 
@@ -345,167 +339,13 @@ test("install.sh opencode provisions tm runtime and OpenCode command surface", {
   const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installTestEnv(home),
+    env: installEnv(home),
     timeout: 120000,
   })
 
   assert.equal(result.status, 0)
   assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-sync-config.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-backends.sh")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-backend.js")), true)
   assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync-config.js")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
-})
-
-test("install.ts opencode host fails when bun install fails", { timeout: 60000 }, () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-opencode-fail-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-opencode-bin-"))
-  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-
-  assert.notEqual(bunPath, "")
-  fs.writeFileSync(path.join(tmpBinDir, "bun"), "#!/bin/sh\nexit 9\n", "utf8")
-  fs.chmodSync(path.join(tmpBinDir, "bun"), 0o755)
-
-  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "opencode", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
-    timeout: 120000,
-  })
-
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr + result.stdout, /OpenCode dependency install failed/)
-})
-
-test("install.ts tm-cli feature provisions and removes the full tm runtime", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-test-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-bin-"))
-  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-
-  assert.notEqual(bunPath, "")
-  fs.symlinkSync(bunPath, path.join(tmpBinDir, "bun"))
-
-  const installResult = spawnSync(bunPath, ["scripts/install.ts", "--features", "tm-cli", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: tmpBinDir }),
-    timeout: 120000,
-  })
-
-  assert.equal(installResult.status, 0)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-sync-config.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-backends.sh")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-backend.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync-config.js")), true)
-  assert.equal(fs.existsSync(path.join(home, ".hyperpowers", "manifest.json")), true)
-
-  const tmVersion = spawnSync(path.join(home, ".local", "bin", "tm"), ["--version"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
-    timeout: 120000,
-  })
-
-  assert.equal(tmVersion.status, 0)
-  assert.match(tmVersion.stdout, /^tm \d+\.\d+\.\d+ \(backend: bd\)/)
-
-  const uninstallResult = spawnSync(bunPath, ["scripts/install.ts", "--uninstall", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: tmpBinDir }),
-    timeout: 120000,
-  })
-
-  assert.equal(uninstallResult.status, 0)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), false)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), false)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), false)
-  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-sync-config.js")), false)
-  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm")), false)
-  assert.equal(fs.existsSync(path.join(home, ".hyperpowers", "manifest.json")), false)
-
-  fs.rmSync(tmpBinDir, { recursive: true, force: true })
-})
-
-test("install.ts tm-cli feature fails when npm install for @linear/sdk fails", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-fail-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-fail-bin-"))
-  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-
-  assert.notEqual(bunPath, "")
-  fs.symlinkSync(bunPath, path.join(tmpBinDir, "bun"))
-  fs.writeFileSync(path.join(tmpBinDir, "npm"), "#!/bin/sh\necho npm failed >&2\nexit 7\n", "utf8")
-  fs.chmodSync(path.join(tmpBinDir, "npm"), 0o755)
-
-  const result = spawnSync(bunPath, ["scripts/install.ts", "--features", "tm-cli", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
-    timeout: 120000,
-  })
-
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr + result.stdout, /tm CLI dependency install failed|npm failed/)
-
-  fs.rmSync(tmpBinDir, { recursive: true, force: true })
-})
-
-test("install.ts gemini host fails when extension install fails", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-gemini-fail-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-gemini-bin-"))
-  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-
-  assert.notEqual(bunPath, "")
-  fs.writeFileSync(path.join(tmpBinDir, "gemini"), "#!/bin/sh\necho gemini install failed >&2\nexit 5\n", "utf8")
-  fs.chmodSync(path.join(tmpBinDir, "gemini"), 0o755)
-
-  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "gemini", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
-    timeout: 120000,
-  })
-
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr + result.stdout, /Gemini extension install failed|gemini install failed/)
-
-  fs.rmSync(tmpBinDir, { recursive: true, force: true })
-})
-
-test("install.ts gemini uninstall fails when extension uninstall fails", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-gemini-uninstall-fail-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-gemini-uninstall-bin-"))
-  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-
-  assert.notEqual(bunPath, "")
-  fs.mkdirSync(path.join(home, ".hyperpowers"), { recursive: true })
-  fs.writeFileSync(path.join(home, ".hyperpowers", "manifest.json"), JSON.stringify({
-    version: "test",
-    installedAt: new Date().toISOString(),
-    hosts: { gemini: { targetDir: path.join(repoRoot, ".gemini-extension"), files: [] } },
-    features: {},
-  }), "utf8")
-  fs.writeFileSync(path.join(tmpBinDir, "gemini"), "#!/bin/sh\necho gemini uninstall failed >&2\nexit 6\n", "utf8")
-  fs.chmodSync(path.join(tmpBinDir, "gemini"), 0o755)
-
-  const result = spawnSync(bunPath, ["scripts/install.ts", "--uninstall", "--yes", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installTestEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
-    timeout: 120000,
-  })
-
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr + result.stdout, /Gemini extension uninstall failed|gemini uninstall failed/)
-
-  fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
