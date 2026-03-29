@@ -39,26 +39,16 @@ tm_backend_description() {
   esac
 }
 
-tm_backend_capabilities() {
+tm_backend_sync_mode() {
   case "${1:-}" in
-    bd) printf '%s\n' 'local-tracker' 'follow-on-linear-sync' 'backend-config-fallback' ;;
-    br) printf '%s\n' 'local-tracker' 'flush-only-sync' 'backend-config-fallback' ;;
-    tk) printf '%s\n' 'local-tracker' 'backend-config-fallback' ;;
-    linear) printf '%s\n' 'remote-tracker' 'capability-gated' 'planned-backend' ;;
+    br) printf '%s\n' 'flush-only' ;;
+    bd|tk|linear) printf '%s\n' 'direct' ;;
     *) return 1 ;;
   esac
 }
 
-tm_backend_has_capability() {
-  local backend="${1:-}"
-  local needle="${2:-}"
-  local capability
-  while IFS= read -r capability; do
-    if [[ "$capability" == "$needle" ]]; then
-      return 0
-    fi
-  done < <(tm_backend_capabilities "$backend")
-  return 1
+tm_backend_supports_follow_on_linear_sync() {
+  [[ "${1:-}" == "bd" ]]
 }
 
 tm_backend_help_lines() {

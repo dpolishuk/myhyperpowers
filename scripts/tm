@@ -40,9 +40,7 @@ find_repo_root() {
     return
   fi
 
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  root="$(find_repo_root_from "$script_dir")"
+  root="$(find_repo_root_from "$TM_SCRIPT_DIR")"
   if [[ -n "$root" ]]; then
     echo "$root"
   fi
@@ -185,8 +183,10 @@ load_linear_config_value() {
 linear_sync_configured() {
   local backend_cmd="${1:-bd}"
   local api_key
+  local team_key
   api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key "$backend_cmd")"
-  [[ -n "$api_key" ]]
+  team_key="$(load_linear_config_value LINEAR_TEAM_KEY linear.team-key "$backend_cmd")"
+  [[ -n "$api_key" && -n "$team_key" ]]
 }
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ main() {
           exec "$backend_cmd" "$@"
         fi
         local sync_exit=0
-        if tm_backend_has_capability "$backend_cmd" "flush-only-sync"; then
+        if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
           "$backend_cmd" sync --flush-only "${@:2}" || sync_exit=$?
         else
           "$backend_cmd" sync "${@:2}" || sync_exit=$?
@@ -291,7 +291,7 @@ main() {
           exit "$sync_exit"
         fi
 
-        if ! tm_backend_has_capability "$backend_cmd" "follow-on-linear-sync"; then
+        if ! tm_backend_supports_follow_on_linear_sync "$backend_cmd"; then
           if linear_sync_configured "$backend_cmd"; then
             echo "tm: follow-on Linear sync is not supported for backend '$backend_cmd'; local sync completed and follow-on sync was skipped" >&2
           fi

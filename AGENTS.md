@@ -259,8 +259,9 @@ tm is the canonical user-facing interface in this repo. The current backend in t
 - `bd` = current backend in this repo
 - `br` = Beads Rust / classic beads-compatible alternative
 - `tk` = Ticket / git-backed markdown ticket workflow alternative
+- `linear` = Linear-native backend option (not yet implemented on this repo branch)
 
-These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for the canonical workflow unless a guide explicitly calls for backend-specific behavior.
+These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for the canonical workflow with **one backend selected per project** unless a guide explicitly calls for backend-specific behavior.
 
 ### Backend Configuration
 
@@ -431,8 +432,9 @@ tm close bd-42
 - `bd` = current backend in this repo
 - `br` = Beads Rust / classic beads-compatible alternative
 - `tk` = Ticket / git-backed markdown ticket workflow alternative
+- `linear` = Linear-native backend option (not yet implemented on this repo branch)
 
-These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance unless a backend-specific guide explicitly calls for `bd`, `br`, or `tk`.
+These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance with **one backend selected per project** unless a backend-specific guide explicitly calls for `bd`, `br`, or `tk`.
 
 ### Workflow for AI Agents
 

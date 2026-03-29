@@ -201,6 +201,43 @@ test("tm sync skips Linear when only team key is present and node is unavailable
   }
 })
 
+test("tm sync skips Linear when only api key is present and node is unavailable", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-api-only-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}\nif [[ \"$1\" == \"sync\" ]]; then exit 0; fi\nexit 0\n`)
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "bd",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "lin_api_test123",
+        LINEAR_TEAM_KEY: "",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
 test("tm sync detects Linear config from backend config when env vars are unset", () => {
   const os = require("node:os")
   const fs = require("node:fs")
@@ -510,6 +547,47 @@ test("tm sync under br performs local flush and reports unsupported follow-on sy
     assert.equal(fs.existsSync(argsCapturePath), true)
     assert.match(fs.readFileSync(argsCapturePath, "utf8"), /^sync --flush-only/)
     assert.match(result.stderr, /not supported for backend 'br'/)
+    assert.match(result.stderr, /follow-on sync was skipped/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync under tk performs direct local sync and reports unsupported follow-on sync", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-tk-sync-"))
+  const argsCapturePath = path.join(tmpBinDir, "tk-args.txt")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeTkPath = path.join(tmpBinDir, "tk")
+    fs.writeFileSync(fakeTkPath, `#!${bashPath}\nprintf '%s\\n' \"$*\" > \"${argsCapturePath}\"\nif [[ \"$1\" == \"sync\" ]]; then exit 0; fi\nexit 0\n`)
+    fs.chmodSync(fakeTkPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "tk",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "lin_api_test123",
+        LINEAR_TEAM_KEY: "ENG",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(fs.existsSync(argsCapturePath), true)
+    assert.equal(fs.readFileSync(argsCapturePath, "utf8").trim(), "sync")
+    assert.match(result.stderr, /not supported for backend 'tk'/)
     assert.match(result.stderr, /follow-on sync was skipped/)
   } finally {
     fs.rmSync(tmpBinDir, { recursive: true, force: true })

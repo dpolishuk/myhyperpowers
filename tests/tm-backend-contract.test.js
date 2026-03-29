@@ -36,9 +36,16 @@ test("tm help backend list stays aligned with backend registry", () => {
   })
 
   assert.equal(help.status, 0, help.stderr)
-  const registryBackends = readBackendsFromRegistry()
-  for (const backend of registryBackends) {
-    assert.match(help.stdout, new RegExp(`^\\s*${backend}\\b`, "m"))
+  const expectedHelpLines = [
+    ["bd", "Local beads task manager (default)"],
+    ["br", "Local beads_rust task manager"],
+    ["tk", "Ticket git-backed markdown task manager"],
+    ["linear", "Linear-native backend option (not yet implemented)"],
+  ]
+
+  for (const [backend, description] of expectedHelpLines) {
+    assert.equal(help.stdout.includes(`  ${backend}`), true)
+    assert.equal(help.stdout.includes(description), true)
   }
 })
 

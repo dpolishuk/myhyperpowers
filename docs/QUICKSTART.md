@@ -8,9 +8,11 @@ Use this guide when you want the shortest path to the repo’s canonical task-ma
 - `bd` = current backend in this repo
 - `br` = Beads Rust / classic beads-compatible alternative
 - `tk` = Ticket / git-backed markdown alternative
-- `linear` = Linear-native backend option
+- `linear` = Linear-native backend option (not yet implemented on this repo branch)
 
 These tools are related, but they are **not interchangeable day-to-day commands**. `tm` selects **one backend selected per project**.
+
+Current backend note for this repo: `bd` is the active backend.
 
 ## Daily Workflow
 
