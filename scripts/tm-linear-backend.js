@@ -158,10 +158,16 @@ async function renderIssueDetails(issue) {
 function parseArgValue(args, flag) {
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === flag) {
-      return args[index + 1] || null
+      const nextArg = args[index + 1]
+      if (!nextArg || nextArg.startsWith("--")) return null
+      return nextArg
     }
   }
   return null
+}
+
+function hasArgFlag(args, flag) {
+  return args.includes(flag)
 }
 
 function parseStatusArg(args) {
@@ -204,6 +210,12 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     }
 
     if (command === "list") {
+      if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
+        throw new Error("Missing value for --status.")
+      }
+      if (hasArgFlag(args, "--parent") && parseParentArg(args) === null) {
+        throw new Error("Missing value for --parent.")
+      }
       return {
         exitCode: 0,
         stdout: await listIssues(context, parseStatusArg(args), parseParentArg(args)),

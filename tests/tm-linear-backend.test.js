@@ -253,6 +253,41 @@ test("runLinearBackendCommand composes parent and status filters for linear list
   assert.doesNotMatch(result.stdout, /ENG-21/)
 })
 
+test("runLinearBackendCommand rejects list --parent without a value", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--parent"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => {
+        throw new Error("should not resolve parent when --parent value is missing")
+      },
+      issues: async () => {
+        throw new Error("should not list issues when --parent value is missing")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing value for --parent/) 
+})
+
+test("runLinearBackendCommand rejects list --status without a value", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--status"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issues: async () => {
+        throw new Error("should not list issues when --status value is missing")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing value for --status/)
+})
+
 test("runLinearBackendCommand shows a Linear issue by identifier", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
