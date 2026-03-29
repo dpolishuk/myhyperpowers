@@ -100,6 +100,26 @@ test("executePiSubagent falls back to stdout when stderr is empty on failure", (
   expect(result.content[0].text).toContain("failed in stdout")
 })
 
+test("executePiSubagent reports signal and error details when no exit status is available", () => {
+  const result = executePiSubagent(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+    },
+    mock(() => ({
+      status: null,
+      stdout: "",
+      stderr: "",
+      signal: "SIGTERM",
+      error: new Error("spawn pi ENOENT"),
+    })) as any,
+  )
+
+  expect(result.content[0].text).toContain("no exit status")
+  expect(result.content[0].text).toContain("SIGTERM")
+  expect(result.content[0].text).toContain("spawn pi ENOENT")
+})
+
 test("buildStructuredSubagentTask wraps the task with JSON-only instructions", () => {
   const wrapped = buildStructuredSubagentTask("Review src/auth.ts")
 
