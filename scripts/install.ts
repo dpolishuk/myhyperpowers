@@ -813,10 +813,13 @@ Options:
     features: { ...(existingManifest?.features ?? {}) },
   }
 
+  let hostInstallFailed = false
+
   for (const hostId of selectedHostIds) {
     const host = HOSTS.find((h) => h.id === hostId)
     if (!host) {
       p.log.warn(`Unknown host "${hostId}" — skipping. Supported: ${HOSTS.map((h) => h.id).join(", ")}`)
+      hostInstallFailed = true
       continue
     }
 
@@ -826,6 +829,7 @@ Options:
       manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
       s.stop(`${host.name}: ${files.length} items installed`)
     } catch (err) {
+      hostInstallFailed = true
       s.stop(`${host.name}: install failed — ${err instanceof Error ? err.message : String(err)}`)
     }
   }
@@ -851,7 +855,7 @@ Options:
   if (args.json) {
     // Structured JSON output for AI agents
     console.log(JSON.stringify({
-      ok: true,
+      ok: !hostInstallFailed,
       version: VERSION,
       hosts: Object.keys(manifest.hosts),
       features: Object.fromEntries(
@@ -861,7 +865,15 @@ Options:
     }))
   } else {
     p.log.info(`Manifest written to ${manifestPath()}`)
-    p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    if (hostInstallFailed) {
+      p.outro(`Completed with host install failures. v${VERSION} installed to ${Object.keys(manifest.hosts).length}/${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    } else {
+      p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    }
+  }
+
+  if (hostInstallFailed) {
+    process.exitCode = 1
   }
 }
 

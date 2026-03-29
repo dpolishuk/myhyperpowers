@@ -222,6 +222,33 @@ test("pi installer fails when dependency install tooling is unavailable", () => 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
+test("pi installer json mode reports failure when host install fails", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-json-fail-test-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-json-bin-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const piShimPath = path.join(tmpBinDir, "pi")
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+
+  fs.mkdirSync(piHome, { recursive: true })
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+  fs.symlinkSync(bunPath, path.join(tmpBinDir, "bun"))
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "pi", "--features", "__none__", "--yes", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1", PATH: tmpBinDir },
+    timeout: 120000,
+  })
+
+  assert.notEqual(result.status, 0)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(payload.ok, false)
+  assert.equal(Array.isArray(payload.hosts), true)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const opencodeHome = path.join(home, ".config", "opencode")

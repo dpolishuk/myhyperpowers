@@ -47,7 +47,6 @@ const SKILLS = [
   { command: "tdd", skill: "test-driven-development", description: "Test-driven development: RED-GREEN-REFACTOR" },
   { command: "analyze-tests", skill: "analyzing-test-effectiveness", description: "Audit test quality for tautological tests" },
   { command: "verify", skill: "verification-before-completion", description: "Verify work before claiming complete" },
-  { command: "routing-settings", skill: "routing-settings", description: "Configure agent model routing (use /configure-routing for Pi TUI wizard)" },
 ]
 
 function loadSkillContent(skillName: string): string | null {
@@ -315,6 +314,13 @@ export default function (pi: any) {
       },
     })
   }
+
+  pi.registerCommand("routing-settings", {
+    description: "Open the Pi-native routing wizard for subagent type defaults and concrete agent overrides",
+    handler: async (_args: unknown, _ctx: any) => {
+      return "Use /configure-routing to manage Pi Hyperpowers routing. This Pi-native workflow edits ~/.pi/agent/extensions/hyperpowers/routing.json via the extension wizard, rather than Claude Code agent frontmatter."
+    },
+  })
 
   // Model setup wizard — generates ~/.pi/agent/models.json
   pi.registerCommand("setup-models", {
