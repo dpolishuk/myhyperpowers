@@ -24,14 +24,15 @@ See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For K
 
 Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
 
-These tools are related, but `bd` / `br` / `tk` are **not interchangeable day-to-day commands**:
+`tm` supports **one backend selected per project**. Backends are peers in the `tm` model, but `bd` / `br` / `tk` / `linear` are **not interchangeable day-to-day commands**:
 
 - `tm` = canonical user-facing task-management interface
 - `bd` = current local tracker backend in this repo
 - `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
 - `tk` = Ticket, a git-backed markdown ticket workflow alternative
+- `linear` = Linear-native backend option (not yet implemented on this repo branch)
 
-Linear and GitHub are integrations layered on top of task management — **Linear and GitHub are integrations**, not primary local task trackers.
+On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode.
 
 If you only want the main working model:
 

@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")
 const tmPath = path.resolve(repoRoot, "scripts/tm")
+const tmBackendsPath = path.resolve(repoRoot, "scripts/tm-backends.sh")
 
 function runTm(args = [], opts = {}) {
   return spawnSync(tmPath, args, {
@@ -34,6 +35,12 @@ test("tm with TM_BACKEND=br explicitly selects br backend", () => {
   assert.match(result.stdout, /backend: br/)
 })
 
+test("tm with TM_BACKEND=tk explicitly selects tk backend", () => {
+  const result = runTm(["--version"], { env: { TM_BACKEND: "tk" } })
+  assert.equal(result.status, 0)
+  assert.match(result.stdout, /backend: tk/)
+})
+
 test("tm with TM_BACKEND=linear exits with not-implemented error", () => {
   // linear backend should fail gracefully with a helpful message
   const result = runTm(["ready"], { env: { TM_BACKEND: "linear" } })
@@ -45,7 +52,7 @@ test("tm with TM_BACKEND=invalid exits with unknown-backend error", () => {
   const result = runTm(["ready"], { env: { TM_BACKEND: "gitlab" } })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /unknown backend 'gitlab'/)
-  assert.match(result.stderr, /Valid backends: bd, br, linear/)
+  assert.match(result.stderr, /Valid backends: bd, br, tk, linear/)
 })
 
 test("tm --help shows usage and configured backend", () => {
@@ -77,6 +84,7 @@ test("tm discovers repo config from the script location when cwd is outside the 
     fs.mkdirSync(fakeBeadsDir, { recursive: true })
     fs.mkdirSync(outsideDir)
     fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
     fs.chmodSync(fakeTmPath, 0o755)
     fs.writeFileSync(path.join(fakeBeadsDir, "config.yaml"), 'tm.backend: "linear"\n')
 
@@ -435,6 +443,33 @@ test("tm when br not in PATH gives helpful error message", () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /br not found in PATH/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm when tk not in PATH gives helpful error message", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-no-tk-"))
+
+  try {
+    const bashPath = findCommandPath("bash") || "/bin/bash"
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const result = spawnSync(bashPath, [tmPath, "ready"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "tk", PATH: tmpBinDir },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /tk not found in PATH/)
   } finally {
     fs.rmSync(tmpBinDir, { recursive: true, force: true })
   }

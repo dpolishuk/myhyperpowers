@@ -14,8 +14,8 @@ test("README presents tm as the canonical task-management interface", () => {
 
   assert.equal(modelSection.includes("canonical user-facing task-management interface"), true)
   assert.equal(modelSection.includes("tm-first"), true)
-  assert.equal(modelSection.includes("bd` / `br` / `tk`"), true)
-  assert.equal(modelSection.includes("Linear and GitHub are integrations"), true)
+  assert.equal(modelSection.includes("bd` / `br` / `tk` / `linear`"), true)
+  assert.equal(modelSection.includes("one backend selected per project"), true)
   assert.equal(exampleSection.includes("tasks in bd"), false)
   assert.equal(exampleSection.includes("bd ready"), false)
   assert.equal(exampleSection.includes("tm ready"), true)
@@ -63,6 +63,7 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`bd` = current local tracker backend in this repo"), true)
   assert.equal(readme.includes("`br` = Beads Rust"), true)
   assert.equal(readme.includes("`tk` = Ticket"), true)
+  assert.equal(readme.includes("`linear` = Linear-native backend option"), true)
   assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })
