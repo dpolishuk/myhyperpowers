@@ -10,6 +10,7 @@ const BD_LIST_MAX_BUFFER = 10 * 1024 * 1024
 const MARKER_SEARCH_LIMIT = 10
 const MAPPING_LOCK_TIMEOUT_MS = 10000
 const MAPPING_LOCK_POLL_MS = 50
+const MAPPING_LOCK_MAX_AGE_MS = 10 * 60 * 1000
 
 // ── Field mapping ───────────────────────────────────────────────────────────
 
@@ -503,7 +504,7 @@ function isProcessAlive(pid) {
   }
 }
 
-async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS } = {}) {
+async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS, maxAgeMs = MAPPING_LOCK_MAX_AGE_MS } = {}) {
   const lockPath = getMappingLockPath()
   const startedAt = Date.now()
   let token = null
@@ -529,8 +530,10 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
         const stats = fs.statSync(lockPath)
         const metadata = readLockMetadata(lockPath)
         const ageMs = Date.now() - stats.mtimeMs
+        const createdAtAgeMs = Number.isFinite(metadata.createdAt) ? Date.now() - metadata.createdAt : ageMs
+        const lockAgeMs = Math.max(ageMs, createdAtAgeMs)
         const staleByPid = metadata.pid ? !isProcessAlive(metadata.pid) : false
-        const staleByAge = ageMs >= timeoutMs && (!metadata.pid || staleByPid)
+        const staleByAge = lockAgeMs >= maxAgeMs
 
         if (staleByAge || staleByPid) {
           fs.rmSync(lockPath, { force: true })

@@ -1679,12 +1679,37 @@ test("acquireMappingLock removes stale lock files with malformed metadata", asyn
     process.env.TM_REPO_ROOT = tempRepoRoot
     const lockPath = getMappingLockPath()
     fs.writeFileSync(lockPath, "not-json", "utf8")
-    const oldTime = new Date(Date.now() - 60_000)
+    const oldTime = new Date(Date.now() - 10 * 60_000)
     fs.utimesSync(lockPath, oldTime, oldTime)
 
     const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
     const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
     assert.equal(currentLock.pid, process.pid)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock expires very old locks even if the pid is currently alive", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    const veryOld = Date.now() - 10 * 60_000
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, createdAt: veryOld }), "utf8")
+    const oldTime = new Date(veryOld)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    assert.notEqual(currentLock.createdAt, veryOld)
     release()
     assert.equal(fs.existsSync(lockPath), false)
   } finally {
