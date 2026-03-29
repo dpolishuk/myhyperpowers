@@ -142,6 +142,24 @@ test("loadBdIssues uses a larger maxBuffer for bd list output", () => {
   assert.ok(calls.every(call => call.options.maxBuffer === BD_LIST_MAX_BUFFER))
 })
 
+test("loadBdIssues surfaces spawn failures with status context", () => {
+  const { loadBdIssues } = requireFresh("../scripts/tm-linear-sync")
+
+  assert.throws(
+    () => loadBdIssues(() => ({ status: 1, stdout: "", stderr: "permission denied" })),
+    /bd list --status open failed \(exit 1\): permission denied/
+  )
+})
+
+test("loadBdIssues rejects invalid JSON from bd list", () => {
+  const { loadBdIssues } = requireFresh("../scripts/tm-linear-sync")
+
+  assert.throws(
+    () => loadBdIssues(() => ({ status: 0, stdout: "not-json", stderr: "" })),
+    /bd list --status open returned invalid JSON/
+  )
+})
+
 test("loadLinearConfig rejects apiKey without teamKey", () => {
   const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
   const saved = saveEnv()
@@ -1436,6 +1454,27 @@ test("acquireMappingLock ignores active lock held by current live process", asyn
   }
 })
 
+test("acquireMappingLock removes fresh lock files owned by dead processes", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: Date.now() }), "utf8")
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(currentLock.pid, process.pid)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("runSyncBatch acquires and releases the mapping lock around sync work", async () => {
   const { runSyncBatch } = requireFresh("../scripts/tm-linear-sync")
   const calls = []
@@ -1666,9 +1705,13 @@ test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
 
 test("hashDesign produces consistent MD5 for same input", () => {
   const { hashDesign } = require("../scripts/tm-linear-sync")
-  const hash1 = hashDesign("# Hello World\n\nSome design content")
-  const hash2 = hashDesign("# Hello World\n\nSome design content")
+  const crypto = require("node:crypto")
+  const design = "# Hello World\n\nSome design content"
+  const expectedMd5 = crypto.createHash("md5").update(design).digest("hex")
+  const hash1 = hashDesign(design)
+  const hash2 = hashDesign(design)
   assert.equal(hash1, hash2)
+  assert.equal(hash1, expectedMd5)
   assert.equal(hash1.length, 32) // MD5 hex length
 
   // Different content → different hash
