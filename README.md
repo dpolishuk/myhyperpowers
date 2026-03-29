@@ -30,9 +30,9 @@ Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing 
 - `bd` = current local tracker backend in this repo
 - `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
 - `tk` = Ticket, a git-backed markdown ticket workflow alternative
-- `linear` = Linear-native backend option (not yet implemented on this repo branch)
+- `linear` = Linear-native backend preview (core commands only on this repo branch)
 
-On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode.
+On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode, and this branch now exposes a minimal preview command surface for `TM_BACKEND=linear`.
 
 If you only want the main working model:
 

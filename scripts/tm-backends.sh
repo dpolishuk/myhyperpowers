@@ -34,7 +34,7 @@ tm_backend_description() {
     bd) printf '%s\n' 'Local beads task manager (default)' ;;
     br) printf '%s\n' 'Local beads_rust task manager' ;;
     tk) printf '%s\n' 'Ticket git-backed markdown task manager' ;;
-    linear) printf '%s\n' 'Linear-native backend option (not yet implemented)' ;;
+    linear) printf '%s\n' 'Linear-native backend preview (core commands only)' ;;
     *) return 1 ;;
   esac
 }

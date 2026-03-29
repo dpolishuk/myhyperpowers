@@ -42,7 +42,7 @@ test("tm help backend list stays aligned with backend registry", () => {
     "  bd      Local beads task manager (default)",
     "  br      Local beads_rust task manager",
     "  tk      Ticket git-backed markdown task manager",
-    "  linear  Linear-native backend option (not yet implemented)",
+    "  linear  Linear-native backend preview (core commands only)",
   ]
 
   assert.deepEqual(actualLines, expectedHelpLines)
@@ -71,14 +71,14 @@ test("README and QUICKSTART describe the same peer backend set and per-project b
     "- `bd` = current local tracker backend in this repo",
     "- `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option",
     "- `tk` = Ticket, a git-backed markdown ticket workflow alternative",
-    "- `linear` = Linear-native backend option (not yet implemented on this repo branch)",
+    "- `linear` = Linear-native backend preview (core commands only on this repo branch)",
   ]
   const expectedQuickstartBackendLines = [
     "- `tm` = canonical user-facing interface",
     "- `bd` = current backend in this repo",
     "- `br` = Beads Rust / classic beads-compatible alternative",
     "- `tk` = Ticket / git-backed markdown alternative",
-    "- `linear` = Linear-native backend option (not yet implemented on this repo branch)",
+    "- `linear` = Linear-native backend preview (core commands only on this repo branch)",
   ]
 
   assert.match(readmeModelSection, /one backend selected per project/)

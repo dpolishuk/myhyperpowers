@@ -63,7 +63,7 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`bd` = current local tracker backend in this repo"), true)
   assert.equal(readme.includes("`br` = Beads Rust"), true)
   assert.equal(readme.includes("`tk` = Ticket"), true)
-  assert.equal(readme.includes("`linear` = Linear-native backend option"), true)
+  assert.equal(readme.includes("`linear` = Linear-native backend preview"), true)
   assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })

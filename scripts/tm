@@ -351,8 +351,15 @@ main() {
       exec "$backend_cmd" "$@"
       ;;
     linear)
-      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd (default) for now." >&2
-      exit 1
+      if ! command -v node >/dev/null 2>&1; then
+        echo "tm: Linear backend requires Node.js." >&2
+        exit 1
+      fi
+      if [[ ! -f "$TM_SCRIPT_DIR/tm-linear-backend.js" ]]; then
+        echo "tm: tm-linear-backend.js is missing." >&2
+        exit 1
+      fi
+      exec node "$TM_SCRIPT_DIR/tm-linear-backend.js" "$@"
       ;;
   esac
 }

@@ -41,11 +41,42 @@ test("tm with TM_BACKEND=tk explicitly selects tk backend", () => {
   assert.match(result.stdout, /backend: tk/)
 })
 
-test("tm with TM_BACKEND=linear exits with not-implemented error", () => {
-  // linear backend should fail gracefully with a helpful message
+test("tm with TM_BACKEND=linear requires credentials before running commands", () => {
   const result = runTm(["ready"], { env: { TM_BACKEND: "linear" } })
   assert.equal(result.status, 1)
-  assert.match(result.stderr, /Linear backend not yet implemented/)
+  assert.match(result.stderr, /Linear backend requires LINEAR_API_KEY and LINEAR_TEAM_KEY/)
+})
+
+test("tm with TM_BACKEND=linear routes commands through the linear backend entrypoint", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-linear-routing-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeBeadsDir = path.join(fakeRepo, ".beads")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const capturePath = path.join(fakeRepo, "linear-backend-called.txt")
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.mkdirSync(fakeBeadsDir, { recursive: true })
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
+    fs.writeFileSync(path.join(fakeScriptDir, "tm-linear-backend.js"), `require('node:fs').writeFileSync(${JSON.stringify(capturePath)}, process.argv.slice(2).join(' '))\n`)
+    fs.chmodSync(fakeTmPath, 0o755)
+
+    const result = spawnSync(fakeTmPath, ["ready"], {
+      cwd: fakeRepo,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "linear", LINEAR_API_KEY: "lin_api_test123", LINEAR_TEAM_KEY: "ENG" },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(fs.readFileSync(capturePath, "utf8"), "ready")
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
 })
 
 test("tm with TM_BACKEND=invalid exits with unknown-backend error", () => {
