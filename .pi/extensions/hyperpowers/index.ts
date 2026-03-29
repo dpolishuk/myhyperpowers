@@ -362,16 +362,17 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   pi.registerTool({
     name: "hyperpowers_subagent",
     label: "Subagent",
-    description: "Delegate a task to an isolated Pi subagent. Optionally specify a concrete agent and/or abstract type to route to a configured model. Runs in a separate process with its own context.",
+    description: "Delegate a task to an isolated Pi subagent. Optionally specify an explicit model, a concrete agent, and/or an abstract type to route to a configured model. Runs in a separate process with its own context.",
     parameters: Type.Object({
       task: Type.String({ description: "The task for the subagent to perform" }),
+      model: Type.Optional(Type.String({ description: "Explicit one-off provider/model override with highest precedence (optional)" })),
       type: Type.Optional(Type.String({ description: "Subagent type for model routing: review, research, validation, test-runner (optional, uses routing.json config)" })),
       agent: Type.Optional(Type.String({ description: "Concrete Hyperpowers agent name for routing precedence (optional, e.g. code-reviewer, internet-researcher, autonomous-reviewer)" })),
     }),
-    async execute(_toolCallId: string, params: { task: string; type?: string; agent?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
+    async execute(_toolCallId: string, params: { task: string; model?: string; type?: string; agent?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       try {
         const args = ["--print"]
-        const routing = resolveSubagentRouting(params.type, params.agent)
+        const routing = resolveSubagentRouting(params.type, params.agent, params.model)
         if (routing.model) {
           args.push("--model", routing.model)
         }

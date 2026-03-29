@@ -247,10 +247,20 @@ const HOSTS: HostConfig[] = [
       }
       // Install extension dependencies (pi-tui, typebox, etc.)
       if (existsSync(join(extDir, "package.json"))) {
-        if (commandExists("bun")) {
-          Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-        } else if (commandExists("npm")) {
-          Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+        const installResult = commandExists("bun")
+          ? Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+          : commandExists("npm")
+            ? Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+            : null
+
+        if (!installResult) {
+          throw new Error("Pi install requires bun or npm to install extension dependencies")
+        }
+
+        if (installResult.exitCode !== 0) {
+          const stderr = installResult.stderr.toString().trim()
+          const stdout = installResult.stdout.toString().trim()
+          throw new Error(`Pi extension dependency install failed${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
         }
       }
     },
