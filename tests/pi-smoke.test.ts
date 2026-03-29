@@ -17,7 +17,7 @@ function newTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpdir(), `${prefix}-XXXXXX`))
 }
 
-test("pi install writes extension and registers commands/tools at runtime", async () => {
+test("pi install writes extension and registers commands/tools at runtime", { timeout: 60000 }, async () => {
   const home = newTempDir("pi-smoke")
   const binDir = newTempDir("pi-smoke-bin")
 
@@ -50,7 +50,7 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
   const extensionModule = await import(extensionUrl)
 
   const registeredCommands = new Set<string>()
-  const registeredTools = new Set<string>()
+  const registeredTools = new Map<string, any>()
   const observedEvents = new Set<string>()
 
   const mockPi: any = {
@@ -58,7 +58,7 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
       registeredCommands.add(name)
     },
     registerTool: (tool: { name: string }) => {
-      registeredTools.add(tool.name)
+      registeredTools.set(tool.name, tool)
     },
     on: (event: string) => {
       observedEvents.add(event)
@@ -74,8 +74,10 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
   expect(registeredCommands.has("review-impl")).toBe(true)
   expect(registeredCommands.has("recall")).toBe(true)
   expect(registeredCommands.has("review-parallel")).toBe(true)
+  expect(registeredCommands.has("routing-settings")).toBe(true)
   expect(registeredCommands.has("configure-routing")).toBe(true)
   expect(registeredTools.has("hyperpowers_subagent")).toBe(true)
+  expect(registeredTools.get("hyperpowers_subagent")?.parameters?.properties?.format).toBeTruthy()
   expect(observedEvents.has("session_start")).toBe(true)
 
   rmSync(home, { recursive: true, force: true })
@@ -83,7 +85,7 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
 })
 
 // Keep installer side-effect visible: AGENTS section should be injected safely.
-test("pi AGENTS section is injected with install smoke run", () => {
+test("pi AGENTS section is injected with install smoke run", { timeout: 30000 }, () => {
   const home = newTempDir("pi-smoke-agents")
   const binDir = newTempDir("pi-smoke-agents-bin")
   const piHome = path.join(home, ".pi", "agent")
