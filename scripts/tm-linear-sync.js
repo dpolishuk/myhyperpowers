@@ -173,6 +173,36 @@ function buildLastSyncedFields(issue, designHash) {
   }
 }
 
+function createLabelResolver({ client, teamId }) {
+  const labelCache = {}
+
+  return async function getOrCreateLabel(labelName) {
+    if (labelCache[labelName]) return labelCache[labelName]
+
+    const existing = await client.issueLabels({
+      first: 1,
+      filter: { name: { eq: labelName }, team: { id: { eq: teamId } } },
+    })
+    if (existing.nodes.length > 0) {
+      labelCache[labelName] = existing.nodes[0].id
+      return existing.nodes[0].id
+    }
+
+    const payload = await client.createIssueLabel({
+      name: labelName,
+      teamId,
+    })
+    if (payload.success) {
+      const label = await payload.issueLabel
+      if (label) {
+        labelCache[labelName] = label.id
+        return label.id
+      }
+    }
+    return null
+  }
+}
+
 async function issueNeedsLabelRepair({ client, existing, labelName }) {
   if (!labelName || typeof client.issue !== "function") {
     return false
@@ -623,6 +653,26 @@ async function syncIssuesToLinear({ client, teamId, teamStates, issues, mapping,
   return { created, updated, unchanged, errors }
 }
 
+async function runSyncBatch({ client, teamId, teamStates, issues, getOrCreateLabel, loadMapping: readMapping = loadMapping, saveMapping: persistMapping = saveMapping, log = logSyncInfo, sleep = wait, acquireLock = acquireMappingLock }) {
+  const releaseMappingLock = await acquireLock()
+  try {
+    const mapping = readMapping()
+    return await syncIssuesToLinear({
+      client,
+      teamId,
+      teamStates,
+      issues,
+      mapping,
+      getOrCreateLabel,
+      saveMapping: persistMapping,
+      log,
+      sleep,
+    })
+  } finally {
+    releaseMappingLock()
+  }
+}
+
 // ── Sync engine ─────────────────────────────────────────────────────────────
 
 async function syncToLinear() {
@@ -669,51 +719,16 @@ async function syncToLinear() {
     type: s.type,
   }))
 
-  // Find or create labels for issue types
-  const labelCache = {}
-  async function getOrCreateLabel(labelName) {
-    if (labelCache[labelName]) return labelCache[labelName]
-
-    const existing = await client.issueLabels({
-      first: 1,
-      filter: { name: { eq: labelName }, team: { id: { eq: team.id } } },
-    })
-    if (existing.nodes.length > 0) {
-      labelCache[labelName] = existing.nodes[0].id
-      return existing.nodes[0].id
-    }
-
-    // Create the label
-    const payload = await client.createIssueLabel({
-      name: labelName,
-      teamId: team.id,
-    })
-    if (payload.success) {
-      const label = await payload.issueLabel
-      if (label) {
-        labelCache[labelName] = label.id
-        return label.id
-      }
-    }
-    return null
-  }
+  const getOrCreateLabel = createLabelResolver({ client, teamId: team.id })
 
   const issues = loadBdIssues()
-  const releaseMappingLock = await acquireMappingLock()
-  let result
-  try {
-    const mapping = loadMapping()
-    result = await syncIssuesToLinear({
-      client,
-      teamId: team.id,
-      teamStates,
-      issues,
-      mapping,
-      getOrCreateLabel,
-    })
-  } finally {
-    releaseMappingLock()
-  }
+  const result = await runSyncBatch({
+    client,
+    teamId: team.id,
+    teamStates,
+    issues,
+    getOrCreateLabel,
+  })
 
   const { errors } = result
   if (errors > 0) {
@@ -730,4 +745,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, getMappingLockPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue, syncIssuesToLinear, acquireMappingLock }
+module.exports = { BD_LIST_MAX_BUFFER, findRepoRoot, getMappingPath, getMappingLockPath, loadBdIssues, logSyncInfo, mapPriority, mapStatus, mapType, hashDesign, loadMapping, saveMapping, findIssueByMarker, linkIssueByMarkerSearch, issueNeedsLabelRepair, reconcileExistingIssueByMarker, prepareExistingIssueForSync, syncExistingIssue, syncIssuesToLinear, acquireMappingLock, runSyncBatch, createLabelResolver }

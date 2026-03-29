@@ -1262,6 +1262,46 @@ test("syncIssuesToLinear continues when an existing issue update fails mid-batch
   assert.equal(mapping["bd-new"].linearId, "lin-new")
 })
 
+test("syncIssuesToLinear recreates an issue in the same batch after stale mapping removal", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {
+    "bd-stale": {
+      linearId: "lin-stale",
+      linearIdentifier: "ENG-180",
+      lastSyncedFields: {
+        title: "Stale title",
+        status: "open",
+        priority: 2,
+        issueType: "task",
+        designHash: "hash-stale",
+      },
+    },
+  }
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async query => query === "[bd:bd-stale]" ? { nodes: [] } : { nodes: [] },
+      issue: async () => {
+        throw new Error("404 not found")
+      },
+      createIssue: async params => ({ issue: Promise.resolve({ id: "lin-recreated", identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-stale", title: "Stale recreated", status: "open", priority: 2, issue_type: "task", design: "Recreated" },
+    ],
+    mapping,
+    getOrCreateLabel: async () => "label-task",
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 0 })
+  assert.equal(mapping["bd-stale"].linearId, "lin-recreated")
+})
+
 test("syncIssuesToLinear rejects creating blocked issues when no explicit blocked state exists", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const createCalls = []
@@ -1394,6 +1434,70 @@ test("acquireMappingLock ignores active lock held by current live process", asyn
     restoreEnv(savedEnv)
     fs.rmSync(tempRepoRoot, { recursive: true, force: true })
   }
+})
+
+test("runSyncBatch acquires and releases the mapping lock around sync work", async () => {
+  const { runSyncBatch } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+
+  const result = await runSyncBatch({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-lock", title: "Locked", status: "open", priority: 2, issue_type: "task", design: "Lock" },
+    ],
+    getOrCreateLabel: async () => "label-task",
+    loadMapping: () => {
+      calls.push("load")
+      return {}
+    },
+    saveMapping: () => calls.push("save"),
+    log: () => calls.push("log"),
+    sleep: async () => {},
+    acquireLock: async () => {
+      calls.push("acquire")
+      return () => calls.push("release")
+    },
+  })
+
+  assert.deepEqual(result, { created: 1, updated: 0, unchanged: 0, errors: 0 })
+  assert.deepEqual(calls, ["acquire", "load", "save", "log", "release"])
+})
+
+test("createLabelResolver creates a team-scoped label when no team label exists", async () => {
+  const { createLabelResolver } = requireFresh("../scripts/tm-linear-sync")
+  const calls = []
+  const resolveLabel = createLabelResolver({
+    client: {
+      issueLabels: async options => {
+        calls.push({ type: "query", options })
+        return { nodes: [] }
+      },
+      createIssueLabel: async options => {
+        calls.push({ type: "create", options })
+        return { success: true, issueLabel: Promise.resolve({ id: "label-task" }) }
+      },
+    },
+    teamId: "team-1",
+  })
+
+  const labelId = await resolveLabel("Task")
+
+  assert.equal(labelId, "label-task")
+  assert.deepEqual(calls, [
+    {
+      type: "query",
+      options: { first: 1, filter: { name: { eq: "Task" }, team: { id: { eq: "team-1" } } } },
+    },
+    {
+      type: "create",
+      options: { name: "Task", teamId: "team-1" },
+    },
+  ])
 })
 
 test("acquireMappingLock removes stale lock files with malformed metadata", async () => {
