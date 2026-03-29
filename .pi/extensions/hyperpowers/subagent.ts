@@ -91,9 +91,17 @@ export function executePiSubagent(
   })
 
   const output = result.stdout?.trim() || ""
+  const details = result.stderr?.trim() || output || "unknown error"
+  if (result.status === null) {
+    const signalInfo = result.signal ? `; signal: ${result.signal}` : ""
+    const errorInfo = result.error?.message ? `; error: ${result.error.message}` : ""
+    return {
+      content: [{ type: "text" as const, text: `Subagent failed (no exit status${signalInfo}${errorInfo}): ${details}` }],
+    }
+  }
   if (result.status !== 0) {
     return {
-      content: [{ type: "text" as const, text: `Subagent failed (exit ${result.status}): ${result.stderr?.trim() || output || "unknown error"}` }],
+      content: [{ type: "text" as const, text: `Subagent failed (exit ${result.status}): ${details}` }],
     }
   }
 
