@@ -55,18 +55,22 @@ test("tm with TM_BACKEND=linear routes commands through the linear backend entry
   const fakeScriptDir = path.join(fakeRepo, "scripts")
   const fakeBeadsDir = path.join(fakeRepo, ".beads")
   const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const outsideDir = path.join(tmpRoot, "outside")
+  const symlinkTmPath = path.join(outsideDir, "tm")
   const capturePath = path.join(fakeRepo, "linear-backend-called.txt")
 
   try {
     fs.mkdirSync(fakeScriptDir, { recursive: true })
     fs.mkdirSync(fakeBeadsDir, { recursive: true })
+    fs.mkdirSync(outsideDir)
     fs.copyFileSync(tmPath, fakeTmPath)
     fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
     fs.writeFileSync(path.join(fakeScriptDir, "tm-linear-backend.js"), `require('node:fs').writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify({ args: process.argv.slice(2), repoRoot: process.env.TM_REPO_ROOT }))\n`)
     fs.chmodSync(fakeTmPath, 0o755)
+    fs.symlinkSync(fakeTmPath, symlinkTmPath)
 
-    const result = spawnSync(fakeTmPath, ["ready"], {
-      cwd: fakeRepo,
+    const result = spawnSync(symlinkTmPath, ["ready"], {
+      cwd: outsideDir,
       encoding: "utf8",
       env: { ...process.env, TM_BACKEND: "linear", LINEAR_API_KEY: "lin_api_test123", LINEAR_TEAM_KEY: "ENG" },
       timeout: 10000,

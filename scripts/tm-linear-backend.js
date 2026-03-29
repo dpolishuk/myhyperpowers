@@ -80,13 +80,15 @@ async function findIssueByRef(context, ref) {
     filter: { team: { id: { eq: context.team?.id } } },
   })
 
-  const exact = result.nodes.find(issue => issue.identifier === ref || issue.id === ref)
-  if (exact) return exact
-  if (result.nodes.length === 1) return result.nodes[0]
+  const exactMatches = result.nodes.filter(issue => issue.identifier === ref || issue.id === ref)
+  if (exactMatches.length === 1) return exactMatches[0]
+  if (exactMatches.length > 1) {
+    throw new Error(`Multiple Linear issues matched "${ref}".`)
+  }
   if (result.nodes.length === 0) {
     throw new Error(`Linear issue "${ref}" not found.`)
   }
-  throw new Error(`Multiple Linear issues matched "${ref}".`)
+  throw new Error(`No exact Linear issue matched "${ref}".`)
 }
 
 async function renderIssueDetails(issue) {
@@ -153,6 +155,9 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     if (command === "update") {
       const issue = await findIssueByRef(context, args[0])
       const nextStatus = parseStatusArg(args)
+      if (!nextStatus || !["open", "ready", "in_progress", "closed", "blocked"].includes(nextStatus)) {
+        throw new Error(`Unsupported tm status "${nextStatus || ""}" for linear backend.`)
+      }
       const stateId = mapStatus(normalizeTmStatusForLinear(nextStatus), context.teamStates)
       if (!stateId) {
         throw new Error(`No matching Linear workflow state found for tm status "${nextStatus}".`)
