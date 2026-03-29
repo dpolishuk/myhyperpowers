@@ -287,6 +287,59 @@ test("runLinearBackendCommand shows a Linear issue by identifier", async () => {
   assert.match(result.stdout, /Status: open/)
 })
 
+test("runLinearBackendCommand paginates issueSearch results when resolving identifiers", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const calls = []
+
+  const result = await runLinearBackendCommand(["show", "ENG-9"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async (query, args) => {
+        calls.push({ query, args })
+
+        if (args.after === "cursor-1") {
+          return {
+            nodes: [
+              {
+                id: "lin-9",
+                identifier: "ENG-9",
+                title: "Paged backend contract",
+                description: "Found on page two",
+                priority: 3,
+                state: { name: "Todo", type: "unstarted" },
+                labels: async () => ({ nodes: [{ name: "Task" }] }),
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: "cursor-2" },
+          }
+        }
+
+        return {
+          nodes: [
+            { id: "lin-90", identifier: "ENG-90", title: "Wrong issue" },
+            { id: "lin-91", identifier: "ENG-91", title: "Another wrong issue" },
+          ],
+          pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+        }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(calls, [
+    {
+      query: "ENG-9",
+      args: { first: 10, filter: { team: { id: { eq: "team-1" } } } },
+    },
+    {
+      query: "ENG-9",
+      args: { first: 10, after: "cursor-1", filter: { team: { id: { eq: "team-1" } } } },
+    },
+  ])
+  assert.match(result.stdout, /ENG-9: Paged backend contract/)
+  assert.match(result.stdout, /Found on page two/)
+})
+
 test("runLinearBackendCommand returns clear error when show target is missing", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 

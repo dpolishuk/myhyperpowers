@@ -109,20 +109,34 @@ async function findIssueByRef(context, ref) {
     }
   }
 
-  const result = await context.issueSearch(ref, {
-    first: 10,
-    filter: { team: { id: { eq: context.team?.id } } },
-  })
-
-  const exactMatches = result.nodes.filter(issue => issue.identifier === ref || issue.id === ref)
+  const nodes = await searchAllIssuesByRef(context, ref)
+  const exactMatches = nodes.filter(issue => issue.identifier === ref || issue.id === ref)
   if (exactMatches.length === 1) return exactMatches[0]
   if (exactMatches.length > 1) {
     throw new Error(`Multiple Linear issues matched "${ref}".`)
   }
-  if (result.nodes.length === 0) {
+  if (nodes.length === 0) {
     throw new Error(`Linear issue "${ref}" not found.`)
   }
   throw new Error(`No exact Linear issue matched "${ref}".`)
+}
+
+async function searchAllIssuesByRef(context, ref) {
+  const nodes = []
+  let after = null
+
+  while (true) {
+    const result = await context.issueSearch(ref, {
+      first: 10,
+      ...(after ? { after } : {}),
+      filter: { team: { id: { eq: context.team?.id } } },
+    })
+
+    nodes.push(...(result.nodes || []))
+
+    if (!result.pageInfo?.hasNextPage) return nodes
+    after = result.pageInfo.endCursor
+  }
 }
 
 function looksLikeLinearIdentifier(ref) {
