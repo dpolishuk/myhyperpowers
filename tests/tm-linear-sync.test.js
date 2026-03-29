@@ -235,6 +235,15 @@ test("mapStatus blocked prefers an explicit blocked workflow state when availabl
   assert.equal(mapStatus("blocked", states), "b1")
 })
 
+test("mapStatus blocked matches custom blocked state names case-insensitively", () => {
+  const { mapStatus } = require("../scripts/tm-linear-sync")
+  const states = [
+    { id: "b1", name: "Temporarily BLOCKED - Vendor", type: "unstarted" },
+  ]
+
+  assert.equal(mapStatus("blocked", states), "b1")
+})
+
 test("mapStatus with unknown status returns fallback via type", () => {
   const { mapStatus } = require("../scripts/tm-linear-sync")
   const states = [
@@ -465,6 +474,27 @@ test("reconcileExistingIssueByMarker rejects ambiguous replacement matches", asy
   )
 })
 
+test("findIssueByMarker rejects ambiguous matches even when one matches existingLinearId", async () => {
+  const { findIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
+
+  await assert.rejects(
+    () => findIssueByMarker({
+      client: {
+        issueSearch: async () => ({
+          nodes: [
+            { id: "lin-current", identifier: "ENG-10" },
+            { id: "lin-duplicate", identifier: "ENG-11" },
+          ],
+        }),
+      },
+      teamId: "team-1",
+      bdId: "bd-ambiguous",
+      existingLinearId: "lin-current",
+    }),
+    /multiple Linear issues found for \[bd:bd-ambiguous\]/
+  )
+})
+
 test("linkIssueByMarkerSearch leaves lastSyncedFields unset so fresh relinks are re-synced", async () => {
   const { linkIssueByMarkerSearch } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {}
@@ -550,6 +580,9 @@ test("prepareExistingIssueForSync forces label repair even when other fields cha
 
   const prepared = await prepareExistingIssueForSync({
     client: {
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-55", identifier: "ENG-55" }],
+      }),
       issue: async id => {
         assert.equal(id, "lin-55")
         return {
@@ -618,6 +651,51 @@ test("prepareExistingIssueForSync recomputes changed after relink clears lastSyn
   assert.equal(prepared.skipUpdate, false)
   assert.equal(prepared.existing.linearId, "lin-replacement")
   assert.deepEqual(prepared.prev, {})
+})
+
+test("prepareExistingIssueForSync relinks moved marker before applying changed-field updates", async () => {
+  const { prepareExistingIssueForSync } = requireFresh("../scripts/tm-linear-sync")
+  const existing = {
+    linearId: "lin-stale",
+    linearIdentifier: "ENG-stale",
+    lastSyncedFields: {
+      title: "Old title",
+      status: "open",
+      priority: 2,
+      issueType: "task",
+      designHash: "same-hash",
+    },
+  }
+  const mapping = { "bd-moved": existing }
+  const issue = {
+    id: "bd-moved",
+    title: "New title",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+  }
+
+  const prepared = await prepareExistingIssueForSync({
+    client: {
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-current", identifier: "ENG-44" }],
+      }),
+      issue: async () => ({
+        labels: async () => ({ nodes: [{ name: "Task" }] }),
+      }),
+    },
+    teamId: "team-1",
+    bdId: "bd-moved",
+    issue,
+    designHash: "same-hash",
+    labelName: "Task",
+    existing,
+    mapping,
+  })
+
+  assert.equal(prepared.existing.linearId, "lin-current")
+  assert.equal(mapping["bd-moved"].linearId, "lin-current")
+  assert.equal(prepared.skipUpdate, false)
 })
 
 test("syncExistingIssue recreates deleted Linear issue in the same run", async () => {
@@ -888,9 +966,11 @@ test("syncExistingIssue reports rate-limit failures as deterministic per-issue e
     "bd-rate-limit": {
       linearId: "lin-rate-limit",
       linearIdentifier: "ENG-429",
+      lastSyncedAt: "2026-03-29T00:00:00.000Z",
       lastSyncedFields: { issueType: "task" },
     },
   }
+  const originalEntry = JSON.parse(JSON.stringify(mapping["bd-rate-limit"]))
 
   const result = await syncExistingIssue({
     client: {
@@ -919,7 +999,7 @@ test("syncExistingIssue reports rate-limit failures as deterministic per-issue e
   })
 
   assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
-  assert.equal(mapping["bd-rate-limit"].linearId, "lin-rate-limit")
+  assert.deepEqual(mapping["bd-rate-limit"], originalEntry)
 })
 
 test("syncExistingIssue uses a single owned type label set when syncing labels", async () => {
@@ -968,6 +1048,77 @@ test("syncExistingIssue uses a single owned type label set when syncing labels",
   }])
 })
 
+test("syncIssuesToLinear continues after per-issue failures and records failed summary", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const mapping = {}
+  const savedMappings = []
+  const logMessages = []
+  const sleepCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        if (params.title === "Will fail") {
+          throw new Error("Rate limit exceeded")
+        }
+        return { issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }
+      },
+      issueLabels: async () => ({ nodes: [] }),
+      createIssueLabel: async ({ name }) => ({ success: true, issueLabel: Promise.resolve({ id: `label-${name}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-ok-1", title: "One", status: "open", priority: 2, issue_type: "task", design: "A" },
+      { id: "bd-fail", title: "Will fail", status: "open", priority: 2, issue_type: "task", design: "B" },
+      { id: "bd-ok-2", title: "Two", status: "open", priority: 2, issue_type: "bug", design: "C" },
+    ],
+    mapping,
+    getOrCreateLabel: async labelName => `label-${labelName}`,
+    saveMapping: next => savedMappings.push(JSON.parse(JSON.stringify(next))),
+    log: message => logMessages.push(message),
+    sleep: async ms => sleepCalls.push(ms),
+  })
+
+  assert.deepEqual(result, { created: 2, updated: 0, unchanged: 0, errors: 1 })
+  assert.equal(mapping["bd-ok-1"].linearIdentifier, "ENG-One")
+  assert.equal(mapping["bd-ok-2"].linearIdentifier, "ENG-Two")
+  assert.equal("bd-fail" in mapping, false)
+  assert.equal(savedMappings.length, 1)
+  assert.match(logMessages.at(-1), /2 created, 0 updated, 0 unchanged, 1 failed/)
+  assert.deepEqual(sleepCalls, [])
+})
+
+test("syncIssuesToLinear throttles after every five created issues", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const sleepCalls = []
+
+  await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => ({ issue: Promise.resolve({ id: `lin-${params.title}`, identifier: `ENG-${params.title}` }) }),
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: Array.from({ length: 6 }, (_, index) => ({
+      id: `bd-${index + 1}`,
+      title: `Issue-${index + 1}`,
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+      design: `Design ${index + 1}`,
+    })),
+    mapping: {},
+    getOrCreateLabel: async () => null,
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async ms => sleepCalls.push(ms),
+  })
+
+  assert.deepEqual(sleepCalls, [500])
+})
+
 test("logSyncInfo writes diagnostics to stderr instead of stdout", () => {
   const { logSyncInfo } = requireFresh("../scripts/tm-linear-sync")
   const writes = { stdout: [], stderr: [] }
@@ -1002,18 +1153,6 @@ test("hashDesign produces consistent MD5 for same input", () => {
 // ── tm sync integration tests ───────────────────────────────────────────────
 
 test("sync with no config exits 0 with not-configured message", () => {
-  const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: { ...process.env, LINEAR_API_KEY: "" },
-    timeout: 10000,
-  })
-  assert.equal(result.status, 0)
-  assert.match(result.stderr, /not configured/)
-})
-
-test("tm sync invokes linear sync script when available", () => {
-  // The script should exit cleanly when Linear sync is available but not configured.
   const result = spawnSync("node", ["scripts/tm-linear-sync.js"], {
     cwd: repoRoot,
     encoding: "utf8",

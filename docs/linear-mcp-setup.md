@@ -176,6 +176,8 @@ You (local)                    Linear (cloud)
 - Type labels are synced as an owned set, so the Linear issue is updated with the single bd-derived type label (`Epic`, `Feature`, `Task`, or `Bug`).
 - `blocked` only maps when the Linear team has an explicit workflow state whose name includes `Blocked`; otherwise the sync leaves the state unchanged instead of silently degrading it to Todo/Backlog.
 - Duplicate prevention and relinking rely on `<!-- [bd:ID] -->` markers in the Linear description. Do not remove them.
+- If an existing mapping points at a deleted issue, `tm sync` recreates the issue; if the marker has moved to a different issue, `tm sync` re-links to that issue before applying updates.
+- Per-issue API failures (including rate limits) are tolerated so the rest of the batch can continue. The final sync summary reports failed issues and exits non-zero when any issue fails.
 
 ## Daily Workflow
 
