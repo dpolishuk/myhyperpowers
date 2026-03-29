@@ -124,10 +124,35 @@ test("agent catalog exposes worker and reviewer routing targets", () => {
   expect(HYPERPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
     "code-reviewer",
     "autonomous-reviewer",
+    "review-quality",
+    "review-implementation",
+    "review-simplification",
+    "review-testing",
+    "review-documentation",
+    "test-effectiveness-analyst",
     "codebase-investigator",
     "internet-researcher",
     "test-runner",
   ])
+})
+
+test("new concrete review agents participate in routing precedence", () => {
+  const config: RoutingConfig = normalizeRoutingConfig({
+    subagents: {
+      validation: { model: "anthropic/claude-sonnet-4-5" },
+    },
+    agents: {
+      "review-implementation": { model: "anthropic/claude-opus-4-5" },
+    },
+  })
+
+  const resolved = resolveRoutingEntry(config, {
+    agent: "review-implementation",
+    type: "validation",
+  })
+
+  expect(resolved.source).toBe("agent")
+  expect(resolved.model).toBe("anthropic/claude-opus-4-5")
 })
 
 test("config update helpers preserve single source of truth semantics", () => {
