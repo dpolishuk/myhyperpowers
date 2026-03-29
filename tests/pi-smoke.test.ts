@@ -74,6 +74,7 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
   expect(registeredCommands.has("review-impl")).toBe(true)
   expect(registeredCommands.has("recall")).toBe(true)
   expect(registeredCommands.has("review-parallel")).toBe(true)
+  expect(registeredCommands.has("routing-settings")).toBe(true)
   expect(registeredCommands.has("configure-routing")).toBe(true)
   expect(registeredTools.has("hyperpowers_subagent")).toBe(true)
   expect(observedEvents.has("session_start")).toBe(true)
