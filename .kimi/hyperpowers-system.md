@@ -57,7 +57,7 @@ tm ready              # Show issues ready to work
 tm list --status open # All open issues
 tm show <id>          # Detailed issue view
 tm create "Issue title" --type task --priority 2 --design "Details"
-tm update <id> --status=in_progress
+tm update <id> --status in_progress
 tm close <id>
 tm sync               # Sync local work and integrations
 ```

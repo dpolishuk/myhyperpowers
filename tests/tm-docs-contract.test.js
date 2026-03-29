@@ -113,6 +113,8 @@ test("Kimi and Codex host docs stay tm-first", () => {
   assert.equal(kimiSystem.includes("bd sync"), false)
   assert.equal(kimiSystem.includes("tm ready"), true)
   assert.equal(kimiSystem.includes("tm sync"), true)
+  assert.equal(kimiSystem.includes("tm update <id> --status in_progress"), true)
+  assert.equal(kimiSystem.includes("--status=in_progress"), false)
 
   assert.equal(codexInstall.includes("bd ready"), false)
   assert.equal(codexInstall.includes("tm ready"), true)
