@@ -86,9 +86,13 @@ test("install.sh partial uninstall preserves shared tm runtime", () => {
   fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
   fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm"), "#!/bin/sh\n", "utf8")
+  fs.writeFileSync(path.join(binDir, "tm-backends.sh"), "backends\n", "utf8")
+  fs.writeFileSync(path.join(binDir, "tm-linear-backend.js"), "backend\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync-config.js"), "config\n", "utf8")
   fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
+  fs.writeFileSync(path.join(libDir, "tm-backends.sh"), "backends\n", "utf8")
+  fs.writeFileSync(path.join(libDir, "tm-linear-backend.js"), "backend\n", "utf8")
   fs.writeFileSync(path.join(libDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(libDir, "tm-linear-sync-config.js"), "config\n", "utf8")
 
@@ -101,6 +105,8 @@ test("install.sh partial uninstall preserves shared tm runtime", () => {
 
   assert.equal(result.status, 0)
   assert.equal(fs.existsSync(path.join(binDir, "tm")), true)
+  assert.equal(fs.existsSync(path.join(libDir, "tm-backends.sh")), true)
+  assert.equal(fs.existsSync(path.join(libDir, "tm-linear-backend.js")), true)
   assert.equal(fs.existsSync(path.join(libDir, "tm-linear-sync.js")), true)
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
 })
@@ -335,6 +341,10 @@ test("install.sh opencode provisions tm runtime and OpenCode command surface", (
 
   assert.equal(result.status, 0)
   assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-backends.sh")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-backend.js")), true)
   assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
