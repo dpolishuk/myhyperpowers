@@ -82,7 +82,7 @@ Add to `~/.claude/settings.local.json`:
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
+        "LINEAR_API_KEY": "{env:LINEAR_API_KEY}"
       }
     }
   }
@@ -125,7 +125,7 @@ If you also want direct Linear MCP read access in Gemini CLI, add the MCP server
       "command": "npx",
       "args": ["-y", "@tacticlaunch/mcp-linear@1.0.12"],
       "env": {
-        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
+        "LINEAR_API_KEY": "{env:LINEAR_API_KEY}"
       }
     }
   }

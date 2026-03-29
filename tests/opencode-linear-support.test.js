@@ -38,6 +38,13 @@ test("test_opencode_docs_use_mcp_not_mcpServers", () => {
   assert.equal(readmeConfig.mcp.linear.environment.LINEAR_API_KEY, "{env:LINEAR_API_KEY}")
 })
 
+test("test_linear_mcp_examples_use_supported_env_placeholders", () => {
+  const guide = read("docs/linear-mcp-setup.md")
+
+  assert.equal(guide.includes('${LINEAR_API_KEY}'), false)
+  assert.match(guide, /"LINEAR_API_KEY": "\{env:LINEAR_API_KEY\}"/)
+})
+
 test("test_opencode_install_docs_describe_installer_first_tm_path", () => {
   const installDoc = read(".opencode/INSTALL.md")
 

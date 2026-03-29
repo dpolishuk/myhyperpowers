@@ -1162,37 +1162,45 @@ test("syncExistingIssue treats thrown label lookup failure as a per-issue error"
     },
   }
   const originalEntry = JSON.parse(JSON.stringify(mapping["bd-label-throw"]))
+  const errors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => errors.push(args.join(" "))
 
-  const result = await syncExistingIssue({
-    client: {
-      updateIssue: async () => {
-        throw new Error("should not update when label lookup throws")
+  try {
+    const result = await syncExistingIssue({
+      client: {
+        updateIssue: async () => {
+          throw new Error("should not update when label lookup throws")
+        },
       },
-    },
-    issue: {
-      id: "bd-label-throw",
-      title: "Label lookup throw",
-      status: "open",
-      priority: 2,
-      issue_type: "bug",
-    },
-    existing: mapping["bd-label-throw"],
-    bdId: "bd-label-throw",
-    designText: "design",
-    designHash: "hash-label-throw",
-    priority: 3,
-    stateId: "state-1",
-    labelName: "Bug",
-    prev: { issueType: "task" },
-    getOrCreateLabel: async () => {
-      throw new Error("lookup boom")
-    },
-    mapping,
-    teamId: "team-1",
-  })
+      issue: {
+        id: "bd-label-throw",
+        title: undefined,
+        status: "open",
+        priority: 2,
+        issue_type: "bug",
+      },
+      existing: mapping["bd-label-throw"],
+      bdId: "bd-label-throw",
+      designText: "design",
+      designHash: "hash-label-throw",
+      priority: 3,
+      stateId: "state-1",
+      labelName: "Bug",
+      prev: { issueType: "task" },
+      getOrCreateLabel: async () => {
+        throw new Error("lookup boom")
+      },
+      mapping,
+      teamId: "team-1",
+    })
 
-  assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
-  assert.deepEqual(mapping["bd-label-throw"], originalEntry)
+    assert.deepEqual(result, { created: 0, updated: 0, errors: 1 })
+    assert.deepEqual(mapping["bd-label-throw"], originalEntry)
+    assert.match(errors[0], /bd-label-throw/)
+  } finally {
+    console.error = originalConsoleError
+  }
 })
 
 test("syncIssuesToLinear continues after per-issue failures and records failed summary", async () => {
@@ -1351,29 +1359,38 @@ test("syncIssuesToLinear rejects creating blocked issues when no explicit blocke
 test("syncIssuesToLinear fails create-path sync when required type label cannot be resolved", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const createCalls = []
+  const errors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => errors.push(args.join(" "))
 
-  const result = await syncIssuesToLinear({
-    client: {
-      issueSearch: async () => ({ nodes: [] }),
-      createIssue: async params => {
-        createCalls.push(params)
-        return { issue: Promise.resolve({ id: "lin-create-fail", identifier: "ENG-170" }) }
+  try {
+    const result = await syncIssuesToLinear({
+      client: {
+        issueSearch: async () => ({ nodes: [] }),
+        createIssue: async params => {
+          createCalls.push(params)
+          return { issue: Promise.resolve({ id: "lin-create-fail", identifier: "ENG-170" }) }
+        },
       },
-    },
-    teamId: "team-1",
-    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
-    issues: [
-      { id: "bd-create-fail", title: "Create fail", status: "open", priority: 2, issue_type: "task", design: "Create" },
-    ],
-    mapping: {},
-    getOrCreateLabel: async () => null,
-    saveMapping: () => {},
-    log: () => {},
-    sleep: async () => {},
-  })
+      teamId: "team-1",
+      teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+      issues: [
+        { id: "bd-create-fail", title: undefined, status: "open", priority: 2, issue_type: "task", design: "Create" },
+      ],
+      mapping: {},
+      getOrCreateLabel: async () => null,
+      saveMapping: () => {},
+      log: () => {},
+      sleep: async () => {},
+      reportError: message => errors.push(message),
+    })
 
-  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
-  assert.deepEqual(createCalls, [])
+    assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+    assert.deepEqual(createCalls, [])
+    assert.match(errors[0], /bd-create-fail/)
+  } finally {
+    console.error = originalConsoleError
+  }
 })
 
 test("syncIssuesToLinear fails create-path sync when type label lookup throws", async () => {
@@ -1451,6 +1468,23 @@ test("acquireMappingLock ignores active lock held by current live process", asyn
   } finally {
     restoreEnv(savedEnv)
     fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("isProcessAlive treats EPERM as alive", () => {
+  const { isProcessAlive } = requireFresh("../scripts/tm-linear-sync")
+  const originalKill = process.kill
+
+  process.kill = () => {
+    const err = new Error("operation not permitted")
+    err.code = "EPERM"
+    throw err
+  }
+
+  try {
+    assert.equal(isProcessAlive(12345), true)
+  } finally {
+    process.kill = originalKill
   }
 })
 
