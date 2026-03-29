@@ -504,7 +504,7 @@ function isProcessAlive(pid) {
   }
 }
 
-async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS, maxAgeMs = MAPPING_LOCK_MAX_AGE_MS } = {}) {
+async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS, maxAgeMs = MAPPING_LOCK_MAX_AGE_MS, heartbeatMs = Math.max(1000, Math.floor(MAPPING_LOCK_TIMEOUT_MS / 2)) } = {}) {
   const lockPath = getMappingLockPath()
   const startedAt = Date.now()
   let token = null
@@ -513,8 +513,20 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
     try {
       token = JSON.stringify({ pid: process.pid, createdAt: Date.now() })
       fs.writeFileSync(lockPath, token, { flag: "wx" })
+      const heartbeat = setInterval(() => {
+        try {
+          if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === token) {
+            const now = new Date()
+            fs.utimesSync(lockPath, now, now)
+          }
+        } catch {
+          // best effort heartbeat
+        }
+      }, heartbeatMs)
+      heartbeat.unref?.()
       return () => {
         try {
+          clearInterval(heartbeat)
           if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === token) {
             fs.rmSync(lockPath, { force: true })
           }
@@ -530,10 +542,8 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
         const stats = fs.statSync(lockPath)
         const metadata = readLockMetadata(lockPath)
         const ageMs = Date.now() - stats.mtimeMs
-        const createdAtAgeMs = Number.isFinite(metadata.createdAt) ? Date.now() - metadata.createdAt : ageMs
-        const lockAgeMs = Math.max(ageMs, createdAtAgeMs)
         const staleByPid = metadata.pid ? !isProcessAlive(metadata.pid) : false
-        const staleByAge = lockAgeMs >= maxAgeMs
+        const staleByAge = ageMs >= maxAgeMs
 
         if (staleByAge || staleByPid) {
           fs.rmSync(lockPath, { force: true })

@@ -1718,6 +1718,32 @@ test("acquireMappingLock expires very old locks even if the pid is currently ali
   }
 })
 
+test("acquireMappingLock refreshes active lock timestamps so long syncs are not stolen by age", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const release = await acquireMappingLock({ timeoutMs: 20, pollMs: 2, maxAgeMs: 30, heartbeatMs: 5 })
+    const lockPath = getMappingLockPath()
+    const before = fs.statSync(lockPath).mtimeMs
+    await new Promise(resolve => setTimeout(resolve, 40))
+    const after = fs.statSync(lockPath).mtimeMs
+
+    await assert.rejects(
+      () => acquireMappingLock({ timeoutMs: 15, pollMs: 2, maxAgeMs: 30, heartbeatMs: 5 }),
+      /timed out waiting for Linear mapping lock/
+    )
+
+    assert.ok(after > before)
+    release()
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
 test("syncIssuesToLinear throttles after every five created issues", async () => {
   const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
   const sleepCalls = []
