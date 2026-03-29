@@ -203,6 +203,7 @@ test("pi installer fails when dependency install tooling is unavailable", () => 
   const piHome = path.join(home, ".pi", "agent")
   const piShimPath = path.join(tmpBinDir, "pi")
   const agentsPath = path.join(piHome, "AGENTS.md")
+  const extensionPath = path.join(piHome, "extensions", "hyperpowers")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const originalAgents = "# Existing Pi Instructions\nKeep this untouched when install fails.\n"
 
@@ -222,6 +223,7 @@ test("pi installer fails when dependency install tooling is unavailable", () => 
   assert.notEqual(result.status, 0)
   assert.match(result.stderr + result.stdout, /Pi install requires bun or npm|Pi extension dependency install failed/)
   assert.equal(fs.readFileSync(agentsPath, "utf8"), originalAgents)
+  assert.equal(fs.existsSync(extensionPath), false)
 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })

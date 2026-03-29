@@ -2,7 +2,7 @@
 
 import * as p from "@clack/prompts"
 import { existsSync, readFileSync } from "node:fs"
-import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 
@@ -515,57 +515,88 @@ const FEATURES: FeatureConfig[] = [
 const installHost = async (host: HostConfig): Promise<string[]> => {
   const target = host.targetDir()
   const installedFiles: string[] = []
+  const backupEntries: Array<{ originalPath: string, backupPath: string }> = []
+  const createdPaths: string[] = []
 
-  for (const [category, source] of Object.entries(host.sources)) {
-    const srcDir = join(REPO_ROOT, source.from)
-    if (!existsSync(srcDir)) continue
+  try {
+    for (const [category, source] of Object.entries(host.sources)) {
+      const srcDir = join(REPO_ROOT, source.from)
+      if (!existsSync(srcDir)) continue
 
-    const items = await listItems(srcDir, source.pattern, source.exclude)
-    const destDir = join(target, category)
-    await mkdir(destDir, { recursive: true })
+      const items = await listItems(srcDir, source.pattern, source.exclude)
+      const destDir = join(target, category)
+      await mkdir(destDir, { recursive: true })
 
-    for (const item of items) {
-      const srcPath = join(srcDir, item)
-      const destPath = join(destDir, item)
-      const s = await stat(srcPath)
-      if (s.isDirectory()) {
-        await copyDir(srcPath, destPath)
-        installedFiles.push(`${category}/${item}/`)
-      } else {
-        await copyFile(srcPath, destPath)
-        installedFiles.push(`${category}/${item}`)
+      for (const item of items) {
+        const srcPath = join(srcDir, item)
+        const destPath = join(destDir, item)
+        const backupPath = existsSync(destPath)
+          ? `${destPath}.hyperpowers-backup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          : null
+
+        if (backupPath) {
+          await rename(destPath, backupPath)
+          backupEntries.push({ originalPath: destPath, backupPath })
+        }
+
+        const s = await stat(srcPath)
+        if (s.isDirectory()) {
+          await copyDir(srcPath, destPath)
+          installedFiles.push(`${category}/${item}/`)
+        } else {
+          await copyFile(srcPath, destPath)
+          installedFiles.push(`${category}/${item}`)
+        }
+        createdPaths.push(destPath)
       }
     }
+
+    // Run post-install and track additional files (before writing version marker)
+    if (host.postInstall) {
+      await host.postInstall(target)
+      // Re-scan for files that postInstall may have added
+      if (host.id === "opencode") {
+        for (const f of ["package.json", "task-context.json", "cass-memory.json"]) {
+          if (existsSync(join(target, f))) installedFiles.push(f)
+        }
+      }
+      if (host.id === "claude") {
+        if (existsSync(join(target, "hyperpowers-statusline.sh"))) installedFiles.push("hyperpowers-statusline.sh")
+      }
+      if (host.id === "kimi") {
+        for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
+          if (existsSync(join(target, f))) installedFiles.push(f)
+        }
+      }
+      // Pi: AGENTS.md and skills/ are NOT tracked in manifest because postUninstall
+      // handles them surgically (removes only Hyperpowers section from AGENTS.md,
+      // removes entire extensions/hyperpowers/ dir). Tracking them would cause
+      // uninstallHost to delete the whole AGENTS.md before postUninstall runs.
+    }
+
+    // Write version file last (after postInstall succeeds)
+    await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
+    installedFiles.push(".hyperpowers-version")
+
+    for (const { backupPath } of backupEntries.reverse()) {
+      await rm(backupPath, { recursive: true, force: true }).catch(() => {})
+    }
+
+    return installedFiles
+  } catch (error) {
+    for (const createdPath of createdPaths.reverse()) {
+      await rm(createdPath, { recursive: true, force: true }).catch(() => {})
+    }
+    for (const { originalPath, backupPath } of backupEntries.reverse()) {
+      if (existsSync(backupPath)) {
+        await rename(backupPath, originalPath).catch(() => {})
+      }
+    }
+    if (host.id === "pi") {
+      await rm(join(target, "extensions", "hyperpowers"), { recursive: true, force: true }).catch(() => {})
+    }
+    throw error
   }
-
-  // Run post-install and track additional files (before writing version marker)
-  if (host.postInstall) {
-    await host.postInstall(target)
-    // Re-scan for files that postInstall may have added
-    if (host.id === "opencode") {
-      for (const f of ["package.json", "task-context.json", "cass-memory.json"]) {
-        if (existsSync(join(target, f))) installedFiles.push(f)
-      }
-    }
-    if (host.id === "claude") {
-      if (existsSync(join(target, "hyperpowers-statusline.sh"))) installedFiles.push("hyperpowers-statusline.sh")
-    }
-    if (host.id === "kimi") {
-      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
-        if (existsSync(join(target, f))) installedFiles.push(f)
-      }
-    }
-    // Pi: AGENTS.md and skills/ are NOT tracked in manifest because postUninstall
-    // handles them surgically (removes only Hyperpowers section from AGENTS.md,
-    // removes entire extensions/hyperpowers/ dir). Tracking them would cause
-    // uninstallHost to delete the whole AGENTS.md before postUninstall runs.
-  }
-
-  // Write version file last (after postInstall succeeds)
-  await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
-  installedFiles.push(".hyperpowers-version")
-
-  return installedFiles
 }
 
 const uninstallHost = async (hostId: string, manifest: InstallManifest) => {
