@@ -84,6 +84,26 @@ test("executePiSubagent returns stderr on subprocess failure", () => {
   expect(result.content[0].text).toContain("boom")
 })
 
+test("executePiSubagent returns JSON-shaped errors on subprocess failure in structured mode", () => {
+  const result = executePiSubagent(
+    {
+      task: "Run tests",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    mock(() => ({
+      status: 2,
+      stdout: "",
+      stderr: "boom",
+    })) as any,
+  )
+
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("exit 2")
+  expect(parsed.findings).toEqual([{ message: "boom" }])
+})
+
 test("executePiSubagent falls back to stdout when stderr is empty on failure", () => {
   const result = executePiSubagent(
     {
@@ -120,6 +140,29 @@ test("executePiSubagent reports signal and error details when no exit status is 
   expect(result.content[0].text).toContain("spawn pi ENOENT")
 })
 
+test("executePiSubagent returns JSON-shaped no-exit-status errors in structured mode", () => {
+  const result = executePiSubagent(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    mock(() => ({
+      status: null,
+      stdout: "",
+      stderr: "",
+      signal: "SIGTERM",
+      error: new Error("spawn pi ENOENT"),
+    })) as any,
+  )
+
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("no exit status")
+  expect(parsed.summary).toContain("SIGTERM")
+  expect(parsed.summary).toContain("spawn pi ENOENT")
+})
+
 test("buildStructuredSubagentTask wraps the task with JSON-only instructions", () => {
   const wrapped = buildStructuredSubagentTask("Review src/auth.ts")
 
@@ -145,6 +188,14 @@ test("parseStructuredSubagentOutput accepts valid JSON objects", () => {
 
 test("parseStructuredSubagentOutput rejects invalid JSON with readable error text", () => {
   expect(() => parseStructuredSubagentOutput("not json")).toThrow(/valid JSON/i)
+})
+
+test("parseStructuredSubagentOutput rejects unsupported status values", () => {
+  expect(() => parseStructuredSubagentOutput(JSON.stringify({
+    status: "OK",
+    summary: "Looks good",
+    findings: [],
+  }))).toThrow(/one of PASS, ISSUES_FOUND, FAIL/i)
 })
 
 test("executePiSubagent returns parsed structured content when format is structured and JSON is valid", () => {
@@ -182,5 +233,8 @@ test("executePiSubagent returns a parsing failure when format is structured and 
     })) as any,
   )
 
-  expect(result.content[0].text).toContain("Structured subagent output was not valid JSON")
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("Structured subagent output was not valid JSON")
+  expect(parsed.findings).toEqual([{ message: "definitely not json" }])
 })
