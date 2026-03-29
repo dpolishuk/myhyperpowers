@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install root dependencies
+        run: npm install --silent
+
+      - name: Run Node-based tests
+        run: node --test tests/*.test.js
+
+      - name: Run Bun Pi smoke + install checks
+        run: bun test tests/pi-agent-routing.test.ts tests/install-script.test.js tests/pi-smoke.test.ts
