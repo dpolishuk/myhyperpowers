@@ -44,6 +44,78 @@ test("runLinearBackendCommand returns ready issues from unstarted and triage sta
   assert.doesNotMatch(result.stdout, /ENG-4/)
 })
 
+test("runLinearBackendCommand scopes linear list results to the requested parent identifier", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const calls = []
+
+  const result = await runLinearBackendCommand(["list", "--parent", "ENG-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue" }],
+      }),
+      issues: async args => {
+        calls.push(args)
+
+        if (args.filter?.parent?.id?.eq === "lin-parent-10") {
+          return {
+            nodes: [
+              { identifier: "ENG-11", title: "Child issue", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+            ],
+          }
+        }
+
+        return {
+          nodes: [
+            { identifier: "ENG-11", title: "Child issue", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+            { identifier: "ENG-21", title: "Other parent child", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+          ],
+        }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(calls, [{ first: 100, filter: { team: { id: { eq: "team-1" } }, parent: { id: { eq: "lin-parent-10" } } } }])
+  assert.match(result.stdout, /ENG-11 Child issue/)
+  assert.doesNotMatch(result.stdout, /ENG-21/)
+})
+
+test("runLinearBackendCommand composes parent and status filters for linear list", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const calls = []
+
+  const result = await runLinearBackendCommand(["list", "--status", "open", "--parent", "lin-parent-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue" }],
+      }),
+      issues: async args => {
+        calls.push(args)
+
+        const nodes = [
+          { identifier: "ENG-11", title: "Open child", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+          { identifier: "ENG-12", title: "Working child", state: { name: "In Progress", type: "started" }, priority: 2 },
+          { identifier: "ENG-21", title: "Other parent child", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+        ]
+
+        if (args.filter?.parent?.id?.eq === "lin-parent-10") {
+          return { nodes: nodes.filter(node => node.identifier !== "ENG-21") }
+        }
+
+        return { nodes }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(calls, [{ first: 100, filter: { team: { id: { eq: "team-1" } }, parent: { id: { eq: "lin-parent-10" } } } }])
+  assert.match(result.stdout, /ENG-11 Open child/)
+  assert.doesNotMatch(result.stdout, /ENG-12/)
+  assert.doesNotMatch(result.stdout, /ENG-21/)
+})
+
 test("runLinearBackendCommand shows a Linear issue by identifier", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 

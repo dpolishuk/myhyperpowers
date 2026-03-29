@@ -58,10 +58,17 @@ async function resolveLinearContextWithSdk() {
   }
 }
 
-async function listIssues(context, statusFilter) {
+async function listIssues(context, statusFilter, parentRef = null) {
+  const filter = { team: { id: { eq: context.team?.id } } }
+
+  if (parentRef) {
+    const parentIssue = await findIssueByRef(context, parentRef)
+    filter.parent = { id: { eq: parentIssue.id } }
+  }
+
   const result = await context.issues({
     first: 100,
-    filter: { team: { id: { eq: context.team?.id } } },
+    filter,
   })
 
   const rows = result.nodes.filter(issue => {
@@ -103,13 +110,21 @@ async function renderIssueDetails(issue) {
   return lines.join("\n")
 }
 
-function parseStatusArg(args) {
+function parseArgValue(args, flag) {
   for (let index = 0; index < args.length; index += 1) {
-    if (args[index] === "--status") {
+    if (args[index] === flag) {
       return args[index + 1] || null
     }
   }
   return null
+}
+
+function parseStatusArg(args) {
+  return parseArgValue(args, "--status")
+}
+
+function parseParentArg(args) {
+  return parseArgValue(args, "--parent")
 }
 
 async function runLinearBackendCommand(argv, { resolveContext = resolveLinearContextWithSdk } = {}) {
@@ -123,7 +138,7 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
         "",
         "Supported commands:",
         "  ready",
-        "  list [--status <status>]",
+        "  list [--status <status>] [--parent <id>]",
         "  show <LINEAR-KEY>",
         "  update <LINEAR-KEY> --status <status>",
         "  close <LINEAR-KEY>",
@@ -144,7 +159,11 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     }
 
     if (command === "list") {
-      return { exitCode: 0, stdout: await listIssues(context, parseStatusArg(args)), stderr: "" }
+      return {
+        exitCode: 0,
+        stdout: await listIssues(context, parseStatusArg(args), parseParentArg(args)),
+        stderr: "",
+      }
     }
 
     if (command === "show") {
