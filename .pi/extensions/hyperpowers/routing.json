@@ -1,0 +1,10 @@
+{
+  "_comment": "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model",
+  "subagents": {
+    "review": { "model": "inherit" },
+    "research": { "model": "inherit" },
+    "validation": { "model": "inherit" },
+    "test-runner": { "model": "inherit" },
+    "default": { "model": "inherit" }
+  }
+}

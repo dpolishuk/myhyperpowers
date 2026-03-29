@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import * as p from "@clack/prompts"
-import { existsSync } from "node:fs"
-import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat } from "node:fs/promises"
+import { existsSync, readFileSync } from "node:fs"
+import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 
@@ -211,11 +211,132 @@ const HOSTS: HostConfig[] = [
       }
     },
   },
+  {
+    id: "pi",
+    name: "Pi Agent",
+    detect: () => commandExists("pi"),
+    targetDir: () => join(homedir(), ".pi", "agent"),
+    sources: {
+      "extensions/hyperpowers": { from: ".pi/extensions/hyperpowers", exclude: ["routing.json"] },
+    },
+    availableFeatures: ["memsearch"],
+    postInstall: async (targetDir) => {
+      const extDir = join(targetDir, "extensions", "hyperpowers")
+
+      // Install extension dependencies (pi-tui, typebox, etc.) before mutating user files.
+      if (existsSync(join(extDir, "package.json"))) {
+        const installResult = commandExists("bun")
+          ? Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+          : commandExists("npm")
+            ? Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+            : null
+
+        if (!installResult) {
+          throw new Error("Pi install requires bun or npm to install extension dependencies")
+        }
+
+        if (installResult.exitCode !== 0) {
+          const stderr = installResult.stderr.toString().trim()
+          const stdout = installResult.stdout.toString().trim()
+          throw new Error(`Pi extension dependency install failed${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
+        }
+      }
+
+      // Append/replace Hyperpowers section in AGENTS.md (preserve user content before AND after)
+      const agentsMdSrc = join(REPO_ROOT, ".pi", "AGENTS.md")
+      const agentsMdDest = join(targetDir, "AGENTS.md")
+      if (existsSync(agentsMdSrc)) {
+        const newContent = readFileSync(agentsMdSrc, "utf8")
+        if (existsSync(agentsMdDest)) {
+          const existing = readFileSync(agentsMdDest, "utf8")
+          await writeFile(agentsMdDest, replacePiAgentsSection(existing, newContent), "utf8")
+        } else {
+          await writeFile(agentsMdDest, wrapPiAgentsSection(newContent) + "\n", "utf8")
+        }
+      }
+      // Copy skills directory for runtime skill loading
+      const skillsSrc = join(REPO_ROOT, "skills")
+      if (existsSync(skillsSrc)) {
+        await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
+      }
+      // Preserve user routing.json if it exists (don't overwrite custom model assignments)
+      const routingDest = join(extDir, "routing.json")
+      const routingSrc = join(REPO_ROOT, ".pi", "extensions", "hyperpowers", "routing.json")
+      if (!existsSync(routingDest) && existsSync(routingSrc)) {
+        await copyFile(routingSrc, routingDest)
+      }
+    },
+    postUninstall: async (targetDir) => {
+      // Remove Hyperpowers section from AGENTS.md (preserve user content)
+      const agentsMdPath = join(targetDir, "AGENTS.md")
+      if (existsSync(agentsMdPath)) {
+        const content = readFileSync(agentsMdPath, "utf8")
+        const remaining = removePiAgentsSection(content)
+        if (remaining) {
+          await writeFile(agentsMdPath, remaining + "\n", "utf8")
+        } else {
+          await rm(agentsMdPath, { force: true })
+        }
+      }
+      // Remove entire hyperpowers extension directory (includes skills, routing, node_modules)
+      const extDir = join(targetDir, "extensions", "hyperpowers")
+      if (existsSync(extDir)) {
+        await rm(extDir, { recursive: true, force: true })
+      }
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
 // Feature Configurations
 // ---------------------------------------------------------------------------
+
+const PI_AGENTS_SECTION_BEGIN = "<!-- BEGIN HYPERPOWERS PI -->"
+const PI_AGENTS_SECTION_END = "<!-- END HYPERPOWERS PI -->"
+
+function wrapPiAgentsSection(content: string): string {
+  return `${PI_AGENTS_SECTION_BEGIN}\n${content.trim()}\n${PI_AGENTS_SECTION_END}`
+}
+
+function replacePiAgentsSection(existing: string, newContent: string): string {
+  const wrapped = wrapPiAgentsSection(newContent)
+  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
+  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    const before = existing.slice(0, beginIdx).trimEnd()
+    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+    return [...[before, wrapped, after].filter(Boolean)].join("\n\n") + "\n"
+  }
+
+  const legacyMarker = "# Hyperpowers for Pi"
+  const markerIdx = existing.indexOf(legacyMarker)
+  if (markerIdx !== -1) {
+    const before = existing.slice(0, markerIdx).trimEnd()
+    return [...[before, wrapped].filter(Boolean)].join("\n\n") + "\n"
+  }
+
+  return [...[existing.trimEnd(), wrapped].filter(Boolean)].join("\n\n") + "\n"
+}
+
+function removePiAgentsSection(existing: string): string {
+  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
+  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    const before = existing.slice(0, beginIdx).trimEnd()
+    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+    return [...[before, after].filter(Boolean)].join("\n\n").trim()
+  }
+
+  const legacyMarker = "# Hyperpowers for Pi"
+  const markerIdx = existing.indexOf(legacyMarker)
+  if (markerIdx !== -1) {
+    return existing.slice(0, markerIdx).trim()
+  }
+
+  return existing.trim()
+}
 
 const FEATURES: FeatureConfig[] = [
   {
@@ -394,53 +515,90 @@ const FEATURES: FeatureConfig[] = [
 const installHost = async (host: HostConfig): Promise<string[]> => {
   const target = host.targetDir()
   const installedFiles: string[] = []
+  const backupEntries: Array<{ originalPath: string, backupPath: string }> = []
+  const createdPaths: string[] = []
+  const piExtensionDir = join(target, "extensions", "hyperpowers")
+  const piExtensionExistedBeforeInstall = host.id === "pi" && existsSync(piExtensionDir)
 
-  for (const [category, source] of Object.entries(host.sources)) {
-    const srcDir = join(REPO_ROOT, source.from)
-    if (!existsSync(srcDir)) continue
+  try {
+    for (const [category, source] of Object.entries(host.sources)) {
+      const srcDir = join(REPO_ROOT, source.from)
+      if (!existsSync(srcDir)) continue
 
-    const items = await listItems(srcDir, source.pattern, source.exclude)
-    const destDir = join(target, category)
-    await mkdir(destDir, { recursive: true })
+      const items = await listItems(srcDir, source.pattern, source.exclude)
+      const destDir = join(target, category)
+      await mkdir(destDir, { recursive: true })
 
-    for (const item of items) {
-      const srcPath = join(srcDir, item)
-      const destPath = join(destDir, item)
-      const s = await stat(srcPath)
-      if (s.isDirectory()) {
-        await copyDir(srcPath, destPath)
-        installedFiles.push(`${category}/${item}/`)
-      } else {
-        await copyFile(srcPath, destPath)
-        installedFiles.push(`${category}/${item}`)
+      for (const item of items) {
+        const srcPath = join(srcDir, item)
+        const destPath = join(destDir, item)
+        const backupPath = existsSync(destPath)
+          ? `${destPath}.hyperpowers-backup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          : null
+
+        if (backupPath) {
+          await rename(destPath, backupPath)
+          backupEntries.push({ originalPath: destPath, backupPath })
+        }
+
+        const s = await stat(srcPath)
+        if (s.isDirectory()) {
+          await copyDir(srcPath, destPath)
+          installedFiles.push(`${category}/${item}/`)
+        } else {
+          await copyFile(srcPath, destPath)
+          installedFiles.push(`${category}/${item}`)
+        }
+        createdPaths.push(destPath)
       }
     }
+
+    // Run post-install and track additional files (before writing version marker)
+    if (host.postInstall) {
+      await host.postInstall(target)
+      // Re-scan for files that postInstall may have added
+      if (host.id === "opencode") {
+        for (const f of ["package.json", "task-context.json", "cass-memory.json"]) {
+          if (existsSync(join(target, f))) installedFiles.push(f)
+        }
+      }
+      if (host.id === "claude") {
+        if (existsSync(join(target, "hyperpowers-statusline.sh"))) installedFiles.push("hyperpowers-statusline.sh")
+      }
+      if (host.id === "kimi") {
+        for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
+          if (existsSync(join(target, f))) installedFiles.push(f)
+        }
+      }
+      // Pi: AGENTS.md and skills/ are NOT tracked in manifest because postUninstall
+      // handles them surgically (removes only Hyperpowers section from AGENTS.md,
+      // removes entire extensions/hyperpowers/ dir). Tracking them would cause
+      // uninstallHost to delete the whole AGENTS.md before postUninstall runs.
+    }
+
+    // Write version file last (after postInstall succeeds)
+    await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
+    installedFiles.push(".hyperpowers-version")
+
+    for (const { backupPath } of backupEntries.reverse()) {
+      await rm(backupPath, { recursive: true, force: true }).catch(() => {})
+    }
+
+    return installedFiles
+  } catch (error) {
+    for (const createdPath of createdPaths.reverse()) {
+      await rm(createdPath, { recursive: true, force: true }).catch(() => {})
+    }
+    for (const { originalPath, backupPath } of backupEntries.reverse()) {
+      if (existsSync(backupPath)) {
+        await rename(backupPath, originalPath).catch(() => {})
+      }
+    }
+    if (host.id === "pi" && !piExtensionExistedBeforeInstall) {
+      await rm(piExtensionDir, { recursive: true, force: true }).catch(() => {})
+    }
+    throw error
   }
-
-  // Run post-install and track additional files (before writing version marker)
-  if (host.postInstall) {
-    await host.postInstall(target)
-    // Re-scan for files that postInstall may have added
-    if (host.id === "opencode") {
-      for (const f of ["package.json", "task-context.json", "cass-memory.json"]) {
-        if (existsSync(join(target, f))) installedFiles.push(f)
-      }
-    }
-    if (host.id === "claude") {
-      if (existsSync(join(target, "hyperpowers-statusline.sh"))) installedFiles.push("hyperpowers-statusline.sh")
-    }
-    if (host.id === "kimi") {
-      for (const f of ["hyperpowers.yaml", "hyperpowers-system.md", "mcp.json"]) {
-        if (existsSync(join(target, f))) installedFiles.push(f)
-      }
-    }
-  }
-
-  // Write version file last (after postInstall succeeds)
-  await writeFile(join(target, ".hyperpowers-version"), VERSION + "\n", "utf8")
-  installedFiles.push(".hyperpowers-version")
-
-  return installedFiles
 }
 
 const uninstallHost = async (hostId: string, manifest: InstallManifest) => {
@@ -561,7 +719,7 @@ Options:
   --yes, -y          Auto-install all detected hosts and features
   --json, -j         Output structured JSON (implies --yes, for AI agents)
   --uninstall        Remove all installed files and features
-  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini
+  --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini,pi
   --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
   --help, -h         Show this help
 `)
@@ -690,10 +848,13 @@ Options:
     features: { ...(existingManifest?.features ?? {}) },
   }
 
+  let hostInstallFailed = false
+
   for (const hostId of selectedHostIds) {
     const host = HOSTS.find((h) => h.id === hostId)
     if (!host) {
       p.log.warn(`Unknown host "${hostId}" — skipping. Supported: ${HOSTS.map((h) => h.id).join(", ")}`)
+      hostInstallFailed = true
       continue
     }
 
@@ -703,6 +864,7 @@ Options:
       manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
       s.stop(`${host.name}: ${files.length} items installed`)
     } catch (err) {
+      hostInstallFailed = true
       s.stop(`${host.name}: install failed — ${err instanceof Error ? err.message : String(err)}`)
     }
   }
@@ -728,7 +890,7 @@ Options:
   if (args.json) {
     // Structured JSON output for AI agents
     console.log(JSON.stringify({
-      ok: true,
+      ok: !hostInstallFailed,
       version: VERSION,
       hosts: Object.keys(manifest.hosts),
       features: Object.fromEntries(
@@ -738,7 +900,15 @@ Options:
     }))
   } else {
     p.log.info(`Manifest written to ${manifestPath()}`)
-    p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    if (hostInstallFailed) {
+      p.outro(`Completed with host install failures. v${VERSION} installed to ${Object.keys(manifest.hosts).length}/${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    } else {
+      p.outro(`Done! v${VERSION} installed to ${selectedHostIds.length} host(s) with ${selectedFeatureIds.length} feature(s).`)
+    }
+  }
+
+  if (hostInstallFailed) {
+    process.exitCode = 1
   }
 }
 
