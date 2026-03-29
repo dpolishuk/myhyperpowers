@@ -52,6 +52,7 @@ async function resolveLinearContextWithSdk() {
   return {
     team,
     teamStates,
+    issue: (...args) => client.issue(...args),
     issues: args => client.issues(args),
     issueSearch: (...args) => client.issueSearch(...args),
     updateIssue: (...args) => client.updateIssue(...args),
@@ -82,6 +83,15 @@ async function listIssues(context, statusFilter, parentRef = null) {
 }
 
 async function findIssueByRef(context, ref) {
+  if (!looksLikeLinearIdentifier(ref) && typeof context.issue === "function") {
+    try {
+      const directIssue = await context.issue(ref)
+      if (directIssue?.id === ref || directIssue?.identifier === ref) return directIssue
+    } catch {
+      // Fall back to issueSearch so identifier lookups and not-found behavior stay consistent.
+    }
+  }
+
   const result = await context.issueSearch(ref, {
     first: 10,
     filter: { team: { id: { eq: context.team?.id } } },
@@ -96,6 +106,10 @@ async function findIssueByRef(context, ref) {
     throw new Error(`Linear issue "${ref}" not found.`)
   }
   throw new Error(`No exact Linear issue matched "${ref}".`)
+}
+
+function looksLikeLinearIdentifier(ref) {
+  return /^[A-Z][A-Z0-9_]*-\d+$/.test(ref)
 }
 
 async function renderIssueDetails(issue) {
@@ -138,7 +152,7 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
         "",
         "Supported commands:",
         "  ready",
-        "  list [--status <status>] [--parent <id>]",
+        "  list [--status <status>] [--parent <parent-ref>]",
         "  show <LINEAR-KEY>",
         "  update <LINEAR-KEY> --status <status>",
         "  close <LINEAR-KEY>",

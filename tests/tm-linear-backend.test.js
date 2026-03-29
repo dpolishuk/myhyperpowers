@@ -81,6 +81,59 @@ test("runLinearBackendCommand scopes linear list results to the requested parent
   assert.doesNotMatch(result.stdout, /ENG-21/)
 })
 
+test("runLinearBackendCommand resolves parent internal ids through direct issue lookup", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const calls = []
+
+  const result = await runLinearBackendCommand(["list", "--parent", "lin-parent-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async ref => {
+        if (ref === "lin-parent-10") {
+          return { id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue" }
+        }
+
+        return null
+      },
+      issueSearch: async () => ({ nodes: [] }),
+      issues: async args => {
+        calls.push(args)
+
+        if (args.filter?.parent?.id?.eq === "lin-parent-10") {
+          return {
+            nodes: [
+              { identifier: "ENG-11", title: "Child issue", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+            ],
+          }
+        }
+
+        return { nodes: [] }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(calls, [{ first: 100, filter: { team: { id: { eq: "team-1" } }, parent: { id: { eq: "lin-parent-10" } } } }])
+  assert.match(result.stdout, /ENG-11 Child issue/)
+})
+
+test("runLinearBackendCommand returns a clear error when parent lookup fails during list", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--parent", "ENG-404"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({ nodes: [] }),
+      issues: async () => {
+        throw new Error("should not list issues when parent lookup fails")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Linear issue "ENG-404" not found/)
+})
+
 test("runLinearBackendCommand composes parent and status filters for linear list", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []

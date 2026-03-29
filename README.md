@@ -503,6 +503,21 @@ tm config set linear.team-key "ENG"
 
 4. **Sync**: `tm sync` now pushes issues to Linear after syncing git
 
+### Linear-Native Preview Backend
+
+This branch also includes a minimal preview command surface for `TM_BACKEND=linear` when you want `tm` to talk directly to Linear instead of using local `bd` data as the primary store.
+
+```bash
+TM_BACKEND=linear tm ready
+TM_BACKEND=linear tm list [--status <status>] [--parent <parent-ref>]
+TM_BACKEND=linear tm show <linear-ref>
+TM_BACKEND=linear tm update <linear-ref> --status <status>
+TM_BACKEND=linear tm close <linear-ref>
+```
+
+- `<parent-ref>` may be either a Linear issue identifier (for example `ENG-123`) or a Linear internal id.
+- Parent-scoped listing is currently limited to the preview backend command surface above; broader parity continues to land incrementally behind `tm`.
+
 ### Without Linear
 
 If you don't configure Linear, the normal tm-first local workflow still works:
