@@ -94,10 +94,16 @@ test("tm discovers repo config from the script location when cwd is outside the 
   }
 })
 
-test("tm passes through arguments unchanged to bd", () => {
+test("tm passes through arguments unchanged to bd", (t) => {
+  const bdPath = findCommandPath("bd")
+  if (!bdPath) {
+    t.skip("bd not available on PATH in this environment")
+    return
+  }
+
   // Running 'tm list --status open' should produce the same output as 'bd list --status open'
   const tmResult = runTm(["list", "--status", "open"])
-  const bdResult = spawnSync("bd", ["list", "--status", "open"], {
+  const bdResult = spawnSync(bdPath, ["list", "--status", "open"], {
     cwd: repoRoot,
     encoding: "utf8",
     timeout: 10000,
@@ -106,9 +112,15 @@ test("tm passes through arguments unchanged to bd", () => {
   assert.equal(tmResult.stdout, bdResult.stdout)
 })
 
-test("tm sync --help matches bd sync --help without running Linear sync", () => {
+test("tm sync --help matches bd sync --help without running Linear sync", (t) => {
+  const bdPath = findCommandPath("bd")
+  if (!bdPath) {
+    t.skip("bd not available on PATH in this environment")
+    return
+  }
+
   const tmResult = runTm(["sync", "--help"], { env: { LINEAR_API_KEY: "" } })
-  const bdResult = spawnSync("bd", ["sync", "--help"], {
+  const bdResult = spawnSync(bdPath, ["sync", "--help"], {
     cwd: repoRoot,
     encoding: "utf8",
     timeout: 10000,
