@@ -289,6 +289,55 @@ exit 0
   }
 })
 
+test("tm sync ignores unsupported backend config stdout when checking Linear config", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-sync-unsupported-config-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(
+      fakeBdPath,
+      `#!${bashPath}
+if [[ "$1" == "sync" ]]; then exit 0; fi
+if [[ "$1" == "config" && "$2" == "get" ]]; then
+  echo "config get is not supported"
+  exit 0
+fi
+exit 0
+`,
+    )
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "bd",
+      PATH: tmpBinDir,
+    }
+    delete env.LINEAR_API_KEY
+    delete env.LINEAR_TEAM_KEY
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(result.stderr, "")
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
 test("tm sync ignores similarly named config keys when checking linear.api-key", () => {
   const os = require("node:os")
   const fs = require("node:fs")
@@ -548,6 +597,38 @@ test("tm sync under br performs local flush and reports unsupported follow-on sy
     assert.match(fs.readFileSync(argsCapturePath, "utf8"), /^sync --flush-only/)
     assert.match(result.stderr, /not supported for backend 'br'/)
     assert.match(result.stderr, /follow-on sync was skipped/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
+test("tm sync under br does not duplicate an explicit flush-only flag", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-br-sync-explicit-flush-"))
+  const argsCapturePath = path.join(tmpBinDir, "br-args-explicit.txt")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBrPath = path.join(tmpBinDir, "br")
+    fs.writeFileSync(fakeBrPath, `#!${bashPath}\nif [[ "$1" == "sync" ]]; then\n  printf '%s\\n' "$*" > "${argsCapturePath}"\n  exit 0\nfi\nif [[ "$1" == "config" && "$2" == "get" ]]; then\n  echo "$3 (not set)"\n  exit 0\nfi\nexit 0\n`)
+    fs.chmodSync(fakeBrPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync", "--flush-only"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "br", PATH: tmpBinDir },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.equal(fs.readFileSync(argsCapturePath, "utf8").trim(), "sync --flush-only")
   } finally {
     fs.rmSync(tmpBinDir, { recursive: true, force: true })
   }

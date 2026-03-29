@@ -171,7 +171,7 @@ load_linear_config_value() {
   if [[ -n "$backend_cmd" && "$backend_cmd" != "linear" ]] && command -v "$backend_cmd" >/dev/null 2>&1; then
     config_val="$($backend_cmd config get "$config_key" 2>/dev/null || true)"
     config_val="$(trim "$config_val")"
-    if [[ -n "$config_val" && "$config_val" != *"(not set)" ]]; then
+    if [[ -n "$config_val" && "$config_val" != *"(not set)" && "$config_val" != *[[:space:]]* ]]; then
       printf '%s\n' "$config_val"
       return
     fi
@@ -280,7 +280,20 @@ main() {
         fi
         local sync_exit=0
         if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
-          "$backend_cmd" sync --flush-only "${@:2}" || sync_exit=$?
+          local sync_args=("${@:2}")
+          local has_flush_only=0
+          local sync_arg
+          for sync_arg in "${sync_args[@]}"; do
+            if [[ "$sync_arg" == "--flush-only" ]]; then
+              has_flush_only=1
+              break
+            fi
+          done
+          if [[ "$has_flush_only" -eq 1 ]]; then
+            "$backend_cmd" sync "${sync_args[@]}" || sync_exit=$?
+          else
+            "$backend_cmd" sync --flush-only "${sync_args[@]}" || sync_exit=$?
+          fi
         else
           "$backend_cmd" sync "${@:2}" || sync_exit=$?
         fi

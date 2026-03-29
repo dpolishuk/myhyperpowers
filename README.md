@@ -1,7 +1,7 @@
 # Hyperpowers
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.12.1-green.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.13.0-green.svg)](.claude-plugin/plugin.json)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 

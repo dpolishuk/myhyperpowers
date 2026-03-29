@@ -36,17 +36,16 @@ test("tm help backend list stays aligned with backend registry", () => {
   })
 
   assert.equal(help.status, 0, help.stderr)
+  const availableBackendsSection = help.stdout.split("Available backends:\n")[1]?.split("\n\nExamples:")[0] || ""
+  const actualLines = availableBackendsSection.split("\n").filter(Boolean)
   const expectedHelpLines = [
-    ["bd", "Local beads task manager (default)"],
-    ["br", "Local beads_rust task manager"],
-    ["tk", "Ticket git-backed markdown task manager"],
-    ["linear", "Linear-native backend option (not yet implemented)"],
+    "  bd      Local beads task manager (default)",
+    "  br      Local beads_rust task manager",
+    "  tk      Ticket git-backed markdown task manager",
+    "  linear  Linear-native backend option (not yet implemented)",
   ]
 
-  for (const [backend, description] of expectedHelpLines) {
-    assert.equal(help.stdout.includes(`  ${backend}`), true)
-    assert.equal(help.stdout.includes(description), true)
-  }
+  assert.deepEqual(actualLines, expectedHelpLines)
 })
 
 test("tm backend sync contract is explicit in the shell registry", () => {
@@ -63,18 +62,18 @@ test("tm backend sync contract is explicit in the shell registry", () => {
 test("README and QUICKSTART describe the same peer backend set and per-project backend model", () => {
   const readme = read("README.md")
   const quickstart = read("docs/QUICKSTART.md")
+  const readmeModelSection = readme.split("## Task Management Model")[1]?.split("## Features")[0] || ""
+  const quickstartModelSection = quickstart.split("## Core Model")[1]?.split("## Daily Workflow")[0] || ""
 
-  assert.equal(readme.includes("one backend selected per project"), true)
-  assert.equal(quickstart.includes("one backend selected per project"), true)
-  assert.equal(readme.includes("`linear` = Linear-native backend option (not yet implemented on this repo branch)"), true)
-  assert.equal(quickstart.includes("`linear` = Linear-native backend option (not yet implemented on this repo branch)"), true)
-  assert.equal(readme.includes("`bd` remains the active backend"), true)
-  assert.equal(quickstart.includes("`bd` is the active backend"), true)
-  assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
-  assert.equal(quickstart.includes("not interchangeable day-to-day commands"), true)
-
-  for (const backend of ["bd", "br", "tk", "linear"]) {
-    assert.equal(readme.includes(`\`${backend}\``), true)
-    assert.equal(quickstart.includes(`\`${backend}\``), true)
-  }
+  assert.match(readmeModelSection, /one backend selected per project/)
+  assert.match(quickstartModelSection, /one backend selected per project/)
+  assert.match(readmeModelSection, /bd` \/ `br` \/ `tk` \/ `linear/)
+  assert.match(readmeModelSection, /`linear` = Linear-native backend option \(not yet implemented on this repo branch\)/)
+  assert.match(quickstartModelSection, /- `linear` = Linear-native backend option \(not yet implemented on this repo branch\)/)
+  assert.match(readmeModelSection, /`bd` remains the active backend/)
+  assert.match(quickstartModelSection, /`bd` is the active backend/)
+  assert.match(readmeModelSection, /not interchangeable day-to-day commands/)
+  assert.match(quickstartModelSection, /not interchangeable day-to-day commands/)
+  assert.doesNotMatch(quickstartModelSection, /fully supported backend/)
+  assert.doesNotMatch(readmeModelSection, /are interchangeable day-to-day commands/)
 })
