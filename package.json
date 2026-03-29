@@ -10,7 +10,9 @@
     "tm": "scripts/tm"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:pi-smoke": "bun test tests/pi-smoke.test.ts",
+    "test:ci-local": "npm run test && bun test tests/pi-agent-routing.test.ts tests/install-script.test.js tests/pi-smoke.test.ts"
   },
   "repository": {
     "type": "git",
