@@ -1,6 +1,11 @@
 import { test, expect, mock } from "bun:test"
 
-import { buildPiSubagentArgs, executePiSubagent } from "../.pi/extensions/hyperpowers/subagent"
+import {
+  buildPiSubagentArgs,
+  buildStructuredSubagentTask,
+  executePiSubagent,
+  parseStructuredSubagentOutput,
+} from "../.pi/extensions/hyperpowers/subagent"
 
 test("buildPiSubagentArgs includes explicit model override", () => {
   expect(buildPiSubagentArgs("Review src/auth.ts", "openai/gpt-4.1")).toEqual([
@@ -93,4 +98,69 @@ test("executePiSubagent falls back to stdout when stderr is empty on failure", (
   )
 
   expect(result.content[0].text).toContain("failed in stdout")
+})
+
+test("buildStructuredSubagentTask wraps the task with JSON-only instructions", () => {
+  const wrapped = buildStructuredSubagentTask("Review src/auth.ts")
+
+  expect(wrapped).toContain("Return valid JSON only")
+  expect(wrapped).toContain("Review src/auth.ts")
+  expect(wrapped).toContain("status")
+  expect(wrapped).toContain("findings")
+})
+
+test("parseStructuredSubagentOutput accepts valid JSON objects", () => {
+  const parsed = parseStructuredSubagentOutput(JSON.stringify({
+    status: "PASS",
+    summary: "Looks good",
+    findings: [],
+    nextAction: "Ship it",
+  }))
+
+  expect(parsed.status).toBe("PASS")
+  expect(parsed.summary).toBe("Looks good")
+  expect(parsed.findings).toEqual([])
+  expect(parsed.nextAction).toBe("Ship it")
+})
+
+test("parseStructuredSubagentOutput rejects invalid JSON with readable error text", () => {
+  expect(() => parseStructuredSubagentOutput("not json")).toThrow(/valid JSON/i)
+})
+
+test("executePiSubagent returns parsed structured content when format is structured and JSON is valid", () => {
+  const result = executePiSubagent(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    mock((_cmd, args) => ({
+      status: 0,
+      stdout: JSON.stringify({
+        status: "PASS",
+        summary: "All good",
+        findings: [],
+      }),
+      stderr: "",
+    })) as any,
+  )
+
+  expect(result.content[0].text).toContain('"status":"PASS"')
+})
+
+test("executePiSubagent returns a parsing failure when format is structured and JSON is invalid", () => {
+  const result = executePiSubagent(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    mock(() => ({
+      status: 0,
+      stdout: "definitely not json",
+      stderr: "",
+    })) as any,
+  )
+
+  expect(result.content[0].text).toContain("Structured subagent output was not valid JSON")
 })

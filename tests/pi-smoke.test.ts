@@ -50,7 +50,7 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
   const extensionModule = await import(extensionUrl)
 
   const registeredCommands = new Set<string>()
-  const registeredTools = new Set<string>()
+  const registeredTools = new Map<string, any>()
   const observedEvents = new Set<string>()
 
   const mockPi: any = {
@@ -58,7 +58,7 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
       registeredCommands.add(name)
     },
     registerTool: (tool: { name: string }) => {
-      registeredTools.add(tool.name)
+      registeredTools.set(tool.name, tool)
     },
     on: (event: string) => {
       observedEvents.add(event)
@@ -77,6 +77,7 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
   expect(registeredCommands.has("routing-settings")).toBe(true)
   expect(registeredCommands.has("configure-routing")).toBe(true)
   expect(registeredTools.has("hyperpowers_subagent")).toBe(true)
+  expect(registeredTools.get("hyperpowers_subagent")?.parameters?.properties?.format).toBeTruthy()
   expect(observedEvents.has("session_start")).toBe(true)
 
   rmSync(home, { recursive: true, force: true })
