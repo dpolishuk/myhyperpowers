@@ -67,12 +67,9 @@ async function listIssues(context, statusFilter, parentRef = null) {
     filter.parent = { id: { eq: parentIssue.id } }
   }
 
-  const result = await context.issues({
-    first: 100,
-    filter,
-  })
+  const nodes = await listAllIssues(context, filter)
 
-  const rows = result.nodes.filter(issue => {
+  const rows = nodes.filter(issue => {
     const tmStatus = mapLinearStateToTmStatus(issue.state)
     if (statusFilter === "ready") return tmStatus === "open"
     if (!statusFilter) return true
@@ -80,6 +77,24 @@ async function listIssues(context, statusFilter, parentRef = null) {
   }).map(issue => `${issue.identifier} ${issue.title}`)
 
   return rows.join("\n")
+}
+
+async function listAllIssues(context, filter) {
+  const nodes = []
+  let after = null
+
+  while (true) {
+    const result = await context.issues({
+      first: 100,
+      ...(after ? { after } : {}),
+      filter,
+    })
+
+    nodes.push(...(result.nodes || []))
+
+    if (!result.pageInfo?.hasNextPage) return nodes
+    after = result.pageInfo.endCursor
+  }
 }
 
 async function findIssueByRef(context, ref) {

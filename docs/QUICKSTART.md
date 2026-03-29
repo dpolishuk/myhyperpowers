@@ -10,7 +10,7 @@ Use this guide when you want the shortest path to the repo’s canonical task-ma
 - `tk` = Ticket / git-backed markdown alternative
 - `linear` = Linear-native backend preview (core commands only on this repo branch)
 
-These tools are related, but they are **not interchangeable day-to-day commands**. `tm` selects **one backend selected per project**.
+These tools are related, but they are **not interchangeable day-to-day commands**. `tm` selects **one backend per project**.
 
 Current backend note for this repo: `bd` is the active backend, while `linear` is available as a preview backend on this branch.
 

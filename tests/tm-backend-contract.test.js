@@ -82,7 +82,7 @@ test("README and QUICKSTART describe the same peer backend set and per-project b
   ]
 
   assert.match(readmeModelSection, /one backend selected per project/)
-  assert.match(quickstartModelSection, /one backend selected per project/)
+  assert.match(quickstartModelSection, /one backend per project/)
   assert.match(readmeModelSection, /bd` \/ `br` \/ `tk` \/ `linear/)
   assert.match(readmeModelSection, /`bd` remains the active backend/)
   assert.match(quickstartModelSection, /`bd` is the active backend/)

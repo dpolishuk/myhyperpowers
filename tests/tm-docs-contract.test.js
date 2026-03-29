@@ -55,6 +55,8 @@ test("Docs index surfaces the canonical tm setup and integration guides", () => 
   assert.equal(quickstart.includes("tm sync"), true)
   assert.equal(quickstart.includes("bd ready"), false)
   assert.equal(quickstart.includes("backend-specific setup"), true)
+  assert.equal(quickstart.includes("one backend per project"), true)
+  assert.equal(quickstart.includes("one backend selected per project"), false)
 })
 
 test("README first-pass classifies bd br and tk with distinct roles", () => {
@@ -97,6 +99,8 @@ test("Docs index surfaces model configuration guide", () => {
   assert.equal(guidesSection.includes("model-configuration.md"), true)
   assert.equal(hostGuidesSection.includes(".kimi/INSTALL.md"), true)
   assert.equal(hostGuidesSection.includes(".codex/INSTALL.md"), true)
+  assert.equal(docsReadme.includes("one backend per project"), true)
+  assert.equal(docsReadme.includes("one backend selected per project"), false)
 })
 
 test("Kimi and Codex host docs stay tm-first", () => {

@@ -44,6 +44,48 @@ test("runLinearBackendCommand returns ready issues from unstarted and triage sta
   assert.doesNotMatch(result.stdout, /ENG-4/)
 })
 
+test("runLinearBackendCommand paginates ready issues across multiple Linear pages", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const calls = []
+
+  const result = await runLinearBackendCommand(["ready"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issues: async args => {
+        calls.push(args)
+
+        if (args.after === "cursor-1") {
+          return {
+            nodes: [
+              { identifier: "ENG-3", title: "Second page ready", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+              { identifier: "ENG-4", title: "Second page closed", state: { name: "Done", type: "completed" }, priority: 2 },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: "cursor-2" },
+          }
+        }
+
+        return {
+          nodes: [
+            { identifier: "ENG-1", title: "First page ready", state: { name: "Todo", type: "unstarted" }, priority: 2 },
+            { identifier: "ENG-2", title: "First page working", state: { name: "In Progress", type: "started" }, priority: 2 },
+          ],
+          pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+        }
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(calls, [
+    { first: 100, filter: { team: { id: { eq: "team-1" } } } },
+    { first: 100, after: "cursor-1", filter: { team: { id: { eq: "team-1" } } } },
+  ])
+  assert.match(result.stdout, /ENG-1 First page ready/)
+  assert.match(result.stdout, /ENG-3 Second page ready/)
+  assert.doesNotMatch(result.stdout, /ENG-2/)
+  assert.doesNotMatch(result.stdout, /ENG-4/)
+})
+
 test("runLinearBackendCommand scopes linear list results to the requested parent identifier", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []
