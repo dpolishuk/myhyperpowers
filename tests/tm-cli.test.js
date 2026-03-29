@@ -62,7 +62,7 @@ test("tm with TM_BACKEND=linear routes commands through the linear backend entry
     fs.mkdirSync(fakeBeadsDir, { recursive: true })
     fs.copyFileSync(tmPath, fakeTmPath)
     fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
-    fs.writeFileSync(path.join(fakeScriptDir, "tm-linear-backend.js"), `require('node:fs').writeFileSync(${JSON.stringify(capturePath)}, process.argv.slice(2).join(' '))\n`)
+    fs.writeFileSync(path.join(fakeScriptDir, "tm-linear-backend.js"), `require('node:fs').writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify({ args: process.argv.slice(2), repoRoot: process.env.TM_REPO_ROOT }))\n`)
     fs.chmodSync(fakeTmPath, 0o755)
 
     const result = spawnSync(fakeTmPath, ["ready"], {
@@ -73,7 +73,73 @@ test("tm with TM_BACKEND=linear routes commands through the linear backend entry
     })
 
     assert.equal(result.status, 0, result.stderr)
-    assert.equal(fs.readFileSync(capturePath, "utf8"), "ready")
+    assert.deepEqual(JSON.parse(fs.readFileSync(capturePath, "utf8")), { args: ["ready"], repoRoot: fakeRepo })
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
+})
+
+test("tm with TM_BACKEND=linear reports missing Node.js clearly", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-linear-no-node-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
+    fs.chmodSync(fakeTmPath, 0o755)
+
+    const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-linear-no-node-bin-"))
+    for (const commandName of ["dirname"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const result = spawnSync(bashPath, [fakeTmPath, "ready"], {
+      cwd: fakeRepo,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "linear", PATH: tmpBinDir, LINEAR_API_KEY: "lin_api_test123", LINEAR_TEAM_KEY: "ENG" },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /Linear backend requires Node\.js/)
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true })
+  }
+})
+
+test("tm with TM_BACKEND=linear reports missing backend script clearly", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tm-linear-no-script-"))
+  const fakeRepo = path.join(tmpRoot, "fake-repo")
+  const fakeScriptDir = path.join(fakeRepo, "scripts")
+  const fakeTmPath = path.join(fakeScriptDir, "tm")
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    fs.mkdirSync(fakeScriptDir, { recursive: true })
+    fs.copyFileSync(tmPath, fakeTmPath)
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptDir, "tm-backends.sh"))
+    fs.chmodSync(fakeTmPath, 0o755)
+
+    const result = spawnSync(bashPath, [fakeTmPath, "ready"], {
+      cwd: fakeRepo,
+      encoding: "utf8",
+      env: { ...process.env, TM_BACKEND: "linear", LINEAR_API_KEY: "lin_api_test123", LINEAR_TEAM_KEY: "ENG" },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /tm-linear-backend\.js is missing/)
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true })
   }

@@ -6,11 +6,13 @@ const TM_LINEAR_BACKEND_VERSION = "0.1.0"
 function mapLinearStateToTmStatus(state) {
   const name = (state?.name || "").toLowerCase()
   if (name.includes("blocked")) return "blocked"
+  if (name.includes("cancel")) return "closed"
 
   switch (state?.type) {
     case "started":
       return "in_progress"
     case "completed":
+    case "canceled":
       return "closed"
     default:
       return "open"

@@ -351,6 +351,11 @@ main() {
       exec "$backend_cmd" "$@"
       ;;
     linear)
+      local repo_root
+      repo_root="$(find_repo_root)"
+      if [[ -n "$repo_root" ]]; then
+        cd "$repo_root"
+      fi
       if ! command -v node >/dev/null 2>&1; then
         echo "tm: Linear backend requires Node.js." >&2
         exit 1
@@ -359,7 +364,7 @@ main() {
         echo "tm: tm-linear-backend.js is missing." >&2
         exit 1
       fi
-      exec node "$TM_SCRIPT_DIR/tm-linear-backend.js" "$@"
+      exec env TM_REPO_ROOT="${repo_root:-$PWD}" node "$TM_SCRIPT_DIR/tm-linear-backend.js" "$@"
       ;;
   esac
 }

@@ -23,6 +23,17 @@ function readBackendsFromRegistry() {
   return result.stdout.trim().split("\n").filter(Boolean)
 }
 
+function readHelpLinesFromRegistry() {
+  const result = spawnSync("bash", ["-lc", `source "${backendRegistryPath}" && tm_backend_help_lines`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 10000,
+  })
+
+  assert.equal(result.status, 0, result.stderr)
+  return result.stdout.trimEnd().split("\n")
+}
+
 test("tm backend registry is shell-readable and lists peer backends", () => {
   assert.equal(fs.existsSync(backendRegistryPath), true)
   assert.deepEqual(readBackendsFromRegistry(), ["bd", "br", "tk", "linear"])
@@ -38,6 +49,7 @@ test("tm help backend list stays aligned with backend registry", () => {
   assert.equal(help.status, 0, help.stderr)
   const availableBackendsSection = help.stdout.split("Available backends:\n")[1]?.split("\n\nExamples:")[0] || ""
   const actualLines = availableBackendsSection.split("\n").filter(Boolean)
+  const registryHelpLines = readHelpLinesFromRegistry()
   const expectedHelpLines = [
     "  bd      Local beads task manager (default)",
     "  br      Local beads_rust task manager",
@@ -46,6 +58,7 @@ test("tm help backend list stays aligned with backend registry", () => {
   ]
 
   assert.deepEqual(actualLines, expectedHelpLines)
+  assert.deepEqual(actualLines, registryHelpLines)
 })
 
 test("tm backend sync contract is explicit in the shell registry", () => {
