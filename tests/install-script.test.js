@@ -197,6 +197,39 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
+test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-test-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-agents-rollback-bin-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const piShimPath = path.join(tmpBinDir, "pi")
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  const agentsPath = path.join(piHome, "AGENTS.md")
+  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const skillsPath = path.join(extDir, "skills")
+  const originalAgents = "# Existing Pi Instructions\nKeep this untouched if install fails after AGENTS update.\n"
+
+  fs.mkdirSync(extDir, { recursive: true })
+  fs.writeFileSync(agentsPath, originalAgents, "utf8")
+  fs.symlinkSync("/dev/full", skillsPath)
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+  fs.writeFileSync(path.join(tmpBinDir, "bun"), "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "bun"), 0o755)
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "pi", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, NO_COLOR: "1", PATH: `${tmpBinDir}:${process.env.PATH}` },
+    timeout: 120000,
+  })
+
+  assert.notEqual(result.status, 0)
+  assert.equal(fs.readFileSync(agentsPath, "utf8"), originalAgents)
+  assert.equal(fs.lstatSync(skillsPath).isSymbolicLink(), true)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("pi installer fails when dependency install tooling is unavailable", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-deps-test-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-bin-"))
