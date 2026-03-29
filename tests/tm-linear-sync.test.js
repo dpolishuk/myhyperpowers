@@ -167,6 +167,59 @@ test("loadConfigValue ignores single-token bogus backend config output", () => {
   }
 })
 
+test("loadConfigValue ignores invalid backend team-key output", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = (_command, args) => {
+    const key = args[2]
+    if (key === "linear.team-key") {
+      return { status: 0, stdout: "unsupported\n", stderr: "" }
+    }
+    return { status: 0, stdout: "lin_api_cfg\n", stderr: "" }
+  }
+
+  try {
+    delete process.env.LINEAR_TEAM_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadConfigValue } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.equal(loadConfigValue("LINEAR_TEAM_KEY", "linear.team-key"), null)
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
+test("loadLinearConfig raises misconfigured error when backend fallback gives valid api key but invalid team key", () => {
+  const childProcess = require("node:child_process")
+  const originalSpawnSync = childProcess.spawnSync
+  const saved = saveEnv()
+
+  childProcess.spawnSync = (_command, args) => {
+    const key = args[2]
+    if (key === "linear.api-key") {
+      return { status: 0, stdout: "lin_api_cfg\n", stderr: "" }
+    }
+    return { status: 0, stdout: "unsupported\n", stderr: "" }
+  }
+
+  try {
+    delete process.env.LINEAR_API_KEY
+    delete process.env.LINEAR_TEAM_KEY
+    delete process.env.TM_REPO_ROOT
+    process.env.TM_BACKEND = "bd"
+
+    const { loadLinearConfig } = requireFresh("../scripts/tm-linear-sync-config")
+    assert.throws(() => loadLinearConfig(), { code: "MISCONFIGURED" })
+  } finally {
+    childProcess.spawnSync = originalSpawnSync
+    restoreEnv(saved)
+  }
+})
+
 test("loadBdIssues uses a larger maxBuffer for bd list output", () => {
   const { loadBdIssues, BD_LIST_MAX_BUFFER } = requireFresh("../scripts/tm-linear-sync")
   const calls = []
