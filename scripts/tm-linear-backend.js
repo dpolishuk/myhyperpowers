@@ -101,7 +101,8 @@ async function findIssueByRef(context, ref) {
   if (!looksLikeLinearIdentifier(ref) && typeof context.issue === "function") {
     const directIssue = await context.issue(ref)
     if (directIssue?.id === ref || directIssue?.identifier === ref) {
-      if (context.team?.id && directIssue.teamId && directIssue.teamId !== context.team.id) {
+      const issueTeamId = await resolveIssueTeamId(directIssue)
+      if (context.team?.id && issueTeamId && issueTeamId !== context.team.id) {
         throw new Error(`Linear issue "${ref}" not found.`)
       }
 
@@ -119,6 +120,17 @@ async function findIssueByRef(context, ref) {
     throw new Error(`Linear issue "${ref}" not found.`)
   }
   throw new Error(`No exact Linear issue matched "${ref}".`)
+}
+
+async function resolveIssueTeamId(issue) {
+  if (issue?.teamId) return issue.teamId
+
+  try {
+    const team = typeof issue?.team === "function" ? await issue.team() : await issue?.team
+    return team?.id
+  } catch {
+    return undefined
+  }
 }
 
 async function searchAllIssuesByRef(context, ref) {

@@ -179,6 +179,29 @@ test("runLinearBackendCommand rejects cross-team parent lookups during direct is
   assert.match(result.stderr, /Linear issue "lin-parent-10" not found/)
 })
 
+test("runLinearBackendCommand rejects cross-team direct issue lookups via team relation", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "lin-uuid-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async () => ({
+        id: "lin-uuid-10",
+        identifier: "ENG-10",
+        title: "Other team issue",
+        state: { name: "Todo", type: "unstarted" },
+        team: Promise.resolve({ id: "team-2" }),
+      }),
+      issueSearch: async () => {
+        throw new Error("should not fall back to issueSearch for cross-team direct issue lookups")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Linear issue "lin-uuid-10" not found/)
+})
+
 test("runLinearBackendCommand preserves direct lookup errors for internal-id parents", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
