@@ -261,7 +261,14 @@ async function reconcileExistingIssueByMarker(client, teamId, bdId, existing, ma
       try {
         const currentIssue = await client.issue(existing.linearId)
         if (currentIssue && currentIssue.id === existing.linearId) {
-          return existing
+          const { lastSyncedFields, ...relinkBase } = existing
+          const refreshed = {
+            ...relinkBase,
+            lastSyncedAt: new Date().toISOString(),
+          }
+          mapping[bdId] = refreshed
+          logSyncInfo(`Re-linked ${bdId} → ${existing.linearIdentifier} (marker restored on next sync)`) 
+          return refreshed
         }
       } catch (err) {
         if (!err.message || !/not found|does not exist|404/i.test(err.message)) {
@@ -436,16 +443,45 @@ function getMappingLockPath() {
   return `${getMappingPath()}.lock`
 }
 
+function readLockMetadata(lockPath) {
+  try {
+    const raw = fs.readFileSync(lockPath, "utf8").trim()
+    if (!raw) return {}
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === "object" ? parsed : {}
+    }
+    const pid = Number(raw)
+    return Number.isInteger(pid) ? { pid } : {}
+  } catch {
+    return {}
+  }
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs = MAPPING_LOCK_POLL_MS } = {}) {
   const lockPath = getMappingLockPath()
   const startedAt = Date.now()
+  let token = null
 
   while (true) {
     try {
-      fs.writeFileSync(lockPath, String(process.pid), { flag: "wx" })
+      token = JSON.stringify({ pid: process.pid, createdAt: Date.now() })
+      fs.writeFileSync(lockPath, token, { flag: "wx" })
       return () => {
         try {
-          fs.rmSync(lockPath, { force: true })
+          if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === token) {
+            fs.rmSync(lockPath, { force: true })
+          }
         } catch {
           // best effort cleanup
         }
@@ -453,6 +489,20 @@ async function acquireMappingLock({ timeoutMs = MAPPING_LOCK_TIMEOUT_MS, pollMs 
     } catch (err) {
       if (err && err.code !== "EEXIST") {
         throw err
+      }
+      try {
+        const stats = fs.statSync(lockPath)
+        const metadata = readLockMetadata(lockPath)
+        const ageMs = Date.now() - stats.mtimeMs
+        const staleByPid = metadata.pid ? !isProcessAlive(metadata.pid) : false
+        const staleByAge = ageMs >= timeoutMs && (!metadata.pid || staleByPid)
+
+        if (staleByAge || staleByPid) {
+          fs.rmSync(lockPath, { force: true })
+          continue
+        }
+      } catch {
+        // Ignore transient stat/remove races and retry normally.
       }
       if (Date.now() - startedAt >= timeoutMs) {
         throw new Error(`timed out waiting for Linear mapping lock at ${lockPath}`)

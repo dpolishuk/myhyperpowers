@@ -395,7 +395,7 @@ test("reconcileExistingIssueByMarker removes stale mapping when marker no longer
   assert.deepEqual(mapping, {})
 })
 
-test("reconcileExistingIssueByMarker keeps existing mapping when issue still exists without marker", async () => {
+test("reconcileExistingIssueByMarker clears synced fields when issue still exists without marker so marker is restored", async () => {
   const { reconcileExistingIssueByMarker } = requireFresh("../scripts/tm-linear-sync")
   const mapping = {
     "bd-keep": {
@@ -417,6 +417,8 @@ test("reconcileExistingIssueByMarker keeps existing mapping when issue still exi
 
   assert.equal(result.linearId, "lin-keep")
   assert.equal(mapping["bd-keep"].linearId, "lin-keep")
+  assert.equal("lastSyncedFields" in result, false)
+  assert.equal("lastSyncedFields" in mapping["bd-keep"], false)
 })
 
 test("reconcileExistingIssueByMarker clears stale synced fields when marker finds replacement issue", async () => {
@@ -579,7 +581,7 @@ test("issueNeedsLabelRepair accepts direct label arrays and only passes exact ow
   const exactOwned = await issueNeedsLabelRepair({
     client: {
       issue: async () => ({
-        labels: { nodes: [{ name: "Task" }] },
+        labels: [{ name: "Task" }],
       }),
     },
     existing: { linearId: "lin-direct-labels" },
@@ -589,7 +591,7 @@ test("issueNeedsLabelRepair accepts direct label arrays and only passes exact ow
   const extraLabel = await issueNeedsLabelRepair({
     client: {
       issue: async () => ({
-        labels: { nodes: [{ name: "Task" }, { name: "Customer" }] },
+        labels: [{ name: "Task" }, { name: "Customer" }],
       }),
     },
     existing: { linearId: "lin-direct-extra" },
@@ -1243,6 +1245,111 @@ test("syncIssuesToLinear rejects creating blocked issues when no explicit blocke
 
   assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
   assert.deepEqual(createCalls, [])
+})
+
+test("syncIssuesToLinear fails create-path sync when required type label cannot be resolved", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        createCalls.push(params)
+        return { issue: Promise.resolve({ id: "lin-create-fail", identifier: "ENG-170" }) }
+      },
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-create-fail", title: "Create fail", status: "open", priority: 2, issue_type: "task", design: "Create" },
+    ],
+    mapping: {},
+    getOrCreateLabel: async () => null,
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+  assert.deepEqual(createCalls, [])
+})
+
+test("syncIssuesToLinear fails create-path sync when type label lookup throws", async () => {
+  const { syncIssuesToLinear } = requireFresh("../scripts/tm-linear-sync")
+  const createCalls = []
+
+  const result = await syncIssuesToLinear({
+    client: {
+      issueSearch: async () => ({ nodes: [] }),
+      createIssue: async params => {
+        createCalls.push(params)
+        return { issue: Promise.resolve({ id: "lin-create-throw", identifier: "ENG-171" }) }
+      },
+    },
+    teamId: "team-1",
+    teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
+    issues: [
+      { id: "bd-create-throw", title: "Create throw", status: "open", priority: 2, issue_type: "task", design: "Create" },
+    ],
+    mapping: {},
+    getOrCreateLabel: async () => {
+      throw new Error("label lookup failed")
+    },
+    saveMapping: () => {},
+    log: () => {},
+    sleep: async () => {},
+  })
+
+  assert.deepEqual(result, { created: 0, updated: 0, unchanged: 0, errors: 1 })
+  assert.deepEqual(createCalls, [])
+})
+
+test("acquireMappingLock removes stale lock files before proceeding", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, createdAt: Date.now() - 60_000 }), "utf8")
+    const oldTime = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    const release = await acquireMappingLock({ timeoutMs: 100, pollMs: 1 })
+    const currentLock = JSON.parse(fs.readFileSync(lockPath, "utf8"))
+    assert.equal(fs.existsSync(lockPath), true)
+    assert.equal(currentLock.pid, process.pid)
+    assert.notEqual(currentLock.createdAt, Date.now() - 60_000)
+    release()
+    assert.equal(fs.existsSync(lockPath), false)
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
+})
+
+test("acquireMappingLock ignores active lock held by current live process", async () => {
+  const { acquireMappingLock, getMappingLockPath } = requireFresh("../scripts/tm-linear-sync")
+  const savedEnv = saveEnv()
+  const tempRepoRoot = makeTempRepoRoot()
+
+  try {
+    process.env.TM_REPO_ROOT = tempRepoRoot
+    const lockPath = getMappingLockPath()
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, createdAt: Date.now() - 60_000 }), "utf8")
+    const oldTime = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, oldTime, oldTime)
+
+    await assert.rejects(
+      () => acquireMappingLock({ timeoutMs: 25, pollMs: 5 }),
+      /timed out waiting for Linear mapping lock/
+    )
+  } finally {
+    restoreEnv(savedEnv)
+    fs.rmSync(tempRepoRoot, { recursive: true, force: true })
+  }
 })
 
 test("syncIssuesToLinear throttles after every five created issues", async () => {
