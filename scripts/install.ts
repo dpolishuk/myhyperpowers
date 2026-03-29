@@ -2,7 +2,7 @@
 
 import * as p from "@clack/prompts"
 import { existsSync, readFileSync } from "node:fs"
-import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename, chmod } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 
@@ -479,10 +479,10 @@ const FEATURES: FeatureConfig[] = [
       const tmSrc = join(REPO_ROOT, "scripts", "tm")
       if (existsSync(tmSrc)) {
         await copyFile(tmSrc, join(binDir, "tm"))
-        Bun.spawnSync(["chmod", "+x", join(binDir, "tm")])
+        await chmod(join(binDir, "tm"), 0o755)
 
         // Copy companion files
-        for (const name of ["tm-linear-sync.js", "tm-linear-sync-config.js"]) {
+        for (const name of ["tm-backends.sh", "tm-linear-backend.js", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
           const src = join(REPO_ROOT, "scripts", name)
           if (existsSync(src)) {
             await copyFile(src, join(libDir, name))
@@ -500,7 +500,7 @@ const FEATURES: FeatureConfig[] = [
     uninstall: async () => {
       const binDir = join(homedir(), ".local", "bin")
       const libDir = join(homedir(), ".local", "lib", "tm")
-      for (const f of ["tm", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
+      for (const f of ["tm", "tm-backends.sh", "tm-linear-backend.js", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
         await unlink(join(binDir, f)).catch(() => {})
       }
       await rm(libDir, { recursive: true, force: true }).catch(() => {})

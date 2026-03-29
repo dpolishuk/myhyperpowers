@@ -359,3 +359,44 @@ test("install.sh opencode provisions tm runtime and OpenCode command surface", (
   assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
 })
+
+test("install.ts tm-cli feature provisions and removes the full tm runtime", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-test-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-tm-cli-bin-"))
+  const bunPath = spawnSync("bash", ["-c", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+
+  assert.notEqual(bunPath, "")
+  fs.symlinkSync(bunPath, path.join(tmpBinDir, "bun"))
+
+  const installResult = spawnSync(bunPath, ["scripts/install.ts", "--features", "tm-cli", "--yes", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installTestEnv(home, { PATH: tmpBinDir }),
+    timeout: 120000,
+  })
+
+  assert.equal(installResult.status, 0)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-backends.sh")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-backend.js")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
+  assert.equal(fs.existsSync(path.join(home, ".hyperpowers", "manifest.json")), true)
+
+  const uninstallResult = spawnSync(bunPath, ["scripts/install.ts", "--uninstall", "--yes", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installTestEnv(home, { PATH: tmpBinDir }),
+    timeout: 120000,
+  })
+
+  assert.equal(uninstallResult.status, 0)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm")), false)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-backends.sh")), false)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "tm-linear-backend.js")), false)
+  assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm")), false)
+  assert.equal(fs.existsSync(path.join(home, ".hyperpowers", "manifest.json")), false)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
