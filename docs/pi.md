@@ -9,6 +9,8 @@ Hyperpowers includes first-class support for the Pi coding agent through the ext
 - Slash commands for Hyperpowers workflows
 - `hyperpowers_subagent` for isolated Pi subprocess delegation
 - Model routing by subagent type and concrete agent
+- Routed effort mapped to Pi thinking controls when configured
+- True extension-side `/review-parallel` fan-out/fan-in
 - Interactive routing configuration through `/routing-settings`
 - Session-start memory recall via `memsearch` when available
 
@@ -41,6 +43,8 @@ Compatibility alias:
 
 Use `hyperpowers_subagent` to delegate work to an isolated Pi subprocess.
 
+By default, subagent execution is ephemeral (`pi --print --no-session`) so child runs do not persist their own Pi session history.
+
 Examples:
 
 ```text
@@ -52,6 +56,14 @@ hyperpowers_subagent(task: "Return machine-readable findings", type: "review", f
 ```
 
 Structured mode asks the subagent to return JSON only and parses that JSON before returning it to the caller. This improves machine readability, but it does not guarantee that the model's findings are semantically correct.
+
+Top-level structured fields remain:
+- `status`
+- `summary`
+- `findings`
+- `nextAction`
+
+Failure-path findings may also include additive metadata such as `type` and `source` when the helper knows more about the failure.
 
 ## Supported concrete agents for routing
 
@@ -76,6 +88,8 @@ Routing resolves in this order:
 3. Abstract `type` override
 4. Default route
 5. Inherit session model
+
+If routing also specifies `effort`, the extension maps that value to Pi's `--thinking` flag for the child subprocess.
 
 ## Configure routing
 
@@ -120,6 +134,8 @@ Check, in order:
 - subagent `type` override
 - default route
 
+If the reasoning intensity is wrong rather than the model itself, also inspect the routed `effort` value because it maps to Pi's `--thinking` flag.
+
 ### Routing wizard changes not applied
 
 Inspect:
@@ -131,3 +147,7 @@ Inspect:
 ### No memories appear on session start
 
 `memsearch` recall is opportunistic. If `memsearch` is not installed or returns no results, no memory context is injected.
+
+### `/review-parallel` behaves differently than before
+
+`/review-parallel` now performs real extension-managed fan-out/fan-in instead of returning prompt text telling the model to invoke parallel subagents itself. The command name and purpose are unchanged, but result aggregation is now deterministic.

@@ -139,7 +139,11 @@ test("executePiSubagent returns JSON-shaped errors on subprocess failure in stru
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")
   expect(parsed.summary).toContain("exit 2")
-  expect(parsed.findings).toEqual([{ message: "boom" }])
+  expect(parsed.findings).toEqual([{
+    message: "boom",
+    type: "subprocess-error",
+    source: "pi-subagent",
+  }])
 })
 
 test("executePiSubagent falls back to stdout when stderr is empty on failure", () => {
@@ -199,6 +203,11 @@ test("executePiSubagent returns JSON-shaped no-exit-status errors in structured 
   expect(parsed.summary).toContain("no exit status")
   expect(parsed.summary).toContain("SIGTERM")
   expect(parsed.summary).toContain("spawn pi ENOENT")
+  expect(parsed.findings[0]).toMatchObject({
+    message: "unknown error",
+    type: "subprocess-error",
+    source: "pi-subagent",
+  })
 })
 
 test("buildStructuredSubagentTask wraps the task with JSON-only instructions", () => {
@@ -335,6 +344,10 @@ test("executePiSubagent returns structured FAIL payload on depth overflow", () =
     expect(parsed.summary).toContain("maximum subagent recursion depth")
     expect(Array.isArray(parsed.findings)).toBe(true)
     expect(parsed.findings.length).toBeGreaterThan(0)
+    expect(parsed.findings[0]).toMatchObject({
+      type: "recursion-limit",
+      source: "pi-subagent",
+    })
   } finally {
     if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
     else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
@@ -398,7 +411,11 @@ test("executePiSubagentAsync keeps cancellation machine-readable in structured m
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")
   expect(parsed.summary).toContain("cancelled")
-  expect(parsed.findings[0]?.message).toContain("cancelled")
+  expect(parsed.findings[0]).toMatchObject({
+    message: "Subagent cancelled by parent signal",
+    type: "cancelled",
+    source: "pi-subagent",
+  })
 })
 
 test("executePiSubagent returns a parsing failure when format is structured and JSON is invalid", () => {
@@ -418,5 +435,9 @@ test("executePiSubagent returns a parsing failure when format is structured and 
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")
   expect(parsed.summary).toContain("Structured subagent output was not valid JSON")
-  expect(parsed.findings).toEqual([{ message: "definitely not json" }])
+  expect(parsed.findings).toEqual([{
+    message: "definitely not json",
+    type: "parse-error",
+    source: "pi-subagent",
+  }])
 })

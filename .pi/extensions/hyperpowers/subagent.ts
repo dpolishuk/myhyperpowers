@@ -104,13 +104,23 @@ export function parseSubagentDepth(value?: string): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
-function buildFailureResult(format: PiSubagentFormat | undefined, summary: string, details: string, nextAction: string): PiSubagentResult {
+function buildFailureResult(
+  format: PiSubagentFormat | undefined,
+  summary: string,
+  details: string,
+  nextAction: string,
+  findingType = "subprocess-error",
+): PiSubagentResult {
   if (format === "structured") {
     return {
       content: [{ type: "text" as const, text: JSON.stringify({
         status: "FAIL",
         summary,
-        findings: [{ message: details }],
+        findings: [{
+          message: details,
+          type: findingType,
+          source: "pi-subagent",
+        }],
         nextAction,
       }) }],
     }
@@ -150,6 +160,7 @@ export function executePiSubagent(
       `Subagent failed (maximum subagent recursion depth ${MAX_HYPERPOWERS_SUBAGENT_DEPTH} reached)`,
       "Refusing to launch nested Pi subprocesses beyond the supported recursion limit",
       "Run the remaining review or investigation steps in the current session instead of spawning another subagent",
+      "recursion-limit",
     )
   }
 
@@ -197,6 +208,7 @@ export function executePiSubagent(
         error?.message || "Structured subagent output was not valid JSON",
         output || "(empty output)",
         "Retry with a clearer task or inspect the raw subagent output",
+        "parse-error",
       )
     }
   }
@@ -223,6 +235,7 @@ export async function executePiSubagentAsync(
       `Subagent failed (maximum subagent recursion depth ${MAX_HYPERPOWERS_SUBAGENT_DEPTH} reached)`,
       "Refusing to launch nested Pi subprocesses beyond the supported recursion limit",
       "Run the remaining review or investigation steps in the current session instead of spawning another subagent",
+      "recursion-limit",
     )
   }
 
@@ -270,6 +283,7 @@ export async function executePiSubagentAsync(
           "Subagent failed (cancelled)",
           stderr.trim() || stdout.trim() || "Subagent cancelled by parent signal",
           "Retry once the parent operation is resumed",
+          "cancelled",
         ))
       }
       if (signal.aborted) {
@@ -324,6 +338,7 @@ export async function executePiSubagentAsync(
             error?.message || "Structured subagent output was not valid JSON",
             output || "(empty output)",
             "Retry with a clearer task or inspect the raw subagent output",
+            "parse-error",
           ))
         }
         return
