@@ -13,6 +13,7 @@ import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import { executePiSubagent } from "./subagent"
+import { executePiTask } from "./task-runner"
 import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import {
@@ -137,12 +138,17 @@ async function executePiCommand(commandName: string, skillName: string, args: un
 
   const metadata = loadSkillPiMetadata(skillName)
   if (metadata?.subProcess) {
-    const result = executePiSubagent({
+    const routing = resolveSubagentRouting()
+    const sessionSeedPath = ctx?.sessionManager?.getSessionFile?.()
+    const contextMode = metadata.subProcessContext
+    const result = executePiTask({
       task: content,
-      model: metadata.model,
-      effort: metadata.thinkingLevel,
+      model: routing.model ?? metadata.model,
+      effort: routing.effort ?? metadata.thinkingLevel,
       cwd: ctx?.cwd || process.cwd(),
       format: "text",
+      contextMode,
+      sessionSeedPath: contextMode === "fork" ? sessionSeedPath : undefined,
     })
     return result.content[0]?.text || "(subagent returned empty result)"
   }

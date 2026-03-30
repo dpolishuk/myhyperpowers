@@ -139,3 +139,71 @@ test("command handler applies advisory Pi subprocess metadata when enabled", asy
     cleanup()
   }
 })
+
+test("command handler keeps routing authoritative over advisory metadata model and thinking", async () => {
+  const { commands, home, binDir, cleanup } = await installAndLoadCommands()
+  const capturePath = path.join(home, "pi-args.txt")
+  const skillPath = path.join(home, ".pi", "agent", "extensions", "hyperpowers", "skills", "brainstorming", "SKILL.md")
+  const routingPath = path.join(home, ".pi", "agent", "extensions", "hyperpowers", "routing.json")
+  const originalSkill = readFileSync(skillPath, "utf8")
+  const originalRouting = readFileSync(routingPath, "utf8")
+  const originalPath = process.env.PATH
+
+  try {
+    writeFileSync(skillPath, `---\nname: brainstorming\ndescription: test metadata\nmetadata:\n  pi:\n    subProcess: true\n    model: openai/gpt-4.1-mini\n    thinkingLevel: high\n---\n\n${originalSkill.replace(/^---\n[\s\S]*?\n---\n?/, "")}`, "utf8")
+    writeFileSync(routingPath, JSON.stringify({ subagents: { default: { model: "anthropic/claude-haiku-4-5", effort: "low" } } }, null, 2))
+
+    process.env.HYPERPOWERS_PI_TEST_CAPTURE = capturePath
+    process.env.PATH = `${binDir}:${originalPath}`
+    const brainstorm = commands.get("brainstorm")
+    const output = await brainstorm.handler(undefined, { cwd: repoRoot })
+    const capturedArgs = readFileSync(capturePath, "utf8")
+
+    expect(output).toContain("PI_SHIM_OK")
+    expect(capturedArgs).toContain("anthropic/claude-haiku-4-5")
+    expect(capturedArgs).not.toContain("openai/gpt-4.1-mini")
+    expect(capturedArgs).toContain("low")
+    expect(capturedArgs).not.toContain("high")
+  } finally {
+    delete process.env.HYPERPOWERS_PI_TEST_CAPTURE
+    process.env.PATH = originalPath
+    writeFileSync(skillPath, originalSkill, "utf8")
+    writeFileSync(routingPath, originalRouting, "utf8")
+    cleanup()
+  }
+})
+
+test("command handler honors advisory fork subprocess context when session file is available", async () => {
+  const { commands, home, binDir, cleanup } = await installAndLoadCommands()
+  const capturePath = path.join(home, "pi-args.txt")
+  const skillPath = path.join(home, ".pi", "agent", "extensions", "hyperpowers", "skills", "brainstorming", "SKILL.md")
+  const sessionFile = path.join(home, "parent-session.jsonl")
+  const originalSkill = readFileSync(skillPath, "utf8")
+  const originalPath = process.env.PATH
+
+  try {
+    writeFileSync(skillPath, `---\nname: brainstorming\ndescription: test metadata\nmetadata:\n  pi:\n    subProcess: true\n    subProcessContext: fork\n---\n\n${originalSkill.replace(/^---\n[\s\S]*?\n---\n?/, "")}`, "utf8")
+    writeFileSync(sessionFile, '{"role":"user","content":[{"type":"text","text":"hello"}]}\n', "utf8")
+
+    process.env.HYPERPOWERS_PI_TEST_CAPTURE = capturePath
+    process.env.PATH = `${binDir}:${originalPath}`
+    const brainstorm = commands.get("brainstorm")
+    const output = await brainstorm.handler(undefined, {
+      cwd: repoRoot,
+      sessionManager: {
+        getSessionFile: () => sessionFile,
+      },
+    })
+    const capturedArgs = readFileSync(capturePath, "utf8")
+
+    expect(output).toContain("PI_SHIM_OK")
+    expect(capturedArgs).toContain("--session")
+    expect(capturedArgs).toContain("--session-dir")
+    expect(capturedArgs).not.toContain("--no-session")
+  } finally {
+    delete process.env.HYPERPOWERS_PI_TEST_CAPTURE
+    process.env.PATH = originalPath
+    writeFileSync(skillPath, originalSkill, "utf8")
+    cleanup()
+  }
+})
