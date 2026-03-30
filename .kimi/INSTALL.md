@@ -5,6 +5,7 @@
 - [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) installed
 - Python 3.10+ with uv (for Kimi CLI)
 - Git (for cloning the repository)
+- Node.js and npm (for the shared `tm` runtime and optional Linear sync)
 - Optional: jq (for MCP config merging)
 
 ## Quick Install
@@ -34,14 +35,15 @@ For development (symlinks for live reload):
 ```bash
 # 1. Create config directories
 mkdir -p ~/.config/agents/skills
+mkdir -p ~/.config/agents/agents
 mkdir -p ~/.config/kimi
 
 # 2. Copy skills
 cp -r .kimi/skills/* ~/.config/agents/skills/
 
 # 3. Copy agents
-cp .kimi/agents/*.yaml ~/.config/agents/
-cp .kimi/agents/*-system.md ~/.config/agents/
+cp .kimi/agents/*.yaml ~/.config/agents/agents/
+cp .kimi/agents/*-system.md ~/.config/agents/agents/
 
 # 4. Copy main agent
 cp .kimi/hyperpowers.yaml ~/.config/agents/
@@ -49,6 +51,9 @@ cp .kimi/hyperpowers-system.md ~/.config/agents/
 
 # 5. Copy MCP config (or merge with existing)
 cp .kimi/mcp.json ~/.config/kimi/mcp.json
+
+# 6. Verify the shared tm runtime
+~/.local/bin/tm --help
 ```
 
 ## What Gets Installed
@@ -60,7 +65,7 @@ Located in `~/.config/agents/skills/`:
 | Skill | Description |
 |-------|-------------|
 | `brainstorming` | Socratic questioning for requirements refinement |
-| `writing-plans` | Create detailed bd epics with tasks |
+| `writing-plans` | Create detailed tm-first implementation plans with tracked tasks |
 | `executing-plans` | Execute tasks iteratively with checkpoints |
 | `execute-ralph` | Autonomous execution without user interruption |
 | `test-driven-development` | RED-GREEN-REFACTOR cycle |
@@ -78,7 +83,7 @@ Located in `~/.config/agents/skills/`:
 
 ### Agents (6 subagents)
 
-Located in `~/.config/agents/`:
+Located in `~/.config/agents/agents/`:
 
 | Agent | Purpose |
 |-------|---------|
@@ -167,7 +172,18 @@ tm close <id>
 tm sync               # Sync local work and integrations
 ```
 
-Current backend note for this repo: `bd` is the active backend, while `br` and `tk` are alternative tracker ecosystems rather than interchangeable day-to-day commands.
+Current backend note for this repo: `bd` is the active backend. `br`, `tk`, and `linear` are peer backend options in the `tm` model, but projects still select exactly one canonical backend. On this repo branch, `TM_BACKEND=linear` is available as a preview backend command surface, while the existing `tm sync` Linear path remains the separate integration-oriented workflow.
+
+Optional Linear setup for `tm sync` follow-on integration:
+
+```bash
+export LINEAR_API_KEY="lin_api_xxx"
+export LINEAR_TEAM_KEY="ENG"
+
+# Or persist for the active backend
+tm config set linear.api-key "lin_api_xxx"
+tm config set linear.team-key "ENG"
+```
 
 ## Customization
 

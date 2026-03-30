@@ -2,7 +2,7 @@
 
 import * as p from "@clack/prompts"
 import { existsSync, readFileSync } from "node:fs"
-import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, rm, writeFile, symlink, unlink, stat, rename, chmod } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 
@@ -63,6 +63,13 @@ const commandExists = (cmd: string): boolean => {
   } catch {
     return false
   }
+}
+
+const throwOnSpawnFailure = (result: { exitCode: number, stdout: Uint8Array, stderr: Uint8Array }, label: string) => {
+  if (result.exitCode === 0) return
+  const stderr = result.stderr.toString().trim()
+  const stdout = result.stdout.toString().trim()
+  throw new Error(`${label}${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
 }
 
 const copyDir = async (src: string, dest: string) => {
@@ -132,7 +139,8 @@ const HOSTS: HostConfig[] = [
       if (existsSync(pkgSrc)) {
         await copyFile(pkgSrc, join(targetDir, "package.json"))
         if (commandExists("bun")) {
-          Bun.spawnSync(["bun", "install", "--silent"], { cwd: targetDir, stdout: "pipe", stderr: "pipe" })
+          const installResult = Bun.spawnSync(["bun", "install", "--silent"], { cwd: targetDir, stdout: "pipe", stderr: "pipe" })
+          throwOnSpawnFailure(installResult, "OpenCode dependency install failed")
         }
       }
       // Copy config files
@@ -203,11 +211,13 @@ const HOSTS: HostConfig[] = [
       if (!commandExists("gemini")) {
         throw new Error("gemini CLI not found — cannot install extension")
       }
-      Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      const installResult = Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      throwOnSpawnFailure(installResult, "Gemini extension install failed")
     },
     postUninstall: async () => {
       if (commandExists("gemini")) {
-        Bun.spawnSync(["gemini", "extensions", "uninstall", "hyperpowers"], { stdout: "pipe", stderr: "pipe" })
+        const uninstallResult = Bun.spawnSync(["gemini", "extensions", "uninstall", "hyperpowers"], { stdout: "pipe", stderr: "pipe" })
+        throwOnSpawnFailure(uninstallResult, "Gemini extension uninstall failed")
       }
     },
   },
@@ -258,6 +268,11 @@ const HOSTS: HostConfig[] = [
       const skillsSrc = join(REPO_ROOT, "skills")
       if (existsSync(skillsSrc)) {
         await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
+      }
+      // Copy commands directory for command-specific Pi wrappers such as execute-ralph
+      const commandsSrc = join(REPO_ROOT, "commands")
+      if (existsSync(commandsSrc)) {
+        await copyDir(commandsSrc, join(targetDir, "extensions", "hyperpowers", "commands"))
       }
       // Preserve user routing.json if it exists (don't overwrite custom model assignments)
       const routingDest = join(extDir, "routing.json")
@@ -479,10 +494,10 @@ const FEATURES: FeatureConfig[] = [
       const tmSrc = join(REPO_ROOT, "scripts", "tm")
       if (existsSync(tmSrc)) {
         await copyFile(tmSrc, join(binDir, "tm"))
-        Bun.spawnSync(["chmod", "+x", join(binDir, "tm")])
+        await chmod(join(binDir, "tm"), 0o755)
 
         // Copy companion files
-        for (const name of ["tm-linear-sync.js", "tm-linear-sync-config.js"]) {
+        for (const name of ["tm-backends.sh", "tm-linear-backend.js", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
           const src = join(REPO_ROOT, "scripts", name)
           if (existsSync(src)) {
             await copyFile(src, join(libDir, name))
@@ -491,7 +506,8 @@ const FEATURES: FeatureConfig[] = [
         }
         // Install @linear/sdk for Linear sync support
         if (commandExists("npm")) {
-          Bun.spawnSync(["npm", "install", "--prefix", libDir, "@linear/sdk", "--save", "--silent"], { stdout: "pipe", stderr: "pipe" })
+          const npmResult = Bun.spawnSync(["npm", "install", "--prefix", libDir, "@linear/sdk", "--save", "--silent"], { stdout: "pipe", stderr: "pipe" })
+          throwOnSpawnFailure(npmResult, "tm CLI dependency install failed")
         }
         return "tm CLI installed to ~/.local/bin/"
       }
@@ -500,7 +516,7 @@ const FEATURES: FeatureConfig[] = [
     uninstall: async () => {
       const binDir = join(homedir(), ".local", "bin")
       const libDir = join(homedir(), ".local", "lib", "tm")
-      for (const f of ["tm", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
+      for (const f of ["tm", "tm-backends.sh", "tm-linear-backend.js", "tm-linear-sync.js", "tm-linear-sync-config.js"]) {
         await unlink(join(binDir, f)).catch(() => {})
       }
       await rm(libDir, { recursive: true, force: true }).catch(() => {})

@@ -14,8 +14,8 @@ test("README presents tm as the canonical task-management interface", () => {
 
   assert.equal(modelSection.includes("canonical user-facing task-management interface"), true)
   assert.equal(modelSection.includes("tm-first"), true)
-  assert.equal(modelSection.includes("bd` / `br` / `tk`"), true)
-  assert.equal(modelSection.includes("Linear and GitHub are integrations"), true)
+  assert.equal(modelSection.includes("bd` / `br` / `tk` / `linear`"), true)
+  assert.equal(modelSection.includes("one backend selected per project"), true)
   assert.equal(exampleSection.includes("tasks in bd"), false)
   assert.equal(exampleSection.includes("bd ready"), false)
   assert.equal(exampleSection.includes("tm ready"), true)
@@ -55,6 +55,8 @@ test("Docs index surfaces the canonical tm setup and integration guides", () => 
   assert.equal(quickstart.includes("tm sync"), true)
   assert.equal(quickstart.includes("bd ready"), false)
   assert.equal(quickstart.includes("backend-specific setup"), true)
+  assert.equal(quickstart.includes("one backend per project"), true)
+  assert.equal(quickstart.includes("one backend selected per project"), false)
 })
 
 test("README first-pass classifies bd br and tk with distinct roles", () => {
@@ -63,6 +65,7 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`bd` = current local tracker backend in this repo"), true)
   assert.equal(readme.includes("`br` = Beads Rust"), true)
   assert.equal(readme.includes("`tk` = Ticket"), true)
+  assert.equal(readme.includes("`linear` = Linear-native backend preview"), true)
   assert.equal(readme.includes("not interchangeable day-to-day commands"), true)
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })
@@ -96,6 +99,8 @@ test("Docs index surfaces model configuration guide", () => {
   assert.equal(guidesSection.includes("model-configuration.md"), true)
   assert.equal(hostGuidesSection.includes(".kimi/INSTALL.md"), true)
   assert.equal(hostGuidesSection.includes(".codex/INSTALL.md"), true)
+  assert.equal(docsReadme.includes("one backend per project"), true)
+  assert.equal(docsReadme.includes("one backend selected per project"), false)
 })
 
 test("Kimi and Codex host docs stay tm-first", () => {
@@ -110,9 +115,36 @@ test("Kimi and Codex host docs stay tm-first", () => {
 
   assert.equal(kimiSystem.includes("bd ready"), false)
   assert.equal(kimiSystem.includes("bd sync"), false)
+  assert.equal(kimiSystem.includes("bd epics"), false)
+  assert.equal(kimiSystem.includes("bd tasks"), false)
   assert.equal(kimiSystem.includes("tm ready"), true)
   assert.equal(kimiSystem.includes("tm sync"), true)
+  assert.equal(kimiSystem.includes("tm update <id> --status in_progress"), true)
+  assert.equal(kimiSystem.includes("--status=in_progress"), false)
 
   assert.equal(codexInstall.includes("bd ready"), false)
   assert.equal(codexInstall.includes("tm ready"), true)
+})
+
+test("Kimi install docs describe the linear preview contract and agent paths consistently", () => {
+  const readme = read("README.md")
+  const kimiInstall = read(".kimi/INSTALL.md")
+  const kimiHostSection = readme.split("<summary><strong>Kimi CLI</strong></summary>")[1]?.split("</details>")[0] || ""
+
+  assert.equal(kimiHostSection.includes(".kimi/INSTALL.md"), true)
+  assert.equal(kimiInstall.includes("TM_BACKEND=linear"), true)
+  assert.equal(kimiInstall.includes("preview backend command surface"), true)
+  assert.equal(kimiInstall.includes("separate integration-oriented workflow"), true)
+  assert.equal(kimiInstall.includes("not yet implemented on this repo branch"), false)
+  assert.equal(kimiInstall.includes("Located in `~/.config/agents/agents/`"), true)
+})
+
+test("AGENTS and linear MCP docs reflect tm-first backend guidance", () => {
+  const agentsGuide = read("AGENTS.md")
+  const linearMcpSetup = read("docs/linear-mcp-setup.md")
+
+  assert.equal(agentsGuide.includes("backend-specific guide explicitly calls for `bd`, `br`, `tk`, or `linear`"), true)
+  assert.equal(linearMcpSetup.includes("Writes to bd locally"), false)
+  assert.equal(linearMcpSetup.includes("Reads from bd (fast, offline)"), false)
+  assert.equal(linearMcpSetup.includes("selected tm backend"), true)
 })
