@@ -44,6 +44,26 @@ test("runLinearBackendCommand returns ready issues from unstarted and triage sta
   assert.doesNotMatch(result.stdout, /ENG-4/)
 })
 
+test("runLinearBackendCommand awaits issue.state relations when filtering ready issues", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["ready"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issues: async () => ({
+        nodes: [
+          { identifier: "ENG-1", title: "Open item", state: Promise.resolve({ name: "Todo", type: "unstarted" }), priority: 2 },
+          { identifier: "ENG-2", title: "In progress item", state: Promise.resolve({ name: "In Progress", type: "started" }), priority: 2 },
+        ],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.match(result.stdout, /ENG-1 Open item/)
+  assert.doesNotMatch(result.stdout, /ENG-2/)
+})
+
 test("runLinearBackendCommand paginates ready issues across multiple Linear pages", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []
@@ -379,6 +399,31 @@ test("runLinearBackendCommand shows a Linear issue by identifier", async () => {
   assert.equal(result.exitCode, 0)
   assert.match(result.stdout, /ENG-9: Backend contract/)
   assert.match(result.stdout, /Status: open/)
+})
+
+test("runLinearBackendCommand awaits issue.state relations when rendering details", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "ENG-10"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{
+          id: "lin-10",
+          identifier: "ENG-10",
+          title: "Promise-backed state",
+          description: "Details",
+          priority: 2,
+          state: Promise.resolve({ name: "In Progress", type: "started" }),
+          labels: async () => ({ nodes: [] }),
+        }],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.match(result.stdout, /ENG-10: Promise-backed state/)
+  assert.match(result.stdout, /Status: in_progress/)
 })
 
 test("runLinearBackendCommand paginates issueSearch results when resolving identifiers", async () => {

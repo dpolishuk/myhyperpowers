@@ -69,12 +69,13 @@ async function listIssues(context, statusFilter, parentRef = null) {
 
   const nodes = await listAllIssues(context, filter)
 
-  const rows = nodes.filter(issue => {
-    const tmStatus = mapLinearStateToTmStatus(issue.state)
-    if (statusFilter === "ready") return tmStatus === "open"
-    if (!statusFilter) return true
-    return tmStatus === statusFilter
-  }).map(issue => `${issue.identifier} ${issue.title}`)
+  const rows = []
+  for (const issue of nodes) {
+    const tmStatus = mapLinearStateToTmStatus(await resolveIssueState(issue))
+    if (statusFilter === "ready" && tmStatus !== "open") continue
+    if (statusFilter && statusFilter !== "ready" && tmStatus !== statusFilter) continue
+    rows.push(`${issue.identifier} ${issue.title}`)
+  }
 
   return rows.join("\n")
 }
@@ -133,6 +134,14 @@ async function resolveIssueTeamId(issue) {
   }
 }
 
+async function resolveIssueState(issue) {
+  try {
+    return typeof issue?.state === "function" ? await issue.state() : await issue?.state
+  } catch {
+    return undefined
+  }
+}
+
 async function searchAllIssuesByRef(context, ref) {
   const nodes = []
   let after = null
@@ -158,9 +167,10 @@ function looksLikeLinearIdentifier(ref) {
 async function renderIssueDetails(issue) {
   const labelsResult = typeof issue.labels === "function" ? await issue.labels() : issue.labels
   const labels = labelsResult?.nodes?.map(label => label.name).join(", ") || ""
+  const state = await resolveIssueState(issue)
   const lines = [
     `${issue.identifier}: ${issue.title}`,
-    `Status: ${mapLinearStateToTmStatus(issue.state)}`,
+    `Status: ${mapLinearStateToTmStatus(state)}`,
   ]
   if (labels) lines.push(`Labels: ${labels}`)
   if (issue.description) lines.push("", issue.description)
