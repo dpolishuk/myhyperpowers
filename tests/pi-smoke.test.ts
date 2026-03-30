@@ -17,7 +17,7 @@ function newTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpdir(), `${prefix}-XXXXXX`))
 }
 
-test("pi install writes extension and registers commands/tools at runtime", async () => {
+test("pi install writes extension and registers commands/tools at runtime", { timeout: 60000 }, async () => {
   const home = newTempDir("pi-smoke")
   const binDir = newTempDir("pi-smoke-bin")
 

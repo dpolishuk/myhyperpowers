@@ -426,6 +426,31 @@ test("runLinearBackendCommand awaits issue.state relations when rendering detail
   assert.match(result.stdout, /Status: in_progress/)
 })
 
+test("runLinearBackendCommand awaits issue.labels relations when rendering details", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "ENG-11"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{
+          id: "lin-11",
+          identifier: "ENG-11",
+          title: "Promise-backed labels",
+          description: "Details",
+          priority: 2,
+          state: { name: "Todo", type: "unstarted" },
+          labels: Promise.resolve({ nodes: [{ name: "Task" }, { name: "Backend" }] }),
+        }],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.match(result.stdout, /ENG-11: Promise-backed labels/)
+  assert.match(result.stdout, /Labels: Task, Backend/)
+})
+
 test("runLinearBackendCommand paginates issueSearch results when resolving identifiers", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []

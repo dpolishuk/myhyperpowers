@@ -165,7 +165,7 @@ function looksLikeLinearIdentifier(ref) {
 }
 
 async function renderIssueDetails(issue) {
-  const labelsResult = typeof issue.labels === "function" ? await issue.labels() : issue.labels
+  const labelsResult = typeof issue.labels === "function" ? await issue.labels() : await issue.labels
   const labels = labelsResult?.nodes?.map(label => label.name).join(", ") || ""
   const state = await resolveIssueState(issue)
   const lines = [
