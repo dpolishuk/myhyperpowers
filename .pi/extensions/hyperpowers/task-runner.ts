@@ -79,6 +79,7 @@ export async function executePiTasksParallel<TTask, TResult>(
 
   const worker = async () => {
     while (true) {
+      if (options.signal?.aborted) return
       const currentIndex = nextIndex
       nextIndex += 1
       if (currentIndex >= tasks.length) return
@@ -97,6 +98,7 @@ export async function executePiTasksChain<TTask, TResult>(
 ): Promise<TResult[]> {
   const results: TResult[] = []
   for (const task of tasks) {
+    if (options.signal?.aborted) break
     const result = await executeTask(task, results, options.signal)
     results.push(result)
   }

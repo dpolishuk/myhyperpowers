@@ -206,6 +206,35 @@ test("executePiTasksChain forwards abort signal to each step", async () => {
     return "ok"
   }, { signal: controller.signal })
 
-  expect(seenSignals).toHaveLength(2)
-  expect(seenSignals.every((signal) => signal === controller.signal)).toBe(true)
+  // Only the first step runs; the chain short-circuits before step 2
+  expect(seenSignals).toHaveLength(1)
+  expect(seenSignals[0]).toBe(controller.signal)
+})
+
+test("executePiTasksParallel stops dequeuing after abort", async () => {
+  const controller = new AbortController()
+  controller.abort()
+  const calls: string[] = []
+
+  const results = await executePiTasksParallel(["a", "b", "c"], async (task) => {
+    calls.push(task)
+    return `${task}-done`
+  }, { signal: controller.signal, maxConcurrency: 2 })
+
+  expect(calls).toEqual([])
+  expect(results).toEqual([undefined, undefined, undefined])
+})
+
+test("executePiTasksChain short-circuits on pre-aborted signal", async () => {
+  const controller = new AbortController()
+  controller.abort()
+  const calls: string[] = []
+
+  const results = await executePiTasksChain(["first", "second", "third"], async (task) => {
+    calls.push(task)
+    return `${task}-done`
+  }, { signal: controller.signal })
+
+  expect(calls).toEqual([])
+  expect(results).toEqual([])
 })
