@@ -1,4 +1,4 @@
-import { spawnSync, type SpawnSyncReturns } from "node:child_process"
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process"
 
 export type PiSubagentFormat = "text" | "structured"
 export type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh"
@@ -35,6 +35,10 @@ export type SpawnSyncLike = (
     env: NodeJS.ProcessEnv
   },
 ) => SpawnSyncReturns<string>
+
+export interface PiSubagentResult {
+  content: Array<{ type: "text"; text: string }>
+}
 
 export function buildStructuredSubagentTask(task: string): string {
   return `${task}\n\nReturn valid JSON only. Do not include markdown fences, commentary, or prose outside the JSON object. Use exactly this shape:\n{\n  "status": "PASS|ISSUES_FOUND|FAIL",\n  "summary": "short summary",\n  "findings": [],\n  "nextAction": "optional next step"\n}`
@@ -90,7 +94,7 @@ export function parseSubagentDepth(value?: string): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
-function buildFailureResult(format: PiSubagentFormat | undefined, summary: string, details: string, nextAction: string) {
+function buildFailureResult(format: PiSubagentFormat | undefined, summary: string, details: string, nextAction: string): PiSubagentResult {
   if (format === "structured") {
     return {
       content: [{ type: "text" as const, text: JSON.stringify({
@@ -123,7 +127,7 @@ export function buildPiSubagentArgs(task: string, model?: string | null, thinkin
 export function executePiSubagent(
   params: ExecutePiSubagentParams,
   run: SpawnSyncLike = spawnSync,
-) {
+): PiSubagentResult {
   const task = params.format === "structured"
     ? buildStructuredSubagentTask(params.task)
     : params.task
@@ -190,4 +194,103 @@ export function executePiSubagent(
   return {
     content: [{ type: "text" as const, text: output || "(subagent returned empty result)" }],
   }
+}
+
+export async function executePiSubagentAsync(params: ExecutePiSubagentParams): Promise<PiSubagentResult> {
+  const task = params.format === "structured"
+    ? buildStructuredSubagentTask(params.task)
+    : params.task
+  const args = buildPiSubagentArgs(task, params.model, params.effort)
+  const cwd = params.cwd || process.cwd()
+  const currentDepth = parseSubagentDepth(process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV])
+  if (currentDepth >= MAX_HYPERPOWERS_SUBAGENT_DEPTH) {
+    return buildFailureResult(
+      params.format,
+      `Subagent failed (maximum subagent recursion depth ${MAX_HYPERPOWERS_SUBAGENT_DEPTH} reached)`,
+      "Refusing to launch nested Pi subprocesses beyond the supported recursion limit",
+      "Run the remaining review or investigation steps in the current session instead of spawning another subagent",
+    )
+  }
+
+  return await new Promise<PiSubagentResult>((resolve) => {
+    const child = spawn("pi", args, {
+      cwd,
+      env: {
+        ...process.env,
+        [HYPERPOWERS_SUBAGENT_DEPTH_ENV]: String(currentDepth + 1),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+
+    let stdout = ""
+    let stderr = ""
+    let settled = false
+    const finish = (result: PiSubagentResult) => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM")
+      finish(buildFailureResult(
+        params.format,
+        "Subagent failed (timeout)",
+        stderr.trim() || stdout.trim() || "subprocess timed out after 120000ms",
+        "Inspect the delegated task and retry with a narrower scope",
+      ))
+    }, 120000)
+
+    child.stdout?.setEncoding("utf8")
+    child.stderr?.setEncoding("utf8")
+    child.stdout?.on("data", (chunk) => { stdout += chunk })
+    child.stderr?.on("data", (chunk) => { stderr += chunk })
+    child.on("error", (error) => {
+      clearTimeout(timer)
+      finish(buildFailureResult(
+        params.format,
+        `Subagent failed (spawn error: ${error.message})`,
+        stderr.trim() || stdout.trim() || error.message,
+        "Check Pi subprocess availability and runtime logs",
+      ))
+    })
+    child.on("close", (code, signal) => {
+      clearTimeout(timer)
+      const output = stdout.trim()
+      const details = stderr.trim() || output || "unknown error"
+      if (code === null) {
+        finish(buildFailureResult(
+          params.format,
+          `Subagent failed (no exit status${signal ? `; signal: ${signal}` : ""})`,
+          details,
+          "Check Pi subprocess availability and runtime logs",
+        ))
+        return
+      }
+      if (code !== 0) {
+        finish(buildFailureResult(
+          params.format,
+          `Subagent failed (exit ${code})`,
+          details,
+          "Inspect stderr/stdout details and retry once the subprocess issue is resolved",
+        ))
+        return
+      }
+      if (params.format === "structured") {
+        try {
+          const parsed = parseStructuredSubagentOutput(output)
+          finish({ content: [{ type: "text", text: JSON.stringify(parsed) }] })
+        } catch (error: any) {
+          finish(buildFailureResult(
+            params.format,
+            error?.message || "Structured subagent output was not valid JSON",
+            output || "(empty output)",
+            "Retry with a clearer task or inspect the raw subagent output",
+          ))
+        }
+        return
+      }
+      finish({ content: [{ type: "text", text: output || "(subagent returned empty result)" }] })
+    })
+  })
 }
