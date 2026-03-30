@@ -577,3 +577,55 @@ test("runLinearBackendCommand returns a capability-gated error for unsupported c
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr, /linear backend command "create" is not yet implemented/)
 })
+
+test("runLinearBackendCommand rejects unsupported commands before resolving context", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["create", "Title"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for unsupported commands")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /linear backend command "create" is not yet implemented/)
+})
+
+test("runLinearBackendCommand rejects show without an issue ref", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for missing show ref")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing issue ref for show/)
+})
+
+test("runLinearBackendCommand rejects update without an issue ref", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["update", "--status", "open"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for missing update ref")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing issue ref for update/)
+})
+
+test("runLinearBackendCommand rejects close without an issue ref", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["close"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for missing close ref")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing issue ref for close/)
+})

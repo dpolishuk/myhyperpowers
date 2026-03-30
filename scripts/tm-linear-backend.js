@@ -190,6 +190,10 @@ function parseParentArg(args) {
   return parseArgValue(args, "--parent")
 }
 
+function requireIssueRef(command, ref) {
+  if (!ref) throw new Error(`Missing issue ref for ${command}.`)
+}
+
 async function runLinearBackendCommand(argv, { resolveContext = resolveLinearContextWithSdk } = {}) {
   const [command, ...args] = argv
 
@@ -214,6 +218,26 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     return { exitCode: 0, stdout: `tm linear backend ${TM_LINEAR_BACKEND_VERSION}`, stderr: "" }
   }
 
+  if (!["ready", "list", "show", "update", "close"].includes(command)) {
+    return { exitCode: 1, stdout: "", stderr: `tm: linear backend command "${command}" is not yet implemented.` }
+  }
+
+  if (command === "list") {
+    if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
+      return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
+    }
+    if (hasArgFlag(args, "--parent") && parseParentArg(args) === null) {
+      return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --parent." }
+    }
+  }
+
+  if (command === "show" || command === "update" || command === "close") {
+    const issueRef = args[0] && !args[0].startsWith("--") ? args[0] : null
+    if (!issueRef) {
+      return { exitCode: 1, stdout: "", stderr: `tm: Missing issue ref for ${command}.` }
+    }
+  }
+
   try {
     const context = await resolveContext()
 
@@ -222,12 +246,6 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     }
 
     if (command === "list") {
-      if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
-        throw new Error("Missing value for --status.")
-      }
-      if (hasArgFlag(args, "--parent") && parseParentArg(args) === null) {
-        throw new Error("Missing value for --parent.")
-      }
       return {
         exitCode: 0,
         stdout: await listIssues(context, parseStatusArg(args), parseParentArg(args)),
@@ -236,11 +254,13 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     }
 
     if (command === "show") {
+      requireIssueRef(command, args[0])
       const issue = await findIssueByRef(context, args[0])
       return { exitCode: 0, stdout: await renderIssueDetails(issue), stderr: "" }
     }
 
     if (command === "update") {
+      requireIssueRef(command, args[0])
       const issue = await findIssueByRef(context, args[0])
       const nextStatus = parseStatusArg(args)
       if (!nextStatus || !["open", "ready", "in_progress", "closed", "blocked"].includes(nextStatus)) {
@@ -255,6 +275,7 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     }
 
     if (command === "close") {
+      requireIssueRef(command, args[0])
       const issue = await findIssueByRef(context, args[0])
       const stateId = mapStatus("closed", context.teamStates)
       if (!stateId) {
@@ -264,7 +285,6 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
       return { exitCode: 0, stdout: `${issue.identifier} -> closed`, stderr: "" }
     }
 
-    return { exitCode: 1, stdout: "", stderr: `tm: linear backend command "${command}" is not yet implemented.` }
   } catch (error) {
     return { exitCode: 1, stdout: "", stderr: `tm: ${error.message}` }
   }
