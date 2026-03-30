@@ -318,6 +318,8 @@ claude --plugin-dir .
 Hyperpowers includes a dedicated Pi extension with:
 - slash commands for Hyperpowers workflows
 - isolated subagent delegation via `hyperpowers_subagent`
+- routed effort mapped to Pi thinking controls
+- real extension-managed `/review-parallel` fan-out/fan-in
 - Pi-native routing configuration via `/routing-settings`
 
 See [docs/pi.md](docs/pi.md) for Pi-specific usage, routing, and troubleshooting.
