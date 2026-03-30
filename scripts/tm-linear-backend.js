@@ -137,8 +137,9 @@ async function resolveIssueTeamId(issue) {
 async function resolveIssueState(issue) {
   try {
     return typeof issue?.state === "function" ? await issue.state() : await issue?.state
-  } catch {
-    return undefined
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to resolve Linear issue state: ${message}`)
   }
 }
 

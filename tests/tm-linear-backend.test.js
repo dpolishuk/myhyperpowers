@@ -64,6 +64,24 @@ test("runLinearBackendCommand awaits issue.state relations when filtering ready 
   assert.doesNotMatch(result.stdout, /ENG-2/)
 })
 
+test("runLinearBackendCommand fails when issue.state relation rejects during ready filtering", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["ready"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issues: async () => ({
+        nodes: [
+          { identifier: "ENG-1", title: "Broken item", state: Promise.reject(new Error("state fetch failed")), priority: 2 },
+        ],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Failed to resolve Linear issue state: state fetch failed/)
+})
+
 test("runLinearBackendCommand paginates ready issues across multiple Linear pages", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []
@@ -424,6 +442,30 @@ test("runLinearBackendCommand awaits issue.state relations when rendering detail
   assert.equal(result.exitCode, 0)
   assert.match(result.stdout, /ENG-10: Promise-backed state/)
   assert.match(result.stdout, /Status: in_progress/)
+})
+
+test("runLinearBackendCommand fails when issue.state relation rejects during detail rendering", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "ENG-12"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{
+          id: "lin-12",
+          identifier: "ENG-12",
+          title: "Broken state relation",
+          description: "Details",
+          priority: 2,
+          state: Promise.reject(new Error("state fetch failed")),
+          labels: async () => ({ nodes: [] }),
+        }],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Failed to resolve Linear issue state: state fetch failed/)
 })
 
 test("runLinearBackendCommand awaits issue.labels relations when rendering details", async () => {
