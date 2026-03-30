@@ -45,6 +45,7 @@ Executes a complete bd epic without stopping for user review:
 
 - Ambiguous requirements → use `/hyperpowers:execute-plan` instead
 - High-risk changes needing human oversight
+- Experimental/exploratory work
 - You want to review between tasks
 
 ## Contract Guardrails
@@ -88,6 +89,16 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 - `node --test tests/codex-*.test.js`
 - `node --test tests/*.test.js`
 - `node scripts/sync-codex-skills.js --check`
+
+## Comparison
+
+| | execute-plan | execute-ralph |
+|---|---|---|
+| Stops | After each task | Only on critical failure |
+| Review | Final only | Per-task parallel review + final gate |
+| Model | Inherited | Configurable (opus default) |
+| Research | None | Final autonomous review may use web research |
+| Task creation | Manual next-step planning | Auto-creates next task when criteria remain unmet |
 
 ---
 
