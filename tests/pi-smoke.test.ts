@@ -17,7 +17,7 @@ function newTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpdir(), `${prefix}-XXXXXX`))
 }
 
-test("pi install writes extension and registers commands/tools at runtime", { timeout: 60000 }, async () => {
+test("pi install writes extension and registers commands/tools at runtime", async () => {
   const home = newTempDir("pi-smoke")
   const binDir = newTempDir("pi-smoke-bin")
 
@@ -82,10 +82,10 @@ test("pi install writes extension and registers commands/tools at runtime", { ti
 
   rmSync(home, { recursive: true, force: true })
   rmSync(binDir, { recursive: true, force: true })
-})
+}, 60000)
 
 // Keep installer side-effect visible: AGENTS section should be injected safely.
-test("pi AGENTS section is injected with install smoke run", { timeout: 30000 }, () => {
+test("pi AGENTS section is injected with install smoke run", () => {
   const home = newTempDir("pi-smoke-agents")
   const binDir = newTempDir("pi-smoke-agents-bin")
   const piHome = path.join(home, ".pi", "agent")
@@ -117,4 +117,4 @@ test("pi AGENTS section is injected with install smoke run", { timeout: 30000 },
 
   rmSync(home, { recursive: true, force: true })
   rmSync(binDir, { recursive: true, force: true })
-})
+}, 30000)
