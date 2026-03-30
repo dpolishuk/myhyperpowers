@@ -475,11 +475,11 @@ export async function executePiTaskAsync(
             "cancelled",
           ), "abort")
         }
+        signal.addEventListener("abort", abortHandler, { once: true })
         if (signal.aborted) {
           abortHandler()
           return
         }
-        signal.addEventListener("abort", abortHandler, { once: true })
       }
 
       child.stdout?.setEncoding?.("utf8")
