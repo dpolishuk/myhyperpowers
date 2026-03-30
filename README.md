@@ -7,6 +7,8 @@
 
 Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
+Hyperpowers also includes first-class Pi support via the extension in `.pi/extensions/hyperpowers/`.
+
 [Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
 ## Quick Start
@@ -97,6 +99,22 @@ Reusable workflows for common development tasks:
 | **writing-skills** | TDD for process documentation | Creating new skills |
 | **building-hooks** | Create custom automation hooks | Extending IDE behavior |
 | **skills-auto-activation** | Fix skills not activating reliably | Troubleshooting skill discovery |
+
+### Pi Support
+
+Hyperpowers includes a first-class Pi extension in `.pi/extensions/hyperpowers/`.
+
+Current Pi support includes:
+- routed `hyperpowers_subagent` execution
+- extension-managed `/review-parallel`
+- a shared internal Pi task runner with `single`, `parallel`, and `chain` execution support
+- support for both fresh and forked subprocess contexts in the runner
+- advisory `metadata.pi` skill frontmatter parsing (`subProcess`, `subProcessContext`, `model`, `thinkingLevel`)
+- authoritative routing via `/routing-settings`
+
+Important: Pi skill metadata is currently **advisory**. It does not override the existing routing precedence configured through `/routing-settings`.
+
+See [`docs/pi.md`](docs/pi.md) for details.
 
 ### Slash Commands
 
@@ -239,8 +257,14 @@ bun scripts/install.ts --yes
 # Install to specific hosts
 bun scripts/install.ts --yes --hosts claude,opencode
 
+# Install Pi only
+bun scripts/install.ts --yes --hosts pi
+
 # Install with specific features
 bun scripts/install.ts --yes --hosts claude --features memsearch,statusline
+
+# Install Pi with memsearch support
+bun scripts/install.ts --yes --hosts pi --features memsearch
 
 # JSON output for parsing
 bun scripts/install.ts --yes --json
@@ -249,7 +273,7 @@ bun scripts/install.ts --yes --json
 bun scripts/install.ts --uninstall
 ```
 
-Available hosts: `claude`, `opencode`, `kimi`, `gemini`
+Available hosts: `claude`, `opencode`, `kimi`, `gemini`, `pi`
 Available features: `memsearch`, `supermemory`, `statusline`, `routing-wizard`, `tm-cli`
 
 ### For Humans (interactive TUI)
@@ -309,6 +333,86 @@ claude --plugin-dir .
 /help
 # Should show /hyperpowers:* commands
 ```
+
+</details>
+
+<details>
+<summary><strong>Pi</strong></summary>
+
+### Prerequisites
+
+- [Pi](https://github.com/mariozechner/pi-coding-agent) installed and available on your `PATH`
+- `bun` (recommended) or `npm` for extension dependency installation
+
+### Install
+
+```bash
+# Clone or navigate to hyperpowers
+# Option A: Install Pi support via the non-interactive installer
+bun scripts/install.ts --yes --hosts pi
+
+# Option B: Install with optional memory support (memsearch)
+bun scripts/install.ts --yes --hosts pi --features memsearch
+
+# Option C: Interactive install (prompts for host selection)
+bun scripts/install.ts
+```
+
+### What gets installed
+
+The installer copies the Hyperpowers Pi extension into:
+
+```
+~/.pi/agent/extensions/hyperpowers/    # Extension source (commands, tools, routing)
+~/.pi/agent/extensions/hyperpowers/skills/    # Skill markdown files
+~/.pi/agent/AGENTS.md                    # Updated with Hyperpowers context
+```
+
+### Verify installation
+
+Start a Pi session and check that Hyperpowers commands are registered:
+
+```text
+/routing-settings       # Opens TUI routing wizard (or shows fallback in headless)
+/review-parallel        # Runs multi-agent parallel review
+/execute-ralph          # Autonomous epic execution
+/brainstorm             # Interactive brainstorming
+/help                   # Should list /hyperpowers:* commands
+```
+
+### Key Pi features
+
+Hyperpowers includes a dedicated Pi extension with:
+
+- **Slash commands** — `/brainstorm`, `/write-plan`, `/execute-plan`, `/execute-ralph`, `/review-parallel`, `/routing-settings`, and more
+- **Subagent tool** — `hyperpowers_subagent` for isolated subprocess delegation with model routing
+- **Model routing** — configure per-agent model and effort via `/routing-settings` (stored in `~/.pi/agent/extensions/hyperpowers/routing.json`)
+- **Routed effort** — effort levels map to Pi's `--thinking` flag
+- **Parallel review** — real extension-managed `/review-parallel` fan-out/fan-in
+- **Advisory skill metadata** — optional `metadata.pi` in skill frontmatter for subprocess hints
+
+### Configure routing
+
+```text
+/routing-settings
+```
+
+Opens the Pi-native TUI wizard for configuring:
+- Subagent type defaults (e.g., `review` → `anthropic/claude-sonnet-4-5`)
+- Concrete agent overrides (e.g., `autonomous-reviewer` → `anthropic/claude-opus-4-5`)
+- Routing presets
+
+Config stored at `~/.pi/agent/extensions/hyperpowers/routing.json`.
+
+### Uninstall
+
+```bash
+bun scripts/install.ts --uninstall --hosts pi --yes
+```
+
+### More info
+
+See [docs/pi.md](docs/pi.md) for full Pi-specific usage, routing precedence, structured mode, and troubleshooting.
 
 </details>
 
