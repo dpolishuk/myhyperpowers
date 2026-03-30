@@ -286,28 +286,62 @@ test("tm sync resolves tm-linear-sync.js from the real script directory when inv
 })
 
 test("tm passes through arguments unchanged to bd", () => {
-  // Running 'tm list --status open' should produce the same output as 'bd list --status open'
-  const tmResult = runTm(["list", "--status", "open"])
-  const bdResult = spawnSync("bd", ["list", "--status", "open"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    timeout: 10000,
-  })
-  assert.equal(tmResult.status, bdResult.status)
-  assert.equal(tmResult.stdout, bdResult.stdout)
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-bd-passthrough-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}
+printf '%s\n' "$*"
+`, "utf8")
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = { ...process.env, PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }
+    const tmResult = runTm(["list", "--status", "open"], { env })
+    const bdResult = spawnSync("bd", ["list", "--status", "open"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(tmResult.status, bdResult.status)
+    assert.equal(tmResult.stdout, bdResult.stdout)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
 })
 
 test("tm sync --help matches bd sync --help without running Linear sync", () => {
-  const tmResult = runTm(["sync", "--help"], { env: { LINEAR_API_KEY: "" } })
-  const bdResult = spawnSync("bd", ["sync", "--help"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    timeout: 10000,
-  })
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-bd-sync-help-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
 
-  assert.equal(tmResult.status, bdResult.status)
-  assert.equal(tmResult.stdout, bdResult.stdout)
-  assert.equal(tmResult.stderr, bdResult.stderr)
+  try {
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}
+printf '%s\n' "$*"
+`, "utf8")
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const env = { ...process.env, LINEAR_API_KEY: "", PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }
+    const tmResult = runTm(["sync", "--help"], { env })
+    const bdResult = spawnSync("bd", ["sync", "--help"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env,
+      timeout: 10000,
+    })
+
+    assert.equal(tmResult.status, bdResult.status)
+    assert.equal(tmResult.stdout, bdResult.stdout)
+    assert.equal(tmResult.stderr, bdResult.stderr)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
 })
 
 test("tm sync fails when Linear is configured but node is unavailable", () => {
