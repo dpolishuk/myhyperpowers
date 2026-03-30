@@ -35,6 +35,10 @@ const SKILLS_DIRS = [
   join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/
   resolve(EXTENSION_DIR, "..", "..", "..", "skills"),    // dev: repo root skills/
 ]
+const COMMANDS_DIRS = [
+  join(EXTENSION_DIR, "commands"),
+  resolve(EXTENSION_DIR, "..", "..", "..", "commands"),
+]
 
 // Skills to register as slash commands
 const SKILLS = [
@@ -69,6 +73,49 @@ function loadSkillContent(skillName: string): string | null {
 function loadSkillPiMetadata(skillName: string) {
   const content = loadSkillContent(skillName)
   return content ? parsePiSkillMetadataFromSkillContent(content) : null
+}
+
+function loadCommandContent(commandName: string): string | null {
+  for (const dir of COMMANDS_DIRS) {
+    const p = join(dir, `${commandName}.md`)
+    if (existsSync(p)) {
+      try {
+        return readFileSync(p, "utf8")
+      } catch {
+        continue
+      }
+    }
+  }
+  return null
+}
+
+function formatPiCommandArgs(args: unknown): string {
+  if (args === undefined || args === null) return ""
+  if (typeof args === "string") {
+    const trimmed = args.trim()
+    return trimmed ? `\n\nPi invocation arguments: ${trimmed}` : ""
+  }
+  if (typeof args === "object") {
+    const serialized = JSON.stringify(args)
+    return serialized && serialized !== "{}"
+      ? `\n\nPi invocation arguments: ${serialized}`
+      : ""
+  }
+  return `\n\nPi invocation arguments: ${String(args)}`
+}
+
+function loadPiCommandPrompt(commandName: string, skillName: string, args: unknown): string | null {
+  const commandContent = loadCommandContent(commandName)
+  if (commandContent) {
+    return `${commandContent}${formatPiCommandArgs(args)}`
+  }
+
+  const skillContent = loadSkillContent(skillName)
+  if (skillContent) {
+    return `${skillContent}${formatPiCommandArgs(args)}`
+  }
+
+  return null
 }
 
 // Subagent routing config
@@ -519,8 +566,8 @@ export default function (pi: any) {
   for (const { command, skill, description } of SKILLS) {
     pi.registerCommand(command, {
       description,
-      handler: async (_args: unknown, ctx: any) => {
-        const content = loadSkillContent(skill)
+      handler: async (args: unknown, ctx: any) => {
+        const content = loadPiCommandPrompt(command, skill, args)
         const skillPiMetadata = loadSkillPiMetadata(skill)
         void ctx
         void skillPiMetadata

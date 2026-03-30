@@ -269,6 +269,11 @@ const HOSTS: HostConfig[] = [
       if (existsSync(skillsSrc)) {
         await copyDir(skillsSrc, join(targetDir, "extensions", "hyperpowers", "skills"))
       }
+      // Copy commands directory for command-specific Pi wrappers such as execute-ralph
+      const commandsSrc = join(REPO_ROOT, "commands")
+      if (existsSync(commandsSrc)) {
+        await copyDir(commandsSrc, join(targetDir, "extensions", "hyperpowers", "commands"))
+      }
       // Preserve user routing.json if it exists (don't overwrite custom model assignments)
       const routingDest = join(extDir, "routing.json")
       const routingSrc = join(REPO_ROOT, ".pi", "extensions", "hyperpowers", "routing.json")
