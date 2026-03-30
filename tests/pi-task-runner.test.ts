@@ -7,6 +7,7 @@ import {
   buildPiTaskArgs,
   executePiTask,
   executePiTaskAsync,
+  executePiTasksChain,
   executePiTasksParallel,
   type SpawnAsyncLike,
 } from "../.pi/extensions/hyperpowers/task-runner"
@@ -94,4 +95,48 @@ test("executePiTasksParallel respects maxConcurrency", async () => {
 
   expect(results).toEqual([2, 4, 6, 8])
   expect(peak).toBe(2)
+})
+
+test("executePiTasksChain passes previous results sequentially", async () => {
+  const results = await executePiTasksChain(["find", "summarize", "finalize"], async (task, previousResults) => {
+    if (task === "find") return "auth-flow"
+    if (task === "summarize") return `summary:${previousResults.at(-1)}`
+    return `final:${previousResults.join("|")}`
+  })
+
+  expect(results).toEqual([
+    "auth-flow",
+    "summary:auth-flow",
+    "final:auth-flow|summary:auth-flow",
+  ])
+})
+
+test("executePiTasksChain stops on first failure", async () => {
+  const calls: string[] = []
+
+  await expect(executePiTasksChain(["first", "boom", "never"], async (task) => {
+    calls.push(task)
+    if (task === "boom") {
+      throw new Error("chain failed")
+    }
+    return `${task}-ok`
+  })).rejects.toThrow("chain failed")
+
+  expect(calls).toEqual(["first", "boom"])
+})
+
+test("executePiTasksChain forwards abort signal to each step", async () => {
+  const controller = new AbortController()
+  const seenSignals: AbortSignal[] = []
+
+  await executePiTasksChain(["one", "two"], async (_task, _previousResults, signal) => {
+    seenSignals.push(signal!)
+    if (seenSignals.length === 1) {
+      controller.abort()
+    }
+    return "ok"
+  }, { signal: controller.signal })
+
+  expect(seenSignals).toHaveLength(2)
+  expect(seenSignals.every((signal) => signal === controller.signal)).toBe(true)
 })

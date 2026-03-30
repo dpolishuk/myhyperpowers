@@ -90,6 +90,19 @@ export async function executePiTasksParallel<TTask, TResult>(
   return results
 }
 
+export async function executePiTasksChain<TTask, TResult>(
+  tasks: TTask[],
+  executeTask: (task: TTask, previousResults: TResult[], signal?: AbortSignal) => Promise<TResult>,
+  options: Pick<ParallelExecutionOptions, "signal"> = {},
+): Promise<TResult[]> {
+  const results: TResult[] = []
+  for (const task of tasks) {
+    const result = await executeTask(task, results, options.signal)
+    results.push(result)
+  }
+  return results
+}
+
 export function buildStructuredTaskPrompt(task: string): string {
   return `${task}\n\nReturn valid JSON only. Do not include markdown fences, commentary, or prose outside the JSON object. Use exactly this shape:\n{\n  "status": "PASS|ISSUES_FOUND|FAIL",\n  "summary": "short summary",\n  "findings": [],\n  "nextAction": "optional next step"\n}`
 }
