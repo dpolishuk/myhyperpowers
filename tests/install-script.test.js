@@ -345,7 +345,7 @@ test("install.sh opencode provisions tm runtime and OpenCode command surface", (
   const result = spawnSync("bash", ["scripts/install.sh", "--opencode", "--yes"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: { ...process.env, HOME: home, NO_COLOR: "1" },
+    env: installTestEnv(home),
     timeout: 120000,
   })
 

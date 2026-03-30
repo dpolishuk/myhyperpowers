@@ -132,7 +132,7 @@ test("runLinearBackendCommand resolves parent internal ids through direct issue 
       team: { id: "team-1" },
       issue: async ref => {
         if (ref === "lin-parent-10") {
-          return { id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue" }
+          return { id: "lin-parent-10", identifier: "ENG-10", title: "Parent issue", teamId: "team-1" }
         }
 
         return null
@@ -200,6 +200,29 @@ test("runLinearBackendCommand rejects cross-team direct issue lookups via team r
 
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr, /Linear issue "lin-uuid-10" not found/)
+})
+
+test("runLinearBackendCommand rejects direct issue lookups when team verification fails", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "lin-uuid-11"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issue: async () => ({
+        id: "lin-uuid-11",
+        identifier: "ENG-11",
+        title: "Unverifiable team issue",
+        state: { name: "Todo", type: "unstarted" },
+        team: Promise.reject(new Error("team lookup failed")),
+      }),
+      issueSearch: async () => {
+        throw new Error("should not fall back to issueSearch when direct team verification fails")
+      },
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Linear issue "lin-uuid-11" not found/)
 })
 
 test("runLinearBackendCommand preserves direct lookup errors for internal-id parents", async () => {
@@ -541,6 +564,19 @@ test("runLinearBackendCommand rejects unsupported tm status values", async () =>
 
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr, /Unsupported tm status "bogus"/)
+})
+
+test("runLinearBackendCommand rejects update --status without a value before resolving context", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["update", "ENG-7", "--status"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for missing update status")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing value for --status/)
 })
 
 test("runLinearBackendCommand closes issues through a completed workflow state", async () => {

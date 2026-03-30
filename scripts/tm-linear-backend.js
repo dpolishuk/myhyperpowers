@@ -102,7 +102,7 @@ async function findIssueByRef(context, ref) {
     const directIssue = await context.issue(ref)
     if (directIssue?.id === ref || directIssue?.identifier === ref) {
       const issueTeamId = await resolveIssueTeamId(directIssue)
-      if (context.team?.id && issueTeamId && issueTeamId !== context.team.id) {
+      if (context.team?.id && (!issueTeamId || issueTeamId !== context.team.id)) {
         throw new Error(`Linear issue "${ref}" not found.`)
       }
 
@@ -127,9 +127,9 @@ async function resolveIssueTeamId(issue) {
 
   try {
     const team = typeof issue?.team === "function" ? await issue.team() : await issue?.team
-    return team?.id
+    return team?.id || null
   } catch {
-    return undefined
+    return null
   }
 }
 
@@ -243,6 +243,12 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     const issueRef = args[0] && !args[0].startsWith("--") ? args[0] : null
     if (!issueRef) {
       return { exitCode: 1, stdout: "", stderr: `tm: Missing issue ref for ${command}.` }
+    }
+  }
+
+  if (command === "update") {
+    if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
+      return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
     }
   }
 
