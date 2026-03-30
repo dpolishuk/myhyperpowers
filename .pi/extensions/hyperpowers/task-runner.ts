@@ -257,11 +257,15 @@ function prepareTask(params: ExecutePiTaskParams): string {
     : params.task
 }
 
-function buildContextFailure(format: PiTaskFormat | undefined, contextMode: PiTaskContextMode): PiTaskResult {
+function buildContextFailure(
+  format: PiTaskFormat | undefined,
+  contextMode: PiTaskContextMode,
+  details = `Context mode '${contextMode}' requires a session seed path but none was provided`,
+): PiTaskResult {
   return buildFailureResult(
     format,
     `Subagent failed (${contextMode} context unavailable)`,
-    `Context mode '${contextMode}' requires a session seed path but none was provided`,
+    details,
     "Retry with a fresh context or supply a valid parent session seed before using fork mode",
     "missing-session",
   )
@@ -292,7 +296,15 @@ export function executePiTask(
   let forkSession: ForkSession | undefined
   try {
     if (contextMode === "fork" && params.sessionSeedPath) {
-      forkSession = createForkSessionSync(params.sessionSeedPath)
+      try {
+        forkSession = createForkSessionSync(params.sessionSeedPath)
+      } catch (error: any) {
+        return buildContextFailure(
+          params.format,
+          contextMode,
+          error?.message || `Unable to prepare fork session from '${params.sessionSeedPath}'`,
+        )
+      }
     }
 
     const args = buildPiTaskArgs(task, params.model, params.effort, contextMode, forkSession?.seedPath, forkSession?.dir)
@@ -389,7 +401,15 @@ export async function executePiTaskAsync(
   let forkSession: ForkSession | undefined
   try {
     if (contextMode === "fork" && params.sessionSeedPath) {
-      forkSession = await createForkSessionAsync(params.sessionSeedPath)
+      try {
+        forkSession = await createForkSessionAsync(params.sessionSeedPath)
+      } catch (error: any) {
+        return buildContextFailure(
+          params.format,
+          contextMode,
+          error?.message || `Unable to prepare fork session from '${params.sessionSeedPath}'`,
+        )
+      }
     }
 
     const args = buildPiTaskArgs(task, params.model, params.effort, contextMode, forkSession?.seedPath, forkSession?.dir)
@@ -410,37 +430,48 @@ export async function executePiTaskAsync(
       let settled = false
       let timedOut = false
       let aborted = false
+      let pendingExitResult: PiTaskResult | null = null
+      let terminationTimer: ReturnType<typeof setTimeout> | undefined
       let abortHandler: (() => void) | undefined
       const finish = (result: PiTaskResult) => {
         if (settled) return
         settled = true
         clearTimeout(timer)
+        if (terminationTimer) clearTimeout(terminationTimer)
         if (signal && abortHandler) signal.removeEventListener("abort", abortHandler)
         resolve(result)
       }
+      const requestTermination = (result: PiTaskResult, reason: "timeout" | "abort" | "output-limit") => {
+        if (settled || pendingExitResult) return
+        pendingExitResult = result
+        if (reason === "timeout") timedOut = true
+        if (reason === "abort") aborted = true
+        child.kill("SIGTERM")
+        terminationTimer = setTimeout(() => {
+          if (settled) return
+          child.kill("SIGKILL")
+          finish(result)
+        }, 1000)
+      }
 
       const timer = setTimeout(() => {
-        timedOut = true
-        child.kill("SIGTERM")
-        finish(buildFailureResult(
+        requestTermination(buildFailureResult(
           params.format,
           "Subagent failed (timeout)",
           stderr.trim() || stdout.trim() || "subprocess timed out after 120000ms",
           "Inspect the delegated task and retry with a narrower scope",
-        ))
+        ), "timeout")
       }, 120000)
 
       if (signal) {
         abortHandler = () => {
-          aborted = true
-          child.kill("SIGTERM")
-          finish(buildFailureResult(
+          requestTermination(buildFailureResult(
             params.format,
             "Subagent failed (cancelled)",
             stderr.trim() || stdout.trim() || "Subagent cancelled by parent signal",
             "Retry once the parent operation is resumed",
             "cancelled",
-          ))
+          ), "abort")
         }
         if (signal.aborted) {
           abortHandler()
@@ -456,14 +487,13 @@ export async function executePiTaskAsync(
         stdout += chunk
         stdoutBytes += Buffer.byteLength(chunk)
         if (stdoutBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
-          child.kill("SIGTERM")
-          finish(buildFailureResult(
+          requestTermination(buildFailureResult(
             params.format,
             "Subagent failed (output exceeded max buffer)",
             `stdout exceeded ${MAX_ASYNC_SUBAGENT_OUTPUT_BYTES} bytes`,
             "Reduce delegated output volume or narrow the task scope before retrying",
             "output-limit",
-          ))
+          ), "output-limit")
         }
       })
       child.stderr?.on("data", (chunk) => {
@@ -471,14 +501,13 @@ export async function executePiTaskAsync(
         stderr += chunk
         stderrBytes += Buffer.byteLength(chunk)
         if (stderrBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
-          child.kill("SIGTERM")
-          finish(buildFailureResult(
+          requestTermination(buildFailureResult(
             params.format,
             "Subagent failed (output exceeded max buffer)",
             `stderr exceeded ${MAX_ASYNC_SUBAGENT_OUTPUT_BYTES} bytes`,
             "Reduce delegated output volume or narrow the task scope before retrying",
             "output-limit",
-          ))
+          ), "output-limit")
         }
       })
       child.on("error", (error) => {
@@ -491,7 +520,10 @@ export async function executePiTaskAsync(
         ))
       })
       child.on("close", (code, closeSignal) => {
-        if (aborted || timedOut) return
+        if (pendingExitResult) {
+          finish(pendingExitResult)
+          return
+        }
         const output = stdout.trim()
         const details = stderr.trim() || output || "unknown error"
         if (code === null) {

@@ -361,7 +361,10 @@ function createMockAsyncChild() {
   child.stderr = new EventEmitter()
   child.stdout.setEncoding = () => {}
   child.stderr.setEncoding = () => {}
-  child.kill = mock(() => true)
+  child.kill = mock((signal?: string) => {
+    queueMicrotask(() => child.emit("close", null, signal ?? "SIGTERM"))
+    return true
+  })
   return child
 }
 

@@ -1,5 +1,5 @@
 import { test, expect, mock } from "bun:test"
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs"
+import { mkdtempSync, writeFileSync, existsSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -32,24 +32,58 @@ test("executePiTask uses fork context session seed when requested", () => {
     stderr: "",
   }))
 
+  try {
+    const result = executePiTask({
+      task: "Review code",
+      cwd: "/tmp/project",
+      contextMode: "fork",
+      sessionSeedPath,
+    }, run as any)
+
+    expect(result.content[0].text).toBe("ok")
+    const [, args] = run.mock.calls[0]!
+    expect(args).toContain("--session")
+    expect(args).toContain("--session-dir")
+    expect(args).not.toContain("--no-session")
+    const sessionArgIndex = args.indexOf("--session")
+    const sessionDirIndex = args.indexOf("--session-dir")
+    expect(sessionArgIndex).toBeGreaterThan(-1)
+    expect(sessionDirIndex).toBeGreaterThan(-1)
+    expect(existsSync(args[sessionArgIndex + 1])).toBe(false)
+    expect(existsSync(args[sessionDirIndex + 1])).toBe(false)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test("executePiTask returns normalized failure when fork session seed is unreadable", () => {
   const result = executePiTask({
     task: "Review code",
     cwd: "/tmp/project",
     contextMode: "fork",
-    sessionSeedPath,
-  }, run as any)
+    sessionSeedPath: "/tmp/does-not-exist/session.jsonl",
+    format: "structured",
+  })
 
-  expect(result.content[0].text).toBe("ok")
-  const [, args] = run.mock.calls[0]!
-  expect(args).toContain("--session")
-  expect(args).toContain("--session-dir")
-  expect(args).not.toContain("--no-session")
-  const sessionArgIndex = args.indexOf("--session")
-  const sessionDirIndex = args.indexOf("--session-dir")
-  expect(sessionArgIndex).toBeGreaterThan(-1)
-  expect(sessionDirIndex).toBeGreaterThan(-1)
-  expect(existsSync(args[sessionArgIndex + 1])).toBe(false)
-  expect(existsSync(args[sessionDirIndex + 1])).toBe(false)
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("fork context unavailable")
+  expect(parsed.findings[0]).toMatchObject({ type: "missing-session", source: "pi-subagent" })
+})
+
+test("executePiTaskAsync returns normalized failure when fork session seed is unreadable", async () => {
+  const result = await executePiTaskAsync({
+    task: "Review code",
+    cwd: "/tmp/project",
+    contextMode: "fork",
+    sessionSeedPath: "/tmp/does-not-exist/session.jsonl",
+    format: "structured",
+  })
+
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("fork context unavailable")
+  expect(parsed.findings[0]).toMatchObject({ type: "missing-session", source: "pi-subagent" })
 })
 
 test("executePiTaskAsync short-circuits before spawn when already aborted", async () => {

@@ -19,7 +19,6 @@ redirect
 # These files are machine-specific and should not be shared across clones
 .sync.lock
 export-state/
-linear-map.json
 
 # Ephemeral store (SQLite - wisps/molecules, intentionally not versioned)
 ephemeral.sqlite3
@@ -27,14 +26,14 @@ ephemeral.sqlite3-journal
 ephemeral.sqlite3-wal
 ephemeral.sqlite3-shm
 
+# Linear sync state (local-only, per-machine)
+linear-map.json
+linear-sync-state.json
+
 # Dolt server management (auto-started by bd)
 dolt-server.pid
 dolt-server.log
 dolt-server.lock
-dolt-server.port
-
-# Backup data (auto-exported JSONL, local-only)
-backup/
 
 # Legacy files (from pre-Dolt versions)
 *.db
@@ -44,6 +43,10 @@ backup/
 *.db-shm
 db.sqlite
 bd.db
+daemon.lock
+daemon.log
+daemon-*.log.gz
+daemon.pid
 # NOTE: Do NOT add negation patterns here.
 # They would override fork protection in .git/info/exclude.
 # Config files (metadata.json, config.yaml) are tracked by git by default

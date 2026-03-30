@@ -2,6 +2,5 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_database": "myhyperpowers",
-  "project_id": "600ea335-0af1-4b42-b749-fbf65d5d90d5"
+  "dolt_database": "myhyperpowers"
 }

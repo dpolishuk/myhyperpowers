@@ -568,9 +568,7 @@ export default function (pi: any) {
       description,
       handler: async (args: unknown, ctx: any) => {
         const content = loadPiCommandPrompt(command, skill, args)
-        const skillPiMetadata = loadSkillPiMetadata(skill)
         void ctx
-        void skillPiMetadata
         if (content) {
           return content
         }
@@ -667,7 +665,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           }
         }
         return {
-          content: [{ type: "text" as const, text: `Subagent failed: ${err.message || String(err)}` }],
+          content: [{ type: "text" as const, text: `Subagent failed: ${err?.message || String(err)}` }],
         }
       }
     },
