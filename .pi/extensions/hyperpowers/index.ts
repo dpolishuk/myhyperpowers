@@ -13,6 +13,7 @@ import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import { executePiSubagent } from "./subagent"
+import { runParallelReview } from "./review-parallel"
 import {
   HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
@@ -612,20 +613,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   pi.registerCommand("review-parallel", {
     description: "Run 3 parallel review subagents: quality, implementation, simplification",
     handler: async (_args: unknown, ctx: any) => {
-      return `# Parallel Review
-
-Run these 3 reviews using the hyperpowers_subagent tool IN PARALLEL:
-
-1. **Quality review**: Use hyperpowers_subagent with type: "review", task:
-   "Review the recent code changes for bugs, security issues, and race conditions. Check git diff HEAD~1. Return PASS or ISSUES_FOUND with file:line references."
-
-2. **Implementation review**: Use hyperpowers_subagent with type: "validation", task:
-   "Verify the recent changes achieve their stated goals. Check git log --oneline -5 for context. Return PASS or ISSUES_FOUND with missing items."
-
-3. **Simplification review**: Use hyperpowers_subagent with type: "review", task:
-   "Check for over-engineering in recent changes. Look for unnecessary abstractions. Return PASS or ISSUES_FOUND with recommendations."
-
-After all 3 complete, summarize the results in a table.`
+      return await runParallelReview({ cwd: ctx?.cwd || process.cwd() })
     },
   })
 
