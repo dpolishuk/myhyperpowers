@@ -257,8 +257,12 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
   }
 
   if (command === "update") {
-    if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
+    const statusArg = parseStatusArg(args)
+    if (hasArgFlag(args, "--status") && statusArg === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
+    }
+    if (statusArg && !isSupportedTmStatus(statusArg)) {
+      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${statusArg}" for linear backend.` }
     }
   }
 

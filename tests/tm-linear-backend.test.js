@@ -611,6 +611,19 @@ test("runLinearBackendCommand rejects unsupported tm status values", async () =>
   assert.match(result.stderr, /Unsupported tm status "bogus"/)
 })
 
+test("runLinearBackendCommand rejects unsupported update statuses before resolving context", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["update", "ENG-7", "--status", "bogus"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for unsupported update status")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Unsupported tm status "bogus"/)
+})
+
 test("runLinearBackendCommand rejects update --status without a value before resolving context", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
