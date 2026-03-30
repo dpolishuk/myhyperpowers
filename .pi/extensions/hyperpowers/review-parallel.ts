@@ -1,5 +1,10 @@
 import { executePiSubagentAsync, type ExecutePiSubagentParams, type StructuredSubagentOutput } from "./subagent"
 
+export interface ResolvedParallelReviewRoute {
+  model?: string | null
+  effort?: string
+}
+
 export interface ParallelReviewParams extends ExecutePiSubagentParams {
   type: "review" | "validation"
   format: "structured"
@@ -12,6 +17,7 @@ export interface ParallelReviewRequest {
 
 export interface ParallelReviewExecutionContext {
   cwd?: string
+  resolveRoute?: (params: Pick<ParallelReviewParams, "type">) => ResolvedParallelReviewRoute
 }
 
 export type ParallelReviewExecutor = (params: ParallelReviewParams) => Promise<StructuredSubagentOutput>
@@ -53,11 +59,27 @@ async function defaultParallelReviewExecutor(params: ParallelReviewParams): Prom
   return JSON.parse(result.content[0]?.text || "{}") as StructuredSubagentOutput
 }
 
+function applyResolvedRoute(
+  request: ParallelReviewRequest,
+  resolveRoute?: (params: Pick<ParallelReviewParams, "type">) => ResolvedParallelReviewRoute,
+): ParallelReviewRequest {
+  if (!resolveRoute) return request
+  const resolved = resolveRoute({ type: request.params.type })
+  return {
+    lane: request.lane,
+    params: {
+      ...request.params,
+      model: resolved.model ?? undefined,
+      effort: resolved.effort,
+    },
+  }
+}
+
 export async function runParallelReview(
   ctx: ParallelReviewExecutionContext,
   execute: ParallelReviewExecutor = defaultParallelReviewExecutor,
 ): Promise<string> {
-  const requests = buildParallelReviewRequests(ctx.cwd)
+  const requests = buildParallelReviewRequests(ctx.cwd).map((request) => applyResolvedRoute(request, ctx.resolveRoute))
   const results = await Promise.all(requests.map(async ({ lane, params }) => {
     try {
       const result = await execute(params)
