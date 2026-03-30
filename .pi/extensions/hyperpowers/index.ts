@@ -13,7 +13,7 @@ import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import { executePiSubagent } from "./subagent"
-import { executePiTask } from "./task-runner"
+import { executePiTaskAsync } from "./task-runner"
 import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import {
@@ -157,7 +157,7 @@ async function executePiCommand(commandName: string, skillName: string, args: un
     const sessionSeedPath = ctx?.sessionManager?.getSessionFile?.()
     const requestedContextMode = metadata.subProcessContext
     const contextMode = requestedContextMode === "fork" && sessionSeedPath ? "fork" : "fresh"
-    const result = executePiTask({
+    const result = await executePiTaskAsync({
       task: content,
       model: routingIsExplicit ? routing.model : metadata.model,
       effort: routingIsExplicit ? routing.effort : metadata.thinkingLevel,
