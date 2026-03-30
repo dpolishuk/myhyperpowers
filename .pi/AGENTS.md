@@ -32,7 +32,7 @@ The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Child runs are launched as ephemeral Pi subprocesses (`--print --no-session`) so they do not persist separate session history. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
+The subagent runs with its own context, executes the task, and returns only the result. Child runs are launched as ephemeral Pi subprocesses (`--print --no-session`) so they do not persist separate session history. Under the hood, Hyperpowers now uses a shared internal Pi task runner that supports single, parallel, and chain execution modes while preserving the current public tool/command contracts. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
 
 ```
 hyperpowers_subagent(task: "Review code", type: "review")
@@ -52,6 +52,8 @@ Routing precedence:
 5. Inherit current session model
 
 If the resolved route also includes `effort`, Hyperpowers maps it to Pi's `--thinking` flag for the child subprocess.
+
+Hyperpowers also parses optional advisory skill frontmatter under `metadata.pi` with fields such as `subProcess`, `subProcessContext`, `model`, and `thinkingLevel`. These values are intentionally advisory only: `/routing-settings` remains the authoritative control plane for model/effort routing and metadata must not silently override it.
 
 Additional concrete agent names supported for routing overrides include:
 - `review-quality`

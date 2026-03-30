@@ -5,7 +5,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 
-Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
+Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, Codex CLI, and Pi as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
 [Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
@@ -97,6 +97,22 @@ Reusable workflows for common development tasks:
 | **writing-skills** | TDD for process documentation | Creating new skills |
 | **building-hooks** | Create custom automation hooks | Extending IDE behavior |
 | **skills-auto-activation** | Fix skills not activating reliably | Troubleshooting skill discovery |
+
+### Pi Support
+
+Hyperpowers includes a first-class Pi extension in `.pi/extensions/hyperpowers/`.
+
+Current Pi support includes:
+- routed `hyperpowers_subagent` execution
+- extension-managed `/review-parallel`
+- a shared internal Pi task runner with `single`, `parallel`, and `chain` execution support
+- support for both fresh and forked subprocess contexts in the runner
+- advisory `metadata.pi` skill frontmatter parsing (`subProcess`, `subProcessContext`, `model`, `thinkingLevel`)
+- authoritative routing via `/routing-settings`
+
+Important: Pi skill metadata is currently **advisory**. It does not override the existing routing precedence configured through `/routing-settings`.
+
+See [`docs/pi.md`](docs/pi.md) for details.
 
 ### Slash Commands
 

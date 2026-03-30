@@ -8,9 +8,11 @@ Hyperpowers includes first-class support for the Pi coding agent through the ext
 
 - Slash commands for Hyperpowers workflows
 - `hyperpowers_subagent` for isolated Pi subprocess delegation
+- A shared internal Pi task runner used by Hyperpowers orchestration
 - Model routing by subagent type and concrete agent
 - Routed effort mapped to Pi thinking controls when configured
 - True extension-side `/review-parallel` fan-out/fan-in
+- Advisory `metadata.pi` skill frontmatter parsing for future Pi-specific execution hints
 - Interactive routing configuration through `/routing-settings`
 - Session-start memory recall via `memsearch` when available
 
@@ -39,6 +41,22 @@ Compatibility alias:
 
 - `/configure-routing` → alias for `/routing-settings`
 
+## Internal orchestration core
+
+Hyperpowers now uses a shared internal task runner for Pi subprocess orchestration.
+
+Current wave-1 execution modes supported by the runner are:
+- `single` — used by `hyperpowers_subagent`
+- `parallel` — used by `/review-parallel`
+- `chain` — available in the shared runner for future workflows
+
+The runner preserves the existing Hyperpowers Pi contracts while centralizing:
+- subprocess launch semantics
+- fresh vs fork context handling
+- cancellation propagation
+- output limits
+- structured/text result normalization
+
 ## Subagent tool
 
 Use `hyperpowers_subagent` to delegate work to an isolated Pi subprocess.
@@ -64,6 +82,19 @@ Top-level structured fields remain:
 - `nextAction`
 
 Failure-path findings may also include additive metadata such as `type` and `source` when the helper knows more about the failure.
+
+## Skill metadata
+
+Hyperpowers also parses optional advisory Pi skill frontmatter under `metadata.pi`.
+
+Supported fields currently include:
+- `subProcess`
+- `subProcessContext`
+- `model`
+- `thinkingLevel`
+
+Important: this metadata is currently **advisory**, not authoritative.
+It is parsed and normalized for Hyperpowers-native Pi behavior, but it does **not** override the routing decisions made through `/routing-settings`.
 
 ## Supported concrete agents for routing
 
