@@ -596,6 +596,20 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           format: params.format,
         })
       } catch (err: any) {
+        if (params.format === "structured") {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              status: "FAIL",
+              summary: err?.message || "Subagent failed unexpectedly",
+              findings: [{
+                message: err?.message || String(err),
+                type: "tool-error",
+                source: "hyperpowers-subagent-tool",
+              }],
+              nextAction: "Inspect routing resolution and subagent runtime state before retrying",
+            }) }],
+          }
+        }
         return {
           content: [{ type: "text" as const, text: `Subagent failed: ${err.message || String(err)}` }],
         }
@@ -613,7 +627,10 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   pi.registerCommand("review-parallel", {
     description: "Run 3 parallel review subagents: quality, implementation, simplification",
     handler: async (_args: unknown, ctx: any) => {
-      return await runParallelReview({ cwd: ctx?.cwd || process.cwd() })
+      return await runParallelReview({
+        cwd: ctx?.cwd || process.cwd(),
+        resolveRoute: ({ type }) => resolveSubagentRouting(type, undefined, undefined),
+      })
     },
   })
 

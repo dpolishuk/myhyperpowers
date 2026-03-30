@@ -61,6 +61,22 @@ test("runParallelReview uses structured mode for all internal review requests", 
   }
 })
 
+test("runParallelReview applies resolved routing model and effort per lane", async () => {
+  const execute = mock(async () => ({ status: "PASS", summary: "ok", findings: [] }))
+
+  await runParallelReview({
+    cwd: "/tmp/project",
+    resolveRoute: ({ type }) => ({
+      model: type === "validation" ? "anthropic/claude-opus-4-5" : "anthropic/claude-haiku-4-5",
+      effort: type === "validation" ? "high" : "low",
+    }),
+  }, execute)
+
+  expect(execute.mock.calls[0]?.[0]).toMatchObject({ model: "anthropic/claude-haiku-4-5", effort: "low" })
+  expect(execute.mock.calls[1]?.[0]).toMatchObject({ model: "anthropic/claude-opus-4-5", effort: "high" })
+  expect(execute.mock.calls[2]?.[0]).toMatchObject({ model: "anthropic/claude-haiku-4-5", effort: "low" })
+})
+
 test("runParallelReview surfaces cancelled lanes without hiding successful results", async () => {
   const execute = mock(async (params: any) => {
     if (params.task.includes("stated goals")) {
