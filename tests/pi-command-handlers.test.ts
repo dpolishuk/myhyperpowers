@@ -9,7 +9,7 @@ const repoRoot = path.resolve(__dirname, "..")
 
 function createFakePiShim(binDir: string): void {
   const piPath = path.join(binDir, "pi")
-  writeFileSync(piPath, "#!/bin/sh\nexit 0\n", "utf8")
+  writeFileSync(piPath, "#!/bin/sh\nif [ -n \"$HYPERPOWERS_PI_TEST_CAPTURE\" ]; then\n  printf '%s\\n' \"$@\" > \"$HYPERPOWERS_PI_TEST_CAPTURE\"\nfi\nprintf 'PI_SHIM_OK\\n'\n", "utf8")
   chmodSync(piPath, 0o755)
 }
 
@@ -53,6 +53,8 @@ async function installAndLoadCommands() {
 
   return {
     commands,
+    home,
+    binDir,
     cleanup: () => {
       rmSync(home, { recursive: true, force: true })
       rmSync(binDir, { recursive: true, force: true })
@@ -84,6 +86,56 @@ test("brainstorm command can load its dedicated command wrapper after Pi install
     const output = await brainstorm.handler(undefined, {})
     expect(output).toContain("Use the hyperpowers:brainstorming skill exactly as written")
   } finally {
+    cleanup()
+  }
+})
+
+test("routing-settings returns informational fallback when Pi UI context is unavailable", async () => {
+  const { commands, cleanup } = await installAndLoadCommands()
+  try {
+    const routingSettings = commands.get("routing-settings")
+    const configureRouting = commands.get("configure-routing")
+    expect(routingSettings).toBeTruthy()
+    expect(configureRouting).toBeTruthy()
+
+    const routingOutput = await routingSettings.handler(undefined, {})
+    const aliasOutput = await configureRouting.handler(undefined, {})
+    expect(routingOutput).toContain("interactive routing wizard requires Pi's TUI UI context")
+    expect(routingOutput).toContain("routing.json")
+    expect(aliasOutput).toContain("interactive routing wizard requires Pi's TUI UI context")
+  } finally {
+    cleanup()
+  }
+})
+
+test("command handler applies advisory Pi subprocess metadata when enabled", async () => {
+  const { commands, home, binDir, cleanup } = await installAndLoadCommands()
+  const capturePath = path.join(home, "pi-args.txt")
+  const skillPath = path.join(home, ".pi", "agent", "extensions", "hyperpowers", "skills", "brainstorming", "SKILL.md")
+  const originalSkill = readFileSync(skillPath, "utf8")
+  const originalPath = process.env.PATH
+
+  try {
+    writeFileSync(skillPath, `---\nname: brainstorming\ndescription: test metadata\nmetadata:\n  pi:\n    subProcess: true\n    model: openai/gpt-4.1-mini\n    thinkingLevel: high\n---\n\n${originalSkill.replace(/^---\n[\s\S]*?\n---\n?/, "")}`, "utf8")
+
+    process.env.HYPERPOWERS_PI_TEST_CAPTURE = capturePath
+    process.env.PATH = `${binDir}:${originalPath}`
+    const brainstorm = commands.get("brainstorm")
+    expect(brainstorm).toBeTruthy()
+
+    const output = await brainstorm.handler("--foo=bar", { cwd: repoRoot })
+    const capturedArgs = readFileSync(capturePath, "utf8")
+
+    expect(output).toContain("PI_SHIM_OK")
+    expect(capturedArgs).toContain("--no-session")
+    expect(capturedArgs).toContain("--model")
+    expect(capturedArgs).toContain("openai/gpt-4.1-mini")
+    expect(capturedArgs).toContain("--thinking")
+    expect(capturedArgs).toContain("high")
+  } finally {
+    delete process.env.HYPERPOWERS_PI_TEST_CAPTURE
+    process.env.PATH = originalPath
+    writeFileSync(skillPath, originalSkill, "utf8")
     cleanup()
   }
 })

@@ -118,6 +118,38 @@ function loadPiCommandPrompt(commandName: string, skillName: string, args: unkno
   return null
 }
 
+function getRoutingSettingsFallbackMessage(): string {
+  return [
+    "# Hyperpowers Routing Settings",
+    "",
+    "The interactive routing wizard requires Pi's TUI UI context.",
+    "Run `/routing-settings` inside an interactive Pi session to configure subagent type defaults and concrete agent overrides.",
+    "",
+    `Config file: ${ROUTING_CONFIG_PATH}`,
+  ].join("\n")
+}
+
+async function executePiCommand(commandName: string, skillName: string, args: unknown, ctx: any): Promise<string> {
+  const content = loadPiCommandPrompt(commandName, skillName, args)
+  if (!content) {
+    return `Skill "${skillName}" not found. Make sure hyperpowers is installed correctly.`
+  }
+
+  const metadata = loadSkillPiMetadata(skillName)
+  if (metadata?.subProcess) {
+    const result = executePiSubagent({
+      task: content,
+      model: metadata.model,
+      effort: metadata.thinkingLevel,
+      cwd: ctx?.cwd || process.cwd(),
+      format: "text",
+    })
+    return result.content[0]?.text || "(subagent returned empty result)"
+  }
+
+  return content
+}
+
 // Subagent routing config
 function loadRoutingConfig(): RoutingConfig {
   try {
@@ -567,19 +599,19 @@ export default function (pi: any) {
     pi.registerCommand(command, {
       description,
       handler: async (args: unknown, ctx: any) => {
-        const content = loadPiCommandPrompt(command, skill, args)
-        void ctx
-        if (content) {
-          return content
-        }
-        return `Skill "${skill}" not found. Make sure hyperpowers is installed correctly.`
+        return await executePiCommand(command, skill, args, ctx)
       },
     })
   }
 
   pi.registerCommand("routing-settings", {
     description: "Interactive TUI wizard to configure Hyperpowers subagent type defaults and concrete agent overrides",
-    handler: async (_args: unknown, ctx: any) => runRoutingWizard(ctx),
+    handler: async (_args: unknown, ctx: any) => {
+      if (!ctx?.ui?.custom) {
+        return getRoutingSettingsFallbackMessage()
+      }
+      return await runRoutingWizard(ctx)
+    },
   })
 
   // Model setup wizard — generates ~/.pi/agent/models.json
@@ -674,7 +706,12 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
   // TUI-based routing wizard — interactive model assignment
   pi.registerCommand("configure-routing", {
     description: "Alias for /routing-settings",
-    handler: async (_args: unknown, ctx: any) => runRoutingWizard(ctx),
+    handler: async (_args: unknown, ctx: any) => {
+      if (!ctx?.ui?.custom) {
+        return getRoutingSettingsFallbackMessage()
+      }
+      return await runRoutingWizard(ctx)
+    },
   })
 
   // Parallel review — dispatches multiple subagents

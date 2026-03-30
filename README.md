@@ -257,8 +257,14 @@ bun scripts/install.ts --yes
 # Install to specific hosts
 bun scripts/install.ts --yes --hosts claude,opencode
 
+# Install Pi only
+bun scripts/install.ts --yes --hosts pi
+
 # Install with specific features
 bun scripts/install.ts --yes --hosts claude --features memsearch,statusline
+
+# Install Pi with memsearch support
+bun scripts/install.ts --yes --hosts pi --features memsearch
 
 # JSON output for parsing
 bun scripts/install.ts --yes --json
@@ -267,7 +273,7 @@ bun scripts/install.ts --yes --json
 bun scripts/install.ts --uninstall
 ```
 
-Available hosts: `claude`, `opencode`, `kimi`, `gemini`
+Available hosts: `claude`, `opencode`, `kimi`, `gemini`, `pi`
 Available features: `memsearch`, `supermemory`, `statusline`, `routing-wizard`, `tm-cli`
 
 ### For Humans (interactive TUI)
@@ -332,6 +338,38 @@ claude --plugin-dir .
 
 <details>
 <summary><strong>Pi</strong></summary>
+
+**Recommended install:**
+
+```bash
+bun scripts/install.ts --yes --hosts pi
+```
+
+**With optional memory support:**
+
+```bash
+bun scripts/install.ts --yes --hosts pi --features memsearch
+```
+
+**Interactive install:**
+
+```bash
+bun scripts/install.ts
+```
+
+Notes:
+- Pi must be installed and available on your `PATH`
+- Pi installation requires `bun` or `npm` to install extension dependencies
+- the installer copies the Hyperpowers Pi extension into `~/.pi/agent/extensions/hyperpowers`
+- it also updates `~/.pi/agent/AGENTS.md` with the Hyperpowers section
+
+**Verify installation:**
+
+```text
+/routing-settings
+/review-parallel
+/execute-ralph
+```
 
 Hyperpowers includes a dedicated Pi extension with:
 - slash commands for Hyperpowers workflows
