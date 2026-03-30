@@ -120,13 +120,13 @@ function loadPiCommandPrompt(commandName: string, skillName: string, args: unkno
 
   const commandContent = loadCommandContent(commandName)
   if (commandContent) {
-    const substituted = commandContent.replace(/\$ARGUMENTS/g, argsStr)
+    const substituted = commandContent.replace(/\$ARGUMENTS/g, () => argsStr)
     return `${substituted}${formatPiCommandArgs(args)}`
   }
 
   const skillContent = loadSkillContent(skillName)
   if (skillContent) {
-    const substituted = skillContent.replace(/\$ARGUMENTS/g, argsStr)
+    const substituted = skillContent.replace(/\$ARGUMENTS/g, () => argsStr)
     return `${substituted}${formatPiCommandArgs(args)}`
   }
 
