@@ -392,6 +392,32 @@ test("executePiSubagentAsync kills child and returns deterministic failure on ab
   else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
 })
 
+test("executePiSubagentAsync short-circuits before spawn when already aborted", async () => {
+  const controller = new AbortController()
+  controller.abort()
+  const spawnAsync = mock(() => createMockAsyncChild())
+
+  const result = await executePiSubagentAsync(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    spawnAsync as any,
+    controller.signal,
+  )
+
+  expect(spawnAsync).toHaveBeenCalledTimes(0)
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("cancelled")
+  expect(parsed.findings[0]).toMatchObject({
+    message: "Subagent cancelled by parent signal",
+    type: "cancelled",
+    source: "pi-subagent",
+  })
+})
+
 test("executePiSubagentAsync keeps cancellation machine-readable in structured mode", async () => {
   const controller = new AbortController()
   const child = createMockAsyncChild()
@@ -433,6 +459,7 @@ test("executePiSubagentAsync caps stdout buffer growth and returns deterministic
   )
 
   child.stdout.emit("data", "x".repeat(MAX_ASYNC_SUBAGENT_OUTPUT_BYTES + 1))
+  child.stdout.emit("data", "y".repeat(128))
   const result = await promise
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")

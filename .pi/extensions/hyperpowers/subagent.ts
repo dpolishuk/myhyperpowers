@@ -240,6 +240,16 @@ export async function executePiSubagentAsync(
     )
   }
 
+  if (signal?.aborted) {
+    return buildFailureResult(
+      params.format,
+      "Subagent failed (cancelled)",
+      "Subagent cancelled by parent signal",
+      "Retry once the parent operation is resumed",
+      "cancelled",
+    )
+  }
+
   return await new Promise<PiSubagentResult>((resolve) => {
     const child = run("pi", args, {
       cwd,
@@ -299,6 +309,7 @@ export async function executePiSubagentAsync(
     child.stdout?.setEncoding?.("utf8")
     child.stderr?.setEncoding?.("utf8")
     child.stdout?.on("data", (chunk) => {
+      if (settled) return
       stdout += chunk
       stdoutBytes += Buffer.byteLength(chunk)
       if (stdoutBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
@@ -313,6 +324,7 @@ export async function executePiSubagentAsync(
       }
     })
     child.stderr?.on("data", (chunk) => {
+      if (settled) return
       stderr += chunk
       stderrBytes += Buffer.byteLength(chunk)
       if (stderrBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
