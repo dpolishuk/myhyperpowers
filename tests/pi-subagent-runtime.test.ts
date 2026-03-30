@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events"
 
 import {
   HYPERPOWERS_SUBAGENT_DEPTH_ENV,
+  MAX_ASYNC_SUBAGENT_OUTPUT_BYTES,
   buildPiSubagentArgs,
   buildStructuredSubagentTask,
   executePiSubagent,
@@ -416,6 +417,31 @@ test("executePiSubagentAsync keeps cancellation machine-readable in structured m
     type: "cancelled",
     source: "pi-subagent",
   })
+})
+
+test("executePiSubagentAsync caps stdout buffer growth and returns deterministic failure", async () => {
+  const child = createMockAsyncChild()
+  const spawnAsync = mock(() => child)
+
+  const promise = executePiSubagentAsync(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    spawnAsync as any,
+  )
+
+  child.stdout.emit("data", "x".repeat(MAX_ASYNC_SUBAGENT_OUTPUT_BYTES + 1))
+  const result = await promise
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("output exceeded max buffer")
+  expect(parsed.findings[0]).toMatchObject({
+    type: "output-limit",
+    source: "pi-subagent",
+  })
+  expect(child.kill).toHaveBeenCalledWith("SIGTERM")
 })
 
 test("executePiSubagent returns a parsing failure when format is structured and JSON is invalid", () => {
