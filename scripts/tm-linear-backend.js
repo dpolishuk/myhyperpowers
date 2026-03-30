@@ -190,6 +190,10 @@ function parseParentArg(args) {
   return parseArgValue(args, "--parent")
 }
 
+function isSupportedTmStatus(status) {
+  return ["open", "ready", "in_progress", "closed", "blocked"].includes(status)
+}
+
 function requireIssueRef(command, ref) {
   if (!ref) throw new Error(`Missing issue ref for ${command}.`)
 }
@@ -223,8 +227,12 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
   }
 
   if (command === "list") {
-    if (hasArgFlag(args, "--status") && parseStatusArg(args) === null) {
+    const statusArg = parseStatusArg(args)
+    if (hasArgFlag(args, "--status") && statusArg === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
+    }
+    if (statusArg && !isSupportedTmStatus(statusArg)) {
+      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${statusArg}" for linear backend.` }
     }
     if (hasArgFlag(args, "--parent") && parseParentArg(args) === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --parent." }
@@ -263,7 +271,7 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
       requireIssueRef(command, args[0])
       const issue = await findIssueByRef(context, args[0])
       const nextStatus = parseStatusArg(args)
-      if (!nextStatus || !["open", "ready", "in_progress", "closed", "blocked"].includes(nextStatus)) {
+      if (!nextStatus || !isSupportedTmStatus(nextStatus)) {
         throw new Error(`Unsupported tm status "${nextStatus || ""}" for linear backend.`)
       }
       const stateId = mapStatus(normalizeTmStatusForLinear(nextStatus), context.teamStates)

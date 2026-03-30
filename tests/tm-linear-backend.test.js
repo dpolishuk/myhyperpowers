@@ -311,6 +311,19 @@ test("runLinearBackendCommand rejects list --status without a value", async () =
   assert.match(result.stderr, /Missing value for --status/)
 })
 
+test("runLinearBackendCommand rejects unsupported list --status values before resolving context", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["list", "--status", "inprogress"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context for unsupported list status")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Unsupported tm status "inprogress"/)
+})
+
 test("runLinearBackendCommand shows a Linear issue by identifier", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
