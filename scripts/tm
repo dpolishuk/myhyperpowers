@@ -7,6 +7,17 @@ set -euo pipefail
 
 TM_VERSION="0.1.0"
 
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_SOURCE" ]]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+  [[ "$SCRIPT_SOURCE" != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+TM_SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+
+# shellcheck source=/dev/null
+source "$TM_SCRIPT_DIR/tm-backends.sh"
+
 trim() {
   local value="${1:-}"
   value="${value#"${value%%[![:space:]]*}"}"
@@ -29,9 +40,7 @@ find_repo_root() {
     return
   fi
 
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  root="$(find_repo_root_from "$script_dir")"
+  root="$(find_repo_root_from "$TM_SCRIPT_DIR")"
   if [[ -n "$root" ]]; then
     echo "$root"
   fi
@@ -162,7 +171,7 @@ load_linear_config_value() {
   if [[ -n "$backend_cmd" && "$backend_cmd" != "linear" ]] && command -v "$backend_cmd" >/dev/null 2>&1; then
     config_val="$($backend_cmd config get "$config_key" 2>/dev/null || true)"
     config_val="$(trim "$config_val")"
-    if [[ -n "$config_val" && "$config_val" != *"(not set)" ]]; then
+    if [[ -n "$config_val" && "$config_val" != *"(not set)" && "$config_val" != *[[:space:]]* ]] && is_valid_linear_fallback_value "$config_key" "$config_val"; then
       printf '%s\n' "$config_val"
       return
     fi
@@ -171,24 +180,39 @@ load_linear_config_value() {
   printf '\n'
 }
 
+is_valid_linear_fallback_value() {
+  local config_key="$1"
+  local config_val="$2"
+  case "$config_key" in
+    linear.api-key)
+      [[ "$config_val" == lin_* ]]
+      ;;
+    linear.team-key)
+      [[ "$config_val" =~ ^[A-Z0-9_-]+$ ]]
+      ;;
+    *)
+      [[ -n "$config_val" ]]
+      ;;
+  esac
+}
+
 linear_sync_configured() {
   local backend_cmd="${1:-bd}"
   local api_key
+  local team_key
   api_key="$(load_linear_config_value LINEAR_API_KEY linear.api-key "$backend_cmd")"
-  [[ -n "$api_key" ]]
+  team_key="$(load_linear_config_value LINEAR_TEAM_KEY linear.team-key "$backend_cmd")"
+  [[ -n "$api_key" && -n "$team_key" ]]
 }
 
 # ── Validation ───────────────────────────────────────────────────────────────
 
 validate_backend() {
   local backend="$1"
-  case "$backend" in
-    bd|br|linear) ;;
-    *)
-      echo "tm: unknown backend '$backend'. Valid backends: bd, br, linear" >&2
-      exit 1
-      ;;
-  esac
+  if ! tm_backend_is_supported "$backend"; then
+    echo "tm: unknown backend '$backend'. Valid backends: $(tm_backend_valid_list)" >&2
+    exit 1
+  fi
 }
 
 # ── Help / Version ───────────────────────────────────────────────────────────
@@ -210,17 +234,16 @@ Backend detection (highest priority first):
   3. Default: bd
 
 Available backends:
-  bd      Local beads task manager (default)
-  br      Local beads_rust task manager
-  linear  Linear.app integration (not yet implemented)
+$(tm_backend_help_lines)
 
 Examples:
   tm ready              Show tasks ready to work on
-  tm show bd-3          Show task details
-  tm create "Title"     Create a new task
-  tm close bd-3         Close a task
+  tm show <id>          Show task details
+  tm update <id> --status in_progress
+                        Update task status through the selected backend
+  tm close <id>         Close a task
 
-All arguments are passed through to the backend unchanged.
+Supported commands and behavior can vary by backend.
 EOF
 }
 
@@ -249,14 +272,16 @@ main() {
   validate_backend "$backend"
 
   case "$backend" in
-    bd|br)
+    bd|br|tk)
       local backend_cmd
       backend_cmd="$backend"
       if ! command -v "$backend_cmd" >/dev/null 2>&1; then
         if [[ "$backend_cmd" == "bd" ]]; then
           echo "tm: bd not found in PATH. Install beads first: https://github.com/Dicklesworthstone/beads_viewer" >&2
-        else
+        elif [[ "$backend_cmd" == "br" ]]; then
           echo "tm: br not found in PATH. Install beads_rust first: https://github.com/Dicklesworthstone/beads_rust" >&2
+        else
+          echo "tm: tk not found in PATH. Install Ticket first or select a different tm.backend." >&2
         fi
         exit 1
       fi
@@ -271,8 +296,21 @@ main() {
           exec "$backend_cmd" "$@"
         fi
         local sync_exit=0
-        if [[ "$backend_cmd" == "br" ]]; then
-          "$backend_cmd" sync --flush-only "${@:2}" || sync_exit=$?
+        if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
+          local sync_args=("${@:2}")
+          local has_flush_only=0
+          local sync_arg
+          for sync_arg in "${sync_args[@]}"; do
+            if [[ "$sync_arg" == "--flush-only" ]]; then
+              has_flush_only=1
+              break
+            fi
+          done
+          if [[ "$has_flush_only" -eq 1 ]]; then
+            "$backend_cmd" sync "${sync_args[@]}" || sync_exit=$?
+          else
+            "$backend_cmd" sync --flush-only "${sync_args[@]}" || sync_exit=$?
+          fi
         else
           "$backend_cmd" sync "${@:2}" || sync_exit=$?
         fi
@@ -283,22 +321,13 @@ main() {
           exit "$sync_exit"
         fi
 
-        if [[ "$backend_cmd" == "br" ]]; then
+        if ! tm_backend_supports_follow_on_linear_sync "$backend_cmd"; then
           if linear_sync_configured "$backend_cmd"; then
-            echo "tm: follow-on Linear sync is not supported for backend 'br'; local sync completed and follow-on sync was skipped" >&2
+            echo "tm: follow-on Linear sync is not supported for backend '$backend_cmd'; local sync completed and follow-on sync was skipped" >&2
           fi
           exit 0
         fi
 
-        local script_dir source_path
-        source_path="${BASH_SOURCE[0]}"
-        # Resolve symlinks (e.g., npm bin installs)
-        while [[ -L "$source_path" ]]; do
-          script_dir="$(cd "$(dirname "$source_path")" && pwd)"
-          source_path="$(readlink "$source_path")"
-          [[ "$source_path" != /* ]] && source_path="$script_dir/$source_path"
-        done
-        script_dir="$(cd "$(dirname "$source_path")" && pwd)"
         if ! command -v node >/dev/null 2>&1; then
           if linear_sync_configured "$backend_cmd"; then
             echo "tm: Linear sync is configured but Node.js is unavailable." >&2
@@ -306,7 +335,7 @@ main() {
           fi
           exit 0
         fi
-        if [[ ! -f "$script_dir/tm-linear-sync.js" ]]; then
+        if [[ ! -f "$TM_SCRIPT_DIR/tm-linear-sync.js" ]]; then
           if linear_sync_configured "$backend_cmd"; then
             echo "tm: Linear sync is configured but tm-linear-sync.js is missing." >&2
             exit 1
@@ -314,7 +343,7 @@ main() {
           exit 0
         fi
         local linear_exit=0
-        TM_REPO_ROOT="${repo_root:-$PWD}" node "$script_dir/tm-linear-sync.js" || linear_exit=$?
+        TM_REPO_ROOT="${repo_root:-$PWD}" node "$TM_SCRIPT_DIR/tm-linear-sync.js" || linear_exit=$?
         if [[ "$linear_exit" -ne 0 ]]; then
           echo "tm: Linear sync failed with exit code $linear_exit" >&2
         fi
@@ -323,8 +352,20 @@ main() {
       exec "$backend_cmd" "$@"
       ;;
     linear)
-      echo "tm: Linear backend not yet implemented. Use TM_BACKEND=bd (default) for now." >&2
-      exit 1
+      local repo_root
+      repo_root="$(find_repo_root)"
+      if [[ -n "$repo_root" ]]; then
+        cd "$repo_root"
+      fi
+      if ! command -v node >/dev/null 2>&1; then
+        echo "tm: Linear backend requires Node.js." >&2
+        exit 1
+      fi
+      if [[ ! -f "$TM_SCRIPT_DIR/tm-linear-backend.js" ]]; then
+        echo "tm: tm-linear-backend.js is missing." >&2
+        exit 1
+      fi
+      exec env TM_REPO_ROOT="${repo_root:-$PWD}" node "$TM_SCRIPT_DIR/tm-linear-backend.js" "$@"
       ;;
   esac
 }

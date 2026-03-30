@@ -1,7 +1,7 @@
 # Hyperpowers
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.12.1-green.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.13.0-green.svg)](.claude-plugin/plugin.json)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
 
@@ -24,14 +24,15 @@ See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For K
 
 Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
 
-These tools are related, but `bd` / `br` / `tk` are **not interchangeable day-to-day commands**:
+`tm` supports **one backend selected per project**. Backends are peers in the `tm` model, but `bd` / `br` / `tk` / `linear` are **not interchangeable day-to-day commands**:
 
 - `tm` = canonical user-facing task-management interface
 - `bd` = current local tracker backend in this repo
 - `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
 - `tk` = Ticket, a git-backed markdown ticket workflow alternative
+- `linear` = Linear-native backend preview (core commands only on this repo branch)
 
-Linear and GitHub are integrations layered on top of task management — **Linear and GitHub are integrations**, not primary local task trackers.
+On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode, and this branch now exposes a minimal preview command surface for `TM_BACKEND=linear`.
 
 If you only want the main working model:
 
@@ -398,6 +399,25 @@ For full extension-specific installation and troubleshooting, see `.gemini-exten
 </details>
 
 <details>
+<summary><strong>Kimi CLI</strong></summary>
+
+Use the shared installer to provision Kimi support and the same tm-first workflow described throughout this branch:
+
+```bash
+./scripts/install.sh --kimi
+```
+
+Or install all detected hosts at once:
+
+```bash
+./scripts/install.sh --all
+```
+
+For Kimi-specific manual install, directory layout, and tm/Linear preview notes, see `.kimi/INSTALL.md`.
+
+</details>
+
+<details>
 <summary><strong>Codex CLI</strong></summary>
 
 Use the unified installer to install wrappers to `~/.codex/skills` (auto-syncs if needed):
@@ -501,6 +521,21 @@ tm config set linear.team-key "ENG"
 ```
 
 4. **Sync**: `tm sync` now pushes issues to Linear after syncing git
+
+### Linear-Native Preview Backend
+
+This branch also includes a minimal preview command surface for `TM_BACKEND=linear` when you want `tm` to talk directly to Linear instead of using local `bd` data as the primary store.
+
+```bash
+TM_BACKEND=linear tm ready
+TM_BACKEND=linear tm list [--status <status>] [--parent <parent-ref>]
+TM_BACKEND=linear tm show <linear-ref>
+TM_BACKEND=linear tm update <linear-ref> --status <status>
+TM_BACKEND=linear tm close <linear-ref>
+```
+
+- `<parent-ref>` may be either a Linear issue identifier (for example `ENG-123`) or a Linear internal id.
+- Parent-scoped listing is currently limited to the preview backend command surface above; broader parity continues to land incrementally behind `tm`.
 
 ### Without Linear
 

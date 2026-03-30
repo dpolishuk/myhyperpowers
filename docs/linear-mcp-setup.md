@@ -151,9 +151,9 @@ You (local)                    Linear (cloud)
 
 | Action | Tool | Description |
 |--------|------|-------------|
-| Create/update/close tasks | `tm` CLI | Writes to bd locally |
-| View your tasks | `tm show`, `tm list` | Reads from bd (fast, offline) |
-| Push changes to Linear | `tm sync` | Batch sync after local work |
+| Create/update/close tasks | `tm` CLI | Writes to the selected tm backend (bd locally by default in this repo; `TM_BACKEND=linear` preview supports core commands directly) |
+| View your tasks | `tm show`, `tm list` | Reads from the selected tm backend (bd locally by default; direct linear preview is available for core commands) |
+| Push changes to Linear | `tm sync` | Batch sync after local bd-backed work |
 | View team tasks | Linear MCP | Reads directly from Linear API |
 | View project boards | Linear MCP | Access Linear boards, timelines |
 

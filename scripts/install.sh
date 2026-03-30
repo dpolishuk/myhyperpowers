@@ -848,10 +848,14 @@ install_tm_cli() {
   cp "${REPO_ROOT}/scripts/tm" "${TM_BIN_DIR}/tm"
   chmod +x "${TM_BIN_DIR}/tm"
 
+  cp "${REPO_ROOT}/scripts/tm-backends.sh" "${TM_LIB_DIR}/tm-backends.sh"
+  cp "${REPO_ROOT}/scripts/tm-linear-backend.js" "${TM_LIB_DIR}/tm-linear-backend.js"
   cp "${REPO_ROOT}/scripts/tm-linear-sync.js" "${TM_LIB_DIR}/tm-linear-sync.js"
   cp "${REPO_ROOT}/scripts/tm-linear-sync-config.js" "${TM_LIB_DIR}/tm-linear-sync-config.js"
 
   # Create symlinks so tm can find its companion scripts
+  ln -sfn "${TM_LIB_DIR}/tm-backends.sh" "${TM_BIN_DIR}/tm-backends.sh"
+  ln -sfn "${TM_LIB_DIR}/tm-linear-backend.js" "${TM_BIN_DIR}/tm-linear-backend.js"
   ln -sfn "${TM_LIB_DIR}/tm-linear-sync.js" "${TM_BIN_DIR}/tm-linear-sync.js"
   ln -sfn "${TM_LIB_DIR}/tm-linear-sync-config.js" "${TM_BIN_DIR}/tm-linear-sync-config.js"
 
@@ -890,6 +894,8 @@ uninstall_tm_cli() {
   fi
 
   rm -f "${TM_BIN_DIR}/tm"
+  rm -f "${TM_BIN_DIR}/tm-backends.sh"
+  rm -f "${TM_BIN_DIR}/tm-linear-backend.js"
   rm -f "${TM_BIN_DIR}/tm-linear-sync.js"
   rm -f "${TM_BIN_DIR}/tm-linear-sync-config.js"
 
