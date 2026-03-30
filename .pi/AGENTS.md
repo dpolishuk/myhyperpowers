@@ -18,11 +18,11 @@ You have hyperpowers — structured workflows for software development.
 | `/tdd` | Test-driven development cycle |
 | `/analyze-tests` | Audit test quality |
 | `/verify` | Verify before claiming complete |
-| `/routing-settings` | Configure agent model routing |
+| `/routing-settings` | Interactive TUI wizard to configure subagent type defaults and concrete agent overrides |
 | `/setup-models` | Configure Pi model providers (Anthropic, OpenAI, Ollama) |
-| `/review-parallel` | Run 3 parallel review subagents (quality, implementation, simplification) |
+| `/review-parallel` | Run 3 extension-managed parallel review subagents (quality, implementation, simplification) |
 | `/review-branch` | Review code in isolated subprocess (won't affect main session) |
-| `/configure-routing` | Interactive TUI wizard to configure subagent type defaults and concrete agent overrides |
+| `/configure-routing` | Alias for `/routing-settings` |
 
 ## Subagent Tool
 
@@ -32,14 +32,17 @@ The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Specify a `type` for abstract routing, add `agent` for a concrete override, or set `model` for a one-off explicit override:
+The subagent runs with its own context, executes the task, and returns only the result. Child runs are launched as ephemeral Pi subprocesses (`--print --no-session`) so they do not persist separate session history. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
 
 ```
 hyperpowers_subagent(task: "Review code", type: "review")
 hyperpowers_subagent(task: "Review auth.ts", type: "review", agent: "code-reviewer")
 hyperpowers_subagent(task: "Analyze architecture", type: "validation", agent: "autonomous-reviewer")
 hyperpowers_subagent(task: "Use a specific model just once", model: "anthropic/claude-opus-4-5", type: "review")
+hyperpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
 ```
+
+Structured responses keep the same top-level shape (`status`, `summary`, `findings`, `nextAction`). Failure findings may also include additive metadata like `type` and `source`.
 
 Routing precedence:
 1. Explicit tool-call `model`
@@ -48,9 +51,19 @@ Routing precedence:
 4. Default route
 5. Inherit current session model
 
+If the resolved route also includes `effort`, Hyperpowers maps it to Pi's `--thinking` flag for the child subprocess.
+
+Additional concrete agent names supported for routing overrides include:
+- `review-quality`
+- `review-implementation`
+- `review-simplification`
+- `review-testing`
+- `review-documentation`
+- `test-effectiveness-analyst`
+
 Types: `review` (fast), `research` (balanced), `validation` (capable), `test-runner` (fast)
 
-Configure models per type or concrete agent: `/configure-routing`
+Configure models per type or concrete agent: `/routing-settings`
 
 ## Core Principles
 
