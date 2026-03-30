@@ -14,6 +14,7 @@ import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import { executePiSubagent } from "./subagent"
 import { runParallelReview } from "./review-parallel"
+import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import {
   HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
@@ -63,6 +64,11 @@ function loadSkillContent(skillName: string): string | null {
     }
   }
   return null
+}
+
+function loadSkillPiMetadata(skillName: string) {
+  const content = loadSkillContent(skillName)
+  return content ? parsePiSkillMetadataFromSkillContent(content) : null
 }
 
 // Subagent routing config
@@ -515,6 +521,9 @@ export default function (pi: any) {
       description,
       handler: async (_args: unknown, ctx: any) => {
         const content = loadSkillContent(skill)
+        const skillPiMetadata = loadSkillPiMetadata(skill)
+        void ctx
+        void skillPiMetadata
         if (content) {
           return content
         }
