@@ -590,6 +590,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         return executePiSubagent({
           task: params.task,
           model: routing.model,
+          effort: routing.effort,
           cwd: ctx?.cwd || process.cwd(),
           format: params.format,
         })

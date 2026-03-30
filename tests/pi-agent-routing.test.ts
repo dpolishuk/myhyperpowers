@@ -120,6 +120,48 @@ test("resolveRoutingEntry treats inherit as null model even when coming from age
   expect(resolved.effort).toBe("medium")
 })
 
+test("resolveRoutingEntry preserves explicit model precedence when effort metadata exists elsewhere", () => {
+  const config: RoutingConfig = normalizeRoutingConfig({
+    subagents: {
+      review: { model: "anthropic/claude-sonnet-4-5", effort: "low" },
+      default: { model: "anthropic/claude-haiku-4-5", effort: "minimal" },
+    },
+    agents: {
+      "code-reviewer": { model: "anthropic/claude-opus-4-5", effort: "high" },
+    },
+  })
+
+  const resolved = resolveRoutingEntry(config, {
+    explicitModel: "openai/gpt-4.1",
+    agent: "code-reviewer",
+    type: "review",
+  })
+
+  expect(resolved.source).toBe("explicit")
+  expect(resolved.model).toBe("openai/gpt-4.1")
+  expect(resolved.effort).toBeUndefined()
+})
+
+test("resolveRoutingEntry prefers agent effort over type effort", () => {
+  const config: RoutingConfig = normalizeRoutingConfig({
+    subagents: {
+      review: { model: "anthropic/claude-sonnet-4-5", effort: "low" },
+    },
+    agents: {
+      "code-reviewer": { model: "inherit", effort: "high" },
+    },
+  })
+
+  const resolved = resolveRoutingEntry(config, {
+    agent: "code-reviewer",
+    type: "review",
+  })
+
+  expect(resolved.source).toBe("agent")
+  expect(resolved.model).toBeNull()
+  expect(resolved.effort).toBe("high")
+})
+
 test("agent catalog exposes worker and reviewer routing targets", () => {
   expect(HYPERPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
     "code-reviewer",

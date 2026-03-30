@@ -1,27 +1,43 @@
 import { test, expect, mock } from "bun:test"
 
 import {
+  HYPERPOWERS_SUBAGENT_DEPTH_ENV,
   buildPiSubagentArgs,
   buildStructuredSubagentTask,
   executePiSubagent,
   parseStructuredSubagentOutput,
 } from "../.pi/extensions/hyperpowers/subagent"
 
-test("buildPiSubagentArgs includes explicit model override", () => {
-  expect(buildPiSubagentArgs("Review src/auth.ts", "openai/gpt-4.1")).toEqual([
+test("buildPiSubagentArgs includes no-session by default", () => {
+  expect(buildPiSubagentArgs("Investigate auth flow", null)).toEqual([
     "--print",
+    "--no-session",
+    "--",
+    "Investigate auth flow",
+  ])
+})
+
+test("buildPiSubagentArgs includes explicit model and thinking override", () => {
+  expect(buildPiSubagentArgs("Review src/auth.ts", "openai/gpt-4.1", "high")).toEqual([
+    "--print",
+    "--no-session",
     "--model",
     "openai/gpt-4.1",
+    "--thinking",
+    "high",
     "--",
     "Review src/auth.ts",
   ])
 })
 
-test("buildPiSubagentArgs omits model when routing resolves to inherit", () => {
-  expect(buildPiSubagentArgs("Investigate auth flow", null)).toEqual([
+test("buildPiSubagentArgs omits thinking when not provided", () => {
+  expect(buildPiSubagentArgs("Review src/auth.ts", "openai/gpt-4.1")).toEqual([
     "--print",
+    "--no-session",
+    "--model",
+    "openai/gpt-4.1",
     "--",
-    "Investigate auth flow",
+    "Review src/auth.ts",
   ])
 })
 
@@ -43,7 +59,7 @@ test("executePiSubagent prefers ctx cwd over process cwd", () => {
   expect(run).toHaveBeenCalledTimes(1)
   const [cmd, args, options] = run.mock.calls[0]!
   expect(cmd).toBe("pi")
-  expect(args).toEqual(["--print", "--", "Review code"])
+  expect(args).toEqual(["--print", "--no-session", "--", "Review code"])
   expect(options.cwd).toBe("/tmp/project")
   expect(result.content[0].text).toBe("ok")
 })
@@ -64,6 +80,26 @@ test("executePiSubagent falls back to process cwd when ctx cwd missing", () => {
 
   const [, , options] = run.mock.calls[0]!
   expect(options.cwd).toBe(process.cwd())
+})
+
+test("executePiSubagent passes thinking level when requested", () => {
+  const run = mock(() => ({
+    status: 0,
+    stdout: "ok",
+    stderr: "",
+  }))
+
+  executePiSubagent(
+    {
+      task: "Run tests",
+      cwd: "/tmp/project",
+      effort: "medium",
+    },
+    run as any,
+  )
+
+  const [, args] = run.mock.calls[0]!
+  expect(args).toEqual(["--print", "--no-session", "--thinking", "medium", "--", "Run tests"])
 })
 
 test("executePiSubagent returns stderr on subprocess failure", () => {
@@ -217,6 +253,90 @@ test("executePiSubagent returns parsed structured content when format is structu
   )
 
   expect(result.content[0].text).toContain('"status":"PASS"')
+})
+
+test("executePiSubagent treats missing or malformed depth env as safe default and increments child env", () => {
+  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "not-a-number"
+
+  const run = mock(() => ({
+    status: 0,
+    stdout: "ok",
+    stderr: "",
+  }))
+
+  try {
+    executePiSubagent(
+      {
+        task: "Review code",
+        cwd: "/tmp/project",
+      },
+      run as any,
+    )
+  } finally {
+    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+  }
+
+  const [, , options] = run.mock.calls[0]!
+  expect(options.env?.[HYPERPOWERS_SUBAGENT_DEPTH_ENV]).toBe("1")
+})
+
+test("executePiSubagent short-circuits on depth overflow", () => {
+  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "1"
+  const run = mock(() => ({
+    status: 0,
+    stdout: "ok",
+    stderr: "",
+  }))
+
+  try {
+    const result = executePiSubagent(
+      {
+        task: "Review code",
+        cwd: "/tmp/project",
+      },
+      run as any,
+    )
+
+    expect(run).toHaveBeenCalledTimes(0)
+    expect(result.content[0].text).toContain("maximum subagent recursion depth")
+  } finally {
+    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+  }
+})
+
+test("executePiSubagent returns structured FAIL payload on depth overflow", () => {
+  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "1"
+  const run = mock(() => ({
+    status: 0,
+    stdout: "ok",
+    stderr: "",
+  }))
+
+  try {
+    const result = executePiSubagent(
+      {
+        task: "Review code",
+        cwd: "/tmp/project",
+        format: "structured",
+      },
+      run as any,
+    )
+
+    expect(run).toHaveBeenCalledTimes(0)
+    const parsed = JSON.parse(result.content[0].text)
+    expect(parsed.status).toBe("FAIL")
+    expect(parsed.summary).toContain("maximum subagent recursion depth")
+    expect(Array.isArray(parsed.findings)).toBe(true)
+    expect(parsed.findings.length).toBeGreaterThan(0)
+  } finally {
+    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+  }
 })
 
 test("executePiSubagent returns a parsing failure when format is structured and JSON is invalid", () => {
