@@ -164,6 +164,18 @@ test("tm --help shows usage and configured backend", () => {
   assert.match(result.stdout, /tm ready/)
 })
 
+test("tm --help under linear avoids unsupported examples and passthrough claims", () => {
+  const result = runTm(["--help"], { env: { TM_BACKEND: "linear" } })
+
+  assert.equal(result.status, 0)
+  assert.match(result.stdout, /Currently configured backend: linear/)
+  assert.match(result.stdout, /tm show <id>/)
+  assert.match(result.stdout, /tm update <id> --status in_progress/)
+  assert.doesNotMatch(result.stdout, /tm create "Title"/)
+  assert.doesNotMatch(result.stdout, /All arguments are passed through to the backend unchanged\./)
+  assert.match(result.stdout, /Supported commands and behavior can vary by backend\./)
+})
+
 test("tm --version shows version and backend", () => {
   const result = runTm(["--version"])
   assert.equal(result.status, 0)

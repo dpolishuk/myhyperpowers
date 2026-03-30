@@ -493,6 +493,30 @@ test("runLinearBackendCommand awaits issue.labels relations when rendering detai
   assert.match(result.stdout, /Labels: Task, Backend/)
 })
 
+test("runLinearBackendCommand fails when issue.labels relation rejects during detail rendering", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["show", "ENG-13"], {
+    resolveContext: async () => ({
+      team: { id: "team-1" },
+      issueSearch: async () => ({
+        nodes: [{
+          id: "lin-13",
+          identifier: "ENG-13",
+          title: "Broken labels relation",
+          description: "Details",
+          priority: 2,
+          state: { name: "Todo", type: "unstarted" },
+          labels: Promise.reject(new Error("labels fetch failed")),
+        }],
+      }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /labels fetch failed/)
+})
+
 test("runLinearBackendCommand paginates issueSearch results when resolving identifiers", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
   const calls = []
@@ -642,6 +666,27 @@ test("runLinearBackendCommand updates issue status through matching workflow sta
   assert.deepEqual(updates, [{ id: "lin-7", params: { stateId: "started-1" } }])
 })
 
+test("runLinearBackendCommand maps update --status ready to the Linear open workflow state", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+  const updates = []
+
+  const result = await runLinearBackendCommand(["update", "ENG-7", "--status", "ready"], {
+    resolveContext: async () => ({
+      teamStates: [
+        { id: "todo-1", name: "Todo", type: "unstarted" },
+        { id: "started-1", name: "In Progress", type: "started" },
+      ],
+      issueSearch: async () => ({
+        nodes: [{ id: "lin-7", identifier: "ENG-7", title: "Do it", state: { name: "Todo", type: "unstarted" } }],
+      }),
+      updateIssue: async (id, params) => updates.push({ id, params }),
+    }),
+  })
+
+  assert.equal(result.exitCode, 0)
+  assert.deepEqual(updates, [{ id: "lin-7", params: { stateId: "todo-1" } }])
+})
+
 test("runLinearBackendCommand reports missing workflow state for update", async () => {
   const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
 
@@ -658,24 +703,6 @@ test("runLinearBackendCommand reports missing workflow state for update", async 
 
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr, /No matching Linear workflow state found for tm status "blocked"/)
-})
-
-test("runLinearBackendCommand rejects unsupported tm status values", async () => {
-  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
-
-  const result = await runLinearBackendCommand(["update", "ENG-7", "--status", "bogus"], {
-    resolveContext: async () => ({
-      team: { id: "team-1" },
-      teamStates: [{ id: "todo-1", name: "Todo", type: "unstarted" }],
-      issueSearch: async () => ({ nodes: [{ id: "lin-7", identifier: "ENG-7", title: "Do it", state: { name: "Todo", type: "unstarted" } }] }),
-      updateIssue: async () => {
-        throw new Error("should not update unsupported tm statuses")
-      },
-    }),
-  })
-
-  assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /Unsupported tm status "bogus"/)
 })
 
 test("runLinearBackendCommand rejects unsupported update statuses before resolving context", async () => {
@@ -697,6 +724,19 @@ test("runLinearBackendCommand rejects update --status without a value before res
   const result = await runLinearBackendCommand(["update", "ENG-7", "--status"], {
     resolveContext: async () => {
       throw new Error("should not resolve context for missing update status")
+    },
+  })
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Missing value for --status/)
+})
+
+test("runLinearBackendCommand rejects update without a --status flag before resolving context", async () => {
+  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
+
+  const result = await runLinearBackendCommand(["update", "ENG-7"], {
+    resolveContext: async () => {
+      throw new Error("should not resolve context when update status flag is missing")
     },
   })
 
@@ -737,19 +777,6 @@ test("runLinearBackendCommand reports missing completed workflow state for close
 
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr, /No matching Linear completed state found/)
-})
-
-test("runLinearBackendCommand returns a capability-gated error for unsupported commands", async () => {
-  const { runLinearBackendCommand } = requireFresh("../scripts/tm-linear-backend")
-
-  const result = await runLinearBackendCommand(["create", "Title"], {
-    resolveContext: async () => ({
-      team: { id: "team-1" },
-    }),
-  })
-
-  assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /linear backend command "create" is not yet implemented/)
 })
 
 test("runLinearBackendCommand rejects unsupported commands before resolving context", async () => {

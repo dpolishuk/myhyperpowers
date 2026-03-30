@@ -434,7 +434,7 @@ tm close bd-42
 - `tk` = Ticket / git-backed markdown ticket workflow alternative
 - `linear` = Linear-native backend preview (core commands only on this repo branch)
 
-These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance with **one backend selected per project** unless a backend-specific guide explicitly calls for `bd`, `br`, or `tk`.
+These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance with **one backend selected per project** unless a backend-specific guide explicitly calls for `bd`, `br`, `tk`, or `linear`.
 
 ### Workflow for AI Agents
 

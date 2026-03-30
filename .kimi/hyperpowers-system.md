@@ -19,8 +19,8 @@ Skills are detailed workflow instructions in `${SKILLS_DIR}/`. Each skill has a 
 | Skill | When to Use |
 |-------|-------------|
 | `brainstorming` | Before coding - refine ideas into immutable requirements |
-| `writing-plans` | Create detailed bd epics with tasks |
-| `executing-plans` | Execute bd tasks iteratively with checkpoints |
+| `writing-plans` | Create detailed tm-first plans with tasks |
+| `executing-plans` | Execute tm tasks iteratively with checkpoints |
 | `execute-ralph` | Autonomous execution without user interruption |
 | `test-driven-development` | RED-GREEN-REFACTOR cycle |
 | `debugging-with-tools` | Systematic debugging workflow |

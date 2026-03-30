@@ -238,11 +238,12 @@ $(tm_backend_help_lines)
 
 Examples:
   tm ready              Show tasks ready to work on
-  tm show bd-3          Show task details
-  tm create "Title"     Create a new task
-  tm close bd-3         Close a task
+  tm show <id>          Show task details
+  tm update <id> --status in_progress
+                        Update task status through the selected backend
+  tm close <id>         Close a task
 
-All arguments are passed through to the backend unchanged.
+Supported commands and behavior can vary by backend.
 EOF
 }
 

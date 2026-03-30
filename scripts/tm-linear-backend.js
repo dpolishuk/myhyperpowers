@@ -205,12 +205,14 @@ function isSupportedTmStatus(status) {
   return ["open", "ready", "in_progress", "closed", "blocked"].includes(status)
 }
 
-function requireIssueRef(command, ref) {
-  if (!ref) throw new Error(`Missing issue ref for ${command}.`)
-}
-
 async function runLinearBackendCommand(argv, { resolveContext = resolveLinearContextWithSdk } = {}) {
   const [command, ...args] = argv
+  const issueRef = (command === "show" || command === "update" || command === "close") && args[0] && !args[0].startsWith("--")
+    ? args[0]
+    : null
+  const listStatusArg = command === "list" ? parseStatusArg(args) : null
+  const parentArg = command === "list" ? parseParentArg(args) : null
+  const updateStatusArg = command === "update" ? parseStatusArg(args) : null
 
   if (!command || command === "--help" || command === "-h") {
     return {
@@ -238,32 +240,27 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
   }
 
   if (command === "list") {
-    const statusArg = parseStatusArg(args)
-    if (hasArgFlag(args, "--status") && statusArg === null) {
+    if (hasArgFlag(args, "--status") && listStatusArg === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
     }
-    if (statusArg && !isSupportedTmStatus(statusArg)) {
-      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${statusArg}" for linear backend.` }
+    if (listStatusArg && !isSupportedTmStatus(listStatusArg)) {
+      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${listStatusArg}" for linear backend.` }
     }
-    if (hasArgFlag(args, "--parent") && parseParentArg(args) === null) {
+    if (hasArgFlag(args, "--parent") && parentArg === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --parent." }
     }
   }
 
-  if (command === "show" || command === "update" || command === "close") {
-    const issueRef = args[0] && !args[0].startsWith("--") ? args[0] : null
-    if (!issueRef) {
-      return { exitCode: 1, stdout: "", stderr: `tm: Missing issue ref for ${command}.` }
-    }
+  if ((command === "show" || command === "update" || command === "close") && !issueRef) {
+    return { exitCode: 1, stdout: "", stderr: `tm: Missing issue ref for ${command}.` }
   }
 
   if (command === "update") {
-    const statusArg = parseStatusArg(args)
-    if (hasArgFlag(args, "--status") && statusArg === null) {
+    if (!hasArgFlag(args, "--status") || updateStatusArg === null) {
       return { exitCode: 1, stdout: "", stderr: "tm: Missing value for --status." }
     }
-    if (statusArg && !isSupportedTmStatus(statusArg)) {
-      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${statusArg}" for linear backend.` }
+    if (updateStatusArg && !isSupportedTmStatus(updateStatusArg)) {
+      return { exitCode: 1, stdout: "", stderr: `tm: Unsupported tm status "${updateStatusArg}" for linear backend.` }
     }
   }
 
@@ -277,35 +274,28 @@ async function runLinearBackendCommand(argv, { resolveContext = resolveLinearCon
     if (command === "list") {
       return {
         exitCode: 0,
-        stdout: await listIssues(context, parseStatusArg(args), parseParentArg(args)),
+        stdout: await listIssues(context, listStatusArg, parentArg),
         stderr: "",
       }
     }
 
     if (command === "show") {
-      requireIssueRef(command, args[0])
-      const issue = await findIssueByRef(context, args[0])
+      const issue = await findIssueByRef(context, issueRef)
       return { exitCode: 0, stdout: await renderIssueDetails(issue), stderr: "" }
     }
 
     if (command === "update") {
-      requireIssueRef(command, args[0])
-      const issue = await findIssueByRef(context, args[0])
-      const nextStatus = parseStatusArg(args)
-      if (!nextStatus || !isSupportedTmStatus(nextStatus)) {
-        throw new Error(`Unsupported tm status "${nextStatus || ""}" for linear backend.`)
-      }
-      const stateId = mapStatus(normalizeTmStatusForLinear(nextStatus), context.teamStates)
+      const issue = await findIssueByRef(context, issueRef)
+      const stateId = mapStatus(normalizeTmStatusForLinear(updateStatusArg), context.teamStates)
       if (!stateId) {
-        throw new Error(`No matching Linear workflow state found for tm status "${nextStatus}".`)
+        throw new Error(`No matching Linear workflow state found for tm status "${updateStatusArg}".`)
       }
       await context.updateIssue(issue.id, { stateId })
-      return { exitCode: 0, stdout: `${issue.identifier} -> ${nextStatus}`, stderr: "" }
+      return { exitCode: 0, stdout: `${issue.identifier} -> ${updateStatusArg}`, stderr: "" }
     }
 
     if (command === "close") {
-      requireIssueRef(command, args[0])
-      const issue = await findIssueByRef(context, args[0])
+      const issue = await findIssueByRef(context, issueRef)
       const stateId = mapStatus("closed", context.teamStates)
       if (!stateId) {
         throw new Error("No matching Linear completed state found.")

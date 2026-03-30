@@ -115,6 +115,8 @@ test("Kimi and Codex host docs stay tm-first", () => {
 
   assert.equal(kimiSystem.includes("bd ready"), false)
   assert.equal(kimiSystem.includes("bd sync"), false)
+  assert.equal(kimiSystem.includes("bd epics"), false)
+  assert.equal(kimiSystem.includes("bd tasks"), false)
   assert.equal(kimiSystem.includes("tm ready"), true)
   assert.equal(kimiSystem.includes("tm sync"), true)
   assert.equal(kimiSystem.includes("tm update <id> --status in_progress"), true)
@@ -135,4 +137,14 @@ test("Kimi install docs describe the linear preview contract and agent paths con
   assert.equal(kimiInstall.includes("separate integration-oriented workflow"), true)
   assert.equal(kimiInstall.includes("not yet implemented on this repo branch"), false)
   assert.equal(kimiInstall.includes("Located in `~/.config/agents/agents/`"), true)
+})
+
+test("AGENTS and linear MCP docs reflect tm-first backend guidance", () => {
+  const agentsGuide = read("AGENTS.md")
+  const linearMcpSetup = read("docs/linear-mcp-setup.md")
+
+  assert.equal(agentsGuide.includes("backend-specific guide explicitly calls for `bd`, `br`, `tk`, or `linear`"), true)
+  assert.equal(linearMcpSetup.includes("Writes to bd locally"), false)
+  assert.equal(linearMcpSetup.includes("Reads from bd (fast, offline)"), false)
+  assert.equal(linearMcpSetup.includes("selected tm backend"), true)
 })

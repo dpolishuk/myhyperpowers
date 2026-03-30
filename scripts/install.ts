@@ -65,6 +65,13 @@ const commandExists = (cmd: string): boolean => {
   }
 }
 
+const throwOnSpawnFailure = (result: { exitCode: number, stdout: Uint8Array, stderr: Uint8Array }, label: string) => {
+  if (result.exitCode === 0) return
+  const stderr = result.stderr.toString().trim()
+  const stdout = result.stdout.toString().trim()
+  throw new Error(`${label}${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
+}
+
 const copyDir = async (src: string, dest: string) => {
   await mkdir(dest, { recursive: true })
   await cp(src, dest, { recursive: true })
@@ -132,7 +139,8 @@ const HOSTS: HostConfig[] = [
       if (existsSync(pkgSrc)) {
         await copyFile(pkgSrc, join(targetDir, "package.json"))
         if (commandExists("bun")) {
-          Bun.spawnSync(["bun", "install", "--silent"], { cwd: targetDir, stdout: "pipe", stderr: "pipe" })
+          const installResult = Bun.spawnSync(["bun", "install", "--silent"], { cwd: targetDir, stdout: "pipe", stderr: "pipe" })
+          throwOnSpawnFailure(installResult, "OpenCode dependency install failed")
         }
       }
       // Copy config files
@@ -203,11 +211,13 @@ const HOSTS: HostConfig[] = [
       if (!commandExists("gemini")) {
         throw new Error("gemini CLI not found — cannot install extension")
       }
-      Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      const installResult = Bun.spawnSync(["gemini", "extensions", "install", REPO_ROOT], { stdout: "pipe", stderr: "pipe" })
+      throwOnSpawnFailure(installResult, "Gemini extension install failed")
     },
     postUninstall: async () => {
       if (commandExists("gemini")) {
-        Bun.spawnSync(["gemini", "extensions", "uninstall", "hyperpowers"], { stdout: "pipe", stderr: "pipe" })
+        const uninstallResult = Bun.spawnSync(["gemini", "extensions", "uninstall", "hyperpowers"], { stdout: "pipe", stderr: "pipe" })
+        throwOnSpawnFailure(uninstallResult, "Gemini extension uninstall failed")
       }
     },
   },
@@ -491,7 +501,8 @@ const FEATURES: FeatureConfig[] = [
         }
         // Install @linear/sdk for Linear sync support
         if (commandExists("npm")) {
-          Bun.spawnSync(["npm", "install", "--prefix", libDir, "@linear/sdk", "--save", "--silent"], { stdout: "pipe", stderr: "pipe" })
+          const npmResult = Bun.spawnSync(["npm", "install", "--prefix", libDir, "@linear/sdk", "--save", "--silent"], { stdout: "pipe", stderr: "pipe" })
+          throwOnSpawnFailure(npmResult, "tm CLI dependency install failed")
         }
         return "tm CLI installed to ~/.local/bin/"
       }
