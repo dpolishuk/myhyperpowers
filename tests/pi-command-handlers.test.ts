@@ -173,6 +173,21 @@ test("command handler keeps routing authoritative over advisory metadata model a
   }
 })
 
+test("command wrapper substitutes $ARGUMENTS with user-provided args", async () => {
+  const { commands, cleanup } = await installAndLoadCommands()
+  try {
+    const brainstorm = commands.get("brainstorm")
+    expect(brainstorm).toBeTruthy()
+
+    const output = await brainstorm.handler("user authentication flow", {})
+    expect(output).toContain("Topic: user authentication flow")
+    expect(output).not.toContain("$ARGUMENTS")
+    expect(output).toContain("Pi invocation arguments: user authentication flow")
+  } finally {
+    cleanup()
+  }
+})
+
 test("command handler honors advisory fork subprocess context when session file is available", async () => {
   const { commands, home, binDir, cleanup } = await installAndLoadCommands()
   const capturePath = path.join(home, "pi-args.txt")

@@ -105,15 +105,29 @@ function formatPiCommandArgs(args: unknown): string {
   return `\n\nPi invocation arguments: ${String(args)}`
 }
 
+function resolveArgumentsString(args: unknown): string {
+  if (args === undefined || args === null) return ""
+  if (typeof args === "string") return args.trim()
+  if (typeof args === "object") {
+    const serialized = JSON.stringify(args)
+    return serialized && serialized !== "{}" ? serialized : ""
+  }
+  return String(args)
+}
+
 function loadPiCommandPrompt(commandName: string, skillName: string, args: unknown): string | null {
+  const argsStr = resolveArgumentsString(args)
+
   const commandContent = loadCommandContent(commandName)
   if (commandContent) {
-    return `${commandContent}${formatPiCommandArgs(args)}`
+    const substituted = commandContent.replace(/\$ARGUMENTS/g, argsStr)
+    return `${substituted}${formatPiCommandArgs(args)}`
   }
 
   const skillContent = loadSkillContent(skillName)
   if (skillContent) {
-    return `${skillContent}${formatPiCommandArgs(args)}`
+    const substituted = skillContent.replace(/\$ARGUMENTS/g, argsStr)
+    return `${substituted}${formatPiCommandArgs(args)}`
   }
 
   return null
