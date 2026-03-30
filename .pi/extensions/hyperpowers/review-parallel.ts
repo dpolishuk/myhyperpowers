@@ -1,4 +1,5 @@
 import { executePiSubagentAsync, type ExecutePiSubagentParams, type StructuredSubagentOutput } from "./subagent"
+import { executePiTasksParallel } from "./task-runner"
 
 export interface ResolvedParallelReviewRoute {
   model?: string | null
@@ -84,7 +85,7 @@ export async function runParallelReview(
   execute: ParallelReviewExecutor = defaultParallelReviewExecutor,
 ): Promise<string> {
   const requests = buildParallelReviewRequests(ctx.cwd).map((request) => applyResolvedRoute(request, ctx.resolveRoute))
-  const results = await Promise.all(requests.map(async ({ lane, params }) => {
+  const results = await executePiTasksParallel(requests, async ({ lane, params }) => {
     try {
       const result = await execute(params)
       return {
@@ -99,7 +100,7 @@ export async function runParallelReview(
         summary: error?.message || String(error),
       }
     }
-  }))
+  }, { maxConcurrency: 3 })
 
   const lines = [
     "# Parallel Review",

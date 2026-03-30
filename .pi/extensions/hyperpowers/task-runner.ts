@@ -48,6 +48,11 @@ export interface PiTaskResult {
   content: Array<{ type: "text"; text: string }>
 }
 
+export interface ParallelExecutionOptions {
+  maxConcurrency?: number
+  signal?: AbortSignal
+}
+
 export type SpawnAsyncLike = (
   command: string,
   args: string[],
@@ -61,6 +66,28 @@ export type SpawnAsyncLike = (
 interface ForkSession {
   dir: string
   seedPath: string
+}
+
+export async function executePiTasksParallel<TTask, TResult>(
+  tasks: TTask[],
+  executeTask: (task: TTask, signal?: AbortSignal) => Promise<TResult>,
+  options: ParallelExecutionOptions = {},
+): Promise<TResult[]> {
+  const maxConcurrency = Math.max(1, options.maxConcurrency ?? 4)
+  const results = new Array<TResult>(tasks.length)
+  let nextIndex = 0
+
+  const worker = async () => {
+    while (true) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      if (currentIndex >= tasks.length) return
+      results[currentIndex] = await executeTask(tasks[currentIndex]!, options.signal)
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(maxConcurrency, tasks.length) }, () => worker()))
+  return results
 }
 
 export function buildStructuredTaskPrompt(task: string): string {

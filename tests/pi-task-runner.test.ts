@@ -7,6 +7,7 @@ import {
   buildPiTaskArgs,
   executePiTask,
   executePiTaskAsync,
+  executePiTasksParallel,
   type SpawnAsyncLike,
 } from "../.pi/extensions/hyperpowers/task-runner"
 
@@ -67,4 +68,30 @@ test("executePiTaskAsync short-circuits before spawn when already aborted", asyn
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")
   expect(parsed.summary).toContain("cancelled")
+})
+
+test("executePiTasksParallel preserves input order even when completion order differs", async () => {
+  const results = await executePiTasksParallel(["slow", "fast", "mid"], async (task) => {
+    const delay = task === "slow" ? 20 : task === "mid" ? 10 : 0
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    return `${task}-done`
+  }, { maxConcurrency: 3 })
+
+  expect(results).toEqual(["slow-done", "fast-done", "mid-done"])
+})
+
+test("executePiTasksParallel respects maxConcurrency", async () => {
+  let active = 0
+  let peak = 0
+
+  const results = await executePiTasksParallel([1, 2, 3, 4], async (value) => {
+    active += 1
+    peak = Math.max(peak, active)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    active -= 1
+    return value * 2
+  }, { maxConcurrency: 2 })
+
+  expect(results).toEqual([2, 4, 6, 8])
+  expect(peak).toBe(2)
 })
