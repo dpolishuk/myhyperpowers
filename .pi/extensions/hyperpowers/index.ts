@@ -153,12 +153,14 @@ async function executePiCommand(commandName: string, skillName: string, args: un
   const metadata = loadSkillPiMetadata(skillName)
   if (metadata?.subProcess) {
     const routing = resolveSubagentRouting()
+    const routingIsExplicit = routing.source !== "inherit" && (routing.model !== null || routing.effort !== undefined)
     const sessionSeedPath = ctx?.sessionManager?.getSessionFile?.()
-    const contextMode = metadata.subProcessContext
+    const requestedContextMode = metadata.subProcessContext
+    const contextMode = requestedContextMode === "fork" && sessionSeedPath ? "fork" : "fresh"
     const result = executePiTask({
       task: content,
-      model: routing.model ?? metadata.model,
-      effort: routing.effort ?? metadata.thinkingLevel,
+      model: routingIsExplicit ? routing.model : metadata.model,
+      effort: routingIsExplicit ? routing.effort : metadata.thinkingLevel,
       cwd: ctx?.cwd || process.cwd(),
       format: "text",
       contextMode,
