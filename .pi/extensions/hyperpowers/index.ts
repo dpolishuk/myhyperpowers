@@ -629,7 +629,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     handler: async (_args: unknown, ctx: any) => {
       return await runParallelReview({
         cwd: ctx?.cwd || process.cwd(),
-        resolveRoute: ({ type }) => resolveSubagentRouting(type, undefined, undefined),
+        resolveRoute: ({ type, agent }) => resolveSubagentRouting(type, agent, undefined),
       })
     },
   })

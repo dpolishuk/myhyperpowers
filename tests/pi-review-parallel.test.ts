@@ -14,6 +14,9 @@ test("buildParallelReviewRequests creates the three expected review lanes", () =
   expect(requests[0]?.params.type).toBe("review")
   expect(requests[1]?.params.type).toBe("validation")
   expect(requests[2]?.params.type).toBe("review")
+  expect(requests[0]?.params.agent).toBe("review-quality")
+  expect(requests[1]?.params.agent).toBe("review-implementation")
+  expect(requests[2]?.params.agent).toBe("review-simplification")
 })
 
 test("runParallelReview launches exactly three review jobs and aggregates deterministically", async () => {
@@ -66,15 +69,21 @@ test("runParallelReview applies resolved routing model and effort per lane", asy
 
   await runParallelReview({
     cwd: "/tmp/project",
-    resolveRoute: ({ type }) => ({
-      model: type === "validation" ? "anthropic/claude-opus-4-5" : "anthropic/claude-haiku-4-5",
-      effort: type === "validation" ? "high" : "low",
+    resolveRoute: ({ type, agent }) => ({
+      model: agent === "review-implementation"
+        ? "anthropic/claude-opus-4-5"
+        : agent === "review-simplification"
+          ? "openai/gpt-4.1"
+          : type === "validation"
+            ? "anthropic/claude-sonnet-4-5"
+            : "anthropic/claude-haiku-4-5",
+      effort: agent === "review-implementation" ? "high" : "low",
     }),
   }, execute)
 
-  expect(execute.mock.calls[0]?.[0]).toMatchObject({ model: "anthropic/claude-haiku-4-5", effort: "low" })
-  expect(execute.mock.calls[1]?.[0]).toMatchObject({ model: "anthropic/claude-opus-4-5", effort: "high" })
-  expect(execute.mock.calls[2]?.[0]).toMatchObject({ model: "anthropic/claude-haiku-4-5", effort: "low" })
+  expect(execute.mock.calls[0]?.[0]).toMatchObject({ agent: "review-quality", model: "anthropic/claude-haiku-4-5", effort: "low" })
+  expect(execute.mock.calls[1]?.[0]).toMatchObject({ agent: "review-implementation", model: "anthropic/claude-opus-4-5", effort: "high" })
+  expect(execute.mock.calls[2]?.[0]).toMatchObject({ agent: "review-simplification", model: "openai/gpt-4.1", effort: "low" })
 })
 
 test("runParallelReview surfaces cancelled lanes without hiding successful results", async () => {

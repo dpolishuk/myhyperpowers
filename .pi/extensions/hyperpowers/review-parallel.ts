@@ -7,6 +7,7 @@ export interface ResolvedParallelReviewRoute {
 
 export interface ParallelReviewParams extends ExecutePiSubagentParams {
   type: "review" | "validation"
+  agent: "review-quality" | "review-implementation" | "review-simplification"
   format: "structured"
 }
 
@@ -17,7 +18,7 @@ export interface ParallelReviewRequest {
 
 export interface ParallelReviewExecutionContext {
   cwd?: string
-  resolveRoute?: (params: Pick<ParallelReviewParams, "type">) => ResolvedParallelReviewRoute
+  resolveRoute?: (params: Pick<ParallelReviewParams, "type" | "agent">) => ResolvedParallelReviewRoute
 }
 
 export type ParallelReviewExecutor = (params: ParallelReviewParams) => Promise<StructuredSubagentOutput>
@@ -29,6 +30,7 @@ export function buildParallelReviewRequests(cwd?: string): ParallelReviewRequest
       params: {
         cwd,
         type: "review",
+        agent: "review-quality",
         format: "structured",
         task: "Review the recent code changes for bugs, security issues, and race conditions. Check git diff HEAD~1. Return PASS or ISSUES_FOUND with file:line references.",
       },
@@ -38,6 +40,7 @@ export function buildParallelReviewRequests(cwd?: string): ParallelReviewRequest
       params: {
         cwd,
         type: "validation",
+        agent: "review-implementation",
         format: "structured",
         task: "Verify the recent changes achieve their stated goals. Check git log --oneline -5 for context. Return PASS or ISSUES_FOUND with missing items.",
       },
@@ -47,6 +50,7 @@ export function buildParallelReviewRequests(cwd?: string): ParallelReviewRequest
       params: {
         cwd,
         type: "review",
+        agent: "review-simplification",
         format: "structured",
         task: "Check for over-engineering in recent changes. Look for unnecessary abstractions. Return PASS or ISSUES_FOUND with recommendations.",
       },
@@ -61,10 +65,10 @@ async function defaultParallelReviewExecutor(params: ParallelReviewParams): Prom
 
 function applyResolvedRoute(
   request: ParallelReviewRequest,
-  resolveRoute?: (params: Pick<ParallelReviewParams, "type">) => ResolvedParallelReviewRoute,
+  resolveRoute?: (params: Pick<ParallelReviewParams, "type" | "agent">) => ResolvedParallelReviewRoute,
 ): ParallelReviewRequest {
   if (!resolveRoute) return request
-  const resolved = resolveRoute({ type: request.params.type })
+  const resolved = resolveRoute({ type: request.params.type, agent: request.params.agent })
   return {
     lane: request.lane,
     params: {

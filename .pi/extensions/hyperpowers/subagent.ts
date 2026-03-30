@@ -7,6 +7,7 @@ export const STRUCTURED_SUBAGENT_STATUSES = ["PASS", "ISSUES_FOUND", "FAIL"] as 
 export const PI_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const
 export const HYPERPOWERS_SUBAGENT_DEPTH_ENV = "HYPERPOWERS_SUBAGENT_DEPTH"
 export const MAX_HYPERPOWERS_SUBAGENT_DEPTH = 1
+export const MAX_ASYNC_SUBAGENT_OUTPUT_BYTES = 1024 * 1024 * 10
 export type StructuredSubagentStatus = typeof STRUCTURED_SUBAGENT_STATUSES[number]
 
 export interface StructuredSubagentOutput {
@@ -251,6 +252,8 @@ export async function executePiSubagentAsync(
 
     let stdout = ""
     let stderr = ""
+    let stdoutBytes = 0
+    let stderrBytes = 0
     let settled = false
     let timedOut = false
     let aborted = false
@@ -295,8 +298,34 @@ export async function executePiSubagentAsync(
 
     child.stdout?.setEncoding?.("utf8")
     child.stderr?.setEncoding?.("utf8")
-    child.stdout?.on("data", (chunk) => { stdout += chunk })
-    child.stderr?.on("data", (chunk) => { stderr += chunk })
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk
+      stdoutBytes += Buffer.byteLength(chunk)
+      if (stdoutBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
+        child.kill("SIGTERM")
+        finish(buildFailureResult(
+          params.format,
+          "Subagent failed (output exceeded max buffer)",
+          `stdout exceeded ${MAX_ASYNC_SUBAGENT_OUTPUT_BYTES} bytes`,
+          "Reduce delegated output volume or narrow the task scope before retrying",
+          "output-limit",
+        ))
+      }
+    })
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk
+      stderrBytes += Buffer.byteLength(chunk)
+      if (stderrBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
+        child.kill("SIGTERM")
+        finish(buildFailureResult(
+          params.format,
+          "Subagent failed (output exceeded max buffer)",
+          `stderr exceeded ${MAX_ASYNC_SUBAGENT_OUTPUT_BYTES} bytes`,
+          "Reduce delegated output volume or narrow the task scope before retrying",
+          "output-limit",
+        ))
+      }
+    })
     child.on("error", (error) => {
       if (aborted || timedOut) return
       finish(buildFailureResult(
