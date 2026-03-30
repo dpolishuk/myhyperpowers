@@ -1,4 +1,4 @@
-import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process"
+import { spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from "node:child_process"
 
 export type PiSubagentFormat = "text" | "structured"
 export type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh"
@@ -39,6 +39,16 @@ export type SpawnSyncLike = (
 export interface PiSubagentResult {
   content: Array<{ type: "text"; text: string }>
 }
+
+export type SpawnAsyncLike = (
+  command: string,
+  args: string[],
+  options: {
+    cwd: string
+    env: NodeJS.ProcessEnv
+    stdio: ["ignore", "pipe", "pipe"]
+  },
+) => ChildProcess
 
 export function buildStructuredSubagentTask(task: string): string {
   return `${task}\n\nReturn valid JSON only. Do not include markdown fences, commentary, or prose outside the JSON object. Use exactly this shape:\n{\n  "status": "PASS|ISSUES_FOUND|FAIL",\n  "summary": "short summary",\n  "findings": [],\n  "nextAction": "optional next step"\n}`
@@ -196,7 +206,11 @@ export function executePiSubagent(
   }
 }
 
-export async function executePiSubagentAsync(params: ExecutePiSubagentParams): Promise<PiSubagentResult> {
+export async function executePiSubagentAsync(
+  params: ExecutePiSubagentParams,
+  run: SpawnAsyncLike = spawn,
+  signal?: AbortSignal,
+): Promise<PiSubagentResult> {
   const task = params.format === "structured"
     ? buildStructuredSubagentTask(params.task)
     : params.task
@@ -213,7 +227,7 @@ export async function executePiSubagentAsync(params: ExecutePiSubagentParams): P
   }
 
   return await new Promise<PiSubagentResult>((resolve) => {
-    const child = spawn("pi", args, {
+    const child = run("pi", args, {
       cwd,
       env: {
         ...process.env,
@@ -225,13 +239,19 @@ export async function executePiSubagentAsync(params: ExecutePiSubagentParams): P
     let stdout = ""
     let stderr = ""
     let settled = false
+    let timedOut = false
+    let aborted = false
+    let abortHandler: (() => void) | undefined
     const finish = (result: PiSubagentResult) => {
       if (settled) return
       settled = true
+      clearTimeout(timer)
+      if (signal && abortHandler) signal.removeEventListener("abort", abortHandler)
       resolve(result)
     }
 
     const timer = setTimeout(() => {
+      timedOut = true
       child.kill("SIGTERM")
       finish(buildFailureResult(
         params.format,
@@ -241,12 +261,30 @@ export async function executePiSubagentAsync(params: ExecutePiSubagentParams): P
       ))
     }, 120000)
 
-    child.stdout?.setEncoding("utf8")
-    child.stderr?.setEncoding("utf8")
+    if (signal) {
+      abortHandler = () => {
+        aborted = true
+        child.kill("SIGTERM")
+        finish(buildFailureResult(
+          params.format,
+          "Subagent failed (cancelled)",
+          stderr.trim() || stdout.trim() || "Subagent cancelled by parent signal",
+          "Retry once the parent operation is resumed",
+        ))
+      }
+      if (signal.aborted) {
+        abortHandler()
+        return
+      }
+      signal.addEventListener("abort", abortHandler, { once: true })
+    }
+
+    child.stdout?.setEncoding?.("utf8")
+    child.stderr?.setEncoding?.("utf8")
     child.stdout?.on("data", (chunk) => { stdout += chunk })
     child.stderr?.on("data", (chunk) => { stderr += chunk })
     child.on("error", (error) => {
-      clearTimeout(timer)
+      if (aborted || timedOut) return
       finish(buildFailureResult(
         params.format,
         `Subagent failed (spawn error: ${error.message})`,
@@ -254,14 +292,14 @@ export async function executePiSubagentAsync(params: ExecutePiSubagentParams): P
         "Check Pi subprocess availability and runtime logs",
       ))
     })
-    child.on("close", (code, signal) => {
-      clearTimeout(timer)
+    child.on("close", (code, closeSignal) => {
+      if (aborted || timedOut) return
       const output = stdout.trim()
       const details = stderr.trim() || output || "unknown error"
       if (code === null) {
         finish(buildFailureResult(
           params.format,
-          `Subagent failed (no exit status${signal ? `; signal: ${signal}` : ""})`,
+          `Subagent failed (no exit status${closeSignal ? `; signal: ${closeSignal}` : ""})`,
           details,
           "Check Pi subprocess availability and runtime logs",
         ))

@@ -1,10 +1,12 @@
 import { test, expect, mock } from "bun:test"
+import { EventEmitter } from "node:events"
 
 import {
   HYPERPOWERS_SUBAGENT_DEPTH_ENV,
   buildPiSubagentArgs,
   buildStructuredSubagentTask,
   executePiSubagent,
+  executePiSubagentAsync,
   parseStructuredSubagentOutput,
 } from "../.pi/extensions/hyperpowers/subagent"
 
@@ -337,6 +339,66 @@ test("executePiSubagent returns structured FAIL payload on depth overflow", () =
     if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
     else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
   }
+})
+
+function createMockAsyncChild() {
+  const child = new EventEmitter() as any
+  child.stdout = new EventEmitter()
+  child.stderr = new EventEmitter()
+  child.stdout.setEncoding = () => {}
+  child.stderr.setEncoding = () => {}
+  child.kill = mock(() => true)
+  return child
+}
+
+test("executePiSubagentAsync kills child and returns deterministic failure on abort", async () => {
+  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  const controller = new AbortController()
+  const child = createMockAsyncChild()
+  const spawnAsync = mock(() => child)
+
+  const promise = executePiSubagentAsync(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+    },
+    spawnAsync as any,
+    controller.signal,
+  )
+
+  controller.abort()
+  const result = await promise
+
+  expect(spawnAsync).toHaveBeenCalledTimes(1)
+  expect(child.kill).toHaveBeenCalledWith("SIGTERM")
+  expect(result.content[0].text).toContain("cancelled")
+
+  if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+})
+
+test("executePiSubagentAsync keeps cancellation machine-readable in structured mode", async () => {
+  const controller = new AbortController()
+  const child = createMockAsyncChild()
+  const spawnAsync = mock(() => child)
+
+  const promise = executePiSubagentAsync(
+    {
+      task: "Review code",
+      cwd: "/tmp/project",
+      format: "structured",
+    },
+    spawnAsync as any,
+    controller.signal,
+  )
+
+  controller.abort()
+  const result = await promise
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("cancelled")
+  expect(parsed.findings[0]?.message).toContain("cancelled")
 })
 
 test("executePiSubagent returns a parsing failure when format is structured and JSON is invalid", () => {

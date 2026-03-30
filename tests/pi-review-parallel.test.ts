@@ -60,3 +60,18 @@ test("runParallelReview uses structured mode for all internal review requests", 
     expect(call[0]?.format).toBe("structured")
   }
 })
+
+test("runParallelReview surfaces cancelled lanes without hiding successful results", async () => {
+  const execute = mock(async (params: any) => {
+    if (params.task.includes("stated goals")) {
+      throw new Error("Subagent cancelled by parent signal")
+    }
+    return { status: "PASS", summary: "ok", findings: [] }
+  })
+
+  const output = await runParallelReview({ cwd: "/tmp/project" }, execute)
+
+  expect(output).toContain("quality | PASS | ok")
+  expect(output).toContain("implementation | FAIL | Subagent cancelled by parent signal")
+  expect(output).toContain("simplification | PASS | ok")
+})
