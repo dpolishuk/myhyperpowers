@@ -1,9 +1,11 @@
 import { test, expect, mock } from "bun:test"
+import { EventEmitter } from "node:events"
 import { mkdtempSync, writeFileSync, existsSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import {
+  MAX_ASYNC_SUBAGENT_OUTPUT_BYTES,
   buildPiTaskArgs,
   executePiTask,
   executePiTaskAsync,
@@ -103,6 +105,39 @@ test("executePiTaskAsync short-circuits before spawn when already aborted", asyn
   const parsed = JSON.parse(result.content[0].text)
   expect(parsed.status).toBe("FAIL")
   expect(parsed.summary).toContain("cancelled")
+})
+
+test("executePiTaskAsync ignores additional output after output-limit termination begins", async () => {
+  const child = new EventEmitter() as any
+  child.stdout = new EventEmitter()
+  child.stderr = new EventEmitter()
+  child.stdout.setEncoding = () => {}
+  child.stderr.setEncoding = () => {}
+  child.kill = mock(() => true)
+
+  const run: SpawnAsyncLike = mock(() => child) as any
+  const promise = executePiTaskAsync({
+    task: "Review code",
+    cwd: "/tmp/project",
+    format: "structured",
+  }, run)
+
+  child.stdout.emit("data", "x".repeat(MAX_ASYNC_SUBAGENT_OUTPUT_BYTES + 1))
+  child.stdout.emit("data", "y".repeat(1024))
+  child.stderr.emit("data", "z".repeat(MAX_ASYNC_SUBAGENT_OUTPUT_BYTES + 1))
+  child.emit("close", null, "SIGTERM")
+
+  const result = await promise
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("output exceeded max buffer")
+  expect(parsed.findings[0]).toMatchObject({
+    message: `stdout exceeded ${MAX_ASYNC_SUBAGENT_OUTPUT_BYTES} bytes`,
+    type: "output-limit",
+    source: "pi-subagent",
+  })
+  expect(child.kill).toHaveBeenCalledTimes(1)
+  expect(child.kill).toHaveBeenCalledWith("SIGTERM")
 })
 
 test("executePiTasksParallel preserves input order even when completion order differs", async () => {

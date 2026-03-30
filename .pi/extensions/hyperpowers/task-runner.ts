@@ -483,7 +483,7 @@ export async function executePiTaskAsync(
       child.stdout?.setEncoding?.("utf8")
       child.stderr?.setEncoding?.("utf8")
       child.stdout?.on("data", (chunk) => {
-        if (settled) return
+        if (settled || pendingExitResult) return
         stdout += chunk
         stdoutBytes += Buffer.byteLength(chunk)
         if (stdoutBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
@@ -497,7 +497,7 @@ export async function executePiTaskAsync(
         }
       })
       child.stderr?.on("data", (chunk) => {
-        if (settled) return
+        if (settled || pendingExitResult) return
         stderr += chunk
         stderrBytes += Buffer.byteLength(chunk)
         if (stderrBytes > MAX_ASYNC_SUBAGENT_OUTPUT_BYTES) {
