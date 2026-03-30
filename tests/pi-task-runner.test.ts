@@ -1,0 +1,70 @@
+import { test, expect, mock } from "bun:test"
+import { mkdtempSync, writeFileSync, existsSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
+import {
+  buildPiTaskArgs,
+  executePiTask,
+  executePiTaskAsync,
+  type SpawnAsyncLike,
+} from "../.pi/extensions/hyperpowers/task-runner"
+
+test("buildPiTaskArgs uses no-session for fresh context", () => {
+  expect(buildPiTaskArgs("Investigate auth", null, undefined, "fresh")).toEqual([
+    "--print",
+    "--no-session",
+    "--",
+    "Investigate auth",
+  ])
+})
+
+test("executePiTask uses fork context session seed when requested", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-task-runner-test-"))
+  const sessionSeedPath = join(tempDir, "parent-session.jsonl")
+  writeFileSync(sessionSeedPath, '{"role":"user","content":[{"type":"text","text":"hello"}]}\n', "utf8")
+
+  const run = mock(() => ({
+    status: 0,
+    stdout: "ok",
+    stderr: "",
+  }))
+
+  const result = executePiTask({
+    task: "Review code",
+    cwd: "/tmp/project",
+    contextMode: "fork",
+    sessionSeedPath,
+  }, run as any)
+
+  expect(result.content[0].text).toBe("ok")
+  const [, args] = run.mock.calls[0]!
+  expect(args).toContain("--session")
+  expect(args).toContain("--session-dir")
+  expect(args).not.toContain("--no-session")
+  const sessionArgIndex = args.indexOf("--session")
+  const sessionDirIndex = args.indexOf("--session-dir")
+  expect(sessionArgIndex).toBeGreaterThan(-1)
+  expect(sessionDirIndex).toBeGreaterThan(-1)
+  expect(existsSync(args[sessionArgIndex + 1])).toBe(false)
+  expect(existsSync(args[sessionDirIndex + 1])).toBe(false)
+})
+
+test("executePiTaskAsync short-circuits before spawn when already aborted", async () => {
+  const controller = new AbortController()
+  controller.abort()
+  const run: SpawnAsyncLike = mock(() => {
+    throw new Error("should not spawn")
+  }) as any
+
+  const result = await executePiTaskAsync({
+    task: "Review code",
+    cwd: "/tmp/project",
+    format: "structured",
+  }, run, controller.signal)
+
+  expect(run).toHaveBeenCalledTimes(0)
+  const parsed = JSON.parse(result.content[0].text)
+  expect(parsed.status).toBe("FAIL")
+  expect(parsed.summary).toContain("cancelled")
+})
