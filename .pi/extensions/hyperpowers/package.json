@@ -7,8 +7,9 @@
   "author": "Dmitry Polishuk",
   "license": "MIT",
   "dependencies": {
-    "@sinclair/typebox": "^0.34.0",
+    "@mariozechner/pi-coding-agent": "^0.63.0",
     "@mariozechner/pi-tui": "^0.63.0",
-    "@mariozechner/pi-coding-agent": "^0.63.0"
+    "@sinclair/typebox": "^0.34.0",
+    "pi-ask-user": "^0.5.1"
   }
 }
