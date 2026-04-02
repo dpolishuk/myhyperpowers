@@ -26,6 +26,14 @@ description: Use this agent when you need to aggregate context from project docu
 # Recommended: Capable model (sonnet) for synthesis across multiple sources
 # See docs/model-configuration.md for details
 model: inherit
+tools:
+  - Read
+  - Grep
+  - Glob
+disallowedTools:
+  - Edit
+  - Write
+  - Bash
 ---
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)

@@ -2,7 +2,7 @@
   "workflowOverrides": {
     "execute-ralph": {
       "autonomous-reviewer": {
-        "model": "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+        "model": "zhipuai-coding-plan/glm-5.1",
         "effort": "high"
       }
     }

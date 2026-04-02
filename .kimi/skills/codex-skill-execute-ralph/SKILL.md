@@ -52,7 +52,7 @@ flowchart TD
 ```
 
 <skill_overview>
-Execute complete epic without STOP checkpoints. Production-grade pipeline per task: SRE refinement → TDD execution → verification gates → auto-commit → 5 parallel review agents → test effectiveness analysis → autonomous fixes with debugging tools (max 2 iterations). At end: comprehensive test suite audit → autonomous final review with web research → verification → branch completion. Combines the rigor of execute-plans with full hyperpowers capabilities (debugging, root-cause tracing, test quality analysis, verification gates).
+Execute complete epic without STOP checkpoints. Production-grade pipeline per task: SRE refinement → TDD execution → verification gates → auto-commit → 7 parallel review agents → test effectiveness analysis → autonomous fixes with debugging tools (max 2 iterations). At end: comprehensive test suite audit → autonomous final review with web research → verification → branch completion. Combines the rigor of execute-plans with full hyperpowers capabilities (debugging, root-cause tracing, test quality analysis, verification gates).
 </skill_overview>
 
 <rigidity_level>
@@ -67,7 +67,7 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 | **1. Get Task** | Claim ready task OR auto-create from unmet criterion | Next task identified |
 | **2. Refine** | SRE refinement per task | Task ready with edge cases covered |
 | **3. Execute** | TDD per task → verify → close → auto-commit | Task implemented and committed |
-| **4. Review** | 5 parallel review agents + test effectiveness | Issues collected |
+| **4. Review** | 7 parallel review agents + test effectiveness | Issues collected |
 | **5. Fix** | Autonomous fix with debugging (max 2 iterations) | Issue resolved or flagged |
 | **6. Criteria Check** | Check epic success criteria → CONTINUE or EXIT loop | Loop decision made |
 | **7. Test Audit** | Test suite audit (post-loop) | Test quality validated |
@@ -75,7 +75,7 @@ MEDIUM FREEDOM - Follow the execution loop strictly. Adapt to reviewer feedback 
 | **9. Complete** | Branch completion | Epic closed |
 
 **Review Agents:**
-- Phase 4: quality, implementation, testing, simplification, documentation (5 parallel)
+- Phase 4: quality, implementation, testing, simplification, documentation, security-scanner, devops (7 parallel)
 - Phase 4: test-effectiveness-analyst (tautology detection, coverage gaming)
 - Phase 8: autonomous-reviewer with web research (most capable model)
 
@@ -123,7 +123,7 @@ REPEAT (per task, track iteration count):
   Phase 1 — GET TASK: tm ready to claim, OR auto-create from unmet criterion
   Phase 2 — REFINE: sre-task-refinement (NEVER skip)
   Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
-  Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst
+  Phase 4 — REVIEW: 7 parallel review agents + test-effectiveness-analyst
   Phase 5 — FIX: Autonomous fixes (max 2 iterations per task)
   Phase 6 — CRITERIA CHECK:
              All epic success criteria met? → EXIT LOOP to Phase 7
@@ -193,6 +193,21 @@ tm dep tree bd-xxx  # Understand task structure
 - Success criteria (validation checklist)
 - Anti-patterns (FORBIDDEN shortcuts)
 - All tasks and dependencies
+
+### Step 0d: Validate Architecture with Planner
+
+**Dispatch planner agent** to validate the epic's architecture before execution:
+```
+Dispatch planner:
+"Validate the architecture for epic [id]. Read the codebase and verify:
+1. File paths in the plan are correct
+2. Existing patterns are identified for reuse
+3. Task dependency order makes sense
+4. Risk assessment per task
+Return: Architecture validation + any corrections needed."
+```
+
+If planner finds issues with the plan, update task descriptions before proceeding.
 
 **Create TodoWrite for ALL tasks upfront:**
 ```
@@ -732,7 +747,7 @@ REPEAT (per task):
   Phase 1 — GET TASK: tm ready to claim, OR auto-create from unmet criterion
   Phase 2 — REFINE: sre-task-refinement (NEVER skip)
   Phase 3 — EXECUTE: TDD + verification + close task + auto-commit
-  Phase 4 — REVIEW: 5 parallel review agents + test-effectiveness-analyst
+  Phase 4 — REVIEW: 7 parallel review agents + test-effectiveness-analyst
   Phase 5 — FIX: Autonomous fixes (max 2 iterations per task)
   Phase 6 — CRITERIA CHECK:
              All epic success criteria met? → EXIT LOOP to Phase 7
@@ -768,7 +783,7 @@ POST-LOOP:
 7. **No-progress remediation retries are bounded** - Escalate only after max 50 no-progress remediation cycles
 8. **Criteria-driven continuation is mandatory** - Task list exhaustion alone is never a stop condition
 9. **Always use test-runner** - Keep verbose output out of context
-10. **Always run all 5 reviewers + test-effectiveness-analyst** - Full review coverage
+10. **Always run all 7 reviewers + test-effectiveness-analyst** - Full review coverage
 11. **Always auto-commit** - Each task completion gets its own commit
 12. **Always create branch** - Never work directly on main
 13. **Final verification REQUIRED** - verification-before-completion before epic close
@@ -850,7 +865,7 @@ If debugging-with-tools or root-cause-tracing cannot identify root cause after t
 
 | Aspect | ralphex | execute-ralph |
 |--------|---------|---------------|
-| Multi-agent review | Yes 5 parallel | Yes 5 + test-effectiveness-analyst |
+| Multi-agent review | Yes 5 parallel | Yes 7 + test-effectiveness-analyst |
 | Test quality analysis | No | **Yes - per task + final audit** |
 | Debug tools integration | No | **Yes - debugging-with-tools** |
 | Root cause tracing | No | **Yes - root-cause-tracing** |

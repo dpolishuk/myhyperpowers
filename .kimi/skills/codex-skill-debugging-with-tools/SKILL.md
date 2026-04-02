@@ -478,6 +478,8 @@ Before committing fix:
 **Agents used:**
 - hyperpowers:internet-researcher (search for error solutions)
 - hyperpowers:codebase-investigator (understand codebase context)
+- hyperpowers:knowledge-aggregator (find related issues, prior bugs, team discussions)
+- hyperpowers:devops (diagnose CI/CD failures, check pipeline health)
 - hyperpowers:test-runner (run tests, return summary only)
 
 </integration>

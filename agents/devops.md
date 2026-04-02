@@ -52,7 +52,7 @@ Read each config file and check for:
 Use Bash for **read-only diagnostics only**:
 - `gh run list --limit 5` — Recent CI run status
 - `gh run view <id> --log-failed 2>&1 | tail -50` — Failure logs
-- `pre-commit run --all-files --dry-run 2>/dev/null` — Hook validation (if available)
+- `pre-commit --version` — Verify pre-commit installed
 - `docker compose config --quiet 2>&1` — Validate compose file (if present)
 - `npm run --list 2>/dev/null` — Available build scripts
 - `cat package.json | grep -A5 '"scripts"'` — Build script definitions
@@ -73,7 +73,7 @@ Verify:
 - `gh run list`, `gh run view` — CI status
 - `gh pr checks` — PR check status
 - `docker compose config` — Validate config
-- `pre-commit run --dry-run` — Check hooks without running
+- `pre-commit --version` — Verify pre-commit installed
 - `npm run --list`, `cargo --list` — List available commands
 - `cat`, `head`, `tail` — Read files (prefer Read tool instead)
 - `ls`, `stat`, `wc` — File information
@@ -86,7 +86,7 @@ Verify:
 - `git push`, `git reset`, `git checkout`, `git rebase` — Git state changes
 - `npm install`, `pip install`, `cargo build` — Dependency/build operations
 - `pre-commit install`, `pre-commit uninstall` — Hook installation
-- Any command with `>`, `>>`, `|` to a file — Output redirection to files
+- NEVER redirect output to files (`> file`, `>> file`). Pipes between commands (`cmd | grep`) are fine.
 
 **When in doubt: DON'T run the command.** Report what you would check and why, letting the user run it themselves.
 

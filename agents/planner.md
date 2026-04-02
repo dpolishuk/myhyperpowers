@@ -8,6 +8,15 @@ description: Use this agent when planning or designing features and you need to 
 # Recommended: Most capable model (opus) for deep architectural reasoning
 # See docs/model-configuration.md for details
 model: inherit
+tools:
+  - Read
+  - Grep
+  - Glob
+disallowedTools:
+  - Edit
+  - Write
+  - Bash
+  - WebFetch
 ---
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)

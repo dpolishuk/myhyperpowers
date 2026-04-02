@@ -57,6 +57,8 @@
 #     - ~/beads-planning  # Personal planning repo
 #     - ~/work-planning   # Work planning repo
 
+tm.backend: "br"
+
 # Integration settings (access with 'bd config get/set')
 # These are stored in the database, not in this file:
 # - jira.url

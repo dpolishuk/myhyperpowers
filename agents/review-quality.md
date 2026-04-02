@@ -1,6 +1,6 @@
 ---
 name: review-quality
-description: Quality reviewer - finds bugs, security issues, race conditions, error handling gaps. Returns PASS or ISSUES_FOUND with severity.
+description: Quality reviewer - finds bugs, race conditions, error handling gaps, resource leaks. Returns PASS or ISSUES_FOUND with severity.
 tools:
   - Read
   - Grep
