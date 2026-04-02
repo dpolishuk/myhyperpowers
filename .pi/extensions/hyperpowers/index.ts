@@ -119,7 +119,8 @@ function resolveArgumentsString(args: unknown): string {
 const PI_COMPAT_BLOCK = `
 <pi_compat>
 This workflow was ported from Claude Code. In Pi, please adapt your tool usage:
-- When asked to use the "AskUserQuestion" tool, use the \`ask_user\` tool instead. Map \`header\` to \`context\` and \`label\` to \`title\`.
+- ALWAYS use the provided "AskUserQuestion" tool for clarifying questions. It triggers an interactive TUI.
+- Map skill instructions: "AskUserQuestion" is available as a first-class tool in your toolbox.
 - When asked to "Use Skill tool: [name]", use your \`read\` tool to load \`skills/[name]/SKILL.md\` from the repository.
 - When asked to use "Task()" or dispatch parallel agents, use the \`hyperpowers_subagent\` tool.
 </pi_compat>
@@ -747,6 +748,38 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       }
       return await runRoutingWizard(ctx)
     },
+  })
+
+  // Shim for Claude Code's AskUserQuestion tool to trigger pi-ask-user TUI
+  pi.registerTool({
+    name: "AskUserQuestion",
+    label: "Ask User",
+    description: "Ask the user a clarifying question with optional multiple-choice options. Triggers an interactive TUI menu.",
+    parameters: Type.Object({
+      question: Type.String({ description: "The question to ask the user" }),
+      header: Type.Optional(Type.String({ description: "Context header shown above the question" })),
+      options: Type.Optional(Type.Array(
+        Type.Object({
+          label: Type.String({ description: "The text shown for this option" }),
+          description: Type.Optional(Type.String({ description: "Sub-text describing the option" })),
+        })
+      , { description: "Multiple choice options" })),
+    }),
+    async execute(_id: string, params: any, _sig: any, _upd: any, ctx: any) {
+      // Map Claude params to pi-ask-user params
+      // header -> context, label -> title
+      const askUserArgs = {
+        question: params.question,
+        context: params.header,
+        options: params.options?.map((o: any) => ({
+          title: o.label,
+          description: o.description
+        }))
+      }
+      
+      // Call the ask_user tool logic from the pi-ask-user plugin
+      return await pi.getTool("ask_user").execute(_id, askUserArgs, _sig, _upd, ctx)
+    }
   })
 
   // Parallel review — dispatches multiple subagents
