@@ -627,8 +627,20 @@ async function runRoutingWizard(ctx: any): Promise<string> {
 }
 
 export default function (pi: any) {
+  // Capture ask_user tool definition to use in shim
+  let askUserTool: any = null
+  const piShim = {
+    ...pi,
+    registerTool(def: any) {
+      if (def.name === "ask_user") {
+        askUserTool = def
+      }
+      return pi.registerTool(def)
+    }
+  }
+
   // Register third-party plugins
-  askUserPlugin(pi)
+  askUserPlugin(piShim)
 
   // Register each skill as a slash command
   for (const { command, skill, description } of SKILLS) {
@@ -755,6 +767,11 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
     name: "AskUserQuestion",
     label: "Ask User",
     description: "Ask the user a clarifying question with optional multiple-choice options. Triggers an interactive TUI menu.",
+    promptSnippet: "Ask the user a clarifying question with optional multiple-choice options via interactive TUI",
+    promptGuidelines: [
+      "Use AskUserQuestion when a Hyperpowers skill requires a user decision or clarifying question.",
+      "Prefer AskUserQuestion over plain text responses when multiple options exist.",
+    ],
     parameters: Type.Object({
       question: Type.String({ description: "The question to ask the user" }),
       header: Type.Optional(Type.String({ description: "Context header shown above the question" })),
@@ -766,8 +783,14 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       , { description: "Multiple choice options" })),
     }),
     async execute(_id: string, params: any, _sig: any, _upd: any, ctx: any) {
+      if (!askUserTool) {
+        return {
+          content: [{ type: "text", text: "Error: ask_user tool not found" }],
+          isError: true
+        }
+      }
+
       // Map Claude params to pi-ask-user params
-      // header -> context, label -> title
       const askUserArgs = {
         question: params.question,
         context: params.header,
@@ -777,8 +800,19 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }))
       }
       
-      // Call the ask_user tool logic from the pi-ask-user plugin
-      return await pi.getTool("ask_user").execute(_id, askUserArgs, _sig, _upd, ctx)
+      return await askUserTool.execute(_id, askUserArgs, _sig, _upd, ctx)
+    },
+    renderCall(params: any, theme: any) {
+      if (!askUserTool?.renderCall) return new Text(`AskUserQuestion: ${params.question}`, 0, 0)
+      const mappedArgs = {
+        question: params.question,
+        options: params.options?.map((o: any) => ({ title: o.label, description: o.description }))
+      }
+      return askUserTool.renderCall(mappedArgs, theme)
+    },
+    renderResult(result: any, options: any, theme: any) {
+      if (!askUserTool?.renderResult) return new Text("User answered question", 0, 0)
+      return askUserTool.renderResult(result, options, theme)
     }
   })
 
