@@ -80,8 +80,11 @@ Read config files for:
 
 ### Step 4: Check Dependencies for Known CVEs
 
-Use WebFetch to check:
-- `https://github.com/advisories?query=PACKAGE_NAME` for GitHub Security Advisories
+Use WebFetch to check for known vulnerabilities:
+- `https://api.github.com/advisories?ecosystem=ECOSYSTEM&package=PACKAGE_NAME` (GitHub API, no auth needed for public advisories)
+- `https://security.snyk.io/package/ECOSYSTEM/PACKAGE_NAME` (Snyk vulnerability database)
+
+Where ECOSYSTEM is `npm`, `pip`, `cargo`, `go`, `maven`, etc. based on the project.
 
 If WebFetch fails or returns errors, report: "CVE check unavailable for [package] — manual review recommended" and continue scanning. Never fail the entire scan because a lookup fails.
 

@@ -96,15 +96,26 @@ Verify:
 - `cat`, `head`, `tail` — Read files (prefer Read tool instead)
 - `ls`, `stat`, `wc` — File information
 
-**FORBIDDEN commands (NEVER run these):**
+**PRINCIPLE: Only run commands from the ALLOWED list above. If a command is not listed, do NOT run it.**
+
+**FORBIDDEN commands (explicit denylist for clarity):**
 - `rm`, `mv`, `cp` — File modification
 - `sed -i`, `awk` — In-place editing
 - `chmod`, `chown` — Permission changes
 - `docker build`, `docker push`, `docker run` — Container operations
 - `git push`, `git reset`, `git checkout`, `git rebase` — Git state changes
 - `npm install`, `pip install`, `cargo build` — Dependency/build operations
-- `pre-commit install`, `pre-commit uninstall` — Hook installation
-- NEVER redirect output to files (`> file`, `>> file`). Pipes between commands (`cmd | grep`) are fine.
+- `npm run <script>` — Executes arbitrary code (only `npm run --list` is allowed)
+- `pre-commit install`, `pre-commit uninstall`, `pre-commit run` — Hook operations (hooks modify files)
+- `curl`, `wget` — Network requests (use Read/Grep for local files)
+- `env`, `printenv`, `set` — May expose secrets in environment variables
+- `sudo` — Privilege escalation
+- `eval`, `source`, `.` — Arbitrary command execution
+- `ssh`, `scp`, `rsync` — Remote access
+- `kubectl`, `terraform`, `aws`, `gcloud` — Infrastructure management
+- NEVER redirect output to files (`> file`, `>> file`)
+- Pipes to read-only commands (`| head`, `| tail`, `| grep`, `| wc`) are allowed
+- Pipes to write-capable commands (`| tee`, `| xargs`, `| sh`) are FORBIDDEN
 
 **When in doubt: DON'T run the command.** Report what you would check and why, letting the user run it themselves.
 
