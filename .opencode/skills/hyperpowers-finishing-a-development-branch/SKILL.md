@@ -462,6 +462,7 @@ hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpower
 
 **This skill calls:**
 - hyperpowers:test-runner agent (for test verification)
+- hyperpowers:devops agent (for pre-PR pipeline health check)
 - bd commands (epic management)
 - gh commands (PR creation)
 

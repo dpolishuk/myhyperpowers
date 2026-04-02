@@ -28,6 +28,8 @@ Can adapt tool choice to language/context. Never skip investigation or guess at 
 **Key agents:**
 - `internet-researcher` - Search error messages, known bugs, solutions
 - `codebase-investigator` - Understand code structure, find related code
+- `knowledge-aggregator` - Find related issues, prior bugs, team discussions
+- `devops` - Diagnose CI/CD failures, check pipeline health
 - `test-runner` - Run tests without output pollution
 
 </quick_reference>
@@ -463,6 +465,8 @@ Before committing fix:
 **This skill calls:**
 - internet-researcher (search errors, known bugs, solutions)
 - codebase-investigator (understand code structure, find related code)
+- knowledge-aggregator (find related issues, prior bugs, team discussions)
+- devops (diagnose CI/CD failures, check pipeline health)
 - test-driven-development (write test for bug, implement fix)
 - test-runner (run tests without output pollution)
 
@@ -474,6 +478,8 @@ Before committing fix:
 **Agents used:**
 - hyperpowers:internet-researcher (search for error solutions)
 - hyperpowers:codebase-investigator (understand codebase context)
+- hyperpowers:knowledge-aggregator (find related issues, prior bugs, team discussions)
+- hyperpowers:devops (diagnose CI/CD failures, check pipeline health)
 - hyperpowers:test-runner (run tests, return summary only)
 
 </integration>

@@ -47,7 +47,7 @@ Use AskUserQuestion (or the equivalent structured question tool) to ask one ques
 
 Options:
 1. **Set a single agent** — pick agent + model
-2. **Set a group** — pick group (orchestrator/workers/reviewers/all) + model
+2. **Set a group** — pick group (orchestrator/planners/workers/researchers/guards/reviewers/all) + model
 3. **Apply a preset** — cost-optimized or quality-first
 4. **Bootstrap recommended config** — full setup with strong/fast/top-review models
 5. **Set a workflow override** — workflow + agent + model
@@ -62,12 +62,12 @@ Then ask follow-up questions for the chosen action:
 4. Call `action=bootstrap` with the chosen models
 
 ### Set single agent flow
-1. Ask: which agent? (show the 12 agent names)
+1. Ask: which agent? (show the 16 agent names)
 2. Ask: which model? (show `availableModels`)
 3. Call `action=set` with agent + model
 
 ### Set group flow
-1. Ask: which group? (orchestrator, workers, reviewers, all)
+1. Ask: which group? (orchestrator, planners, workers, researchers, guards, reviewers, all)
 2. Ask: which model? (show `availableModels`)
 3. Call `action=set-group` with group + model
 
@@ -77,7 +77,7 @@ Then ask follow-up questions for the chosen action:
 
 ### Workflow override flow
 1. Ask: which workflow? (show supported workflows from snapshot)
-2. Ask: which agent? (show the 12 agent names)
+2. Ask: which agent? (show the 16 agent names)
 3. Ask: which model? (show `availableModels`)
 4. Call `action=set` with workflow + agent + model
 

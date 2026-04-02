@@ -11,12 +11,22 @@ Hyperpowers agents support per-agent model configuration using the `providerID/m
 
 | Agent | Recommended Model | Reason |
 |-------|------------------|--------|
-| test-runner | Fast model (haiku, glm-4.5) | High-volume, low-complexity tasks |
-| codebase-investigator | Fast model | Scanning and searching operations |
-| internet-researcher | Fast model | External API lookups and summarization |
-| code-reviewer | Capable model (sonnet, glm-4.7) | Requires reasoning and analysis |
-| test-effectiveness-analyst | Capable model (sonnet, glm-4.7) | Complex analysis of test quality |
-| autonomous-reviewer | Most capable model (opus, glm-4.7) | Final validation and comprehensive review |
+| planner | Most capable (opus) | Deep architectural reasoning and task decomposition |
+| autonomous-reviewer | Most capable (opus) | Final validation and comprehensive review |
+| code-reviewer | Capable (sonnet, glm-4.7) | Requires reasoning and analysis |
+| security-scanner | Capable (sonnet) | Vulnerability pattern matching and CVE analysis |
+| devops | Capable (sonnet) | CI/CD pipeline analysis and diagnosis |
+| knowledge-aggregator | Capable (sonnet) | Synthesis across multiple knowledge sources |
+| review-quality | Capable (sonnet) | Bug detection and error handling analysis |
+| review-implementation | Capable (sonnet) | Requirements alignment verification |
+| review-testing | Capable (sonnet) | Test coverage and quality evaluation |
+| review-simplification | Capable (sonnet) | Complexity detection |
+| review-documentation | Capable (sonnet) | Documentation completeness |
+| test-effectiveness-analyst | Capable (sonnet, glm-4.7) | Complex analysis of test quality |
+| test-runner | Fast (haiku, glm-4.5) | High-volume, low-complexity tasks |
+| codebase-investigator | Fast (haiku) | Scanning and searching operations |
+| internet-researcher | Fast (haiku) | External API lookups and summarization |
+| ralph | Inherit | Orchestrates other agents, uses parent model |
 
 ---
 
@@ -64,10 +74,14 @@ In short: plugin/options edit the same underlying map.
 Use `agent.<agent>.model` as the canonical global map for direct agent routing.
 
 Examples of concrete agents you may route directly:
+- `planner`
 - `ralph`
 - `test-runner`
 - `codebase-investigator`
 - `internet-researcher`
+- `knowledge-aggregator`
+- `security-scanner`
+- `devops`
 - `review-quality`
 - `review-implementation`
 - `review-testing`
@@ -75,6 +89,7 @@ Examples of concrete agents you may route directly:
 - `review-documentation`
 - `test-effectiveness-analyst`
 - `autonomous-reviewer`
+- `code-reviewer`
 
 ### Hyperpowers workflow overrides
 
@@ -93,9 +108,9 @@ If a plugin exposes agent-routing controls, those controls should write back int
 
 Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports five actions:
 
-- `get` — returns current routing state with `availableModels` (auto-detected from config), `agentGroups` (orchestrator, workers, reviewers), and available `presets`
+- `get` — returns current routing state with `availableModels` (auto-detected from config), `agentGroups`, and available `presets`
 - `set` — update a single agent's model (global or workflow override)
-- `set-group` — batch-set a model for an entire agent group (orchestrator, workers, reviewers, or all)
+- `set-group` — batch-set a model for an entire agent group
 - `apply-preset` — apply a named profile (`cost-optimized` or `quality-first`) that maps model tiers to agent groups
 - `bootstrap` — create a recommended full multi-agent routing config from the merged available model set
 
@@ -104,8 +119,13 @@ Today, the practical plugin/options surface is `/routing-settings`, a plugin-own
 | Group | Agents | Typical Role |
 |-------|--------|-------------|
 | orchestrator | ralph | Primary executor |
+| planners | planner | Deep architectural reasoning (opus recommended) |
 | workers | test-runner, codebase-investigator, internet-researcher | High-volume, low-complexity |
+| researchers | knowledge-aggregator | Synthesis across sources (sonnet recommended) |
+| guards | security-scanner, devops | Security and CI/CD analysis (sonnet) |
 | reviewers | autonomous-reviewer, code-reviewer, review-*, test-effectiveness-analyst | Require reasoning |
+
+> The OpenCode routing wizard plugin (`.opencode/plugins/routing-wizard-core.ts`) supports all 6 groups and 16 agents.
 
 **Presets:**
 

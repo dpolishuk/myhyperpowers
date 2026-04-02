@@ -12,6 +12,7 @@ import { homedir } from "node:os"
 import { join, resolve, basename } from "node:path"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
+import askUserPlugin from "pi-ask-user"
 import { executePiSubagent } from "./subagent"
 import { executePiTaskAsync } from "./task-runner"
 import { runParallelReview } from "./review-parallel"
@@ -616,6 +617,9 @@ async function runRoutingWizard(ctx: any): Promise<string> {
 }
 
 export default function (pi: any) {
+  // Register third-party plugins
+  askUserPlugin(pi)
+
   // Register each skill as a slash command
   for (const { command, skill, description } of SKILLS) {
     pi.registerCommand(command, {
