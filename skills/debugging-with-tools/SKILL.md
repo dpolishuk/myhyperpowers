@@ -28,6 +28,8 @@ Can adapt tool choice to language/context. Never skip investigation or guess at 
 **Key agents:**
 - `internet-researcher` - Search error messages, known bugs, solutions
 - `codebase-investigator` - Understand code structure, find related code
+- `knowledge-aggregator` - Find related issues, prior bugs, team discussions
+- `devops` - Diagnose CI/CD failures, check pipeline health
 - `test-runner` - Run tests without output pollution
 
 </quick_reference>

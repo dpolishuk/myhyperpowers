@@ -20,20 +20,27 @@ Read these files NOW and build a table:
 | autonomous-reviewer | (from frontmatter) | reviewers |
 | code-reviewer | (from frontmatter) | reviewers |
 | codebase-investigator | (from frontmatter) | workers |
+| devops | (from frontmatter) | guards |
 | internet-researcher | (from frontmatter) | workers |
+| knowledge-aggregator | (from frontmatter) | researchers |
+| planner | (from frontmatter) | planners |
 | review-documentation | (from frontmatter) | reviewers |
 | review-implementation | (from frontmatter) | reviewers |
 | review-quality | (from frontmatter) | reviewers |
 | review-simplification | (from frontmatter) | reviewers |
 | review-testing | (from frontmatter) | reviewers |
+| security-scanner | (from frontmatter) | guards |
 | test-effectiveness-analyst | (from frontmatter) | reviewers |
 | test-runner | (from frontmatter) | workers |
 
-Note: `ralph` is not listed because it is not a subagent — it IS Claude Code itself.
+Note: `ralph` is not listed because it uses `inherit` and orchestrates other agents.
 
 **Agent groups:**
-- **workers**: test-runner, codebase-investigator, internet-researcher (high-volume, use fast models)
-- **reviewers**: all review-*, code-reviewer, autonomous-reviewer, test-effectiveness-analyst (need reasoning, use capable models)
+- **workers**: test-runner, codebase-investigator, internet-researcher (high-volume, use fast models like haiku)
+- **researchers**: knowledge-aggregator (synthesis across sources, use capable models like sonnet)
+- **planners**: planner (deep architectural reasoning, use most capable model like opus)
+- **guards**: security-scanner, devops (analysis and pattern matching, use sonnet)
+- **reviewers**: all review-*, code-reviewer, autonomous-reviewer, test-effectiveness-analyst (need reasoning, use sonnet; autonomous-reviewer recommended opus)
 
 **Model options for Claude Code:**
 - `inherit` — use the parent session's model (default)

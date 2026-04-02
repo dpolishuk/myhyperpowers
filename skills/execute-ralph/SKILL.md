@@ -349,13 +349,13 @@ Commits: [N]
 
 ## Phase 4: Multi-Agent Parallel Review
 
-Dispatch **5 review agents in parallel** for comprehensive coverage:
+Dispatch **7 review agents in parallel** for comprehensive coverage:
 
 ```
 Dispatch IN PARALLEL:
 
 1. review-quality:
-   "Review task bd-N implementation for bugs, security issues, race conditions.
+   "Review task bd-N implementation for bugs, race conditions, error handling.
    Task: [title]
    Files changed: [list]
    Return: PASS or ISSUES_FOUND with severity and file:line references."
@@ -382,19 +382,29 @@ Dispatch IN PARALLEL:
    "Check if docs need updates for task bd-N changes.
    Changes: [API changes, config changes, new features]
    Return: PASS or ISSUES_FOUND with documentation gaps."
+
+6. security-scanner:
+   "Scan task bd-N changes for security vulnerabilities.
+   Files changed: [list]
+   Return: PASS or ISSUES_FOUND with OWASP findings, secrets, CVEs."
+
+7. devops:
+   "Check CI/CD pipeline health after task bd-N changes.
+   Files changed: [list]
+   Return: PASS or ISSUES_FOUND with pipeline issues."
 ```
 
 **Also dispatch test-effectiveness-analyst:**
 
 ```
-6. test-effectiveness-analyst:
+8. test-effectiveness-analyst:
    "Analyze test quality for task bd-N changes.
    Return: PASS or ISSUES_FOUND with tautological tests, weak assertions, missing coverage."
 ```
 
 ### Collecting Results
 
-Wait for all 6 agents. Aggregate issues:
+Wait for all 8 agents. Aggregate issues:
 
 ```
 Review Results for bd-N:
@@ -798,11 +808,13 @@ If debugging-with-tools or root-cause-tracing cannot identify root cause after t
 - test-driven-development (for implementing each task)
 - verification-before-completion (REQUIRED gates)
 - test-runner (for running tests without output pollution)
-- review-quality (parallel reviewer)
-- review-implementation (parallel reviewer)
-- review-testing (parallel reviewer)
-- review-simplification (parallel reviewer)
-- review-documentation (parallel reviewer)
+- review-quality (parallel reviewer — bugs, race conditions, error handling)
+- review-implementation (parallel reviewer — spec alignment)
+- review-testing (parallel reviewer — test coverage)
+- review-simplification (parallel reviewer — over-engineering detection)
+- review-documentation (parallel reviewer — docs completeness)
+- security-scanner (parallel reviewer — OWASP, secrets, CVEs)
+- devops (parallel reviewer — CI/CD pipeline health)
 - test-effectiveness-analyst (tautology/coverage gaming detection)
 - debugging-with-tools (systematic debugging)
 - root-cause-tracing (deep error tracing)
@@ -858,12 +870,14 @@ If debugging-with-tools or root-cause-tracing cannot identify root cause after t
 **bd command reference:**
 - See [bd commands](../common-patterns/bd-commands.md)
 
-**Review agents:**
-- review-quality: bugs, security, race conditions
+**Review agents (7 parallel):**
+- review-quality: bugs, race conditions, error handling
 - review-implementation: requirements verification
 - review-testing: test coverage and quality
 - review-simplification: over-engineering detection
 - review-documentation: docs update needs
+- security-scanner: OWASP, secrets, CVE scanning
+- devops: CI/CD pipeline health
 
 **When stuck:**
 - 2 fix iterations failed → Flag and continue, let user review later

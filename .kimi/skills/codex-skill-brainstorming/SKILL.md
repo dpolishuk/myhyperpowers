@@ -50,6 +50,7 @@ HIGH FREEDOM - Adapt Socratic questioning to context, but always create immutabl
 - Recent commits, existing docs, codebase structure
 - Dispatch `hyperpowers:codebase-investigator` for existing patterns
 - Dispatch `hyperpowers:internet-researcher` for external APIs/libraries
+- Dispatch `hyperpowers:knowledge-aggregator` for team decisions, related issues, prior discussions
 
 **REQUIRED: Use AskUserQuestion tool with scannable format**
 
@@ -859,6 +860,7 @@ Before handing off to executing-plans:
 **This skill calls:**
 - hyperpowers:codebase-investigator (for finding existing patterns)
 - hyperpowers:internet-researcher (for external documentation)
+- hyperpowers:knowledge-aggregator (for team decisions and related issues)
 - hyperpowers:sre-task-refinement (REQUIRED before handoff to executing-plans)
 - hyperpowers:executing-plans (handoff after refinement approved)
 
@@ -875,6 +877,7 @@ brainstorming → sre-task-refinement → executing-plans
 **Agents used:**
 - codebase-investigator (understand existing code)
 - internet-researcher (find external documentation)
+- knowledge-aggregator (team decisions, related issues, prior discussions)
 
 **Tools required:**
 - AskUserQuestion (for all clarifying questions)
