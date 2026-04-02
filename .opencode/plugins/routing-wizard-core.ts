@@ -46,8 +46,12 @@ export type WorkflowName = (typeof HYPERPOWERS_WORKFLOWS)[number]
 export const AGENT_GROUPS = {
   orchestrator: ["ralph"] as AgentName[],
   planners: ["planner"] as AgentName[],
-  workers: ["test-runner", "codebase-investigator", "internet-researcher"] as AgentName[],
-  researchers: ["knowledge-aggregator"] as AgentName[],
+  workers: ["test-runner"] as AgentName[],
+  researchers: [
+    "codebase-investigator",
+    "internet-researcher",
+    "knowledge-aggregator",
+  ] as AgentName[],
   guards: ["security-scanner", "devops"] as AgentName[],
   reviewers: [
     "autonomous-reviewer",

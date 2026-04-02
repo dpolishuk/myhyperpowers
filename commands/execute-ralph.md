@@ -25,7 +25,7 @@ Executes a complete bd epic without stopping for user review:
 4. Runs SRE refinement for every task before execution
 5. Executes each task using TDD and verification gates
 6. Auto-closes completed tasks and auto-commits progress
-7. Runs 5 parallel review lanes after each task: quality, implementation, testing, simplification, documentation
+7. Runs 7 parallel review lanes after each task: quality, implementation, testing, simplification, documentation, security, devops
 8. Runs test-effectiveness analysis to catch tautological tests, weak assertions, and coverage gaming
 9. Fixes issues autonomously with a maximum of 2 remediation iterations per task
 10. Re-checks epic success criteria after every task/fix cycle
@@ -60,12 +60,14 @@ Executes a complete bd epic without stopping for user review:
 
 Per-task review is not a single generic pass. Ralph uses:
 
-- 5 parallel review agents:
+- 7 parallel review agents:
   - review-quality
   - review-implementation
   - review-testing
   - review-simplification
   - review-documentation
+  - security-scanner
+  - devops
 - test-effectiveness-analyst after review aggregation
 - autonomous remediation with max 2 fix iterations per task
 
