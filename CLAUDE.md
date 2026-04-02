@@ -89,7 +89,7 @@ The repository is organized as follows:
 
 - **skills/** - Reusable workflow definitions (each in its own directory with SKILL.md)
 - **commands/** - Slash command definitions that invoke skills
-- **agents/** - Specialized subagent prompts (code-reviewer, codebase-investigator, internet-researcher, test-runner)
+- **agents/** - Specialized subagent prompts (16 agents across 6 categories: research, plan, execute, guard, review, worker)
 - **hooks/** - Automatic behaviors triggered by events
 - **.claude-plugin/** - Plugin metadata (plugin.json)
 
@@ -140,12 +140,35 @@ tm update bd-3 --status in_progress      # Update task status
 
 ### Agent System
 
-Specialized agents run in separate contexts to handle specific tasks:
+16 specialized agents organized in 6 categories, each running in separate contexts:
 
-1. **test-runner** (uses Haiku) - Runs tests/hooks/commits, returns only summary + failures to keep context clean
-2. **code-reviewer** - Reviews implementations against plans and coding standards
-3. **codebase-investigator** - Explores codebase state and patterns when planning/designing
-4. **internet-researcher** - Researches APIs, libraries, docs when planning/designing
+**Research (3):**
+1. **codebase-investigator** (haiku) - Explores codebase state and patterns when planning/designing
+2. **internet-researcher** (haiku) - Researches APIs, libraries, docs when planning/designing
+3. **knowledge-aggregator** (sonnet) - Aggregates context from docs, issue trackers, and team communications via MCP
+
+**Plan (1):**
+4. **planner** (opus) - Decomposes goals into architecture diagrams, file change maps, and task dependency graphs
+
+**Execute (1):**
+5. **ralph** (inherit) - YOLO mode autonomous executor using smart triage for task selection
+
+**Guard (2):**
+6. **security-scanner** (sonnet) - OWASP Top 10 scanning, secrets detection, dependency vulnerability checks (read-only)
+7. **devops** (sonnet) - CI/CD pipeline analysis, pre-commit hook review, build config diagnostics
+
+**Review (7):**
+8. **code-reviewer** (sonnet) - Human-facing reviews with detailed explanations
+9. **autonomous-reviewer** (opus) - Machine-facing verdict-only reviews for automated pipelines
+10. **review-implementation** (sonnet) - Spec-focused requirements alignment verification
+11. **review-testing** (sonnet) - Test coverage and quality evaluation
+12. **review-quality** (sonnet) - Bug detection, race conditions, error handling gaps
+13. **review-simplification** (sonnet) - Over-engineering and unnecessary complexity detection
+14. **review-documentation** (sonnet) - Documentation completeness checks
+
+**Worker (2):**
+15. **test-runner** (haiku) - Runs tests/hooks/commits, returns only summary + failures to keep context clean
+16. **test-effectiveness-analyst** (sonnet) - Audits test quality with SRE scrutiny
 
 **Critical pattern:** Agents keep verbose output (test results, formatting diffs) in their own context, returning only essential info to the main conversation.
 

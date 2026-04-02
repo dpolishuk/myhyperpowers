@@ -135,33 +135,43 @@ See [`docs/pi.md`](docs/pi.md) for details.
 
 Domain-specific agents dispatched via the `Task` tool:
 
+#### Research & Planning Agents
+
+| Agent | Purpose | Model | Use Case |
+|-------|---------|-------|----------|
+| **codebase-investigator** | Understand codebase state and patterns | Fast (haiku) | Finding existing patterns, locating code |
+| **internet-researcher** | Research APIs, libraries, best practices | Fast (haiku) | External documentation lookup |
+| **knowledge-aggregator** | Aggregate context from docs, issues, team comms | Capable (sonnet) | Gathering decisions and context from MCP sources |
+| **planner** | Decompose goals into architecture + task graphs | Most capable (opus) | Architecture design, file change maps, dependency ordering |
+
 #### Core Execution Agents
 
 | Agent | Purpose | Model | Use Case |
 |-------|---------|-------|----------|
-| **test-runner** | Run tests/commits without polluting context | Fast (haiku, glm-4.5) | High-volume, low-complexity verification |
-| **codebase-investigator** | Understand codebase state and patterns | Fast | Finding existing patterns, locating code |
-| **internet-researcher** | Research APIs, libraries, best practices | Fast | External documentation lookup |
-| **code-reviewer** | Review implementations against plans | Capable (sonnet, glm-4.7) | Implementation quality review |
+| **test-runner** | Run tests/commits without polluting context | Fast (haiku) | High-volume, low-complexity verification |
+| **ralph** | YOLO mode autonomous executor | Inherit | Hands-off execution with smart triage |
+| **code-reviewer** | Human-facing review with detailed explanations | Capable (sonnet) | Implementation quality review at milestones |
 
 #### Multi-Agent Review Suite (Used by Ralph)
 
-These 5 agents run in parallel after each task during autonomous execution:
+These 7 agents run in parallel after each task during autonomous execution:
 
 | Agent | Focus Area | What They Find |
 |-------|------------|----------------|
-| **review-quality** | Bugs, security, race conditions, resource leaks | Logic errors, injection vulnerabilities, deadlocks |
+| **review-quality** | Bugs, race conditions, error handling, resource leaks | Logic errors, deadlocks, missing error handling |
 | **review-implementation** | Requirements match, completeness, correctness | Missing features, partial implementations |
 | **review-testing** | Coverage, test quality, edge cases | Untested code paths, weak assertions |
 | **review-simplification** | Over-engineering, premature abstraction | Unnecessary complexity, dead code |
 | **review-documentation** | Docs for API changes, config updates | Missing README updates, undocumented features |
+| **security-scanner** | OWASP Top 10, secrets, dependency CVEs | Injection, XSS, hardcoded secrets, vulnerable deps |
+| **devops** | CI/CD pipelines, pre-commit hooks, build configs | Missing CI steps, pipeline failures, config issues |
 
 #### Advanced Analysis Agents
 
 | Agent | Purpose | Model | Specialization |
 |-------|---------|-------|----------------|
-| **test-effectiveness-analyst** | Audit test quality with SRE scrutiny | Capable | Identifies tautological tests, coverage gaming, weak assertions |
-| **autonomous-reviewer** | Final validation with web research | Most capable (opus, glm-4.7) | Comprehensive review with external research |
+| **test-effectiveness-analyst** | Audit test quality with SRE scrutiny | Capable (sonnet) | Identifies tautological tests, coverage gaming, weak assertions |
+| **autonomous-reviewer** | Machine-facing final validation | Most capable (opus) | Verdict-only review for automated pipelines |
 
 See [Model Configuration](docs/model-configuration.md) for details on configuring AI providers and models per agent.
 
