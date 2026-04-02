@@ -249,7 +249,10 @@ export const createRoutingSnapshot = (
   agentGroups: {
     all: [...HYPERPOWERS_AGENTS],
     orchestrator: [...AGENT_GROUPS.orchestrator],
+    planners: [...AGENT_GROUPS.planners],
     workers: [...AGENT_GROUPS.workers],
+    researchers: [...AGENT_GROUPS.researchers],
+    guards: [...AGENT_GROUPS.guards],
     reviewers: [...AGENT_GROUPS.reviewers],
   },
   availableModels: [...new Set([...discoverAvailableModels(config, hpConfig), ...(options.availableModels ?? [])])].sort(),

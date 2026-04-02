@@ -192,6 +192,21 @@ tm dep tree bd-xxx  # Understand task structure
 - Anti-patterns (FORBIDDEN shortcuts)
 - All tasks and dependencies
 
+### Step 0d: Validate Architecture with Planner
+
+**Dispatch planner agent** to validate the epic's architecture before execution:
+```
+Dispatch planner:
+"Validate the architecture for epic [id]. Read the codebase and verify:
+1. File paths in the plan are correct
+2. Existing patterns are identified for reuse
+3. Task dependency order makes sense
+4. Risk assessment per task
+Return: Architecture validation + any corrections needed."
+```
+
+If planner finds issues with the plan, update task descriptions before proceeding.
+
 **Create TodoWrite for ALL tasks upfront:**
 ```
 Branch: feature/[epic-name]
