@@ -59,24 +59,24 @@ Use AskUserQuestion to ask one question at a time:
 
 Options:
 1. **Set a single agent** — pick agent + model
-2. **Set a group** — pick group (workers/reviewers/all) + model
+2. **Set a group** — pick group (workers/researchers/planners/guards/reviewers/all) + model
 3. **Apply a preset** — cost-optimized or quality-first
 4. **Done** — exit without changes
 
 ### Set single agent flow
-1. Ask: which agent? (show the 11 agent names)
+1. Ask: which agent? (show the 15 agent names from Step 1 table)
 2. Ask: which model? (inherit, sonnet, opus, haiku)
 3. Edit the agent's `.md` file — change the `model:` field in YAML frontmatter
 
 ### Set group flow
-1. Ask: which group? (workers, reviewers, all)
+1. Ask: which group? (workers, researchers, planners, guards, reviewers, all)
 2. Ask: which model? (inherit, sonnet, opus, haiku)
 3. Edit all agents in the group — change `model:` field in each
 
 ### Apply preset flow
 1. Ask: which preset?
-   - **cost-optimized**: workers use `haiku`, reviewers use `sonnet`, autonomous-reviewer uses `opus`
-   - **quality-first**: all agents use `sonnet`, autonomous-reviewer uses `opus`
+   - **cost-optimized**: workers use `haiku`, researchers/guards/reviewers use `sonnet`, planners + autonomous-reviewer use `opus`
+   - **quality-first**: all agents use `sonnet`, planners + autonomous-reviewer use `opus`
 2. Edit all agent files with the preset values
 
 ## Step 3: Show result
