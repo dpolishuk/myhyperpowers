@@ -116,19 +116,28 @@ function resolveArgumentsString(args: unknown): string {
   return String(args)
 }
 
+const PI_COMPAT_BLOCK = `
+<pi_compat>
+This workflow was ported from Claude Code. In Pi, please adapt your tool usage:
+- When asked to use the "AskUserQuestion" tool, use the \`ask_user\` tool instead. Map \`header\` to \`context\` and \`label\` to \`title\`.
+- When asked to "Use Skill tool: [name]", use your \`read\` tool to load \`skills/[name]/SKILL.md\` from the repository.
+- When asked to use "Task()" or dispatch parallel agents, use the \`hyperpowers_subagent\` tool.
+</pi_compat>
+`
+
 function loadPiCommandPrompt(commandName: string, skillName: string, args: unknown): string | null {
   const argsStr = resolveArgumentsString(args)
 
   const commandContent = loadCommandContent(commandName)
   if (commandContent) {
     const substituted = commandContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
   }
 
   const skillContent = loadSkillContent(skillName)
   if (skillContent) {
     const substituted = skillContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
   }
 
   return null
