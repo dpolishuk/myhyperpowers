@@ -9,13 +9,17 @@ export const HYPERPOWERS_AGENTS = [
   "autonomous-reviewer",
   "code-reviewer",
   "codebase-investigator",
+  "devops",
   "internet-researcher",
+  "knowledge-aggregator",
+  "planner",
   "ralph",
   "review-documentation",
   "review-implementation",
   "review-quality",
   "review-simplification",
   "review-testing",
+  "security-scanner",
   "test-effectiveness-analyst",
   "test-runner",
 ] as const
@@ -41,7 +45,10 @@ export type WorkflowName = (typeof HYPERPOWERS_WORKFLOWS)[number]
 
 export const AGENT_GROUPS = {
   orchestrator: ["ralph"] as AgentName[],
+  planners: ["planner"] as AgentName[],
   workers: ["test-runner", "codebase-investigator", "internet-researcher"] as AgentName[],
+  researchers: ["knowledge-aggregator"] as AgentName[],
+  guards: ["security-scanner", "devops"] as AgentName[],
   reviewers: [
     "autonomous-reviewer",
     "code-reviewer",
@@ -242,7 +249,10 @@ export const createRoutingSnapshot = (
   agentGroups: {
     all: [...HYPERPOWERS_AGENTS],
     orchestrator: [...AGENT_GROUPS.orchestrator],
+    planners: [...AGENT_GROUPS.planners],
     workers: [...AGENT_GROUPS.workers],
+    researchers: [...AGENT_GROUPS.researchers],
+    guards: [...AGENT_GROUPS.guards],
     reviewers: [...AGENT_GROUPS.reviewers],
   },
   availableModels: [...new Set([...discoverAvailableModels(config, hpConfig), ...(options.availableModels ?? [])])].sort(),
@@ -451,7 +461,10 @@ const applyPreset = (
   switch (presetName) {
     case "cost-optimized":
       assign(AGENT_GROUPS.orchestrator, strongModel)
+      assign(AGENT_GROUPS.planners, strongModel)
       assign(AGENT_GROUPS.workers, fastModel)
+      assign(AGENT_GROUPS.researchers, strongModel)
+      assign(AGENT_GROUPS.guards, strongModel)
       assign(AGENT_GROUPS.reviewers, strongModel)
       break
     case "quality-first":
@@ -616,9 +629,24 @@ export const planRecommendedRouting = ({
     nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
+  for (const agent of AGENT_GROUPS.planners) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
+  }
+
   for (const agent of AGENT_GROUPS.workers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, resolvedFastModel)
     nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedWorkerEffort)
+  }
+
+  for (const agent of AGENT_GROUPS.researchers) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
+  }
+
+  for (const agent of AGENT_GROUPS.guards) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   for (const agent of AGENT_GROUPS.reviewers) {
@@ -944,7 +972,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const agents = resolveGroupAgents(groupName)
     if (!agents) {
       return invalidResult(configPath, "unsupported_group", "Use a supported group name", {
-        supportedGroups: ["orchestrator", "workers", "reviewers", "all"],
+        supportedGroups: ["orchestrator", "planners", "workers", "researchers", "guards", "reviewers", "all"],
       })
     }
     const model = getString(args.model)

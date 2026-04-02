@@ -18,7 +18,7 @@ This skill wraps the source file `agents/autonomous-reviewer.md` for Codex Skill
 ```markdown
 ---
 name: autonomous-reviewer
-description: Use for autonomous code review during continuous execution. Validates task implementation against epic requirements, researches unclear patterns via web search, and returns structured verdicts (PASS/NEEDS_FIX/APPROVED/GAPS_FOUND). Configurable model via --reviewer-model argument (default opus).
+description: Machine-facing reviewer for automated pipelines. Returns structured verdicts (PASS/NEEDS_FIX/APPROVED/GAPS_FOUND) with actionable fix instructions for orchestrators to act on. Can research unclear patterns via web search. Use during continuous execution (ralph, execute-ralph). Contrast with code-reviewer (human-facing, narrative explanations) and review-implementation (spec-focused, requirements checklist).
 # Model Configuration:
 # - inherit: Use the parent's/current model (default)
 # - providerID/modelID: Explicit model selection (e.g., anthropic/claude-opus-4-5)
