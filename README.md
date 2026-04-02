@@ -356,16 +356,20 @@ claude --plugin-dir .
 
 ### Install
 
+**Option A: One-command install (macOS / Linux)**
+The fastest way to install or upgrade the Pi extension (requires `bun` or `npm`):
+
 ```bash
-# Clone or navigate to hyperpowers
-# Option A: Install Pi support via the non-interactive installer
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/myhyperpowers/main/scripts/setup-pi.sh | bash
+```
+
+**Option B: Install from cloned repo**
+```bash
+# Non-interactive Pi support
 bun scripts/install.ts --yes --hosts pi
 
-# Option B: Install with optional memory support (memsearch)
+# Install with optional memory support (memsearch)
 bun scripts/install.ts --yes --hosts pi --features memsearch
-
-# Option C: Interactive install (prompts for host selection)
-bun scripts/install.ts
 ```
 
 ### What gets installed
