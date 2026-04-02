@@ -70,8 +70,20 @@
       "model": "kimi-for-coding/k2p5",
       "effort": "high"
     },
+    "devops": {
+      "model": "zhipuai-coding-plan/glm-5.1",
+      "effort": "high"
+    },
     "internet-researcher": {
       "model": "kimi-for-coding/k2p5",
+      "effort": "high"
+    },
+    "knowledge-aggregator": {
+      "model": "zhipuai-coding-plan/glm-5.1",
+      "effort": "high"
+    },
+    "planner": {
+      "model": "openai/gpt-5.4",
       "effort": "high"
     },
     "ralph": {
@@ -95,6 +107,10 @@
       "effort": "high"
     },
     "review-testing": {
+      "model": "zhipuai-coding-plan/glm-5.1",
+      "effort": "high"
+    },
+    "security-scanner": {
       "model": "zhipuai-coding-plan/glm-5.1",
       "effort": "high"
     },

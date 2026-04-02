@@ -125,7 +125,7 @@ Today, the practical plugin/options surface is `/routing-settings`, a plugin-own
 | guards | security-scanner, devops | Security and CI/CD analysis (sonnet) |
 | reviewers | autonomous-reviewer, code-reviewer, review-*, test-effectiveness-analyst | Require reasoning |
 
-> **Note:** The OpenCode routing wizard plugin (`.opencode/plugins/routing-wizard-core.ts`) currently supports `orchestrator`, `workers`, and `reviewers` groups only. The new groups (planners, researchers, guards) and their agents can be configured individually via `set` until the plugin is updated to support the expanded group taxonomy.
+> The OpenCode routing wizard plugin (`.opencode/plugins/routing-wizard-core.ts`) supports all 6 groups and 16 agents.
 
 **Presets:**
 
