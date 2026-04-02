@@ -458,7 +458,10 @@ const applyPreset = (
   switch (presetName) {
     case "cost-optimized":
       assign(AGENT_GROUPS.orchestrator, strongModel)
+      assign(AGENT_GROUPS.planners, strongModel)
       assign(AGENT_GROUPS.workers, fastModel)
+      assign(AGENT_GROUPS.researchers, strongModel)
+      assign(AGENT_GROUPS.guards, strongModel)
       assign(AGENT_GROUPS.reviewers, strongModel)
       break
     case "quality-first":
@@ -623,9 +626,24 @@ export const planRecommendedRouting = ({
     nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
+  for (const agent of AGENT_GROUPS.planners) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
+  }
+
   for (const agent of AGENT_GROUPS.workers) {
     nextConfig = updateGlobalAgentModel(nextConfig, agent, resolvedFastModel)
     nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedWorkerEffort)
+  }
+
+  for (const agent of AGENT_GROUPS.researchers) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
+  }
+
+  for (const agent of AGENT_GROUPS.guards) {
+    nextConfig = updateGlobalAgentModel(nextConfig, agent, canonicalStrong)
+    nextConfig = updateGlobalAgentEffort(nextConfig, agent, resolvedStrongEffort)
   }
 
   for (const agent of AGENT_GROUPS.reviewers) {
@@ -951,7 +969,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const agents = resolveGroupAgents(groupName)
     if (!agents) {
       return invalidResult(configPath, "unsupported_group", "Use a supported group name", {
-        supportedGroups: ["orchestrator", "workers", "reviewers", "all"],
+        supportedGroups: ["orchestrator", "planners", "workers", "researchers", "guards", "reviewers", "all"],
       })
     }
     const model = getString(args.model)
