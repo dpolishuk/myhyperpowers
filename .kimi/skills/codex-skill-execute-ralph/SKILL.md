@@ -122,8 +122,8 @@ PRE_SHA=$(git rev-parse HEAD)
 ```bash
 POST_SHA=$(git rev-parse HEAD)
 ```
-- If POST_SHA != PRE_SHA: task succeeded (HEAD changed). Check criteria.
-- If POST_SHA == PRE_SHA: HEAD unchanged -- retry once with the same prompt. If still unchanged, flag the task and continue.
+- If POST_SHA != PRE_SHA: HEAD changed. Verify task closed: `tm show bd-N` must show status closed. If not closed, run `tm close bd-N`. Check criteria.
+- If POST_SHA == PRE_SHA: HEAD unchanged -- retry once with the same prompt. If still unchanged, defer the task (`tm update bd-N --status deferred`) and continue to Phase 1.
 
 **Criteria check:**
 ```bash
