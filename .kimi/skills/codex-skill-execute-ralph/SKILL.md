@@ -18,7 +18,7 @@ flowchart TD
 ```
 
 <skill_overview>
-Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 8 agents (5 review + 2 guard + test-effectiveness-analyst) in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
+Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 7 agents (4 review + 2 guard + test-effectiveness-analyst) in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
 </skill_overview>
 
 <rigidity_level>
@@ -32,7 +32,7 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 | **0. Setup** | Triage, load epic, create branch, extract criteria | Ready |
 | **1. Get Task** | Claim ready / resume in-progress / auto-create | Task identified |
 | **2. Dispatch Subagent** | Agent tool runs task end-to-end, main checks git log | Task done or retried |
-| **3. End-of-Epic Review** | 8 agents + final gate (both must APPROVED) | Epic validated or remediation |
+| **3. End-of-Epic Review** | 7 agents + final gate (both must APPROVED) | Epic validated or remediation |
 | **4. Branch Completion** | finishing-a-development-branch | Epic closed |
 
 </quick_reference>
@@ -137,16 +137,15 @@ tm show bd-EPIC   # re-read success criteria
 
 ## Phase 3: End-of-Epic Review (post-loop)
 
-Dispatch 8 agents (5 review + 2 guard + test-effectiveness-analyst) **in parallel** via Agent tool:
+Dispatch 7 agents (4 review + 2 guard + test-effectiveness-analyst) **in parallel** via Agent tool:
 
 1. **review-quality** -- bugs, race conditions, error handling
-2. **review-implementation** -- spec alignment
-3. **review-testing** -- test coverage
-4. **review-simplification** -- over-engineering
-5. **review-documentation** -- docs completeness
-6. **security-scanner** -- OWASP, secrets, CVEs
-7. **devops** -- CI/CD pipeline health
-8. **test-effectiveness-analyst** -- tautological tests, coverage gaming
+2. **review-testing** -- test coverage
+3. **review-simplification** -- over-engineering
+4. **review-documentation** -- docs completeness
+5. **security-scanner** -- OWASP, secrets, CVEs
+6. **devops** -- CI/CD pipeline health
+7. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
 If any issues found, create remediation task and return to Phase 1.
 
@@ -164,7 +163,7 @@ Only close epic when BOTH final reviewers approve.
 - Mixed final reviewer outputs -> remediation path (no epic close).
 
 Mixed final reviewer outputs are non-approval.
-Do not close the epic unless both final reviewers return APPROVED.
+Do not close the epic unless both final reviewers return an approval verdict.
 Unknown or malformed verdict must create a remediation task and continue the loop.
 
 Non-approval --> create remediation task, return to Phase 1 (max 50 no-progress remediation cycles).

@@ -21,7 +21,7 @@ const REQUIRED_COMMAND_CLAUSES = [
   "review-documentation",
   "test-effectiveness-analyst after review aggregation",
   "autonomous remediation with max 2 fix iterations per task",
-  "Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED",
+  "Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS",
   "If final reviewers do not both approve, creates a remediation task and continues the loop",
   "PASS, APPROVED -> continue or close path",
   "NEEDS_FIX, ISSUES_FOUND, GAPS_FOUND, CRITICAL_ISSUES -> remediation path",

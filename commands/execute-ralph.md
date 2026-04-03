@@ -26,9 +26,9 @@ Executes a complete bd epic without stopping for user review:
 5. Uses SHA comparison to verify subagent progress (HEAD changed = success)
 6. Re-checks epic success criteria after every task cycle
 7. If criteria are unmet and no task is ready, auto-creates the next task, runs SRE refinement, and continues
-8. **Phase 3 - End-of-Epic Review:** Dispatches 8 agents in parallel (5 review + 2 guard + test-effectiveness-analyst)
+8. **Phase 3 - End-of-Epic Review:** Dispatches 7 agents in parallel (4 review + 2 guard + test-effectiveness-analyst)
 9. If any issues found, creates remediation task and returns to Phase 1
-10. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED
+10. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS
 11. If final reviewers do not both approve, creates a remediation task and continues the loop
 12. Max autonomous no-progress retries: 50
 13. **Phase 4 - Branch Completion:** Finishes branch and presents summary
@@ -57,9 +57,8 @@ Executes a complete bd epic without stopping for user review:
 
 Reviews happen ONCE at end of epic (not per-task). Ralph uses:
 
-- 8 parallel agents dispatched after all epic criteria are met:
+- 7 parallel agents dispatched after all epic criteria are met:
   - review-quality (bugs, race conditions, error handling)
-  - review-implementation (spec alignment)
   - review-testing (test coverage)
   - review-simplification (over-engineering)
   - review-documentation (docs completeness)
@@ -73,7 +72,7 @@ After end-of-epic review passes, Ralph performs a final gate with:
 - autonomous-reviewer (returns APPROVED or GAPS_FOUND)
 - review-implementation (returns PASS or ISSUES_FOUND)
 
-Both must return APPROVED before the epic can close.
+autonomous-reviewer must return APPROVED and review-implementation must return PASS before the epic can close.
 
 ## Verdict Normalization Matrix
 

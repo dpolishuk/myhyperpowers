@@ -37,7 +37,7 @@ test("test_dual_final_gate_requires_both_approvals", () => {
   const skill = read("skills/execute-ralph/SKILL.md")
 
   assert.equal(
-    command.includes("Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED"),
+    command.includes("Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS"),
     true,
   )
   assert.equal(
@@ -106,7 +106,7 @@ test("test_mixed_final_verdicts_do_not_close_epic", () => {
   const skill = read("skills/execute-ralph/SKILL.md")
 
   assert.equal(skill.includes("Mixed final reviewer outputs are non-approval"), true)
-  assert.equal(skill.includes("Do not close the epic unless both final reviewers return APPROVED"), true)
+  assert.equal(skill.includes("Do not close the epic unless both final reviewers return an approval verdict"), true)
 })
 
 test("test_execute_ralph_contract_consistency_across_source_and_wrappers", () => {
