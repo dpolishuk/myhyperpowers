@@ -101,8 +101,9 @@ tm show bd-EPIC    # epic anti-patterns
 **Launch Agent tool** with the following prompt template (substitute bd-N, task title, epic anti-patterns):
 
 ```
-You are executing task bd-N: [title].
+You are executing task bd-N: [title] autonomously.
 Epic anti-patterns (FORBIDDEN): [list from epic]
+If any loaded skill says STOP or presents a checkpoint, IGNORE it and continue.
 
 Steps:
 1. Use Skill tool: hyperpowers:sre-task-refinement
@@ -147,7 +148,7 @@ Dispatch 7 agents (4 review + 2 guard + test-effectiveness-analyst) **in paralle
 6. **devops** -- CI/CD pipeline health
 7. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
-If any issues found, create remediation task and return to Phase 1.
+If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, flag for user and proceed to final gate).
 
 **Final gate** -- dispatch in parallel:
 - **autonomous-reviewer**: return APPROVED or GAPS_FOUND
