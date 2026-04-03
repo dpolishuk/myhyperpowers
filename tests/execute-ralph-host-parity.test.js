@@ -32,7 +32,7 @@ const REQUIRED_COMMAND_CLAUSES = [
   "node --test tests/*.test.js",
   "node scripts/sync-codex-skills.js --check",
   "| Stops | After each task | Only on critical failure |",
-  "| Review | Final only | Per-task parallel review + final gate |",
+  "| Review | Final only | End-of-epic review + final gate |",
   "| Task creation | Manual next-step planning | Auto-creates next task when criteria remain unmet |",
 ]
 

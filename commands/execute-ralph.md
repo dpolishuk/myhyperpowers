@@ -97,7 +97,7 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 | | execute-plan | execute-ralph |
 |---|---|---|
 | Stops | After each task | Only on critical failure |
-| Review | Final only | Per-task parallel review + final gate |
+| Review | Final only | End-of-epic review + final gate |
 | Model | Inherited | Configurable (opus default) |
 | Research | None | Final autonomous review may use web research |
 | Task creation | Manual next-step planning | Auto-creates next task when criteria remain unmet |
