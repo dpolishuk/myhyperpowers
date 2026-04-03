@@ -175,6 +175,8 @@ Non-approval --> create remediation task, return to Phase 1 (max 50 no-progress 
 Use Skill tool: hyperpowers:finishing-a-development-branch
 ```
 
+**Autonomous override:** When the skill presents integration options, auto-select **option 2 (Push and create Pull Request)** without waiting for user input. Ralph is autonomous — do not present options or wait.
+
 Present summary: tasks completed, commits made, review results, any flagged items.
 
 ---
