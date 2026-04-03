@@ -17,7 +17,7 @@ flowchart TD
 ```
 
 <skill_overview>
-Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 7 review agents + test-effectiveness-analyst in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
+Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 8 agents (5 review + 2 guard + test-effectiveness-analyst) in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
 </skill_overview>
 
 <rigidity_level>
@@ -31,7 +31,7 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 | **0. Setup** | Triage, load epic, create branch, extract criteria | Ready |
 | **1. Get Task** | Claim ready / resume in-progress / auto-create | Task identified |
 | **2. Dispatch Subagent** | Agent tool runs task end-to-end, main checks git log | Task done or retried |
-| **3. End-of-Epic Review** | 7 reviewers + final gate (both must APPROVED) | Epic validated or remediation |
+| **3. End-of-Epic Review** | 8 agents + final gate (both must APPROVED) | Epic validated or remediation |
 | **4. Branch Completion** | finishing-a-development-branch | Epic closed |
 
 </quick_reference>
@@ -112,12 +112,17 @@ Steps:
 6. Return one-paragraph summary of what you did.
 ```
 
-**After Agent returns**, verify progress:
+**Before dispatching**, record current HEAD:
 ```bash
-git log -1 --oneline
+PRE_SHA=$(git rev-parse HEAD)
 ```
-- If HEAD mentions bd-N: task succeeded. Check criteria.
-- If HEAD unchanged: retry once with the same prompt. If still unchanged, flag the task and continue.
+
+**After Agent returns**, verify progress by SHA comparison:
+```bash
+POST_SHA=$(git rev-parse HEAD)
+```
+- If POST_SHA != PRE_SHA: task succeeded (HEAD changed). Check criteria.
+- If POST_SHA == PRE_SHA: HEAD unchanged -- retry once with the same prompt. If still unchanged, flag the task and continue.
 
 **Criteria check:**
 ```bash
@@ -131,7 +136,7 @@ tm show bd-EPIC   # re-read success criteria
 
 ## Phase 3: End-of-Epic Review (post-loop)
 
-Dispatch 7 review agents + test-effectiveness-analyst **in parallel** via Agent tool:
+Dispatch 8 agents (5 review + 2 guard + test-effectiveness-analyst) **in parallel** via Agent tool:
 
 1. **review-quality** -- bugs, race conditions, error handling
 2. **review-implementation** -- spec alignment
@@ -146,7 +151,7 @@ If any issues found, create remediation task and return to Phase 1.
 
 **Final gate** -- dispatch in parallel:
 - **autonomous-reviewer**: return APPROVED or GAPS_FOUND
-- **review-implementation**: return APPROVED or GAPS_FOUND
+- **review-implementation**: return PASS or ISSUES_FOUND
 
 Only close epic when BOTH final reviewers approve.
 
