@@ -21,7 +21,7 @@ const REQUIRED_COMMAND_CLAUSES = [
   "review-documentation",
   "test-effectiveness-analyst after review aggregation",
   "autonomous remediation with max 2 fix iterations per task",
-  "Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED",
+  "Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS",
   "If final reviewers do not both approve, creates a remediation task and continues the loop",
   "PASS, APPROVED -> continue or close path",
   "NEEDS_FIX, ISSUES_FOUND, GAPS_FOUND, CRITICAL_ISSUES -> remediation path",
@@ -32,7 +32,7 @@ const REQUIRED_COMMAND_CLAUSES = [
   "node --test tests/*.test.js",
   "node scripts/sync-codex-skills.js --check",
   "| Stops | After each task | Only on critical failure |",
-  "| Review | Final only | Per-task parallel review + final gate |",
+  "| Review | Final only | End-of-epic review + final gate |",
   "| Task creation | Manual next-step planning | Auto-creates next task when criteria remain unmet |",
 ]
 

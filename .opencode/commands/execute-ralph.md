@@ -18,22 +18,19 @@ description: Execute entire epic autonomously with continuous review. No user ch
 
 Executes a complete bd epic without stopping for user review:
 
-1. Runs smart triage and loads the best epic/task context
+1. **Phase 0 - Setup:** Runs smart triage and loads the best epic/task context
 2. Creates a feature branch from the epic name before implementation
-3. Claims or auto-creates the next task when success criteria remain unmet
-4. Runs SRE refinement for every task before execution
-5. Executes each task using TDD and verification gates
-6. Auto-closes completed tasks and auto-commits progress
-7. Runs 7 parallel review lanes after each task: quality, implementation, testing, simplification, documentation, security, devops
-8. Runs test-effectiveness analysis to catch tautological tests, weak assertions, and coverage gaming
-9. Fixes issues autonomously with a maximum of 2 remediation iterations per task
-10. Re-checks epic success criteria after every task/fix cycle
-11. If criteria are unmet and no task is ready, auto-creates the next task, runs SRE refinement, and continues
-12. Runs a post-loop full test suite audit before the final gate
-13. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED
-14. If final reviewers do not both approve, creates a remediation task and continues the loop
-15. Max autonomous no-progress retries: 50
-16. Presents summary only at completion
+3. **Phase 1 - Get Task:** Claims or auto-creates the next task when success criteria remain unmet
+4. **Phase 2 - Dispatch Subagent:** Runs SRE refinement, TDD, test-runner, commit, and task closure per subagent
+5. Uses SHA comparison to verify subagent progress (HEAD changed = success)
+6. Re-checks epic success criteria after every task cycle
+7. If criteria are unmet and no task is ready, auto-creates the next task, runs SRE refinement, and continues
+8. **Phase 3 - End-of-Epic Review:** Dispatches 7 agents in parallel (4 review + 2 guard + test-effectiveness-analyst)
+9. If any issues found, creates remediation task and returns to Phase 1
+10. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS
+11. If final reviewers do not both approve, creates a remediation task and continues the loop
+12. Max autonomous no-progress retries: 50
+13. **Phase 4 - Branch Completion:** Finishes branch and presents summary
 
 ## When to Use
 
@@ -56,24 +53,24 @@ Executes a complete bd epic without stopping for user review:
 
 ## Review and Remediation Contract
 
-Per-task review is not a single generic pass. Ralph uses:
+Reviews happen ONCE at end of epic (not per-task). Ralph uses:
 
-- 7 parallel review agents:
-  - review-quality
-  - review-implementation
-  - review-testing
-  - review-simplification
-  - review-documentation
-  - security-scanner
-  - devops
+- 7 parallel agents dispatched after all epic criteria are met:
+  - review-quality (bugs, race conditions, error handling)
+  - review-testing (test coverage)
+  - review-simplification (over-engineering)
+  - review-documentation (docs completeness)
+  - security-scanner (OWASP, secrets, CVEs)
+  - devops (CI/CD pipeline health)
 - test-effectiveness-analyst after review aggregation
 - autonomous remediation with max 2 fix iterations per task
+- If any issues found, creates remediation task and loops back
 
-After all epic criteria are met, Ralph performs a final gate with:
-- autonomous-reviewer
-- review-implementation
+After end-of-epic review passes, Ralph performs a final gate with:
+- autonomous-reviewer (returns APPROVED or GAPS_FOUND)
+- review-implementation (returns PASS or ISSUES_FOUND)
 
-Both must return APPROVED before the epic can close.
+autonomous-reviewer must return APPROVED and review-implementation must return PASS before the epic can close.
 
 ## Verdict Normalization Matrix
 
@@ -97,7 +94,7 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 | | execute-plan | execute-ralph |
 |---|---|---|
 | Stops | After each task | Only on critical failure |
-| Review | Final only | Per-task parallel review + final gate |
+| Review | Final only | End-of-epic review + final gate |
 | Model | Inherited | Configurable (opus default) |
 | Research | None | Final autonomous review may use web research |
 | Task creation | Manual next-step planning | Auto-creates next task when criteria remain unmet |
