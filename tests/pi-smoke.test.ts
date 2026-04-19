@@ -3,9 +3,23 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { spawnSync } from "node:child_process"
 import { pathToFileURL } from "node:url"
+import { pathToFileURL } from "node:url"
 import { test, expect } from "bun:test"
 
 const repoRoot = path.resolve(__dirname, "..")
+
+function loadExtensionWithNodeJiti(extDir: string, indexPath: string) {
+  const jitiPath = path.join(extDir, "node_modules", "@mariozechner", "jiti", "lib", "jiti.mjs")
+  const script = `import createJiti from ${JSON.stringify(pathToFileURL(jitiPath).href)};
+const jiti = createJiti(import.meta.url, { moduleCache: false, alias: {} });
+const factory = await jiti.import(${JSON.stringify(indexPath)}, { default: true });
+console.log(\`loaded \${typeof factory}\`);`
+
+  return spawnSync("node", ["--input-type=module", "-e", script], {
+    encoding: "utf8",
+    timeout: 120000,
+  })
+}
 
 function createFakePiShim(binDir: string): void {
   const piPath = path.join(binDir, "pi")
@@ -41,10 +55,18 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
 
   expect(result.status).toBe(0)
   const extDir = path.join(home, ".pi", "agent", "extensions", "hyperpowers")
-  const indexPath = path.join(extDir, "index.ts")
+  const indexPath = path.join(extDir, "dist", "index.js")
 
   expect(existsSync(extDir)).toBe(true)
   expect(existsSync(indexPath)).toBe(true)
+
+  const jitiLoadResult = loadExtensionWithNodeJiti(extDir, indexPath)
+  if (jitiLoadResult.status !== 0) {
+    console.error("jitiLoadResult error:", jitiLoadResult.stderr)
+    console.error("jitiLoadResult output:", jitiLoadResult.stdout)
+  }
+  expect(jitiLoadResult.status).toBe(0)
+  expect(jitiLoadResult.stdout.trim()).toBe("loaded function")
 
   const extensionUrl = pathToFileURL(indexPath).href
   const extensionModule = await import(extensionUrl)
