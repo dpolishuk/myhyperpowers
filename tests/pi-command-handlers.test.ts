@@ -70,7 +70,7 @@ test("execute-ralph command uses command doc wrapper and forwards args", async (
 
     const output = await executeRalph.handler("--reviewer-model=sonnet", {})
     expect(output).toContain("/hyperpowers:execute-ralph [--reviewer-model=opus|sonnet]")
-    expect(output).toContain("Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation APPROVED")
+    expect(output).toContain("Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS")
     expect(output).toContain("Pi invocation arguments: --reviewer-model=sonnet")
   } finally {
     cleanup()

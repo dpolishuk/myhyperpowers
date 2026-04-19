@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
@@ -481,33 +481,23 @@ const applyPreset = (
 }
 
 const runOpencodeModels = async (cwd: string): Promise<CommandResult> => {
-  return new Promise((resolve, reject) => {
-    const child = spawn("opencode", ["models"], {
-      cwd,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    })
-
-    let stdout = ""
-    let stderr = ""
-
-    child.stdout.on("data", (chunk) => {
-      stdout += String(chunk)
-    })
-
-    child.stderr.on("data", (chunk) => {
-      stderr += String(chunk)
-    })
-
-    child.on("error", (error) => reject(error))
-    child.on("close", (code) => {
-      resolve({
-        exitCode: code ?? 1,
-        stdout,
-        stderr,
-      })
-    })
+  const result = spawnSync("opencode", ["models"], {
+    cwd,
+    env: { ...process.env, PAGER: "cat" },
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+    timeout: 30000,
   })
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return {
+    exitCode: result.status ?? 1,
+    stdout: result.stdout || "",
+    stderr: result.stderr || "",
+  }
 }
 
 export const parseOpencodeModelsOutput = (output: string) => {
