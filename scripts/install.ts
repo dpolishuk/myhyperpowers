@@ -250,6 +250,15 @@ const HOSTS: HostConfig[] = [
           const stdout = installResult.stdout.toString().trim()
           throw new Error(`Pi extension dependency install failed${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
         }
+
+        // Build the TypeScript source to ESM to avoid Jiti transpilation bugs in Pi
+        if (commandExists("bun")) {
+          const buildResult = Bun.spawnSync(["bun", "build", "index.ts", "--target=node", "--format=esm", "--packages=external", "--outfile=dist/index.js"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+          if (buildResult.exitCode !== 0) {
+            const stderr = buildResult.stderr.toString().trim()
+            throw new Error(`Pi extension build failed: ${stderr}`)
+          }
+        }
       }
 
       // Append/replace Hyperpowers section in AGENTS.md (preserve user content before AND after)

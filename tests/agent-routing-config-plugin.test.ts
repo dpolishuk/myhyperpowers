@@ -83,13 +83,15 @@ test("get_returns_current_global_and_workflow_routing_from_split_config", async 
   )
 
   try {
-    const result = await runTool(root, { action: "get" })
+    await withFakeOpencodeModels(root, "global/model\nfast/model\nstrong/model", async () => {
+      const result = await runTool(root, { action: "get" })
 
-    expect(result.ok).toBe(true)
-    expect(result.sourceOfTruth).toEqual(["opencode.json", ".opencode/hyperpowers-routing.json"])
-    expect(result.routing.model).toBe("global/model")
-    expect(result.routing.agent["test-runner"].model).toBe("fast/model")
-    expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
+      expect(result.ok).toBe(true)
+      expect(result.sourceOfTruth).toEqual(["opencode.json", ".opencode/hyperpowers-routing.json"])
+      expect(result.routing.model).toBe("global/model")
+      expect(result.routing.agent["test-runner"].model).toBe("fast/model")
+      expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
+    })
   } finally {
     await cleanup()
   }
@@ -404,12 +406,14 @@ test("get_returns_warning_when_hyperpowers_override_file_is_malformed", async ()
     await mkdir(join(root, ".opencode"), { recursive: true })
     await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
 
-    const result = await runTool(root, { action: "get" })
+    await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
+      const result = await runTool(root, { action: "get" })
 
-    expect(result.ok).toBe(true)
-    expect(result.warning.code).toBe("invalid_hp_json")
-    expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
-    expect(result.routing.workflowOverrides).toEqual({})
+      expect(result.ok).toBe(true)
+      expect(result.warning.code).toBe("invalid_hp_json")
+      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.routing.workflowOverrides).toEqual({})
+    })
   } finally {
     await cleanup()
   }
@@ -551,10 +555,12 @@ test("get_snapshot_includes_models_from_workflow_override_file", async () => {
   )
 
   try {
-    const result = await runTool(root, { action: "get" })
+    await withFakeOpencodeModels(root, "proxy/model-a\ncustom-provider/reviewer-only", async () => {
+      const result = await runTool(root, { action: "get" })
 
-    expect(result.ok).toBe(true)
-    expect(result.availableModels).toContain("custom-provider/reviewer-only")
+      expect(result.ok).toBe(true)
+      expect(result.availableModels).toContain("custom-provider/reviewer-only")
+    })
   } finally {
     await cleanup()
   }
@@ -598,8 +604,8 @@ test("get_snapshot_includes_agent_groups", async () => {
     expect(result.agentGroups).toBeDefined()
     expect(result.agentGroups.orchestrator).toContain("ralph")
     expect(result.agentGroups.workers).toContain("test-runner")
-    expect(result.agentGroups.workers).toContain("codebase-investigator")
-    expect(result.agentGroups.workers).toContain("internet-researcher")
+    expect(result.agentGroups.researchers).toContain("codebase-investigator")
+    expect(result.agentGroups.researchers).toContain("internet-researcher")
     expect(result.agentGroups.reviewers).toContain("autonomous-reviewer")
     expect(result.agentGroups.reviewers).toContain("code-reviewer")
     expect(result.agentGroups.reviewers.length).toBe(AGENT_GROUPS.reviewers.length)
@@ -631,11 +637,9 @@ test("set_group_applies_model_to_all_workers", async () => {
 
       expect(result.ok).toBe(true)
       expect(result.updatedAgents).toContain("test-runner")
-      expect(result.updatedAgents).toContain("codebase-investigator")
-      expect(result.updatedAgents).toContain("internet-researcher")
+      expect(result.updatedAgents).not.toContain("codebase-investigator")
+      expect(result.updatedAgents).not.toContain("internet-researcher")
       expect(persisted.agent["test-runner"].model).toBe("fast/model")
-      expect(persisted.agent["codebase-investigator"].model).toBe("fast/model")
-      expect(persisted.agent["internet-researcher"].model).toBe("fast/model")
       expect(persisted.agent.ralph.model).toBe("strong/model")
     })
   } finally {

@@ -34,6 +34,35 @@ const createTempRoot = async (config?: Record<string, unknown>, hpConfig?: Recor
   }
 }
 
+const withFakeOpencodeModels = async (root: string, output: string, callback: () => Promise<void>) => {
+  const binDir = join(root, "bin")
+  const opencodePath = join(binDir, "opencode")
+  const originalPath = process.env.PATH || ""
+
+  await mkdir(binDir, { recursive: true })
+  await writeFile(
+    opencodePath,
+    `#!/usr/bin/env bash
+if [ "$1" = "models" ]; then
+cat <<'EOF'
+${output}
+EOF
+exit 0
+fi
+exit 1
+`,
+    "utf8",
+  )
+  await chmod(opencodePath, 0o755)
+
+  process.env.PATH = `${binDir}:${originalPath}`
+  try {
+    await callback()
+  } finally {
+    process.env.PATH = originalPath
+  }
+}
+
 test("parseOpencodeModelsOutput ignores noise and deduplicates model ids", () => {
   const parsed = parseOpencodeModelsOutput(`Available models\n\nanthropic/claude-sonnet-4-5\nopenrouter/google/gemini-2.5-pro\nopenai/gpt-4o-mini\nanthropic/claude-sonnet-4-5\n- not-a-model\n`)
 
@@ -143,8 +172,8 @@ test("writeRecommendedRoutingPlan writes effort to opencode.json when specified"
     // Agents with explicit effort should have it persisted
     expect(ocPersisted.agent.ralph.effort).toBe("high")
     expect(ocPersisted.agent["test-runner"].effort).toBe("medium")
-    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("medium")
-    expect(ocPersisted.agent["internet-researcher"].effort).toBe("medium")
+    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("high")
+    expect(ocPersisted.agent["internet-researcher"].effort).toBe("high")
     expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
     expect(ocPersisted.agent["autonomous-reviewer"].effort).toBe("high")
 
@@ -324,20 +353,22 @@ test("verifyRecommendedRoutingPlan fails when backend read-back diverges from pl
 
   try {
     const discoveredModels = ["anthropic/claude-sonnet-4-5"]
-    const plan = planRecommendedRouting({
-      strongModel: "anthropic/claude-sonnet-4-5",
+    await withFakeOpencodeModels(root, discoveredModels.join("\n"), async () => {
+      const plan = planRecommendedRouting({
+        strongModel: "anthropic/claude-sonnet-4-5",
+      })
+
+      await writeRecommendedRoutingPlan(root, plan)
+      const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+      ocPersisted.agent.ralph.model = "anthropic/claude-opus-4-5"
+      await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
+
+      const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+      expect(verify.ok).toBe(false)
+      if (verify.ok) throw new Error("expected snapshot mismatch failure")
+      expect(verify.error.code).toBe("snapshot_mismatch")
     })
-
-    await writeRecommendedRoutingPlan(root, plan)
-    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    ocPersisted.agent.ralph.model = "anthropic/claude-opus-4-5"
-    await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
-
-    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
-
-    expect(verify.ok).toBe(false)
-    if (verify.ok) throw new Error("expected snapshot mismatch failure")
-    expect(verify.error.code).toBe("snapshot_mismatch")
   } finally {
     await cleanup()
   }
@@ -348,24 +379,26 @@ test("verifyRecommendedRoutingPlan detects effort drift in global agents", async
 
   try {
     const discoveredModels = ["anthropic/claude-sonnet-4-5"]
-    const plan = planRecommendedRouting({
-      strongModel: "anthropic/claude-sonnet-4-5",
-      strongEffort: "high",
+    await withFakeOpencodeModels(root, discoveredModels.join("\n"), async () => {
+      const plan = planRecommendedRouting({
+        strongModel: "anthropic/claude-sonnet-4-5",
+        strongEffort: "high",
+      })
+
+      await writeRecommendedRoutingPlan(root, plan)
+
+      // Tamper with persisted effort for ralph
+      const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+      ocPersisted.agent.ralph.effort = "low"
+      await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
+
+      const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+      expect(verify.ok).toBe(false)
+      if (verify.ok) throw new Error("expected effort drift failure")
+      expect(verify.error.code).toBe("snapshot_mismatch")
+      expect(verify.error.message).toContain("effort")
     })
-
-    await writeRecommendedRoutingPlan(root, plan)
-
-    // Tamper with persisted effort for ralph
-    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    ocPersisted.agent.ralph.effort = "low"
-    await writeFile(join(root, "opencode.json"), JSON.stringify(ocPersisted, null, 2), "utf8")
-
-    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
-
-    expect(verify.ok).toBe(false)
-    if (verify.ok) throw new Error("expected effort drift failure")
-    expect(verify.error.code).toBe("snapshot_mismatch")
-    expect(verify.error.message).toContain("effort")
   } finally {
     await cleanup()
   }
@@ -376,24 +409,26 @@ test("verifyRecommendedRoutingPlan detects effort drift in workflow overrides", 
 
   try {
     const discoveredModels = ["anthropic/claude-sonnet-4-5"]
-    const plan = planRecommendedRouting({
-      strongModel: "anthropic/claude-sonnet-4-5",
-      reviewerEffort: "high",
+    await withFakeOpencodeModels(root, discoveredModels.join("\n"), async () => {
+      const plan = planRecommendedRouting({
+        strongModel: "anthropic/claude-sonnet-4-5",
+        reviewerEffort: "high",
+      })
+
+      await writeRecommendedRoutingPlan(root, plan)
+
+      // Tamper with persisted workflow override effort
+      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+      hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort = "low"
+      await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
+
+      const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
+
+      expect(verify.ok).toBe(false)
+      if (verify.ok) throw new Error("expected workflow effort drift failure")
+      expect(verify.error.code).toBe("snapshot_mismatch")
+      expect(verify.error.message).toContain("effort")
     })
-
-    await writeRecommendedRoutingPlan(root, plan)
-
-    // Tamper with persisted workflow override effort
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
-    hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort = "low"
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
-
-    const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
-
-    expect(verify.ok).toBe(false)
-    if (verify.ok) throw new Error("expected workflow effort drift failure")
-    expect(verify.error.code).toBe("snapshot_mismatch")
-    expect(verify.error.message).toContain("effort")
   } finally {
     await cleanup()
   }
@@ -424,43 +459,46 @@ test("CLI bootstrap script generates canonical routing files from discovered mod
     )
     await chmod(opencodePath, 0o755)
 
-    const result = spawnSync(
-      "bun",
-      [
-        wizardPath,
-        "--strong-model",
-        "anthropic/claude-sonnet-4-5",
-        "--fast-model",
-        "anthropic/claude-haiku-4-5",
-        "--top-review-model",
-        "anthropic/claude-opus-4-5",
-        "--yes",
-      ],
-      {
-        cwd: root,
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          PATH: `${binDir}:${process.env.PATH}`,
+    const mockOutput = "Available models\nanthropic/claude-sonnet-4-5\nanthropic/claude-haiku-4-5\nanthropic/claude-opus-4-5\n"
+    await withFakeOpencodeModels(root, mockOutput, async () => {
+      const result = spawnSync(
+        "bun",
+        [
+          wizardPath,
+          "--strong-model",
+          "anthropic/claude-sonnet-4-5",
+          "--fast-model",
+          "anthropic/claude-haiku-4-5",
+          "--top-review-model",
+          "anthropic/claude-opus-4-5",
+          "--yes",
+        ],
+        {
+          cwd: root,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PATH: `${binDir}:${process.env.PATH}`,
+          },
         },
-      },
-    )
+      )
 
-    expect(result.status).toBe(0)
-    expect(result.stdout.includes("Routing config written and verified") || result.stdout.includes("Verification succeeded")).toBe(true)
+      expect(result.status).toBe(0)
+      expect(result.stdout.includes("Routing config written and verified") || result.stdout.includes("Verification succeeded")).toBe(true)
 
-    const snapshot = await executeRoutingAction(root, { action: "get" })
-    const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+      const snapshot = await executeRoutingAction(root, { action: "get" })
+      const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
+      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
 
-    expect(snapshot.ok).toBe(true)
-    if (!snapshot.ok) throw new Error("expected routing snapshot")
-    expect(ocPersisted.permission.read).toBe("allow")
-    expect(ocPersisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
-    expect(snapshot.routing.agent["autonomous-reviewer"].model).toBe("anthropic/claude-opus-4-5")
-    expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
-      "anthropic/claude-opus-4-5",
-    )
+      expect(snapshot.ok).toBe(true)
+      if (!snapshot.ok) throw new Error("expected routing snapshot")
+      expect(ocPersisted.permission.read).toBe("allow")
+      expect(ocPersisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
+      expect(snapshot.routing.agent["autonomous-reviewer"].model).toBe("anthropic/claude-opus-4-5")
+      expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
+        "anthropic/claude-opus-4-5",
+      )
+    })
   } finally {
     await cleanup()
   }
@@ -602,7 +640,7 @@ test("CLI --yes with effort flags writes effort to config", async () => {
 
     // Workers get fastEffort
     expect(ocPersisted.agent["test-runner"].effort).toBe("medium")
-    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("medium")
+    expect(ocPersisted.agent["codebase-investigator"].effort).toBe("high")
 
     // Reviewers get strongEffort, autonomous-reviewer gets topReviewEffort
     expect(ocPersisted.agent["code-reviewer"].effort).toBe("high")
