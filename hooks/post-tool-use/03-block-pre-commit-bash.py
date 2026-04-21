@@ -42,6 +42,7 @@ PRECOMMIT_MODIFICATION_PATTERNS = [
     r'cat\s*<<.*\.git/hooks/pre-commit',
 ]
 
+
 def check_precommit_modification(command):
     """Check if command modifies pre-commit hook."""
     if not command:
@@ -54,20 +55,38 @@ def check_precommit_modification(command):
 
     return None
 
+
+def emit_deny(reason):
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
+
+
+def emit_allow():
+    print(json.dumps({"hookSpecificOutput": {"permissionDecision": "allow"}}))
+    sys.exit(0)
+
+
 def main():
     # Read tool use event from stdin
     try:
         input_data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If we can't parse JSON, allow the operation
-        sys.exit(0)
+        emit_deny("Hook received malformed or empty input. Blocking for safety.")
+        return
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
 
     # Only check Bash tool calls
     if tool_name != "Bash":
-        sys.exit(0)
+        emit_allow()
 
     command = tool_input.get("command", "")
 
@@ -76,38 +95,31 @@ def main():
 
     if modification_pattern:
         # Block the command and provide helpful feedback
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"🚫 PRE-COMMIT HOOK MODIFICATION BLOCKED\n\n"
-                    f"Detected modification attempt via: {modification_pattern}\n"
-                    f"Command: {command[:200]}{'...' if len(command) > 200 else ''}\n\n"
-                    "Git hooks should not be modified directly by Claude.\n\n"
-                    "Why this is blocked:\n"
-                    "- Pre-commit hooks enforce critical quality standards\n"
-                    "- Direct modifications bypass code review\n"
-                    "- Changes can break CI/CD pipelines\n"
-                    "- Hook modifications should be version controlled\n\n"
-                    "If you need to modify hooks:\n"
-                    "1. Edit the source hook template in version control\n"
-                    "2. Use proper tooling (husky, pre-commit framework, etc.)\n"
-                    "3. Document changes and get them reviewed\n"
-                    "4. Never bypass hooks with --no-verify\n\n"
-                    "If the hook is causing issues:\n"
-                    "- Fix the underlying problem the hook detected\n"
-                    "- Ask the user for permission to modify hooks\n"
-                    "- Use the test-runner agent to handle verbose hook output\n\n"
-                    "Common mistake: Trying to disable hooks instead of fixing issues."
-                )
-            }
-        }
-        print(json.dumps(output))
-        sys.exit(0)
+        emit_deny(
+            f"🚫 PRE-COMMIT HOOK MODIFICATION BLOCKED\n\n"
+            f"Detected modification attempt via: {modification_pattern}\n"
+            f"Command: {command[:200]}{'...' if len(command) > 200 else ''}\n\n"
+            "Git hooks should not be modified directly by Claude.\n\n"
+            "Why this is blocked:\n"
+            "- Pre-commit hooks enforce critical quality standards\n"
+            "- Direct modifications bypass code review\n"
+            "- Changes can break CI/CD pipelines\n"
+            "- Hook modifications should be version controlled\n\n"
+            "If you need to modify hooks:\n"
+            "1. Edit the source hook template in version control\n"
+            "2. Use proper tooling (husky, pre-commit framework, etc.)\n"
+            "3. Document changes and get them reviewed\n"
+            "4. Never bypass hooks with --no-verify\n\n"
+            "If the hook is causing issues:\n"
+            "- Fix the underlying problem the hook detected\n"
+            "- Ask the user for permission to modify hooks\n"
+            "- Use the test-runner agent to handle verbose hook output\n\n"
+            "Common mistake: Trying to disable hooks instead of fixing issues."
+        )
 
     # Allow command if no pre-commit modification detected
-    sys.exit(0)
+    emit_allow()
+
 
 if __name__ == "__main__":
     main()

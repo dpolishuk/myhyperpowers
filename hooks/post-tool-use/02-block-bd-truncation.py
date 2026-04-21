@@ -32,6 +32,7 @@ TRUNCATION_PATTERNS = [
     r'\(abbreviated\)',
 ]
 
+
 def check_for_truncation(text):
     """Check if text contains any truncation markers."""
     if not text:
@@ -44,59 +45,70 @@ def check_for_truncation(text):
 
     return None
 
+
+def emit_deny(reason):
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
+
+
+def emit_allow():
+    print(json.dumps({"hookSpecificOutput": {"permissionDecision": "allow"}}))
+    sys.exit(0)
+
+
 def main():
     # Read tool use event from stdin
     try:
         input_data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If we can't parse JSON, allow the operation
-        sys.exit(0)
+        emit_deny("Hook received malformed or empty input. Blocking for safety.")
+        return
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
 
     # Only check Bash tool calls
     if tool_name != "Bash":
-        sys.exit(0)
+        emit_allow()
 
     command = tool_input.get("command", "")
 
     # Check if this is a tm/bd create, update, or edit command
     if not command or not re.search(r'\b(tm|bd)\s+(create|update|edit)\b', command):
-        sys.exit(0)
+        emit_allow()
 
     # Check for truncation markers
     truncation_marker = check_for_truncation(command)
 
     if truncation_marker:
         # Block the command and provide helpful feedback
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"⚠️  TASK TRUNCATION DETECTED\n\n"
-                    f"Found truncation marker: {truncation_marker}\n\n"
-                    f"This task specification appears incomplete or truncated. "
-                    f"Saving incomplete specifications leads to confusion and incomplete implementations.\n\n"
-                    f"Please:\n"
-                    f"1. Expand the full implementation details\n"
-                    f"2. Include ALL step groups and tasks\n"
-                    f"3. Do not use truncation markers like '[Remaining steps truncated]'\n"
-                    f"4. Ensure every step has complete, actionable instructions\n\n"
-                    f"If the specification is too long:\n"
-                    f"- Break into smaller epics\n"
-                    f"- Use tm dependencies to link related tasks\n"
-                    f"- Focus on making each task independently complete\n\n"
-                    f"DO NOT truncate task specifications."
-                )
-            }
-        }
-        print(json.dumps(output))
-        sys.exit(0)
+        emit_deny(
+            f"⚠️  TASK TRUNCATION DETECTED\n\n"
+            f"Found truncation marker: {truncation_marker}\n\n"
+            f"This task specification appears incomplete or truncated. "
+            f"Saving incomplete specifications leads to confusion and incomplete implementations.\n\n"
+            f"Please:\n"
+            f"1. Expand the full implementation details\n"
+            f"2. Include ALL step groups and tasks\n"
+            f"3. Do not use truncation markers like '[Remaining steps truncated]'\n"
+            f"4. Ensure every step has complete, actionable instructions\n\n"
+            f"If the specification is too long:\n"
+            f"- Break into smaller epics\n"
+            f"- Use tm dependencies to link related tasks\n"
+            f"- Focus on making each task independently complete\n\n"
+            f"DO NOT truncate task specifications."
+        )
 
     # Allow command if no truncation detected
-    sys.exit(0)
+    emit_allow()
+
 
 if __name__ == "__main__":
     main()

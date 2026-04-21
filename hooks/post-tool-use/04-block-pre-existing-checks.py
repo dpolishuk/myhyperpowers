@@ -38,6 +38,7 @@ VERIFICATION_COMMANDS = [
     r'\bpre-commit\s+run\b',
 ]
 
+
 def is_checking_previous_commit(command):
     """
     Detect if command is checking out previous commits to run tests/lints.
@@ -61,53 +62,64 @@ def is_checking_previous_commit(command):
 
     return has_verification and has_git_checkout
 
+
+def emit_deny(reason):
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
+
+
+def emit_allow():
+    print(json.dumps({"hookSpecificOutput": {"permissionDecision": "allow"}}))
+    sys.exit(0)
+
+
 def main():
     # Read tool use event from stdin
     try:
         input_data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If we can't parse JSON, allow the operation
-        sys.exit(0)
+        emit_deny("Hook received malformed or empty input. Blocking for safety.")
+        return
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
 
     # Only check Bash tool calls
     if tool_name != "Bash":
-        sys.exit(0)
+        emit_allow()
 
     command = tool_input.get("command", "")
 
     if not command:
-        sys.exit(0)
+        emit_allow()
 
     # Check if this looks like checking previous commits for errors
     if is_checking_previous_commit(command):
         # Block the command and provide helpful feedback
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    "⚠️  CHECKING FOR PRE-EXISTING ERRORS IS UNNECESSARY\n\n"
-                    "Your project uses pre-commit hooks that enforce all tests pass before commits.\n"
-                    "Therefore, ALL test failures and errors are from your current changes.\n\n"
-                    "Do not check if errors were pre-existing. Pre-commit hooks guarantee they weren't.\n\n"
-                    "What you should do instead:\n"
-                    "1. Read the error messages from the current test run\n"
-                    "2. Fix the errors directly\n"
-                    "3. Run tests again to verify the fix\n\n"
-                    "Checking git history for errors is wasting time when pre-commit hooks enforce quality.\n\n"
-                    "Blocked command:\n"
-                    f"{command[:200]}"  # Show first 200 chars of command
-                )
-            }
-        }
-        print(json.dumps(output))
-        sys.exit(0)
+        emit_deny(
+            "⚠️  CHECKING FOR PRE-EXISTING ERRORS IS UNNECESSARY\n\n"
+            "Your project uses pre-commit hooks that enforce all tests pass before commits.\n"
+            "Therefore, ALL test failures and errors are from your current changes.\n\n"
+            "Do not check if errors were pre-existing. Pre-commit hooks guarantee they weren't.\n\n"
+            "What you should do instead:\n"
+            "1. Read the error messages from the current test run\n"
+            "2. Fix the errors directly\n"
+            "3. Run tests again to verify the fix\n\n"
+            "Checking git history for errors is wasting time when pre-commit hooks enforce quality.\n\n"
+            "Blocked command:\n"
+            f"{command[:200]}"  # Show first 200 chars of command
+        )
 
     # Allow command if not checking for pre-existing errors
-    sys.exit(0)
+    emit_allow()
+
 
 if __name__ == "__main__":
     main()
