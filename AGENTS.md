@@ -195,6 +195,8 @@ Hooks provide automatic, context-aware assistance:
 ### PreToolUse (Blocking)
 - **block-beads-direct-read.py** - Blocks direct Read/Grep of `.beads/issues.jsonl`
 - **01-block-pre-commit-edits.py** - Blocks edits to `.git/hooks/pre-commit`
+- **block-dangerous-bash.py** - Blocks destructive Bash commands (rm -rf, sudo, curl | bash, etc.)
+- **block-env-writes.py** - Blocks writes to secret files (.env, .pem, id_rsa, .key)
 
 ### PostToolUse (Blocking)
 - **01-track-edits.sh** - Tracks file edits for context awareness

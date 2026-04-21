@@ -34,9 +34,22 @@ def main():
     except json.JSONDecodeError:
         emit_deny("Hook received malformed or empty input. Blocking for safety.")
         return
+    except Exception as e:
+        emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
+        return
+
+    # Defensive: ensure parsed JSON is a dict before calling .get()
+    if not isinstance(input_data, dict):
+        emit_deny("Hook received unexpected JSON type. Blocking for safety.")
+        return
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
+
+    # Defensive: ensure tool_input is a dict
+    if not isinstance(tool_input, dict):
+        emit_allow()
+        return
 
     # Check for file_path in Read tool
     file_path = tool_input.get("file_path", "")

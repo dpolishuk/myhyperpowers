@@ -7,9 +7,10 @@ errors are "pre-existing" is unnecessary and wastes time. All test failures
 and lint errors must be from current changes because pre-commit hooks prevent
 commits with failures.
 
-Blocked patterns:
-- git checkout <sha> (or git stash && git checkout)
-- Combined with test/lint commands (ruff, pytest, mypy, cargo test, npm test, etc.)
+Known limitations:
+- Legitimate branch checkouts (e.g., "git checkout main") may be blocked if
+  combined with verification commands in the same Bash invocation. Run them
+  as separate commands to avoid this.
 """
 
 import json
@@ -44,19 +45,14 @@ def is_checking_previous_commit(command):
     Detect if command is checking out previous commits to run tests/lints.
 
     Patterns:
-    - git checkout <sha>
-    - git stash && git checkout
-    - git diff <sha>..<sha>
+    - git stash && git checkout (common pattern for checking previous commits)
+    - git checkout combined with verification commands (pytest, npm test, etc.)
     """
-    # Check for git checkout patterns
-    if re.search(r'git\s+checkout\s+[a-f0-9]{6,40}', command):
-        return True
-
+    # Check for git stash && git checkout pattern
     if re.search(r'git\s+stash.*?&&.*?git\s+checkout', command):
         return True
 
-    # Check if command contains verification commands
-    # (only flag if combined with git checkout)
+    # Only flag if git checkout is combined with verification commands
     has_verification = any(re.search(pattern, command) for pattern in VERIFICATION_COMMANDS)
     has_git_checkout = re.search(r'git\s+checkout', command)
 

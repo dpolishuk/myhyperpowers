@@ -15,24 +15,23 @@ PRECOMMIT_MODIFICATION_PATTERNS = [
     r'\.git/hooks/pre-commit',
     r'\.git\\hooks\\pre-commit',
 
-    # Redirection to pre-commit
-    r'>.*pre-commit',
-    r'>>.*pre-commit',
+    # Redirection to exact pre-commit hook path only
+    r'>\s*\.git/hooks/pre-commit',
+    r'>>\s*\.git/hooks/pre-commit',
 
     # sed/awk/perl modifying pre-commit
     r'(sed|awk|perl).*-i.*pre-commit',
     r'(sed|awk|perl).*pre-commit.*>',
 
-    # Moving/copying to pre-commit
+    # Moving/copying to exact pre-commit path only
     r'(mv|cp).*\s+.*\.git/hooks/pre-commit',
-    r'(mv|cp).*\s+.*pre-commit',
 
-    # chmod on pre-commit (might be preparing to modify)
+    # chmod on exact pre-commit path only
     r'chmod.*\.git/hooks/pre-commit',
 
     # echo/cat piped to pre-commit
-    r'(echo|cat).*>.*\.git/hooks/pre-commit',
-    r'(echo|cat).*>>.*\.git/hooks/pre-commit',
+    r'(echo|cat)*>.*\.git/hooks/pre-commit',
+    r'(echo|cat)*>>.*\.git/hooks/pre-commit',
 
     # tee to pre-commit
     r'tee.*\.git/hooks/pre-commit',

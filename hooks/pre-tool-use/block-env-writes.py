@@ -10,16 +10,6 @@ import json
 import sys
 import os
 
-# Patterns for secret/sensitive file paths
-SECRET_PATTERNS = [
-    ".env",
-    ".env.",
-    ".pem",
-    "id_rsa",
-    "id_rsa.pub",
-    ".key",
-]
-
 
 def is_secret_file(file_path):
     """Check if a file path is a secret/sensitive file."""
@@ -27,7 +17,6 @@ def is_secret_file(file_path):
         return False
 
     basename = os.path.basename(file_path)
-    name, _ = os.path.splitext(basename)
 
     # Check for .env files (including .env.local, .env.production, etc.)
     if basename == ".env" or basename.startswith(".env."):

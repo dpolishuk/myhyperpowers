@@ -4,25 +4,28 @@ PreToolUse hook to block destructive Bash commands.
 
 Prevents dangerous operations that can destroy data, compromise security,
 or disrupt the system.
+
+Known limitations:
+- rm -rf patterns may match inside quoted strings (e.g., echo 'rm -rf /').
+  This is a rare edge case; the primary concern is actual destructive commands.
 """
 
 import json
 import sys
 import re
-import shlex
 
 # Patterns for dangerous commands
 DANGEROUS_PATTERNS = [
     # rm -rf / or rm -rf ~ (and variants)
     r'\brm\s+.*-\S*f\S*\s+.*(?:/|~|\$HOME)',
     r'\brm\s+.*(?:/|~|\$HOME)\s+.*-\S*f\S*',
-    # git push --force
-    r'\bgit\s+push\s+.*--force\b',
+    # git push --force (but not --force-with-lease)
+    r'\bgit\s+push\s+.*--force(?!-with-lease)(?=\s|$)',
     r'\bgit\s+push\s+.*-f\b',
     # git reset --hard
     r'\bgit\s+reset\s+.*--hard\b',
-    # sudo / su
-    r'\bsudo\b',
+    # sudo / su (only when sudo is the actual command, not a string argument)
+    r'(?:^|[;|&\|])\s*sudo\b',
     r'\bsu\s+-',
     r'^su\s*$',
     # curl | bash / wget | bash

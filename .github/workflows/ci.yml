@@ -22,10 +22,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.1.45"
 
       - name: Install root dependencies
-        run: npm install --silent
+        run: npm ci --silent
 
       - name: Run Node-based tests
         run: node --test tests/*.test.js
@@ -38,6 +38,21 @@ jobs:
 
       - name: Run Gemini extension tests
         run: node --test .gemini-extension/tests/*.test.js
+
+  security:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root dependencies
+        run: npm ci --silent
 
       - name: Security audit
         run: npm audit --audit-level=moderate

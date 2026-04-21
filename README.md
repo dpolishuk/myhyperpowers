@@ -177,9 +177,10 @@ See [Model Configuration](docs/model-configuration.md) for details on configurin
 
 ### Hooks System
 
-Intelligent hooks that provide context-aware assistance:
+Intelligent hooks that provide context-aware assistance and safety guardrails:
 
 - **Automatic Skill Activation** - The UserPromptSubmit hook analyzes prompts and suggests relevant skills.
+- **Safety & Blocking Hooks** - PreToolUse hooks block dangerous operations (destructive Bash commands, writes to secret files, direct reads of sensitive data) before they execute.
 - **Context Tracking** - The PostToolUse hook tracks file edits during your session.
 - **Gentle Reminders** - The Stop hook provides TDD, verification, and commit reminders.
 
