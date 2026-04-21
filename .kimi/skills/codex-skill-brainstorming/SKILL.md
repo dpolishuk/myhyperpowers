@@ -46,6 +46,19 @@ HIGH FREEDOM - Adapt Socratic questioning to context, but always create immutabl
 
 **Announce:** "I'm using the brainstorming skill to refine your idea into a design."
 
+**BEFORE PROCEEDING - Blocking Verification:**
+- Mark Phase 1 as in_progress in TodoWrite: "Phase 1: Understanding (must invoke AskUserQuestion 3+ times)"
+- You MUST invoke AskUserQuestion tool at least 3 times
+- You CANNOT mark Phase 1 as completed without actual AskUserQuestion tool invocations
+- DO NOT output text claiming you asked questions - USE THE TOOL
+
+**If you catch yourself thinking:**
+- "The user's request is detailed enough"
+- "I have enough context from codebase-investigator"
+- "I can infer what they want"
+
+**STOP. You are rationalizing. Use AskUserQuestion tool.**
+
 **Check current state:**
 - Recent commits, existing docs, codebase structure
 - Dispatch `hyperpowers:codebase-investigator` for existing patterns
@@ -106,6 +119,18 @@ As each question is answered, record in "Key Decisions Made" table:
 - Implication for requirements/anti-patterns
 
 This preserves the Socratic Q&A for future reference during task creation and obstacle handling.
+
+---
+
+**Phase 1 Completion Criteria:**
+- [ ] AskUserQuestion tool invoked at least 3 times
+- [ ] Purpose clearly understood
+- [ ] Constraints identified
+- [ ] Success criteria gathered
+- [ ] Mark Phase 1 as completed in TodoWrite
+
+**Verification:** Check your message history. Do you see `<function_calls><invoke name="AskUserQuestion">`?
+If NO → You skipped Phase 1. Go back.
 
 ---
 
@@ -814,7 +839,7 @@ Manual signup has 40% abandonment rate. Google OAuth reduces friction.
 <critical_rules>
 ## Rules That Have No Exceptions
 
-1. **Use AskUserQuestion tool** → Don't just print questions and wait
+1. **Use AskUserQuestion tool at least 3 times** → Don't just print questions and wait
 2. **Research BEFORE proposing** → Use agents to understand context
 3. **Propose 2-3 approaches** → Don't jump to single solution
 4. **Epic requirements IMMUTABLE** → Tasks adapt, requirements don't
@@ -839,7 +864,7 @@ All of these mean: **STOP. Follow the process.**
 <verification_checklist>
 Before handing off to executing-plans:
 
-- [ ] Used AskUserQuestion tool for clarifying questions (one at a time)
+- [ ] Used AskUserQuestion tool at least 3 times for clarifying questions (one at a time)
 - [ ] Researched codebase patterns (if applicable)
 - [ ] Researched external docs/libraries (if applicable)
 - [ ] Proposed 2-3 approaches with trade-offs
