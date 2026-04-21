@@ -1,0 +1,38 @@
+# Changelog
+
+All notable changes to Hyperpowers are documented in this file.
+
+## [Unreleased]
+
+### Added
+- **Safety hooks** with mandatory fail-closed behavior on parse errors (hyper-c8d).
+- **Hook integration tests** covering stdin/stdout JSON contracts for all blocking hooks (hyper-c8d).
+- **CI quality gates** expanded to include `sync-codex-skills.js --check`, Gemini extension tests, security audit, and weekly scheduled runs (hyper-d8f).
+- **Architecture documentation** (`docs/ARCHITECTURE.md`) explaining the five host platforms and shared resource model (hyper-d8f).
+- **Testing guide** (`docs/TESTING.md`) covering Node.js built-in runner, Bun tests, Gemini extension tests, and hook testing methodology (hyper-d8f).
+- **Standard project files**: MIT license, changelog, code owners, issue templates, and pull request template (hyper-d8f).
+
+### Security
+- Pre-tool-use hooks block direct reads of `.beads/issues.jsonl` and edits to `.git/hooks/pre-commit`.
+- Post-tool-use hooks block truncation markers in `bd` output and Bash modifications to pre-commit hooks.
+- Dangerous Bash and env-write hooks block destructive commands and sensitive file writes.
+
+## [2.13.0] - 2024-03
+
+### Added
+- Linear backend preview for `tm` task management (hyper-7s5).
+- OpenCode routing settings command and plugin (hyper-gau).
+- Pi extension support with installer and agent routing (hyper-lum).
+
+### Changed
+- `tm` is now the canonical user-facing task-management interface.
+- Documentation updated to reflect `tm`-first backend guidance.
+
+## [2.0.0] - 2024-02
+
+### Added
+- Multi-host support for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI.
+- Skills system with YAML-frontmattered `SKILL.md` files.
+- Agents system with 16 specialized subagent prompts.
+- Hooks system for automatic, context-aware assistance.
+- Codex wrapper sync tool (`scripts/sync-codex-skills.js`).

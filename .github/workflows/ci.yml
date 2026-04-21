@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
 
 jobs:
   test:
@@ -30,3 +32,12 @@ jobs:
 
       - name: Run Bun Pi smoke + install checks
         run: bun test tests/pi-agent-routing.test.ts tests/install-script.test.js tests/pi-smoke.test.ts
+
+      - name: Verify codex skill wrappers are in sync
+        run: node scripts/sync-codex-skills.js --check
+
+      - name: Run Gemini extension tests
+        run: node --test .gemini-extension/tests/*.test.js
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
