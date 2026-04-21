@@ -419,3 +419,37 @@ test("04-block-pre-existing-checks: allows git checkout <sha> without verificati
   )
   assertAllow(stdout, "04-block-pre-existing-checks sha checkout alone")
 })
+
+// ---------------------------------------------------------------------------
+// Generic exception handler coverage: missing expected fields
+// ---------------------------------------------------------------------------
+const missingFieldInputs = [
+  {
+    name: "01-block-pre-commit-edits",
+    path: "hooks/pre-tool-use/01-block-pre-commit-edits.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "02-block-bd-truncation",
+    path: "hooks/post-tool-use/02-block-bd-truncation.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "03-block-pre-commit-bash",
+    path: "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "04-block-pre-existing-checks",
+    path: "hooks/post-tool-use/04-block-pre-existing-checks.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+]
+
+for (const hook of missingFieldInputs) {
+  test(`${hook.name}: denies on unexpected exception (non-dict JSON)`, () => {
+    const stdout = runHook(hook.path, hook.input)
+    assertValidJson(stdout, `${hook.name} unexpected exception`)
+    assertDeny(stdout, `${hook.name} unexpected exception`)
+  })
+}

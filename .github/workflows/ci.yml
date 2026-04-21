@@ -39,6 +39,15 @@ jobs:
       - name: Run Gemini extension tests
         run: node --test .gemini-extension/tests/*.test.js
 
+      - name: Install OpenCode plugin dependencies
+        run: cd packages/opencode-plugin && npm ci --silent
+
+      - name: Typecheck OpenCode plugin
+        run: cd packages/opencode-plugin && npm run typecheck
+
+      - name: Lint JS/TS
+        run: npm run lint
+
   security:
     runs-on: ubuntu-latest
     continue-on-error: true
