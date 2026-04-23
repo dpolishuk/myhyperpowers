@@ -1,49 +1,21 @@
 #!/usr/bin/env python3
 """
-PostToolUse hook to block tm/bd create/update commands with truncation markers.
-
-Prevents incomplete task specifications from being saved, which causes
-confusion and incomplete implementation later.
-
-Truncation markers include:
-- [Remaining step groups truncated for length]
-- [truncated]
-- [... (more)]
-- [etc.]
-- [Omitted for brevity]
+PostToolUse hook to block truncation markers in .bd command output
 """
 
 import json
 import sys
-import re
 
-# Truncation markers to detect
-TRUNCATION_PATTERNS = [
-    r'\[Remaining.*?truncated',
-    r'\[truncated',
-    r'\[\.\.\..*?\]',
-    r'\[etc\.?\]',
-    r'\[Omitted.*?\]',
-    r'\[More.*?omitted\]',
-    r'\[Full.*?not shown\]',
-    r'\[Additional.*?omitted\]',
-    r'\.\.\..*?\[',  # ... [something]
-    r'\(truncated\)',
-    r'\(abbreviated\)',
-]
+TRUNCATION_MARKERS = (
+    "truncated",
+    "\ufffd",  # Replacement character
+    "…",
+)
 
 
-def check_for_truncation(text):
-    """Check if text contains any truncation markers."""
-    if not text:
-        return None
-
-    for pattern in TRUNCATION_PATTERNS:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(0)
-
-    return None
+def has_truncation_marker(value):
+    """Return True when hook input appears truncated."""
+    return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
 
 
 def emit_deny(reason):
@@ -66,9 +38,21 @@ def emit_allow():
 def main():
     # Read tool use event from stdin
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        if not raw_input.strip():
+            emit_deny("Hook received empty input. Blocking for safety.")
+
+        if has_truncation_marker(raw_input):
+            emit_deny("Hook input appears truncated. Blocking for safety.")
+
+        input_data = json.loads(raw_input)
+
+        if not isinstance(input_data, dict):
+            emit_deny("Hook received non-object JSON. Blocking for safety.")
+
         tool_name = input_data.get("tool_name", "")
         tool_input = input_data.get("tool_input", {})
+        tool_output = input_data.get("tool_output", "")
 
         # Only check Bash tool calls
         if tool_name != "Bash":
@@ -76,37 +60,32 @@ def main():
 
         command = tool_input.get("command", "")
 
-        # Check if this is a tm/bd create, update, or edit command
-        if not command or not re.search(r'\b(tm|bd)\s+(create|update|edit)\b', command):
+        # Check both bd and tm commands
+        cmd_stripped = command.strip()
+        if not (cmd_stripped.startswith("bd") or cmd_stripped.startswith("tm")):
             emit_allow()
 
-        # Check for truncation markers
-        truncation_marker = check_for_truncation(command)
-
-        if truncation_marker:
-            # Block the command and provide helpful feedback
+        # Check for truncation markers in output
+        if has_truncation_marker(tool_output):
+            # Block the result and provide helpful feedback
             emit_deny(
-                f"⚠️  TASK TRUNCATION DETECTED\n\n"
-                f"Found truncation marker: {truncation_marker}\n\n"
-                f"This task specification appears incomplete or truncated. "
-                f"Saving incomplete specifications leads to confusion and incomplete implementations.\n\n"
-                f"Please:\n"
-                f"1. Expand the full implementation details\n"
-                f"2. Include ALL step groups and tasks\n"
-                f"3. Do not use truncation markers like '[Remaining steps truncated]'\n"
-                f"4. Ensure every step has complete, actionable instructions\n\n"
-                f"If the specification is too long:\n"
-                f"- Break into smaller epics\n"
-                f"- Use tm dependencies to link related tasks\n"
-                f"- Focus on making each task independently complete\n\n"
-                f"DO NOT truncate task specifications."
+                "🚫 BEADS OUTPUT TRUNCATED\n\n"
+                "The output of the 'bd' command appears to be truncated.\n\n"
+                "Why this is blocked:\n"
+                "- Truncated task lists lead to incomplete context\n"
+                "- Important metadata or dependencies may be missing\n"
+                "- Decisions made on partial data are risky\n\n"
+                "To fix this:\n"
+                "1. Narrow your search (e.g., use 'bd list --parent ID' instead of 'bd list')\n"
+                "2. Use specific filters (e.g., '--status open')\n"
+                "3. Request the full output using 'bd show ID' for individual items"
             )
 
         # Allow command if no truncation detected
         emit_allow()
     except json.JSONDecodeError:
         emit_deny("Hook received malformed or empty input. Blocking for safety.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
         emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
 
 

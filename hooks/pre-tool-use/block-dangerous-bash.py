@@ -30,10 +30,7 @@ DANGEROUS_PATTERNS = [
 ]
 
 TRUNCATION_MARKERS = (
-    "[truncated]",
-    "<truncated>",
-    "... truncated",
-    "truncated ...",
+    "truncated",
     "\ufffd",  # Replacement character
     "…",
 )

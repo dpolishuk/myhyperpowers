@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 """
-PreToolUse hook to block direct edits to .git/hooks/pre-commit
-
-Git hooks should be managed through proper tooling and version control,
-not modified directly by Claude. Direct modifications bypass review and
-can introduce issues.
+PreToolUse hook to block edits to .git/hooks/pre-commit
 """
 
 import json
 import sys
 import os
+
+TRUNCATION_MARKERS = (
+    "truncated",
+    "\ufffd",  # Replacement character
+    "…",
+)
+
+
+def has_truncation_marker(value):
+    """Return True when hook input appears truncated."""
+    return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
 
 
 def emit_deny(reason):
@@ -30,57 +37,58 @@ def emit_allow():
 
 
 def main():
-    # Read tool input from stdin
+    # Read tool use event from stdin
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        if not raw_input.strip():
+            emit_deny("Hook received empty input. Blocking for safety.")
+
+        if has_truncation_marker(raw_input):
+            emit_deny("Hook input appears truncated. Blocking for safety.")
+
+        input_data = json.loads(raw_input)
+
+        if not isinstance(input_data, dict):
+            emit_deny("Hook received non-object JSON. Blocking for safety.")
+
         tool_name = input_data.get("tool_name", "")
-        tool_input = input_data.get("tool_input", {})
+        tool_input = input_data.get("tool_input")
 
-        # Check for file_path in Edit/Write tools
-        file_path = tool_input.get("file_path", "")
-
-        if not file_path:
+        # Only check Edit and Write tool calls
+        if tool_name not in ("Edit", "Write"):
             emit_allow()
 
-        # Normalize path for comparison
-        normalized_path = os.path.normpath(file_path)
+        if not isinstance(tool_input, dict):
+            emit_deny("Hook received malformed tool input type. Blocking for safety.")
 
-        # Check if path contains .git/hooks/pre-commit (handles various path formats)
-        if ".git/hooks/pre-commit" in normalized_path or normalized_path.endswith("pre-commit"):
-            # Additional check: is this actually in a .git/hooks directory?
-            if (
-                "/.git/hooks/" in normalized_path
-                or "\\.git\\hooks\\" in normalized_path
-                or normalized_path.startswith(".git/hooks/")
-            ):
-                emit_deny(
-                    "🚫 DIRECT PRE-COMMIT HOOK MODIFICATION BLOCKED\n\n"
-                    f"Attempted to modify: {file_path}\n\n"
-                    "Git hooks should not be modified directly by Claude.\n\n"
-                    "Why this is blocked:\n"
-                    "- Pre-commit hooks enforce critical quality standards\n"
-                    "- Direct modifications bypass code review\n"
-                    "- Changes can break CI/CD pipelines\n"
-                    "- Hook modifications should be version controlled\n\n"
-                    "If you need to modify hooks:\n"
-                    "1. Edit the source hook template in version control\n"
-                    "2. Use proper tooling (husky, pre-commit framework, etc.)\n"
-                    "3. Document changes and get them reviewed\n"
-                    "4. Never bypass hooks with --no-verify\n\n"
-                    "If the hook is causing issues:\n"
-                    "- Fix the underlying problem the hook detected\n"
-                    "- Ask the user for permission to modify hooks\n"
-                    "- Document why the modification is necessary"
-                )
+        file_path = tool_input.get("file_path", "") or tool_input.get("path", "")
+
+        # Block direct edits to pre-commit hook
+        if file_path and (".git/hooks/pre-commit" in file_path or ".git\\hooks\\pre-commit" in file_path):
+            emit_deny(
+                "🚫 PRE-COMMIT HOOK MODIFICATION BLOCKED\n\n"
+                f"Attempted to edit: {file_path}\n\n"
+                "Git hooks should not be edited directly by Claude.\n\n"
+                "Why this is blocked:\n"
+                "- Pre-commit hooks enforce critical quality standards\n"
+                "- Direct edits bypass code review and template updates\n"
+                "- Hook modifications should be managed via version controlled templates\n\n"
+                "If you need to modify hooks:\n"
+                "1. Edit the source hook template in version control\n"
+                "2. Use proper tooling (husky, pre-commit framework, etc.)\n"
+                "3. Document changes and get them reviewed\n\n"
+                "If the hook is causing issues:\n"
+                "- Fix the underlying problem the hook detected\n"
+                "- Ask the user for permission to modify hooks\n"
+                "- Document why the modification is necessary"
+            )
 
         # Allow all other edits
         emit_allow()
     except json.JSONDecodeError:
         emit_deny("Hook received malformed or empty input. Blocking for safety.")
-        return
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
         emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
-        return
 
 
 if __name__ == "__main__":

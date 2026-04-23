@@ -11,10 +11,7 @@ import sys
 import os
 
 TRUNCATION_MARKERS = (
-    "[truncated]",
-    "<truncated>",
-    "... truncated",
-    "truncated ...",
+    "truncated",
     "\ufffd",  # Replacement character
     "…",
 )

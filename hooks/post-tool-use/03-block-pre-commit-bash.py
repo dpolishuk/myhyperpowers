@@ -69,16 +69,42 @@ def emit_allow():
     sys.exit(0)
 
 
+TRUNCATION_MARKERS = (
+    "truncated",
+    "\ufffd",  # Replacement character
+    "…",
+)
+
+
+def has_truncation_marker(value):
+    """Return True when hook input appears truncated."""
+    return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
+
+
 def main():
     # Read tool use event from stdin
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        if not raw_input.strip():
+            emit_deny("Hook received empty input. Blocking for safety.")
+
+        if has_truncation_marker(raw_input):
+            emit_deny("Hook input appears truncated. Blocking for safety.")
+
+        input_data = json.loads(raw_input)
+
+        if not isinstance(input_data, dict):
+            emit_deny("Hook received non-object JSON. Blocking for safety.")
+
         tool_name = input_data.get("tool_name", "")
-        tool_input = input_data.get("tool_input", {})
+        tool_input = input_data.get("tool_input")
 
         # Only check Bash tool calls
         if tool_name != "Bash":
             emit_allow()
+
+        if not isinstance(tool_input, dict):
+            emit_deny("Hook received malformed tool input type. Blocking for safety.")
 
         command = tool_input.get("command", "")
 
@@ -113,7 +139,7 @@ def main():
         emit_allow()
     except json.JSONDecodeError:
         emit_deny("Hook received malformed or empty input. Blocking for safety.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
         emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
 
 

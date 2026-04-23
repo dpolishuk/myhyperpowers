@@ -10,10 +10,7 @@ import json
 import sys
 
 TRUNCATION_MARKERS = (
-    "[truncated]",
-    "<truncated>",
-    "... truncated",
-    "truncated ...",
+    "truncated",
     "\ufffd",  # Replacement character
     "…",
 )
@@ -52,48 +49,48 @@ def main():
             emit_deny("Hook input appears truncated. Blocking for safety.")
 
         input_data = json.loads(raw_input)
+
+        # Defensive: ensure parsed JSON is a dict before calling .get()
+        if not isinstance(input_data, dict):
+            emit_deny("Hook received non-object JSON. Blocking for safety.")
+
+        tool_name = input_data.get("tool_name", "")
+        tool_input = input_data.get("tool_input")
+
+        # Only check if tool_input is a dict
+        if not isinstance(tool_input, dict):
+            # For non-read tools, we can allow if they don't have tool_input (though they usually do)
+            # But for safety, if it's supposed to be a tool call, tool_input should be a dict.
+            # Let's check if it's missing entirely.
+            if tool_input is None:
+                tool_input = {}
+            else:
+                emit_deny("Hook received malformed tool input type. Blocking for safety.")
+
+        # Check for file_path in Read tool
+        file_path = tool_input.get("file_path", "")
+
+        # Check for path in Grep tool
+        grep_path = tool_input.get("path", "")
+
+        # Combine paths to check
+        paths_to_check = [file_path, grep_path]
+
+        # Check if any path contains .beads/issues.jsonl
+        for path in paths_to_check:
+            if path and isinstance(path, str) and ".beads/issues.jsonl" in path:
+                emit_deny(
+                    "Direct access to .beads/issues.jsonl is not allowed.\n\n"
+                    "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc.\n"
+                    "The tm CLI provides the correct interface for reading task specifications."
+                )
+
+        # Allow all other reads
+        emit_allow()
     except json.JSONDecodeError:
         emit_deny("Hook received malformed JSON input. Blocking for safety.")
-    except Exception as e:
-        emit_deny(f"Hook encountered an unexpected error during parsing: {e}. Blocking for safety.")
-
-    # Defensive: ensure parsed JSON is a dict before calling .get()
-    if not isinstance(input_data, dict):
-        emit_deny("Hook received non-object JSON. Blocking for safety.")
-
-    tool_name = input_data.get("tool_name", "")
-    tool_input = input_data.get("tool_input")
-
-    # Only check if tool_input is a dict
-    if not isinstance(tool_input, dict):
-        # For non-read tools, we can allow if they don't have tool_input (though they usually do)
-        # But for safety, if it's supposed to be a tool call, tool_input should be a dict.
-        # Let's check if it's missing entirely.
-        if tool_input is None:
-            tool_input = {}
-        else:
-            emit_deny("Hook received malformed tool input type. Blocking for safety.")
-
-    # Check for file_path in Read tool
-    file_path = tool_input.get("file_path", "")
-
-    # Check for path in Grep tool
-    grep_path = tool_input.get("path", "")
-
-    # Combine paths to check
-    paths_to_check = [file_path, grep_path]
-
-    # Check if any path contains .beads/issues.jsonl
-    for path in paths_to_check:
-        if path and isinstance(path, str) and ".beads/issues.jsonl" in path:
-            emit_deny(
-                "Direct access to .beads/issues.jsonl is not allowed.\n\n"
-                "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc.\n"
-                "The tm CLI provides the correct interface for reading task specifications."
-            )
-
-    # Allow all other reads
-    emit_allow()
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
+        emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
 
 
 if __name__ == "__main__":

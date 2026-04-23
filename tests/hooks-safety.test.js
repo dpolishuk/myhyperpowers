@@ -82,14 +82,16 @@ const hooks = [
     blockedInput: JSON.stringify({
       tool_name: "Bash",
       tool_input: {
-        command: "tm create 'title' --design '[Remaining steps truncated]'",
+        command: "tm list",
       },
+      tool_output: "[Remaining steps truncated]",
     }),
     allowedInput: JSON.stringify({
       tool_name: "Bash",
       tool_input: {
-        command: "tm create 'title' --design 'complete spec'",
+        command: "tm list",
       },
+      tool_output: "Complete list of tasks",
     }),
   },
   {
@@ -114,13 +116,13 @@ const hooks = [
     blockedInput: JSON.stringify({
       tool_name: "Bash",
       tool_input: {
-        command: "git checkout abc1234 && pytest",
+        command: "git checkout main && ls -la",
       },
     }),
     allowedInput: JSON.stringify({
       tool_name: "Bash",
       tool_input: {
-        command: "pytest",
+        command: "git checkout main && npm test",
       },
     }),
   },
