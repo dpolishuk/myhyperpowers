@@ -3,6 +3,17 @@ name: brainstorming
 description: Use when creating or developing anything, before writing code - refines rough ideas into bd epics with immutable requirements
 ---
 
+<codex_compat>
+This skill was ported from Claude Code. In Codex/Kimi platforms where AskUserQuestion is not a registered tool:
+- AskUserQuestion means format questions in the specified structure within your response.
+- Verification checks for at least 3 properly formatted question blocks (not tool invocations).
+- Look for "Question:", "Options:", "Priority:" patterns in message history instead.
+- "Skill tool" means read the skill's `SKILL.md` from disk.
+- "TodoWrite" means create and maintain a checklist section in your response.
+- "Task()" means `spawn_agent` (dispatch in parallel via `multi_tool_use.parallel` when needed).
+- Claude-specific hooks and slash commands are not available; skip those steps.
+</codex_compat>
+
 <skill_overview>
 Turn rough ideas into validated designs stored as bd epics with immutable requirements; tasks created iteratively as you learn, not upfront.
 </skill_overview>
@@ -44,13 +55,26 @@ HIGH FREEDOM - Adapt Socratic questioning to context, but always create immutabl
 
 **Announce:** "I'm using the brainstorming skill to refine your idea into a design."
 
+**BEFORE PROCEEDING - Blocking Verification:**
+- Mark Phase 1 as in_progress in TodoWrite: "Phase 1: Understanding (must invoke AskUserQuestion or equivalent 3+ times)"
+- You MUST invoke AskUserQuestion tool (or format questions in the specified structure if tool unavailable) at least 3 times
+- You CANNOT mark Phase 1 as completed without at least 3 Socratic interactions
+- DO NOT output text claiming you asked questions - PERFORM THE INTERACTION
+
+**If you catch yourself thinking:**
+- "The user's request is detailed enough"
+- "I have enough context from codebase-investigator"
+- "I can infer what they want"
+
+**STOP. You are rationalizing. Invoke Socratic questioning.**
+
 **Check current state:**
 - Recent commits, existing docs, codebase structure
 - Dispatch `hyperpowers:codebase-investigator` for existing patterns
 - Dispatch `hyperpowers:internet-researcher` for external APIs/libraries
 - Dispatch `hyperpowers:knowledge-aggregator` for team decisions, related issues, prior discussions
 
-**REQUIRED: Use AskUserQuestion tool with scannable format**
+**REQUIRED: Use AskUserQuestion tool (where available) with scannable format**
 
 **Question Format Guidelines:**
 
@@ -77,7 +101,7 @@ Priority: [CRITICAL | IMPORTANT | NICE_TO_HAVE]
 - **IMPORTANT**: Affects design significantly but has reasonable default
 - **NICE_TO_HAVE**: Can defer to implementation phase
 
-**Example using AskUserQuestion:**
+**Example:**
 ```
 AskUserQuestion:
   question: "Where should OAuth tokens be stored?"
@@ -95,7 +119,7 @@ AskUserQuestion:
 For IMPORTANT/NICE_TO_HAVE questions with good defaults, offer:
 "Reply 'defaults' to accept all recommended options"
 
-**Do NOT just print questions and wait for "yes"** - use the AskUserQuestion tool.
+**Do NOT just print questions and wait for "yes"** - use the AskUserQuestion tool or the structured format above.
 
 **CAPTURE for Design Discovery:**
 As each question is answered, record in "Key Decisions Made" table:
@@ -104,6 +128,18 @@ As each question is answered, record in "Key Decisions Made" table:
 - Implication for requirements/anti-patterns
 
 This preserves the Socratic Q&A for future reference during task creation and obstacle handling.
+
+---
+
+**Phase 1 Completion Criteria:**
+- [ ] AskUserQuestion (or equivalent structured questions) invoked at least 3 times
+- [ ] Purpose clearly understood
+- [ ] Constraints identified
+- [ ] Success criteria gathered
+- [ ] Mark Phase 1 as completed in TodoWrite
+
+**Verification:** Check your message history. Do you see tool invocations or properly formatted text blocks for "Question:", "Options:", "Priority:"?
+If NO → You skipped Phase 1. Go back.
 
 ---
 
@@ -812,7 +848,7 @@ Manual signup has 40% abandonment rate. Google OAuth reduces friction.
 <critical_rules>
 ## Rules That Have No Exceptions
 
-1. **Use AskUserQuestion tool** → Don't just print questions and wait
+1. **Invoke Socratic questioning at least 3 times** → Use AskUserQuestion tool (or equivalent structured questions if tool unavailable); don't just print questions and wait
 2. **Research BEFORE proposing** → Use agents to understand context
 3. **Propose 2-3 approaches** → Don't jump to single solution
 4. **Epic requirements IMMUTABLE** → Tasks adapt, requirements don't
@@ -829,7 +865,7 @@ All of these mean: **STOP. Follow the process.**
 - "Can plan all tasks upfront" (Plans become brittle, tasks adapt as you learn)
 - "Anti-patterns section overkill" (Prevents rationalization under pressure)
 - "Epic can evolve" (Requirements contract, tasks evolve)
-- "Can just print questions" (Use AskUserQuestion tool - it's more interactive)
+- "Can just print questions" (Use AskUserQuestion tool or structured format - it's more interactive)
 - "SRE refinement overkill for first task" (First task sets pattern for entire epic)
 - "User said yes, design is done" (Still need SRE refinement before execution)
 </critical_rules>
@@ -837,7 +873,7 @@ All of these mean: **STOP. Follow the process.**
 <verification_checklist>
 Before handing off to executing-plans:
 
-- [ ] Used AskUserQuestion tool for clarifying questions (one at a time)
+- [ ] Used AskUserQuestion tool (or equivalent structured questions) at least 3 times for clarifying questions (one at a time)
 - [ ] Researched codebase patterns (if applicable)
 - [ ] Researched external docs/libraries (if applicable)
 - [ ] Proposed 2-3 approaches with trade-offs

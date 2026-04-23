@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
 
 jobs:
   test:
@@ -15,18 +17,51 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20.19.0"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.13"
 
       - name: Install root dependencies
-        run: npm install --silent
+        run: npm ci --silent
 
       - name: Run Node-based tests
         run: node --test tests/*.test.js
 
       - name: Run Bun Pi smoke + install checks
         run: bun test tests/pi-agent-routing.test.ts tests/install-script.test.js tests/pi-smoke.test.ts
+
+      - name: Verify codex skill wrappers are in sync
+        run: node scripts/sync-codex-skills.js --check
+
+      - name: Run Gemini extension tests
+        run: node --test .gemini-extension/tests/*.test.js
+
+      - name: Install OpenCode plugin dependencies
+        run: cd packages/opencode-plugin && npm ci --silent
+
+      - name: Typecheck OpenCode plugin
+        run: cd packages/opencode-plugin && npm run typecheck
+
+      - name: Lint JS/TS
+        run: npm run lint
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+
+      - name: Install root dependencies
+        run: npm ci --silent
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
