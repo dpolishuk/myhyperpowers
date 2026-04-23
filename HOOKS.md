@@ -109,7 +109,7 @@ Direct file access bypasses bd validation and often fails due to file size. The 
 - `git reset --hard`
 - `sudo` / `su -` (privilege escalation)
 - `curl | bash` or `wget | bash` (arbitrary code execution)
-- `docker system prune -f` (destructive cleanup)
+- `docker system prune` (any flags) (destructive cleanup)
 
 **File:** `hooks/pre-tool-use/block-env-writes.py`
 **Purpose:** Blocks writes to secret and environment files (.env, .pem, id_rsa, .key)

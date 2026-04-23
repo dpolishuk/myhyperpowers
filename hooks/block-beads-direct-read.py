@@ -8,6 +8,7 @@ Direct file access bypasses validation and often fails due to file size.
 
 import json
 import sys
+import os
 
 TRUNCATION_MARKERS = (
     "truncated",
@@ -82,7 +83,7 @@ def main():
         # Check if any path contains .beads/issues.jsonl
         for path in paths_to_check:
             if path and isinstance(path, str):
-                normalized_path = path.replace("\\", "/")
+                normalized_path = os.path.normpath(path).replace("\\", "/")
                 if ".beads/issues.jsonl" in normalized_path:
                     emit_deny(
                         "Direct access to .beads/issues.jsonl is not allowed.\n\n"
