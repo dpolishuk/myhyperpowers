@@ -4,7 +4,7 @@ description: Use to define the canonical 'Dispatch Protocol' for stateless orche
 ---
 
 <skill_overview>
-Stateless dispatch prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
+The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
 </skill_overview>
 
 <quick_reference>
@@ -54,21 +54,19 @@ Project Root: [root path]
 
 ## 3. Execution
 Run the subagent using the constructed prompt:
-`invoke_agent(agent_name='generalist', prompt='...')`
+`invoke_agent(agent_name='generalist', prompt='[Constructed Prompt]')`
 
 ## 4. Verification
 After the subagent returns, the orchestrator MUST perform independent verification:
-1. **SHA Check**: Run `git rev-parse HEAD`. If the new SHA is identical to `PRE_SHA`, the subagent failed to commit any changes. **FAILURE**.
-2. **Status Check**: Run `tm show [task-id]`. If the status is not 'closed', the task was not completed. **FAILURE**.
-3. **Safety Gate**: If either check fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
+1. **Status Check**: Run `tm show [task-id] --json`. If the status is not 'closed', the task was not completed. **FAILURE**.
+2. **SHA Check**: Run `git rev-parse HEAD`. If the new SHA is identical to `PRE_SHA` AND the status is not 'closed', the subagent failed to commit any changes. **FAILURE**. (Note: Analytical tasks may result in no code changes but must still be marked 'closed').
+3. **Safety Gate**: If verification fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
 
 ## 5. Parallel Review Phase
 Once the task is closed and verified, trigger independent reviews in parallel to ensure high standards:
-- `mcp_agents_agent_review_quality()`
-- `mcp_agents_agent_review_testing()`
-- `mcp_agents_agent_review_simplification()`
+- `mcp_agents_agent_autonomous_reviewer()`
 
-If any review identifies critical issues or regressions, create a child remediation task under the epic:
+If the review identifies critical issues or regressions, create a child remediation task under the epic:
 `tm create "Remediation: [Review Findings]" --parent [epic-id]`
 </the_process>
 
@@ -78,15 +76,17 @@ If any review identifies critical issues or regressions, create a child remediat
 PRE_SHA=$(git rev-parse HEAD)
 
 # After Dispatch
-POST_SHA=$(git rev-parse HEAD)
-if [ "$PRE_SHA" == "$POST_SHA" ]; then
-  echo "FAILURE: SHA drift not detected. No-Op implementation."
+# 1. Status Check (Priority)
+STATUS=$(tm show [task-id] --json | jq -r .status 2>/dev/null)
+if [ "$STATUS" != "closed" ]; then
+  echo "FAILURE: Task status is '$STATUS', expected 'closed'."
   exit 1
 fi
 
-STATUS=$(tm show [task-id] --status)
-if [ "$STATUS" != "closed" ]; then
-  echo "FAILURE: Task status is '$STATUS', expected 'closed'."
+# 2. SHA Check (Allow No-Op for Closed Analytical Tasks)
+POST_SHA=$(git rev-parse HEAD)
+if [ "$PRE_SHA" == "$POST_SHA" ] && [ "$STATUS" != "closed" ]; then
+  echo "FAILURE: SHA drift not detected and task not closed."
   exit 1
 fi
 ```

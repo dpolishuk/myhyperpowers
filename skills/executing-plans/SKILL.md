@@ -118,7 +118,7 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 ### Option B: Stateless Dispatch (Complex/Heavy)
 **Use for:** Multi-file implementations, long TDD cycles, or when context drift/exhaustion is likely.
 1. **Prepare:** Record current state (`git rev-parse HEAD`).
-2. **Dispatch:** Use the `subagent-driven-development` prompt with a fresh subagent.
+2. **Dispatch:** Use the **Subagent Prompt Template** from the `subagent-driven-development` skill with a fresh subagent.
 3. **Execute:** The subagent implements the entire task autonomously.
 4. **Verify:**
    - Record `POST_SHA` (`git rev-parse HEAD`).

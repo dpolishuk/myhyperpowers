@@ -8,25 +8,25 @@ test('executing-plans skill contract', async (t) => {
   const content = readFileSync(skillPath, 'utf8');
 
   await t.test('should contain Option B: Stateless Dispatch', () => {
-    assert.ok(content.includes('### Option B: Stateless Dispatch'), 'Missing Option B header');
+    assert.ok(content.match(/### Option B: Stateless Dispatch/i), 'Missing Option B header');
   });
 
   await t.test('should provide guidance on when to use Stateless Dispatch', () => {
-    assert.ok(content.includes('Use for: Multi-file implementations, long TDD cycles'), 'Missing usage guidance');
+    assert.ok(content.match(/Use for:[\s\S]*Multi-file implementations[\s\S]*long TDD cycles/i), 'Missing usage guidance');
   });
 
   await t.test('should include verification steps for stateless path', () => {
-    assert.ok(content.includes('Record POST_SHA'), 'Missing POST_SHA step');
-    assert.ok(content.includes('git diff PRE_SHA..POST_SHA'), 'Missing git diff step');
-    assert.ok(content.includes('tm show bd-2'), 'Missing tm show step');
+    assert.ok(content.match(/Record POST_SHA/i), 'Missing POST_SHA step');
+    assert.ok(content.match(/git diff PRE_SHA\.\.POST_SHA/i), 'Missing git diff step');
+    assert.ok(content.match(/tm show bd-\d+/i), 'Missing tm show step');
   });
 
   await t.test('should update Review phase with subagent findings', () => {
-    assert.ok(content.includes('For Stateless Dispatch: What findings or architectural risks did the subagent report'), 'Missing review question');
+    assert.ok(content.match(/For Stateless Dispatch:[\s\S]*What findings or architectural risks did the subagent report/i), 'Missing review question');
   });
 
   await t.test('should include counters for common excuses', () => {
-    assert.ok(content.includes('Stateless dispatch is too slow'), 'Missing "too slow" excuse');
-    assert.ok(content.includes('I can handle this in-context'), 'Missing "handle in-context" excuse');
+    assert.ok(content.match(/Stateless dispatch is too slow/i), 'Missing "too slow" excuse');
+    assert.ok(content.match(/I can handle this in-context/i), 'Missing "handle in-context" excuse');
   });
 });

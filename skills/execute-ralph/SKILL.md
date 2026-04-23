@@ -78,6 +78,10 @@ tm show bd-EPIC   # re-read criteria
 **B) Ready task exists** -- claim it: `tm update bd-N --status in_progress`.
 **C) If no ready or in-progress tasks exist and epic success criteria are still unmet** -- do not stop - create and execute the next task.
 
+**Refinement Step**:
+After task selection/creation, run SRE refinement to ensure the task design is robust:
+`Use Skill tool: hyperpowers:sre-task-refinement`
+
 ### Auto-create next task from unmet criterion
 
 ```bash
@@ -106,29 +110,27 @@ PRE_SHA=$(git rev-parse HEAD)
 
 ### Subagent Prompt
 Use the **Subagent Prompt Template** from `subagent-driven-development` skill, populating:
-- **Immutable Epic Requirements**: from `tm show bd-EPIC`
-- **Task Specification (bd-N)**: from `tm show bd-N`
+- **Immutable Epic Requirements**: from `tm show bd-EPIC` wrapped in `<epic_contract>` tags.
+- **Task Specification (bd-N)**: from `tm show bd-N` wrapped in `<task_spec>` tags.
 - **Mandatory Workflow**: Ensure `sre-task-refinement` and TDD are mandated.
 
-**After Agent returns**, verify progress by SHA comparison:
+**After Agent returns**, verify progress by status and SHA comparison:
 ```bash
 POST_SHA=$(git rev-parse HEAD)
 ```
-- **Success (SHA Changed)**: If `POST_SHA != PRE_SHA`:
-  - Verify `tm show bd-N` status is `closed`. If still open but subagent summary reports success, run `tm close bd-N`.
-  - Proceed to **Parallel Review Phase** (see below).
-- **Retry (SHA Unchanged)**: If `POST_SHA == PRE_SHA`:
+- **Success**:
+  - Verify `tm show bd-N` status is `closed`.
+  - If status is `closed`, proceed to **Parallel Review Phase** even if `POST_SHA == PRE_SHA`.
+- **Retry (SHA Unchanged & Not Closed)**: If `POST_SHA == PRE_SHA` and status is not `closed`:
   - If subagent summary claims success, **retry once** with the same prompt.
-  - If retry also fails to change SHA, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
+  - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
 
 ### Parallel Review Phase (Per Task)
-Once verified, trigger the following reviews in parallel:
-1. **review-quality**
-2. **review-testing**
-3. **review-simplification**
+Once verified, trigger the following review:
+1. `mcp_agents_agent_autonomous_reviewer()`
 
 **Remediation Path**:
-If any review finds **Critical** or **High** issues:
+If the review finds **Critical** or **High** issues:
 - Create remediation task: `tm create "Remediation: [Findings]" --parent bd-EPIC`.
 - Return to Phase 1.
 
@@ -144,15 +146,11 @@ tm show bd-EPIC   # re-read success criteria
 
 ## Phase 3: End-of-Epic Review (post-loop)
 
-Dispatch 7 agents (4 review + 2 guard + test-effectiveness-analyst) **in parallel** via Agent tool:
+Dispatch specialized reviews **in parallel** via Agent tool:
 
 1. **review-quality** -- bugs, race conditions, error handling
-2. **review-testing** -- test coverage
-3. **review-simplification** -- over-engineering
-4. **review-documentation** -- docs completeness
-5. **security-scanner** -- OWASP, secrets, CVEs
-6. **devops** -- CI/CD pipeline health
-7. **test-effectiveness-analyst** -- tautological tests, coverage gaming
+2. **security-scanner** -- OWASP, secrets, CVEs
+3. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
 If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, flag for user and proceed to final gate).
 
