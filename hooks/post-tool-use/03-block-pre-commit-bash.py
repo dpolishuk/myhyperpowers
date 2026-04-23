@@ -11,34 +11,31 @@ import re
 
 # Patterns that indicate pre-commit hook modification
 PRECOMMIT_MODIFICATION_PATTERNS = [
-    # File paths
-    r'\.git/hooks/pre-commit',
-    r'\.git\\hooks\\pre-commit',
+    # Exact file path matches (anchored by word boundaries or shell-relevant chars)
+    r'(?:^|[\s"\'`|&;])\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'(?:^|[\s"\'`|&;])\.git\\hooks\\pre-commit(?:$|[\s"\'`|&;])',
 
-    # Redirection to exact pre-commit hook path only
-    r'>\s*\.git/hooks/pre-commit',
-    r'>>\s*\.git/hooks/pre-commit',
+    # Redirection (anchored)
+    r'[012]?>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
-    # sed/awk/perl modifying pre-commit
-    r'(sed|awk|perl).*-i.*pre-commit',
-    r'(sed|awk|perl).*pre-commit.*>',
+    # sed/awk/perl (targeted)
+    r'(?:sed|awk|perl)\b.*-i.*\bpre-commit\b',
+    r'(?:sed|awk|perl)\b.*\bpre-commit\b.*[012]?>',
 
-    # Moving/copying to exact pre-commit path only
-    r'(mv|cp).*\s+.*\.git/hooks/pre-commit',
+    # Moving/copying (targeted)
+    r'\b(?:mv|cp)\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
-    # chmod on exact pre-commit path only
-    r'chmod.*\.git/hooks/pre-commit',
+    # chmod (targeted)
+    r'\bchmod\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
-    # echo/cat piped to pre-commit
-    r'(echo|cat)*>.*\.git/hooks/pre-commit',
-    r'(echo|cat)*>>.*\.git/hooks/pre-commit',
+    # echo/cat redirection (targeted)
+    r'(?:echo|cat)\b.*[012]>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
-    # tee to pre-commit
-    r'tee.*\.git/hooks/pre-commit',
+    # tee (targeted)
+    r'\btee\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
-    # Creating pre-commit hook
-    r'cat\s*>\s*\.git/hooks/pre-commit',
-    r'cat\s*<<.*\.git/hooks/pre-commit',
+    # cat heredoc
+    r'\bcat\b.*\s*<<.*\bpre-commit\b',
 ]
 
 

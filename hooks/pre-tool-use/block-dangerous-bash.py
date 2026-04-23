@@ -75,8 +75,14 @@ def main():
         emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
         return
 
+    if not isinstance(input_data, dict):
+        emit_deny("Hook received non-object JSON. Blocking for safety.")
+
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
+
+    if not isinstance(tool_input, dict):
+        tool_input = {}
 
     # Only check Bash tool calls
     if tool_name != "Bash":

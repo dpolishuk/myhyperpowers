@@ -17,7 +17,7 @@ function createMockBackend(tmpDir, name) {
   const mockPath = path.join(binDir, name)
   const logPath = path.join(tmpDir, `${name}.log`)
   fs.writeFileSync(mockPath, `#!/usr/bin/env bash
-echo "$@" >> ${logPath}
+echo "$@" >> "${logPath}"
 `)
   fs.chmodSync(mockPath, 0o755)
   return { mockPath, logPath, binDir }
