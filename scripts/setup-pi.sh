@@ -113,6 +113,19 @@ else
   cd "$PI_EXT_DIR"
   npm install --silent >/dev/null 2>&1
   
+  # Build the extension (requires Bun)
+  if command -v bun >/dev/null 2>&1; then
+    info "Building Pi extension..."
+    bun build index.ts --target=node --format=esm --packages=external --outfile=dist/index.js >/dev/null 2>&1
+    if [[ ! -f "dist/index.js" ]]; then
+      error "Build failed: dist/index.js was not created."
+      exit 1
+    fi
+  else
+    error "Bun is required to build the Pi extension (npm install is sufficient for dependencies, but build requires Bun)."
+    exit 1
+  fi
+  
   success "Pi extension installed via npm!"
 fi
 

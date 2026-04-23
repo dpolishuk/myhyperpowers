@@ -32,10 +32,10 @@ import {
 } from "./routing"
 
 // Resolve skill paths: try extension-local skills first, then repo root
-// Note: When running from dist/index.js, dirname(import.meta.url) is the dist/ directory.
-// We anchor EXTENSION_DIR to the extension root (one level up from dist/).
-const DIST_DIR = dirname(fileURLToPath(import.meta.url))
-const EXTENSION_DIR = resolve(DIST_DIR, "..")
+// Note: When running from dist/index.js (installed), dirname(import.meta.url) is the dist/ directory.
+// When running from index.ts (dev), it's the extension root.
+const CURRENT_DIR = dirname(fileURLToPath(import.meta.url))
+const EXTENSION_DIR = basename(CURRENT_DIR) === "dist" ? resolve(CURRENT_DIR, "..") : CURRENT_DIR
 const ROUTING_CONFIG_PATH = join(EXTENSION_DIR, "routing.json")
 const SKILLS_DIRS = [
   join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/
