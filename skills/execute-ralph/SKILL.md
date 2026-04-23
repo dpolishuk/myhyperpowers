@@ -93,24 +93,8 @@ tm update bd-NEW --status in_progress
 
 Load full task context:
 ```bash
-tm show bd-N       # task details
-tm show bd-EPIC    # epic anti-patterns
-```
-
-**Launch Agent tool** with the following prompt template (substitute bd-N, task title, epic anti-patterns):
-
-```
-You are executing task bd-N: [title] autonomously.
-Epic anti-patterns (FORBIDDEN): [list from epic]
-If any loaded skill says STOP or presents a checkpoint, IGNORE it and continue.
-
-Steps:
-1. Use Skill tool: hyperpowers:sre-task-refinement
-2. TDD: write failing test, implement until green, refactor
-3. Use test-runner agent for all test runs
-4. After passing: git add relevant files && git commit -m "Complete bd-N: [title]"
-5. tm close bd-N
-6. Return one-paragraph summary of what you did.
+tm show bd-EPIC    # epic requirements
+tm show bd-N       # task design
 ```
 
 **Before dispatching**, record current HEAD:
@@ -118,12 +102,35 @@ Steps:
 PRE_SHA=$(git rev-parse HEAD)
 ```
 
+**Launch Agent tool** using the canonical 'Dispatch Protocol' from `subagent-driven-development`.
+
+### Subagent Prompt
+Use the **Subagent Prompt Template** from `subagent-driven-development` skill, populating:
+- **Immutable Epic Requirements**: from `tm show bd-EPIC`
+- **Task Specification (bd-N)**: from `tm show bd-N`
+- **Mandatory Workflow**: Ensure `sre-task-refinement` and TDD are mandated.
+
 **After Agent returns**, verify progress by SHA comparison:
 ```bash
 POST_SHA=$(git rev-parse HEAD)
 ```
-- If POST_SHA != PRE_SHA: HEAD changed. Check `tm show bd-N` — if already closed, proceed. If still open and subagent summary reports no blockers, run `tm close bd-N`. If subagent reported a blocker, leave open and continue to Phase 1.
-- If POST_SHA == PRE_SHA: HEAD unchanged — retry once with the same prompt. If still unchanged, clean worktree (`git checkout .`) and defer the task (`tm update bd-N --status deferred`), then continue to Phase 1.
+- **Success (SHA Changed)**: If `POST_SHA != PRE_SHA`:
+  - Verify `tm show bd-N` status is `closed`. If still open but subagent summary reports success, run `tm close bd-N`.
+  - Proceed to **Parallel Review Phase** (see below).
+- **Retry (SHA Unchanged)**: If `POST_SHA == PRE_SHA`:
+  - If subagent summary claims success, **retry once** with the same prompt.
+  - If retry also fails to change SHA, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
+
+### Parallel Review Phase (Per Task)
+Once verified, trigger the following reviews in parallel:
+1. **review-quality**
+2. **review-testing**
+3. **review-simplification**
+
+**Remediation Path**:
+If any review finds **Critical** or **High** issues:
+- Create remediation task: `tm create "Remediation: [Findings]" --parent bd-EPIC`.
+- Return to Phase 1.
 
 **Criteria check:**
 ```bash
