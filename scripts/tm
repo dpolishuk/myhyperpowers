@@ -290,10 +290,26 @@ main() {
       if [[ -n "$repo_root" ]]; then
         cd "$repo_root"
       fi
+
+      local args=("$@")
+      # br create uses --description instead of --design
+      if tm_backend_should_translate_create_design "$backend" && [[ "${1:-}" == "create" ]]; then
+        local new_args=()
+        local arg
+        for arg in "${args[@]}"; do
+          if [[ "$arg" == "--design" ]]; then
+            new_args+=("--description")
+          else
+            new_args+=("$arg")
+          fi
+        done
+        args=("${new_args[@]}")
+      fi
+
       # Intercept sync: run backend-local sync first, then supported follow-on sync.
       if [[ "${1:-}" == "sync" ]]; then
         if [[ "${2:-}" == "--help" || "${2:-}" == "-h" || "${2:-}" == "--version" || "${2:-}" == "-v" ]]; then
-          exec "$backend_cmd" "$@"
+          exec "$backend_cmd" "${args[@]}"
         fi
         local sync_exit=0
         if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
@@ -349,7 +365,7 @@ main() {
         fi
         exit "$linear_exit"
       fi
-      exec "$backend_cmd" "$@"
+      exec "$backend_cmd" "${args[@]}"
       ;;
     linear)
       local repo_root
