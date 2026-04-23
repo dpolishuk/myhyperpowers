@@ -10,6 +10,8 @@ test("test_execute_ralph_mandates_sha_verification_in_phase_2", () => {
   const skill = read("skills/execute-ralph/SKILL.md")
   assert.ok(skill.match(/verify progress by.*SHA comparison/i), "Should mandate SHA verification")
   assert.ok(skill.match(/If\s+[`"']?POST_SHA\s*==\s*PRE_SHA[`"']?/i), "Should handle unchanged SHA")
+  assert.ok(skill.match(/tm show\s+bd-N[\s\S]*status\s+is\s+[`"']?closed[`"']?/i), "Should verify task status is closed")
+  assert.ok(skill.match(/closed[\s\S]*even if\s+[`"']?POST_SHA\s*==\s*PRE_SHA[`"']?/i), "Should allow unchanged SHA only after closure")
 })
 
 test("test_execute_ralph_uses_subagent_driven_development_protocol", () => {

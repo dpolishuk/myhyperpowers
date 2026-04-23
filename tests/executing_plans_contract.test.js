@@ -1,7 +1,7 @@
 const { readFileSync } = require('fs');
 const { join } = require('path');
 const test = require('node:test');
-const assert = require('node:assert');
+const assert = require('node:assert/strict');
 
 test('executing-plans skill contract', async (t) => {
   const skillPath = join(process.cwd(), 'skills/executing-plans/SKILL.md');
@@ -19,6 +19,7 @@ test('executing-plans skill contract', async (t) => {
     assert.ok(content.match(/Record\s*[`"']?POST_SHA[`"']?/i), 'Missing POST_SHA step');
     assert.ok(content.match(/git diff\s*[`"']?PRE_SHA\.\.POST_SHA[`"']?/i), 'Missing git diff step');
     assert.ok(content.match(/tm show\s*[`"']?bd-\d+[`"']?/i), 'Missing tm show step');
+    assert.ok(content.match(/tm close\s*[`"']?bd-\d+[`"']?/i), 'Missing tm close fallback step');
   });
 
   await t.test('should update Review phase with subagent findings', () => {

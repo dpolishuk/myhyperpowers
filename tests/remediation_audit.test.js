@@ -12,6 +12,8 @@ test("test_subagent_protocol_enforces_sha_drift_for_implementation_tasks", () =>
   assert.ok(skill.match(/if\s*\[\[\s*["']?\$TASK_TYPE["']?\s*=~\s*\^\(feature\|bug\|task\)\$\s*\]\]/i), "Should enforce SHA drift for implementation tasks")
   // Should allow SHA unchanged for others if status is closed
   assert.ok(skill.match(/elif\s*\[\s*["']?\$STATUS["']?\s*!=\s*["']?closed["']?\s*\]/i), "Should allow SHA unchanged for analytical tasks if status is closed")
+  // Positive assertion for the closed no-op path
+  assert.ok(skill.match(/Analytical Tasks.*POST_SHA.*PRE_SHA.*status.*closed/i), "Should explicitly allow analytical no-op")
 })
 
 test("test_execute_ralph_mandates_sre_refinement_in_phase_1", () => {

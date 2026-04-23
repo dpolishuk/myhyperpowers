@@ -76,7 +76,7 @@ This returns the optimal next task with:
      - Invoke `generalist` subagent using the canonical prompt from `subagent-driven-development`.
      - **Side-Effect Verification**: After subagent returns, run `POST_SHA=$(git rev-parse HEAD)`. 
      - If `POST_SHA == PRE_SHA`, the task is NOT complete (unless it was purely analytical). 
-     - Verify task is `closed` in `tm`.
+     - Verify task is `closed` using `tm show <id>`.
 4. Use `test-runner` agent for test execution (keeps context clean)
 5. Use `autonomous-reviewer` agent for validation after each task
 

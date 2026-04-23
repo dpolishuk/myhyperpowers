@@ -122,7 +122,7 @@ TASK_TYPE=$(tm show bd-N --json | jq -r .type)
 - **Success**:
   - Verify `tm show bd-N` status is `closed`.
   - **Implementation Tasks** (feature, bug, task): MUST have `POST_SHA != PRE_SHA`.
-  - **Analytical Tasks**: May have `POST_SHA == PRE_SHA` if status is `closed`.
+  - **Analytical Tasks**: Accepted as success even if `POST_SHA == PRE_SHA` as long as status is `closed`.
   - If verified, proceed to **Parallel Review Phase**.
 - **Retry (SHA Unchanged & Not Closed)**: If `POST_SHA == PRE_SHA` and status is not `closed`:
   - If subagent summary claims success, **retry once** with the same prompt.

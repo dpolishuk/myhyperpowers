@@ -8,6 +8,7 @@ The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context
 </skill_overview>
 
 <quick_reference>
+
 | Step | Action | Deliverable |
 |------|--------|-------------|
 | 1 | **Load Epic** | `tm show [epic-id]` (Immutable requirements) |
@@ -16,7 +17,7 @@ The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context
 | 4 | **Verify** | SHA change (git) + Status check (tm) |
 | 5 | **Review** | Parallel Quality/Testing/Simplification reviews |
 
-**Verification**: `git rev-parse HEAD` drift + `tm show [task-id]` status == 'closed'.
+**Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.
 </quick_reference>
 
 <the_process>
@@ -82,6 +83,8 @@ PRE_SHA=$(git rev-parse HEAD)
 STATUS=$(tm show [task-id] --json | jq -r .status 2>/dev/null)
 if [ "$STATUS" != "closed" ]; then
   echo "FAILURE: Task status is '$STATUS', expected 'closed'."
+  # Fallback for subagents that forgot to close
+  # tm close [task-id]
   exit 1
 fi
 
