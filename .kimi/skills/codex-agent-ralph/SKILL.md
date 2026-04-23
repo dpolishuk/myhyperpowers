@@ -101,7 +101,7 @@ This returns the optimal next task with:
 ### Step 5: Loop
 
 After completing each item:
-1. Close it: `bd close <id>` (if subagent didn't already)
+1. Confirm it is already closed via `tm show <id> --json`; unresolved status is a verification failure.
 2. Auto-commit: Ensure each task has its own commit (usually handled by subagent)
 3. Run `bv -robot-next` again
 4. If no more actionable items → Present summary and stop

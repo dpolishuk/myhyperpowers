@@ -7,6 +7,17 @@ description: Use to define the canonical 'Dispatch Protocol' for stateless orche
 The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
 </skill_overview>
 
+<rigidity_level>
+STRICT - Follow the 5-step verification process exactly. Never skip SHA drift checks for implementation tasks.
+</rigidity_level>
+
+<when_to_use>
+- Implementing complex features or bug fixes.
+- Running multi-task epics autonomously (Ralph mode).
+- Executing tasks that involve 3+ file changes.
+- When context drift or token exhaustion is detected in the main session.
+</when_to_use>
+
 <quick_reference>
 
 | Step | Action | Deliverable |
@@ -37,10 +48,14 @@ Context: You are working in a fresh, stateless environment. Your goal is to impl
 Project Root: [root path]
 
 **Immutable Epic Requirements**:
+<epic_contract>
 [Insert requirements from tm show epic-id]
+</epic_contract>
 
 **Task Specification (bd-[N])**:
+<task_spec>
 [Insert design from tm show task-id]
+</task_spec>
 
 **Mandatory Workflow (RED-GREEN-REFACTOR)**:
 1. **RED**: Use `sre-task-refinement` on the task design BEFORE implementation. Write a failing test using the project's testing framework.
@@ -73,6 +88,40 @@ Once the task is closed and verified, trigger independent review to ensure high 
 If the review identifies critical issues or regressions, create a child remediation task under the epic:
 `tm create "Remediation: [Review Findings]" --parent [epic-id]`
 </the_process>
+
+<examples>
+<example>
+<scenario>Successful implementation task execution</scenario>
+<code>
+Orchestrator: Record PRE_SHA=a1b2c3d
+Orchestrator: Dispatch subagent to implement bd-2.
+Subagent: [Red-Green-Refactor logic]
+Subagent: Commit e5f6g7h "Complete bd-2"
+Subagent: tm close bd-2
+Orchestrator: Verify status=closed (PASS)
+Orchestrator: Verify PRE_SHA != POST_SHA (PASS)
+Orchestrator: Run autonomous-reviewer (PASS)
+Next Task Ready.
+</code>
+</example>
+</examples>
+
+<critical_rules>
+- ❌ NO implementing tasks in the main context.
+- ❌ NO skipping SRE refinement inside the subagent.
+- ❌ NO closing tasks without git commits (for implementation tasks).
+- ❌ NO moving to the next task without verifying SHA drift and Status.
+</critical_rules>
+
+<verification_checklist>
+- [ ] `tm show [task-id] --json` status is "closed".
+- [ ] `git rev-parse HEAD` has changed (for implementation tasks).
+- [ ] `mcp_agents_agent_autonomous_reviewer()` returned APPROVED.
+</verification_checklist>
+
+<integration>
+This skill is used by `execute-ralph` and `executing-plans` to delegate work to subagents.
+</integration>
 
 <verification_logic>
 ```bash
