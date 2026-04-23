@@ -104,7 +104,7 @@ def main():
         input_data = json.loads(raw_input)
     except json.JSONDecodeError:
         emit_deny("Hook received malformed JSON input. Blocking for safety.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
         emit_deny(f"Hook encountered an unexpected error during parsing: {e}. Blocking for safety.")
 
     if not isinstance(input_data, dict):

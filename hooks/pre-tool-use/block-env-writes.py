@@ -36,16 +36,20 @@ def is_secret_file(file_path):
     if basename == ".env" or basename.startswith(".env."):
         return True
 
-    # Check for .pem files
-    if basename.endswith(".pem"):
+    # Check for common SSH private/public keys
+    if basename in (
+        "id_rsa", "id_rsa.pub",
+        "id_ed25519", "id_ed25519.pub",
+        "id_ecdsa", "id_ecdsa.pub",
+        "id_dsa", "id_dsa.pub",
+    ):
         return True
 
-    # Check for id_rsa and id_rsa.pub
-    if basename in ("id_rsa", "id_rsa.pub"):
-        return True
-
-    # Check for .key files
-    if basename.endswith(".key"):
+    # Check for certificates, keys and direnv
+    if (
+        basename.endswith((".key", ".pem", ".p12", ".pfx", ".crt"))
+        or basename == ".envrc"
+    ):
         return True
 
     return False
@@ -80,11 +84,12 @@ def main():
         input_data = json.loads(raw_input)
     except json.JSONDecodeError:
         emit_deny("Hook received malformed JSON input. Blocking for safety.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed on any unexpected error
         emit_deny(f"Hook encountered an unexpected error during parsing: {e}. Blocking for safety.")
 
     if not isinstance(input_data, dict):
         emit_deny("Hook received non-object JSON. Blocking for safety.")
+        return
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input")
