@@ -252,12 +252,18 @@ const HOSTS: HostConfig[] = [
         }
 
         // Build the TypeScript source to ESM to avoid Jiti transpilation bugs in Pi
-        if (commandExists("bun")) {
-          const buildResult = Bun.spawnSync(["bun", "build", "index.ts", "--target=node", "--format=esm", "--packages=external", "--outfile=dist/index.js"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-          if (buildResult.exitCode !== 0) {
-            const stderr = buildResult.stderr.toString().trim()
-            throw new Error(`Pi extension build failed: ${stderr}`)
-          }
+        if (!commandExists("bun")) {
+          throw new Error("Pi install requires bun to build the extension (npm is not sufficient to produce dist/index.js)")
+        }
+
+        const buildResult = Bun.spawnSync(["bun", "build", "index.ts", "--target=node", "--format=esm", "--packages=external", "--outfile=dist/index.js"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
+        if (buildResult.exitCode !== 0) {
+          const stderr = buildResult.stderr.toString().trim()
+          throw new Error(`Pi extension build failed: ${stderr}`)
+        }
+
+        if (!existsSync(join(extDir, "dist", "index.js"))) {
+          throw new Error("Pi extension build failed: dist/index.js was not created")
         }
       }
 

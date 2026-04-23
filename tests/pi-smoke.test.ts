@@ -3,7 +3,6 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { spawnSync } from "node:child_process"
 import { pathToFileURL } from "node:url"
-import { pathToFileURL } from "node:url"
 import { test, expect } from "bun:test"
 
 const repoRoot = path.resolve(__dirname, "..")

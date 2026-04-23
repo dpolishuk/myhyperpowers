@@ -51,6 +51,10 @@ tm_backend_supports_follow_on_linear_sync() {
   [[ "${1:-}" == "bd" ]]
 }
 
+tm_backend_should_translate_create_design() {
+  [[ "${1:-}" == "br" ]]
+}
+
 tm_backend_help_lines() {
   local backend
   for backend in "${TM_SUPPORTED_BACKENDS[@]}"; do
