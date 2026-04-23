@@ -6,11 +6,12 @@ const path = require("node:path")
 const repoRoot = path.resolve(__dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
 
-test("test_subagent_protocol_allows_analytical_tasks_with_no_sha_change", () => {
+test("test_subagent_protocol_enforces_sha_drift_for_implementation_tasks", () => {
   const skill = read("skills/subagent-driven-development/SKILL.md")
-  // Should allow SHA unchanged IF status is 'closed'
-  // More robust regex matching the bash logic
-  assert.ok(skill.match(/if[\s\S]*PRE_SHA[\s\S]*==[\s\S]*POST_SHA[\s\S]*STATUS[\s\S]*!=[\s\S]*closed/i), "Should allow SHA unchanged if status is closed")
+  // Should enforce SHA drift for feature|bug|task
+  assert.ok(skill.match(/if\s*\[\[\s*["']?\$TASK_TYPE["']?\s*=~\s*\^\(feature\|bug\|task\)\$\s*\]\]/i), "Should enforce SHA drift for implementation tasks")
+  // Should allow SHA unchanged for others if status is closed
+  assert.ok(skill.match(/elif\s*\[\s*["']?\$STATUS["']?\s*!=\s*["']?closed["']?\s*\]/i), "Should allow SHA unchanged for analytical tasks if status is closed")
 })
 
 test("test_execute_ralph_mandates_sre_refinement_in_phase_1", () => {

@@ -117,13 +117,18 @@ Use the **Subagent Prompt Template** from `subagent-driven-development` skill, p
 **After Agent returns**, verify progress by status and SHA comparison:
 ```bash
 POST_SHA=$(git rev-parse HEAD)
+TASK_TYPE=$(tm show bd-N --json | jq -r .type)
 ```
 - **Success**:
   - Verify `tm show bd-N` status is `closed`.
-  - If status is `closed`, proceed to **Parallel Review Phase** even if `POST_SHA == PRE_SHA`.
+  - **Implementation Tasks** (feature, bug, task): MUST have `POST_SHA != PRE_SHA`.
+  - **Analytical Tasks**: May have `POST_SHA == PRE_SHA` if status is `closed`.
+  - If verified, proceed to **Parallel Review Phase**.
 - **Retry (SHA Unchanged & Not Closed)**: If `POST_SHA == PRE_SHA` and status is not `closed`:
   - If subagent summary claims success, **retry once** with the same prompt.
   - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
+- **Failure (Closed but no SHA drift on implementation task)**:
+  - If `POST_SHA == PRE_SHA` for an implementation task, flag as hallucinated completion and STOP.
 
 ### Parallel Review Phase (Per Task)
 Once verified, trigger the following review:

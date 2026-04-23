@@ -59,7 +59,9 @@ Run the subagent using the constructed prompt:
 ## 4. Verification
 After the subagent returns, the orchestrator MUST perform independent verification:
 1. **Status Check**: Run `tm show [task-id] --json`. If the status is not 'closed', the task was not completed. **FAILURE**.
-2. **SHA Check**: Run `git rev-parse HEAD`. If the new SHA is identical to `PRE_SHA` AND the status is not 'closed', the subagent failed to commit any changes. **FAILURE**. (Note: Analytical tasks may result in no code changes but must still be marked 'closed').
+2. **SHA Check**: Run `git rev-parse HEAD`. 
+   - **For Implementation Tasks** (feature, bug, task): If `POST_SHA == PRE_SHA`, the subagent failed to commit changes. **FAILURE**.
+   - **For Analytical Tasks**: If `POST_SHA == PRE_SHA` but status is 'closed', accept as success.
 3. **Safety Gate**: If verification fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
 
 ## 5. Parallel Review Phase
@@ -83,11 +85,18 @@ if [ "$STATUS" != "closed" ]; then
   exit 1
 fi
 
-# 2. SHA Check (Allow No-Op for Closed Analytical Tasks)
+# 2. SHA Check (Enforce Drift for Implementation Tasks)
 POST_SHA=$(git rev-parse HEAD)
-if [ "$PRE_SHA" == "$POST_SHA" ] && [ "$STATUS" != "closed" ]; then
-  echo "FAILURE: SHA drift not detected and task not closed."
-  exit 1
+TASK_TYPE=$(tm show [task-id] --json | jq -r .type)
+
+if [ "$PRE_SHA" == "$POST_SHA" ]; then
+  if [[ "$TASK_TYPE" =~ ^(feature|bug|task)$ ]]; then
+    echo "FAILURE: SHA drift not detected for implementation task '$TASK_TYPE'."
+    exit 1
+  elif [ "$STATUS" != "closed" ]; then
+    echo "FAILURE: SHA drift not detected and task not closed."
+    exit 1
+  fi
 fi
 ```
 </verification_logic>

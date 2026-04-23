@@ -95,7 +95,16 @@ tm update bd-2 --status in_progress # Start it
 tm show bd-2                       # Read details
 ```
 
-**CRITICAL - Create TodoWrite for ALL substeps:**
+Choose your execution strategy based on task complexity:
+
+### Option A: In-Context Execution (Standard)
+**Use for:** Simple file edits, research, or when context is low.
+- Execute steps directly in your current session.
+- Use `test-driven-development` when implementing features.
+- Mark each substep completed immediately after finishing.
+- Use `test-runner` agent for verifications.
+
+**CRITICAL - Create TodoWrite for ALL substeps (Option A only):**
 
 Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to prevent incomplete execution:
 
@@ -108,12 +117,23 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 - bd-2 Step 6: Commit (pending)
 ```
 
-**Execute steps:**
+### Option B: Stateless Dispatch (Complex/Heavy)
+**Use for:** Multi-file implementations, long TDD cycles, or when context drift/exhaustion is likely.
+1. **Prepare:** Record current state (`git rev-parse HEAD`).
+2. **Dispatch:** Use the **Subagent Prompt Template** from the `subagent-driven-development` skill with a fresh subagent.
+3. **Execute:** The subagent implements the entire task autonomously.
+4. **Verify:**
+   - Record `POST_SHA` (`git rev-parse HEAD`).
+   - Verify changes with `git diff PRE_SHA..POST_SHA`.
+   - Check task status: `tm show bd-2` (should be closed by subagent).
+5. **Sync:** If subagent didn't close it, close it now: `tm close bd-2`.
+
+**Execute steps (Option A):**
 - Use `test-driven-development` when implementing features
 - Mark each substep completed immediately after finishing
 - Use `test-runner` agent for verifications
 
-**Pre-close verification:**
+**Pre-close verification (Option A):**
 - Check TodoWrite: All substeps completed?
 - If incomplete: Continue with remaining substeps
 - If complete: Close task and commit
@@ -184,6 +204,7 @@ Before switching to a previously rejected approach, you MUST:
 3. Does this move us toward epic success criteria?
 4. What's next logical step?
 5. Any epic anti-patterns to avoid?
+6. **For Stateless Dispatch:** What findings or architectural risks did the subagent report in its final summary?
 
 **Re-read epic:**
 ```bash
@@ -565,6 +586,8 @@ All of these mean: Re-read epic, STOP as required, ask for help:
 - "All tasks done, epic must be complete" → Verify with review-implementation
 - "Hit obstacle, let me try the other approach" → Check Design Discovery first, rejection reasons often still apply
 - "The rejected approach would be easier now" → Check "DO NOT REVISIT UNLESS" conditions, get user approval
+- "Stateless dispatch is too slow" → Correct, but context exhaustion is slower. Use Option B for complex tasks.
+- "I can handle this in-context" → If task involves 3+ files or high context, use Option B to prevent drift.
 
 </critical_rules>
 

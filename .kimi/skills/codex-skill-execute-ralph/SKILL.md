@@ -79,6 +79,10 @@ tm show bd-EPIC   # re-read criteria
 **B) Ready task exists** -- claim it: `tm update bd-N --status in_progress`.
 **C) If no ready or in-progress tasks exist and epic success criteria are still unmet** -- do not stop - create and execute the next task.
 
+**Refinement Step**:
+After task selection/creation, run SRE refinement to ensure the task design is robust:
+`Use Skill tool: hyperpowers:sre-task-refinement`
+
 ### Auto-create next task from unmet criterion
 
 ```bash
@@ -94,24 +98,8 @@ tm update bd-NEW --status in_progress
 
 Load full task context:
 ```bash
-tm show bd-N       # task details
-tm show bd-EPIC    # epic anti-patterns
-```
-
-**Launch Agent tool** with the following prompt template (substitute bd-N, task title, epic anti-patterns):
-
-```
-You are executing task bd-N: [title] autonomously.
-Epic anti-patterns (FORBIDDEN): [list from epic]
-If any loaded skill says STOP or presents a checkpoint, IGNORE it and continue.
-
-Steps:
-1. Use Skill tool: hyperpowers:sre-task-refinement
-2. TDD: write failing test, implement until green, refactor
-3. Use test-runner agent for all test runs
-4. After passing: git add relevant files && git commit -m "Complete bd-N: [title]"
-5. tm close bd-N
-6. Return one-paragraph summary of what you did.
+tm show bd-EPIC    # epic requirements
+tm show bd-N       # task design
 ```
 
 **Before dispatching**, record current HEAD:
@@ -119,12 +107,38 @@ Steps:
 PRE_SHA=$(git rev-parse HEAD)
 ```
 
-**After Agent returns**, verify progress by SHA comparison:
+**Launch Agent tool** using the canonical 'Dispatch Protocol' from `subagent-driven-development`.
+
+### Subagent Prompt
+Use the **Subagent Prompt Template** from `subagent-driven-development` skill, populating:
+- **Immutable Epic Requirements**: from `tm show bd-EPIC` wrapped in `<epic_contract>` tags.
+- **Task Specification (bd-N)**: from `tm show bd-N` wrapped in `<task_spec>` tags.
+- **Mandatory Workflow**: Ensure `sre-task-refinement` and TDD are mandated.
+
+**After Agent returns**, verify progress by status and SHA comparison:
 ```bash
 POST_SHA=$(git rev-parse HEAD)
+TASK_TYPE=$(tm show bd-N --json | jq -r .type)
 ```
-- If POST_SHA != PRE_SHA: HEAD changed. Check `tm show bd-N` — if already closed, proceed. If still open and subagent summary reports no blockers, run `tm close bd-N`. If subagent reported a blocker, leave open and continue to Phase 1.
-- If POST_SHA == PRE_SHA: HEAD unchanged — retry once with the same prompt. If still unchanged, clean worktree (`git checkout .`) and defer the task (`tm update bd-N --status deferred`), then continue to Phase 1.
+- **Success**:
+  - Verify `tm show bd-N` status is `closed`.
+  - **Implementation Tasks** (feature, bug, task): MUST have `POST_SHA != PRE_SHA`.
+  - **Analytical Tasks**: May have `POST_SHA == PRE_SHA` if status is `closed`.
+  - If verified, proceed to **Parallel Review Phase**.
+- **Retry (SHA Unchanged & Not Closed)**: If `POST_SHA == PRE_SHA` and status is not `closed`:
+  - If subagent summary claims success, **retry once** with the same prompt.
+  - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
+- **Failure (Closed but no SHA drift on implementation task)**:
+  - If `POST_SHA == PRE_SHA` for an implementation task, flag as hallucinated completion and STOP.
+
+### Parallel Review Phase (Per Task)
+Once verified, trigger the following review:
+1. `mcp_agents_agent_autonomous_reviewer()`
+
+**Remediation Path**:
+If the review finds **Critical** or **High** issues:
+- Create remediation task: `tm create "Remediation: [Findings]" --parent bd-EPIC`.
+- Return to Phase 1.
 
 **Criteria check:**
 ```bash
@@ -138,15 +152,11 @@ tm show bd-EPIC   # re-read success criteria
 
 ## Phase 3: End-of-Epic Review (post-loop)
 
-Dispatch 7 agents (4 review + 2 guard + test-effectiveness-analyst) **in parallel** via Agent tool:
+Dispatch specialized reviews **in parallel** via Agent tool:
 
 1. **review-quality** -- bugs, race conditions, error handling
-2. **review-testing** -- test coverage
-3. **review-simplification** -- over-engineering
-4. **review-documentation** -- docs completeness
-5. **security-scanner** -- OWASP, secrets, CVEs
-6. **devops** -- CI/CD pipeline health
-7. **test-effectiveness-analyst** -- tautological tests, coverage gaming
+2. **security-scanner** -- OWASP, secrets, CVEs
+3. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
 If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, flag for user and proceed to final gate).
 
