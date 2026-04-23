@@ -73,6 +73,7 @@ def is_dangerous(command):
 
 
 def emit_deny(reason):
+    """Emit a JSON deny decision and exit."""
     output = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -85,11 +86,13 @@ def emit_deny(reason):
 
 
 def emit_allow():
+    """Emit a JSON allow decision and exit."""
     print(json.dumps({"hookSpecificOutput": {"permissionDecision": "allow"}}))
     sys.exit(0)
 
 
 def main():
+    """Main hook entry point."""
     try:
         raw_input = sys.stdin.read()
         if not raw_input.strip():

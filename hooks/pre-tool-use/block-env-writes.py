@@ -53,6 +53,7 @@ def is_secret_file(file_path):
 
 
 def emit_deny(reason):
+    """Emit a JSON deny decision and exit."""
     output = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -65,11 +66,13 @@ def emit_deny(reason):
 
 
 def emit_allow():
+    """Emit a JSON allow decision and exit."""
     print(json.dumps({"hookSpecificOutput": {"permissionDecision": "allow"}}))
     sys.exit(0)
 
 
 def main():
+    """Main hook entry point."""
     try:
         raw_input = sys.stdin.read()
         if not raw_input.strip():
@@ -96,7 +99,7 @@ def main():
         emit_allow()
 
     if not isinstance(tool_input, dict):
-        emit_deny("Hook received malformed tool input. Blocking for safety.")
+        emit_deny("Hook received malformed tool input type. Blocking for safety.")
 
     # Check file paths across tool variants
     file_path = (
