@@ -15,9 +15,10 @@ The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context
 | 2 | **Load Task** | `tm show [task-id]` (Task design) |
 | 3 | **Dispatch** | `invoke_agent` with Structured Prompt |
 | 4 | **Verify** | SHA change (git) + Status check (tm) |
-| 5 | **Review** | Parallel Quality/Testing/Simplification reviews |
+| 5 | **Review** | Single per-task review via `autonomous-reviewer` |
 
-**Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.
+**Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.  
+**Review**: Run `mcp_agents_agent_autonomous_reviewer()` once per task after verification passes.
 </quick_reference>
 
 <the_process>
@@ -62,11 +63,11 @@ After the subagent returns, the orchestrator MUST perform independent verificati
 1. **Status Check**: Run `tm show [task-id] --json`. If the status is not 'closed', the task was not completed. **FAILURE**.
 2. **SHA Check**: Run `git rev-parse HEAD`. 
    - **For Implementation Tasks** (feature, bug, task): If `POST_SHA == PRE_SHA`, the subagent failed to commit changes. **FAILURE**.
-   - **For Analytical Tasks**: If `POST_SHA == PRE_SHA` but status is 'closed', accept as success.
+   - **For Analytical Tasks**: Accept success even if `POST_SHA == PRE_SHA` (no-op).
 3. **Safety Gate**: If verification fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
 
 ## 5. Parallel Review Phase
-Once the task is closed and verified, trigger independent reviews in parallel to ensure high standards:
+Once the task is closed and verified, trigger independent review to ensure high standards:
 - `mcp_agents_agent_autonomous_reviewer()`
 
 If the review identifies critical issues or regressions, create a child remediation task under the epic:
@@ -80,26 +81,24 @@ PRE_SHA=$(git rev-parse HEAD)
 
 # After Dispatch
 # 1. Status Check (Priority)
-STATUS=$(tm show [task-id] --json | jq -r .status 2>/dev/null)
+JSON_OUTPUT=$(tm show [task-id] --json)
+STATUS=$(echo "$JSON_OUTPUT" | jq -r .status 2>/dev/null)
+TASK_TYPE=$(echo "$JSON_OUTPUT" | jq -r .type 2>/dev/null)
+
 if [ "$STATUS" != "closed" ]; then
   echo "FAILURE: Task status is '$STATUS', expected 'closed'."
-  # Fallback for subagents that forgot to close
-  # tm close [task-id]
   exit 1
 fi
 
 # 2. SHA Check (Enforce Drift for Implementation Tasks)
 POST_SHA=$(git rev-parse HEAD)
-TASK_TYPE=$(tm show [task-id] --json | jq -r .type)
 
 if [ "$PRE_SHA" == "$POST_SHA" ]; then
   if [[ "$TASK_TYPE" =~ ^(feature|bug|task)$ ]]; then
-    echo "FAILURE: SHA drift not detected for implementation task '$TASK_TYPE'."
-    exit 1
-  elif [ "$STATUS" != "closed" ]; then
-    echo "FAILURE: SHA drift not detected and task not closed."
+    echo "FAILURE: SHA drift not detected for implementation task type '$TASK_TYPE'."
     exit 1
   fi
+  # Else: Accept no-op for non-implementation types
 fi
 ```
 </verification_logic>

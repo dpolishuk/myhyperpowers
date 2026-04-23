@@ -10,10 +10,12 @@ test("test_subagent_protocol_enforces_sha_drift_for_implementation_tasks", () =>
   const skill = read("skills/subagent-driven-development/SKILL.md")
   // Should enforce SHA drift for feature|bug|task
   assert.ok(skill.match(/if\s*\[\[\s*["']?\$TASK_TYPE["']?\s*=~\s*\^\(feature\|bug\|task\)\$\s*\]\]/i), "Should enforce SHA drift for implementation tasks")
-  // Should allow SHA unchanged for others if status is closed
-  assert.ok(skill.match(/elif\s*\[\s*["']?\$STATUS["']?\s*!=\s*["']?closed["']?\s*\]/i), "Should allow SHA unchanged for analytical tasks if status is closed")
-  // Positive assertion for the closed no-op path
-  assert.ok(skill.match(/Analytical Tasks.*POST_SHA.*PRE_SHA.*status.*closed/i), "Should explicitly allow analytical no-op")
+  // Should allow SHA unchanged for others (implicit success if closed)
+  assert.ok(skill.match(/if\s*\[\s*["']?\$PRE_SHA["']?\s*==\s*["']?\$POST_SHA["']?\s*\]\s*;\s*then/i), "Should handle unchanged SHA case")
+  // Positive assertion for the closed no-op path in description
+  assert.ok(skill.match(/Analytical Tasks.*POST_SHA.*PRE_SHA/i), "Should explicitly allow analytical no-op")
+  // Negative assertion: Ensure no permissive pattern allows no-op for non-analytical
+  assert.equal(skill.match(/If.*PRE_SHA\s*==\s*POST_SHA\s*then.*success/i), null, "Should not have permissive no-op pattern")
 })
 
 test("test_execute_ralph_mandates_sre_refinement_in_phase_1", () => {

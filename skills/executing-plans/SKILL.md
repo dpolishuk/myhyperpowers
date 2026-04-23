@@ -199,11 +199,11 @@ Before switching to a previously rejected approach, you MUST:
 2. **Record State**: `PRE_SHA=$(git rev-parse HEAD)`.
 3. **Dispatch**: Use `invoke_agent` with the standardized prompt from `subagent-driven-development`.
 4. **Verify Work**:
-   - Record `POST_SHA=$(git rev-parse HEAD)`
+   - Record `POST_SHA=$(git rev-parse HEAD)`.
    - Run `git diff PRE_SHA..POST_SHA` to review changes.
    - Run `tm show bd-2` to verify status is `closed`.
-   - **Fallback**: If the subagent implemented the task but forgot to close it, run `tm close bd-2` to synchronize status.
-5. **Review and Continue**: Proceed to the Review phase below.
+5. **Fail closed**: If the task is not closed, do **not** close it locally in this flow. Treat the dispatch as incomplete, stop, and either re-dispatch or explicitly review/fix the task before any manual closure.
+6. **Review and Continue**: Proceed to the Review phase below.
 
 ---
 
