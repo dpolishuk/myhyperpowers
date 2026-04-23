@@ -60,6 +60,43 @@ test("TM_BACKEND=br tm create translates --design to --description", () => {
   }
 })
 
+test("TM_BACKEND=br tm create translates --design-file to --description with file content", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-mapping-test-"))
+  try {
+    const { logPath, binDir } = createMockBackend(tmpDir, "br")
+    
+    const fakeScriptsDir = path.join(tmpDir, "scripts")
+    fs.mkdirSync(fakeScriptsDir, { recursive: true })
+    fs.copyFileSync(tmPath, path.join(fakeScriptsDir, "tm"))
+    fs.copyFileSync(tmBackendsPath, path.join(fakeScriptsDir, "tm-backends.sh"))
+    const fakeTmPath = path.join(fakeScriptsDir, "tm")
+    fs.chmodSync(fakeTmPath, 0o755)
+
+    const designPath = path.join(tmpDir, "design.md")
+    fs.writeFileSync(designPath, "Content from file")
+
+    const env = {
+      ...process.env,
+      TM_BACKEND: "br",
+      PATH: `${binDir}:${process.env.PATH}`,
+      TM_REPO_ROOT: tmpDir
+    }
+    fs.mkdirSync(path.join(tmpDir, ".beads"), { recursive: true })
+
+    const result = spawnSync(fakeTmPath, ["create", "My Task", "--design-file", designPath], {
+      cwd: tmpDir,
+      env,
+      encoding: "utf8"
+    })
+
+    assert.strictEqual(result.status, 0, result.stderr)
+    const log = fs.readFileSync(logPath, "utf8").trim()
+    assert.strictEqual(log, "create My Task --description Content from file")
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  }
+})
+
 test("TM_BACKEND=br tm update does NOT translate --design", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-mapping-test-"))
   try {

@@ -295,13 +295,30 @@ main() {
       # br create uses --description instead of --design
       if tm_backend_should_translate_create_design "$backend" && [[ "${1:-}" == "create" ]]; then
         local new_args=()
-        local arg
-        for arg in "${args[@]}"; do
+        local i=0
+        while [[ $i -lt ${#args[@]} ]]; do
+          local arg="${args[$i]}"
           if [[ "$arg" == "--design" ]]; then
             new_args+=("--description")
+          elif [[ "$arg" == "--design-file" ]]; then
+            local next_idx=$((i + 1))
+            if [[ $next_idx -lt ${#args[@]} ]]; then
+              local design_file="${args[$next_idx]}"
+              if [[ -f "$design_file" ]]; then
+                new_args+=("--description" "$(cat "$design_file")")
+                i=$next_idx
+              else
+                echo "tm: design file '$design_file' not found" >&2
+                exit 1
+              fi
+            else
+              echo "tm: --design-file requires a file path" >&2
+              exit 1
+            fi
           else
             new_args+=("$arg")
           fi
+          i=$((i + 1))
         done
         args=("${new_args[@]}")
       fi

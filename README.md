@@ -34,6 +34,19 @@ Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing 
 - `tk` = Ticket, a git-backed markdown ticket workflow alternative
 - `linear` = Linear-native backend preview (core commands only on this repo branch)
 
+## tm Backend Interoperability
+
+While `tm` provides a unified interface, some backends use different flag names or behaviors. `tm` automatically translates these for you when possible.
+
+### Flag Mapping
+
+| tm Flag | br Backend | bd Backend |
+|---------|------------|------------|
+| `--design` | `--description` | `--design` |
+| `--design-file <file>` | `$(cat <file>)` passed to `--description` | `--design-file` |
+
+This mapping currently only applies to the `create` command when using the `br` backend.
+
 On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode, and this branch now exposes a minimal preview command surface for `TM_BACKEND=linear`.
 
 If you only want the main working model:
