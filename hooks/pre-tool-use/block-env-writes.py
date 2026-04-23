@@ -73,12 +73,16 @@ def main():
     if not isinstance(tool_input, dict):
         tool_input = {}
 
-    # Only check Edit and Write tool calls
-    if tool_name not in ("Edit", "Write"):
+    # Check all write-capable tools
+    if tool_name not in ("Edit", "Write", "NotebookEdit"):
         emit_allow()
 
-    # Check both file_path and path fields for robustness
-    file_path = tool_input.get("file_path", "") or tool_input.get("path", "")
+    # Check file paths across tool variants
+    file_path = (
+        tool_input.get("file_path", "")
+        or tool_input.get("path", "")
+        or tool_input.get("notebook_path", "")
+    )
 
     if not file_path:
         emit_allow()

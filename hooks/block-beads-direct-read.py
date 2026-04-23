@@ -48,7 +48,7 @@ def main():
 
     # Defensive: ensure tool_input is a dict
     if not isinstance(tool_input, dict):
-        emit_allow()
+        emit_deny("Hook received unexpected tool_input type. Blocking for safety.")
         return
 
     # Check for file_path in Read tool
