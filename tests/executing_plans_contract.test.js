@@ -16,9 +16,9 @@ test('executing-plans skill contract', async (t) => {
   });
 
   await t.test('should include verification steps for stateless path', () => {
-    assert.ok(content.match(/Record POST_SHA/i), 'Missing POST_SHA step');
-    assert.ok(content.match(/git diff PRE_SHA\.\.POST_SHA/i), 'Missing git diff step');
-    assert.ok(content.match(/tm show bd-\d+/i), 'Missing tm show step');
+    assert.ok(content.match(/Record\s*[`"']?POST_SHA[`"']?/i), 'Missing POST_SHA step');
+    assert.ok(content.match(/git diff\s*[`"']?PRE_SHA\.\.POST_SHA[`"']?/i), 'Missing git diff step');
+    assert.ok(content.match(/tm show\s*[`"']?bd-\d+[`"']?/i), 'Missing tm show step');
   });
 
   await t.test('should update Review phase with subagent findings', () => {
