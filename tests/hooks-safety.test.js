@@ -396,6 +396,19 @@ test("03-block-pre-commit-bash: allows redirection to pre-commit-report.txt", ()
   assertAllow(stdout, "03-block-pre-commit-bash report file")
 })
 
+test("03-block-pre-commit-bash: blocks relative write with cd into hooks dir (bypass check)", () => {
+  const stdout = runHook(
+    "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    JSON.stringify({
+      tool_name: "Bash",
+      tool_input: {
+        command: "cd .git/hooks && cp my-hook pre-commit",
+      },
+    })
+  )
+  assertDeny(stdout, "03-block-pre-commit-bash relative bypass")
+})
+
 // ---------------------------------------------------------------------------
 // Extra coverage for 04-block-pre-existing-checks
 // ---------------------------------------------------------------------------

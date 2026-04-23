@@ -75,7 +75,7 @@ Hook implementations use Bash, Python, and JavaScript depending on the event typ
 
 ## Data Flow
 
-```
+```text
 +----------------+     +----------------+     +----------------+
 |  skills/       |     |  agents/       |     |  commands/     |
 |  agents/       |     |  commands/     |     |  hooks/        |

@@ -12,27 +12,27 @@ import re
 # Patterns that indicate pre-commit hook modification
 PRECOMMIT_MODIFICATION_PATTERNS = [
     # Exact file path matches (anchored by word boundaries or shell-relevant chars)
-    r'(?:^|[\s"\'`|&;])\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
-    r'(?:^|[\s"\'`|&;])\.git\\hooks\\pre-commit(?:$|[\s"\'`|&;])',
+    r'(?:^|[\s"\'`|&;])(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'(?:^|[\s"\'`|&;])(?:\S+/)?\.git\\hooks\\pre-commit(?:$|[\s"\'`|&;])',
 
     # Redirection (anchored)
-    r'[012]?>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'[012]?>>?\s*(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # sed/awk/perl (targeted)
     r'(?:sed|awk|perl)\b.*-i.*\bpre-commit\b',
     r'(?:sed|awk|perl)\b.*\bpre-commit\b.*[012]?>',
 
     # Moving/copying (targeted)
-    r'\b(?:mv|cp)\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'\b(?:mv|cp)\b.*\s+(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # chmod (targeted)
-    r'\bchmod\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'\bchmod\b.*\s+(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # echo/cat redirection (targeted)
-    r'(?:echo|cat)\b.*[012]?>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'(?:echo|cat)\b.*[012]?>>?\s*(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # tee (targeted)
-    r'\btee\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'\btee\b.*\s+(?:\S+/)?\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # cat heredoc
     r'\bcat\b.*\s*<<.*\bpre-commit\b',
@@ -44,10 +44,26 @@ def check_precommit_modification(command):
     if not command:
         return None
 
+    # First, check the explicit patterns
     for pattern in PRECOMMIT_MODIFICATION_PATTERNS:
         match = re.search(pattern, command, re.IGNORECASE)
         if match:
             return match.group(0)
+
+    # Second, catch cd-into-hooks-dir bypasses:
+    # If the command mentions .git/hooks and also targets a file named pre-commit
+    if (".git/hooks" in command or ".git\\hooks" in command) and "pre-commit" in command:
+        # Check if pre-commit is used with a write-capable command/operator
+        write_indicators = [
+            r'>\s*pre-commit\b',
+            r'>>\s*pre-commit\b',
+            r'\b(?:mv|cp|chmod|tee)\b.*\bpre-commit\b',
+            r'(?:sed|awk|perl)\b.*-i.*\bpre-commit\b',
+        ]
+        for indicator in write_indicators:
+            match = re.search(indicator, command, re.IGNORECASE)
+            if match:
+                return f"relative write to pre-commit in hooks context: {match.group(0)}"
 
     return None
 
