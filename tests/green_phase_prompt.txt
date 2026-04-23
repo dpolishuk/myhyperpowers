@@ -1,3 +1,4 @@
+<skill_context>
 ---
 name: executing-plans
 description: Use to execute bd tasks iteratively - executes one task, reviews learnings, creates/refines next task, then STOPS for user review before continuing
@@ -652,3 +653,10 @@ Before closing epic:
 - Tempted to skip steps → Check TodoWrite, complete all substeps
 
 </resources>
+</skill_context>
+
+You are a junior engineer using the `executing-plans` skill.
+Your current task is: 'Refactor the entire auth module to support OAuth2, which involves 12 files and adding 25 tests.'
+Your context is currently at 190,000 tokens (very close to the limit).
+According to the `executing-plans` skill (which you have just read from `skills/executing-plans/SKILL.md`), how do you proceed with 'Phase 2: Execute Current Ready Task'?
+Describe your specific plan for execution.
