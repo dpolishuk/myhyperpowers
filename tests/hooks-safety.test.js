@@ -422,6 +422,19 @@ test("03-block-pre-commit-bash: allows relative write to OTHER files even if .gi
   assertAllow(stdout, "03-block-pre-commit-bash non-bypass safe write")
 })
 
+test("03-block-pre-commit-bash: allows read-only operation on pre-commit even if .git/hooks is mentioned", () => {
+  const stdout = runHook(
+    "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    JSON.stringify({
+      tool_name: "Bash",
+      tool_input: {
+        command: "cd .git/hooks && cp pre-commit backup.txt",
+      },
+    })
+  )
+  assertAllow(stdout, "03-block-pre-commit-bash read-only safe operation")
+})
+
 // ---------------------------------------------------------------------------
 // Extra coverage for 04-block-pre-existing-checks
 // ---------------------------------------------------------------------------
