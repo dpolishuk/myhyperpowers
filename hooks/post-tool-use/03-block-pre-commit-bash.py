@@ -44,10 +44,27 @@ def check_precommit_modification(command):
     if not command:
         return None
 
+    # First, check the explicit patterns
     for pattern in PRECOMMIT_MODIFICATION_PATTERNS:
         match = re.search(pattern, command, re.IGNORECASE)
         if match:
             return match.group(0)
+
+    # Second, catch cd-into-hooks-dir bypasses:
+    # If the command mentions .git/hooks and also targets a file named pre-commit
+    if (".git/hooks" in command or ".git\\hooks" in command) and "pre-commit" in command:
+        # Check if pre-commit is used with a write-capable command/operator
+        # Ensure we match EXACTLY "pre-commit" and not "pre-commit-report.txt"
+        write_indicators = [
+            r'>\s*(?:\S+/)?pre-commit(?![-\w\.])',
+            r'>>\s*(?:\S+/)?pre-commit(?![-\w\.])',
+            r'\b(?:mv|cp|chmod|tee)\b.*\s+(?:\S+/)?pre-commit(?![-\w\.])',
+            r'(?:sed|awk|perl)\b.*-i.*\bpre-commit(?![-\w\.])',
+        ]
+        for indicator in write_indicators:
+            match = re.search(indicator, command, re.IGNORECASE)
+            if match:
+                return f"relative write to pre-commit in hooks context: {match.group(0)}"
 
     return None
 
