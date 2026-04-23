@@ -5,6 +5,12 @@ description: "Use when the original skill 'writing-plans' applies. Use to expand
 
 <!-- Generated from skills/writing-plans/SKILL.md -->
 
+<codex_compat>
+Note: The AskUserQuestion tool is not available on this platform. 
+Instead, format your questions using the structured text blocks: "Question:", "Options:", "Priority:".
+Verification of Phase 1 requires at least 3 such properly formatted question blocks in your message history.
+</codex_compat>
+
 <skill_overview>
 Enhance bd tasks with comprehensive implementation details for engineers with zero codebase context. Expand checklists into explicit steps: which files, complete code examples, exact commands, verification steps.
 </skill_overview>

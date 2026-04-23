@@ -182,6 +182,21 @@ const collectCanonicalEntries = (projectRoot) => {
   const entries = []
   const errors = []
 
+  // Load platform tool availability (e.g. from .kimi/hyperpowers.yaml)
+  let availableTools = []
+  const platformManifestPath = path.join(projectRoot, ".kimi", "hyperpowers.yaml")
+  if (fs.existsSync(platformManifestPath)) {
+    const manifest = fs.readFileSync(platformManifestPath, "utf8")
+    const toolsMatch = manifest.match(/tools:\n([\s\S]*?)(?:\n\w+:|$)/)
+    if (toolsMatch) {
+      availableTools = toolsMatch[1]
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("-"))
+        .map((line) => line.replace(/^- ["']?|["']?$/g, "").split(":").pop())
+    }
+  }
+
   const skillsRoot = path.join(projectRoot, "skills")
   for (const skillDir of listDirectories(skillsRoot)) {
     const sourcePath = path.join(skillsRoot, skillDir, "SKILL.md")
@@ -221,6 +236,20 @@ const collectCanonicalEntries = (projectRoot) => {
         contextLabel: `generated wrapper ${wrapperName}`,
       }),
     )
+
+    let body = parsed.body.trimStart()
+
+    // Automatically inject compatibility note if AskUserQuestion is used but missing from platform
+    if (body.includes("AskUserQuestion") && !availableTools.includes("AskUserQuestion")) {
+      if (!body.includes("<codex_compat>") && !body.includes("In Codex/Kimi platforms where AskUserQuestion is not a registered tool")) {
+        body = `<codex_compat>
+Note: The AskUserQuestion tool is not available on this platform. 
+Instead, format your questions using the structured text blocks: "Question:", "Options:", "Priority:".
+Verification of Phase 1 requires at least 3 such properly formatted question blocks in your message history.
+</codex_compat>\n\n${body}`
+      }
+    }
+
     entries.push({
       generatedName: wrapperName,
       generatedDescription: wrapperDescription,
@@ -231,7 +260,7 @@ description: ${quoteYamlScalar(wrapperDescription)}
 
 <!-- Generated from ${path.relative(projectRoot, sourcePath)} -->
 
-${parsed.body.trimStart()}`),
+${body}`),
       sourcePath: path.relative(projectRoot, sourcePath),
       sourceType: "skill",
     })
