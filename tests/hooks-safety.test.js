@@ -10,6 +10,7 @@ const runHook = (hookPath, input) => {
     cwd: repoRoot,
     input: input ?? "",
     encoding: "utf8",
+    timeout: 5000,
   })
 }
 

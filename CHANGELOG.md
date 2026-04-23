@@ -5,6 +5,7 @@ All notable changes to Hyperpowers are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`tm` flag translation**: `tm create` now automatically maps `--design` and `--design-file` to `--description` when using the `br` backend, ensuring compatibility with standard Hyperpowers skills (hyper-miy).
 - **Safety hooks** with mandatory fail-closed behavior on parse errors (hyper-c8d).
 - **Hook integration tests** covering stdin/stdout JSON contracts for all blocking hooks (hyper-c8d).
 - **CI quality gates** expanded to include `sync-codex-skills.js --check`, Gemini extension tests, security audit, and weekly scheduled runs (hyper-d8f).

@@ -16,8 +16,10 @@ function createMockBackend(tmpDir, name) {
   }
   const mockPath = path.join(binDir, name)
   const logPath = path.join(tmpDir, `${name}.log`)
-  fs.writeFileSync(mockPath, `#!/usr/bin/env bash
-echo "$@" >> "${logPath}"
+  // Create a Node-based mock that logs arguments as JSON array
+  fs.writeFileSync(mockPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync("${logPath}", JSON.stringify(process.argv.slice(2)) + "\\n");
 `)
   fs.chmodSync(mockPath, 0o755)
   return { mockPath, logPath, binDir }
@@ -28,8 +30,6 @@ test("TM_BACKEND=br tm create translates --design to --description", () => {
   try {
     const { logPath, binDir } = createMockBackend(tmpDir, "br")
     
-    // We need scripts/tm to be able to find tm-backends.sh
-    // So we copy them to a fake scripts dir in tmpDir
     const fakeScriptsDir = path.join(tmpDir, "scripts")
     fs.mkdirSync(fakeScriptsDir, { recursive: true })
     fs.copyFileSync(tmPath, path.join(fakeScriptsDir, "tm"))
@@ -41,9 +41,8 @@ test("TM_BACKEND=br tm create translates --design to --description", () => {
       ...process.env,
       TM_BACKEND: "br",
       PATH: `${binDir}:${process.env.PATH}`,
-      TM_REPO_ROOT: tmpDir // ensure it finds a repo root
+      TM_REPO_ROOT: tmpDir
     }
-    // Create .beads dir to make it a repo root
     fs.mkdirSync(path.join(tmpDir, ".beads"), { recursive: true })
 
     const result = spawnSync(fakeTmPath, ["create", "My Task", "--design", "My Design"], {
@@ -54,7 +53,8 @@ test("TM_BACKEND=br tm create translates --design to --description", () => {
 
     assert.strictEqual(result.status, 0, result.stderr)
     const log = fs.readFileSync(logPath, "utf8").trim()
-    assert.strictEqual(log, "create My Task --description My Design")
+    const args = JSON.parse(log)
+    assert.deepEqual(args, ["create", "My Task", "--description", "My Design"])
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   }
@@ -91,7 +91,8 @@ test("TM_BACKEND=br tm create translates --design-file to --description with fil
 
     assert.strictEqual(result.status, 0, result.stderr)
     const log = fs.readFileSync(logPath, "utf8").trim()
-    assert.strictEqual(log, "create My Task --description Content from file")
+    const args = JSON.parse(log)
+    assert.deepEqual(args, ["create", "My Task", "--description", "Content from file"])
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   }
@@ -125,7 +126,8 @@ test("TM_BACKEND=br tm update does NOT translate --design", () => {
 
     assert.strictEqual(result.status, 0, result.stderr)
     const log = fs.readFileSync(logPath, "utf8").trim()
-    assert.strictEqual(log, "update task-1 --design New Design")
+    const args = JSON.parse(log)
+    assert.deepEqual(args, ["update", "task-1", "--design", "New Design"])
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   }
@@ -159,7 +161,8 @@ test("TM_BACKEND=bd tm create does NOT translate --design", () => {
 
     assert.strictEqual(result.status, 0, result.stderr)
     const log = fs.readFileSync(logPath, "utf8").trim()
-    assert.strictEqual(log, "create My Task --design My Design")
+    const args = JSON.parse(log)
+    assert.deepEqual(args, ["create", "My Task", "--design", "My Design"])
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   }

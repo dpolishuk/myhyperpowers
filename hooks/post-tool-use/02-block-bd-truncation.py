@@ -106,10 +106,8 @@ def main():
         emit_allow()
     except json.JSONDecodeError:
         emit_deny("Hook received malformed or empty input. Blocking for safety.")
-        return
     except Exception as e:
         emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
-        return
 
 
 if __name__ == "__main__":

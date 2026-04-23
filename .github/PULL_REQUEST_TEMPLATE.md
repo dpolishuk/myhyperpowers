@@ -10,6 +10,8 @@ Fixes #(issue number) or references epic/task IDs.
 
 - [ ] I have read the project `AGENTS.md` and followed the coding style guidelines.
 - [ ] I have run `node --test tests/*.test.js` and all tests pass.
+- [ ] I have run `npm run lint` and it passes.
+- [ ] I have run `npm run test:ci-local` and it passes.
 - [ ] I have run `node scripts/sync-codex-skills.js --check` and it passes.
 - [ ] If I modified skills, agents, or commands, I ran `node scripts/sync-codex-skills.js --write` to regenerate Codex wrappers.
 - [ ] I have added or updated tests for any new or changed functionality.

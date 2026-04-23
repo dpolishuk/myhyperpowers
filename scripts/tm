@@ -271,6 +271,8 @@ main() {
   backend=$(detect_backend)
   validate_backend "$backend"
 
+  local ORIGINAL_PWD="$PWD"
+
   case "$backend" in
     bd|br|tk)
       local backend_cmd
@@ -304,11 +306,16 @@ main() {
             local next_idx=$((i + 1))
             if [[ $next_idx -lt ${#args[@]} ]]; then
               local design_file="${args[$next_idx]}"
-              if [[ -f "$design_file" ]]; then
-                new_args+=("--description" "$(cat "$design_file")")
+              # Resolve design_file relative to ORIGINAL_PWD if it is not absolute
+              local resolved_design_file="$design_file"
+              if [[ "$design_file" != /* ]]; then
+                resolved_design_file="$ORIGINAL_PWD/$design_file"
+              fi
+              if [[ -f "$resolved_design_file" ]]; then
+                new_args+=("--description" "$(cat "$resolved_design_file")")
                 i=$next_idx
               else
-                echo "tm: design file '$design_file' not found" >&2
+                echo "tm: design file '$design_file' not found (resolved to '$resolved_design_file')" >&2
                 exit 1
               fi
             else

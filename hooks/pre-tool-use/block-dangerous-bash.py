@@ -21,11 +21,11 @@ DANGEROUS_PATTERNS = [
     r'\brm\s+.*(?:/|~|\$HOME)\s+.*-\S*f\S*',
     # git push --force (but not --force-with-lease)
     r'\bgit\s+push\s+.*--force(?!-with-lease)(?=\s|$)',
-    r'\bgit\s+push\s+.*-f\b',
+    r'\bgit\s+push\s+.*-f(?:\s|$)',
     # git reset --hard
     r'\bgit\s+reset\s+.*--hard\b',
     # sudo / su (only when sudo is the actual command, not a string argument)
-    r'(?:^|[;|&\|])\s*sudo\b',
+    r'(?:^|[;|&])\s*sudo\b',
     r'\bsu\s+-',
     r'^su\s*$',
     # curl | bash / wget | bash
