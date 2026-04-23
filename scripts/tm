@@ -271,6 +271,8 @@ main() {
   backend=$(detect_backend)
   validate_backend "$backend"
 
+  local ORIGINAL_PWD="$PWD"
+
   case "$backend" in
     bd|br|tk)
       local backend_cmd
@@ -290,10 +292,48 @@ main() {
       if [[ -n "$repo_root" ]]; then
         cd "$repo_root"
       fi
+
+      local args=("$@")
+      # br create uses --description instead of --design
+      if tm_backend_should_translate_create_design "$backend" && [[ "${1:-}" == "create" ]]; then
+        local new_args=()
+        local i=0
+        while [[ $i -lt ${#args[@]} ]]; do
+          local arg="${args[$i]}"
+          if [[ "$arg" == "--design" ]]; then
+            new_args+=("--description")
+          elif [[ "$arg" == "--design-file" ]]; then
+            local next_idx=$((i + 1))
+            if [[ $next_idx -lt ${#args[@]} ]]; then
+              local design_file="${args[$next_idx]}"
+              # Resolve design_file relative to ORIGINAL_PWD if it is not absolute
+              local resolved_design_file="$design_file"
+              if [[ "$design_file" != /* ]]; then
+                resolved_design_file="$ORIGINAL_PWD/$design_file"
+              fi
+              if [[ -f "$resolved_design_file" ]]; then
+                new_args+=("--description" "$(cat "$resolved_design_file")")
+                i=$next_idx
+              else
+                echo "tm: design file '$design_file' not found (resolved to '$resolved_design_file')" >&2
+                exit 1
+              fi
+            else
+              echo "tm: --design-file requires a file path" >&2
+              exit 1
+            fi
+          else
+            new_args+=("$arg")
+          fi
+          i=$((i + 1))
+        done
+        args=("${new_args[@]}")
+      fi
+
       # Intercept sync: run backend-local sync first, then supported follow-on sync.
       if [[ "${1:-}" == "sync" ]]; then
         if [[ "${2:-}" == "--help" || "${2:-}" == "-h" || "${2:-}" == "--version" || "${2:-}" == "-v" ]]; then
-          exec "$backend_cmd" "$@"
+          exec "$backend_cmd" "${args[@]}"
         fi
         local sync_exit=0
         if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
@@ -349,7 +389,7 @@ main() {
         fi
         exit "$linear_exit"
       fi
-      exec "$backend_cmd" "$@"
+      exec "$backend_cmd" "${args[@]}"
       ;;
     linear)
       local repo_root

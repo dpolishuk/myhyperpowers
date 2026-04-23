@@ -92,6 +92,42 @@ Direct file access bypasses bd validation and often fails due to file size. The 
 - Document changes and get them reviewed
 - Never bypass with --no-verify
 
+**File:** `hooks/pre-tool-use/block-dangerous-bash.py`
+**Purpose:** Blocks destructive Bash commands (rm -rf, git push --force, sudo, curl | bash, etc.)
+**Input:** `{"tool_name": "Bash", "tool_input": {"command": "..."}}`
+**Output:** `{"hookSpecificOutput": {"permissionDecision": "deny", ...}}` (blocking)
+
+**How it works:**
+1. Intercepts Bash tool calls
+2. Scans command for known dangerous patterns
+3. Blocks the operation if a dangerous pattern is detected
+4. Provides guidance on safer alternatives
+
+**Blocked patterns include:**
+- `rm -rf /`, `rm -rf ~`, or similar recursive deletions
+- `git push --force` (but not `--force-with-lease`)
+- `git reset --hard`
+- `sudo` / `su -` (privilege escalation)
+- `curl | bash` or `wget | bash` (arbitrary code execution)
+- `docker system prune -f` (destructive cleanup)
+
+**File:** `hooks/pre-tool-use/block-env-writes.py`
+**Purpose:** Blocks writes to secret and environment files (.env, .pem, id_rsa, .key)
+**Input:** `{"tool_name": "Edit|Write", "tool_input": {"file_path": "..."}}`
+**Output:** `{"hookSpecificOutput": {"permissionDecision": "deny", ...}}` (blocking)
+
+**How it works:**
+1. Intercepts Edit and Write tool calls
+2. Checks if the target file path is a known secret/sensitive file
+3. Blocks the operation if detected
+4. Suggests using dedicated secret management tools
+
+**Blocked file types:**
+- `.env`, `.env.local`, `.env.*` (environment files)
+- `*.pem` (certificates)
+- `id_rsa`, `id_rsa.pub` (SSH keys)
+- `*.key` (private keys)
+
 ### PostToolUse Hooks
 
 **File:** `hooks/post-tool-use/01-track-edits.sh`
@@ -457,7 +493,7 @@ A: Yes, remove all entries from `hooks/hooks.json` or rename the `hooks/` direct
 A: No, hooks are designed to be fast (<100ms) and run in the background.
 
 **Q: Can hooks fail and block me?**
-A: No, all hooks are non-blocking and always return empty responses `{}` even on error.
+A: Some hooks are blocking (PreToolUse and certain PostToolUse hooks) and return `{"hookSpecificOutput": {"permissionDecision": "deny"}}` to prevent dangerous operations. Others are non-blocking and return empty responses `{}` even on error. Blocking hooks are designed to fail-closed: malformed input or unexpected errors result in a deny decision.
 
 **Q: How do I add my own skills/agents to the activator?**
 A: Edit `hooks/skill-rules.json` to add your skill/agent with keywords and patterns. Use `"type": "agent"` for agents.

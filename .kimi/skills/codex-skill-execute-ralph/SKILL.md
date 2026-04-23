@@ -148,7 +148,7 @@ Dispatch 7 agents (4 review + 2 guard + test-effectiveness-analyst) **in paralle
 6. **devops** -- CI/CD pipeline health
 7. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
-If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, flag for user and proceed to final gate).
+If any issues found, create remediation task and return to Phase 1. You MUST continue the remediation loop until ALL 7 specialist agents return a clean PASS. Do not proceed to the final gate while specialist findings remain unresolved. (max 50 no-progress remediation cycles; escalate to user only if no progress is being made).
 
 **Final gate** -- dispatch in parallel:
 - **autonomous-reviewer**: return APPROVED or GAPS_FOUND

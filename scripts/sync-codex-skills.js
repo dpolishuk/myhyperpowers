@@ -154,6 +154,14 @@ const isSymlink = (absolutePath) => {
   return fs.lstatSync(absolutePath).isSymbolicLink()
 }
 
+const CODEX_COMPAT_INJECTED = `<codex_compat>
+Note: The AskUserQuestion tool is not available on this platform.
+Instead, format your questions using the structured text blocks: "Question:", "Options:", "Priority:".
+Verification of Phase 1 requires at least 3 such properly formatted question blocks in your message history.
+</codex_compat>
+`
+const CODEX_COMPAT_CANONICAL_MARKER = "In Codex/Kimi platforms where AskUserQuestion is not a registered tool"
+
 const createWrapperContent = ({ wrapperName, wrapperDescription, sourcePath, originalContent, wrapperType }) => {
   return ensureTrailingNewline(`---
 name: ${wrapperName}
@@ -181,6 +189,23 @@ ${originalContent.trimEnd()}
 const collectCanonicalEntries = (projectRoot) => {
   const entries = []
   const errors = []
+
+  // Load platform tool availability (e.g. from .kimi/hyperpowers.yaml)
+  let availableTools = []
+  const platformManifestPath = path.join(projectRoot, ".kimi", "hyperpowers.yaml")
+  if (fs.existsSync(platformManifestPath)) {
+    const manifest = fs.readFileSync(platformManifestPath, "utf8")
+    const toolsMatch = manifest.match(/tools:\n([\s\S]*?)(?:\n\w+:|$)/)
+    if (toolsMatch) {
+      availableTools = toolsMatch[1]
+        .split("\n")
+        .map((line) => line.replace(/#.*$/, "").trim())
+        .filter((line) => line.startsWith("-"))
+        .map((line) => line.replace(/^-\s*/, "").split(":").pop().trim())
+        .map((line) => line.replace(/^['"]/, "").replace(/['"]$/, ""))
+        .filter(Boolean)
+    }
+  }
 
   const skillsRoot = path.join(projectRoot, "skills")
   for (const skillDir of listDirectories(skillsRoot)) {
@@ -221,6 +246,17 @@ const collectCanonicalEntries = (projectRoot) => {
         contextLabel: `generated wrapper ${wrapperName}`,
       }),
     )
+
+    let body = parsed.body.trimStart()
+
+    // Automatically inject compatibility note if AskUserQuestion is used but missing from platform.
+    // Note: This injection only runs for the skills loop.
+    if (body.includes("AskUserQuestion") && !availableTools.includes("AskUserQuestion")) {
+      if (!body.includes("<codex_compat>") && !body.includes(CODEX_COMPAT_CANONICAL_MARKER)) {
+        body = `${CODEX_COMPAT_INJECTED}\n${body}`
+      }
+    }
+
     entries.push({
       generatedName: wrapperName,
       generatedDescription: wrapperDescription,
@@ -231,7 +267,7 @@ description: ${quoteYamlScalar(wrapperDescription)}
 
 <!-- Generated from ${path.relative(projectRoot, sourcePath)} -->
 
-${parsed.body.trimStart()}`),
+${body}`),
       sourcePath: path.relative(projectRoot, sourcePath),
       sourceType: "skill",
     })

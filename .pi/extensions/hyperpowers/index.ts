@@ -9,7 +9,8 @@
 import { readFileSync, existsSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { homedir } from "node:os"
-import { join, resolve, basename } from "node:path"
+import { join, resolve, dirname, basename } from "node:path"
+import { fileURLToPath } from "node:url"
 import { Type } from "@sinclair/typebox"
 import { Container, SelectList, Text, Spacer } from "@mariozechner/pi-tui"
 import askUserPlugin from "pi-ask-user"
@@ -31,7 +32,7 @@ import {
 } from "./routing"
 
 // Resolve skill paths: try extension-local skills first, then repo root
-const EXTENSION_DIR = import.meta.dir ?? __dirname
+const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url))
 const ROUTING_CONFIG_PATH = join(EXTENSION_DIR, "routing.json")
 const SKILLS_DIRS = [
   join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/

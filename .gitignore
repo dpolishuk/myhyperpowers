@@ -27,3 +27,4 @@ dist/
 *.db
 .beads/.beads-credential-key
 .opencode/cache/
+.beads/.br_recovery/
