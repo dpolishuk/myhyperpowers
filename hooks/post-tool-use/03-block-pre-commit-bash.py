@@ -29,7 +29,7 @@ PRECOMMIT_MODIFICATION_PATTERNS = [
     r'\bchmod\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # echo/cat redirection (targeted)
-    r'(?:echo|cat)\b.*[012]>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
+    r'(?:echo|cat)\b.*[012]?>>?\s*\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',
 
     # tee (targeted)
     r'\btee\b.*\s+\.git/hooks/pre-commit(?:$|[\s"\'`|&;])',

@@ -10,6 +10,20 @@ import json
 import sys
 import os
 
+TRUNCATION_MARKERS = (
+    "[truncated]",
+    "<truncated>",
+    "... truncated",
+    "truncated ...",
+    "\ufffd",  # Replacement character
+    "…",
+)
+
+
+def has_truncation_marker(value):
+    """Return True when hook input appears truncated."""
+    return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
+
 
 def is_secret_file(file_path):
     """Check if a file path is a secret/sensitive file."""
@@ -56,41 +70,46 @@ def emit_allow():
 
 def main():
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        if not raw_input.strip():
+            emit_deny("Hook received empty input. Blocking for safety.")
+
+        if has_truncation_marker(raw_input):
+            emit_deny("Hook input appears truncated. Blocking for safety.")
+
+        input_data = json.loads(raw_input)
     except json.JSONDecodeError:
-        emit_deny("Hook received malformed or empty input. Blocking for safety.")
-        return
+        emit_deny("Hook received malformed JSON input. Blocking for safety.")
     except Exception as e:
-        emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
-        return
+        emit_deny(f"Hook encountered an unexpected error during parsing: {e}. Blocking for safety.")
 
     if not isinstance(input_data, dict):
         emit_deny("Hook received non-object JSON. Blocking for safety.")
 
     tool_name = input_data.get("tool_name", "")
-    tool_input = input_data.get("tool_input", {})
-
-    if not isinstance(tool_input, dict):
-        tool_input = {}
+    tool_input = input_data.get("tool_input")
 
     # Check all write-capable tools
     if tool_name not in ("Edit", "Write", "NotebookEdit"):
         emit_allow()
 
+    if not isinstance(tool_input, dict):
+        emit_deny("Hook received malformed tool input. Blocking for safety.")
+
     # Check file paths across tool variants
     file_path = (
-        tool_input.get("file_path", "")
-        or tool_input.get("path", "")
-        or tool_input.get("notebook_path", "")
+        tool_input.get("file_path")
+        or tool_input.get("path")
+        or tool_input.get("notebook_path")
     )
 
-    if not file_path:
+    if not file_path or not isinstance(file_path, str):
         emit_allow()
 
     if is_secret_file(file_path):
         emit_deny(
             f"🚫 SECRET FILE WRITE BLOCKED\n\n"
-            f"Attempted to write: {file_path}\n\n"
+            f"Attempted to write: {file_path[:200]}{'...' if len(file_path) > 200 else ''}\n\n"
             "Writing to secret or environment files is not allowed.\n\n"
             "Blocked file types include:\n"
             "- .env, .env.local, .env.* (environment files)\n"

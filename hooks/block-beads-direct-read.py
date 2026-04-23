@@ -9,6 +9,20 @@ Direct file access bypasses validation and often fails due to file size.
 import json
 import sys
 
+TRUNCATION_MARKERS = (
+    "[truncated]",
+    "<truncated>",
+    "... truncated",
+    "truncated ...",
+    "\ufffd",  # Replacement character
+    "…",
+)
+
+
+def has_truncation_marker(value):
+    """Return True when hook input appears truncated."""
+    return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
+
 
 def emit_deny(reason):
     output = {
@@ -30,26 +44,35 @@ def emit_allow():
 def main():
     # Read tool input from stdin
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        if not raw_input.strip():
+            emit_deny("Hook received empty input. Blocking for safety.")
+
+        if has_truncation_marker(raw_input):
+            emit_deny("Hook input appears truncated. Blocking for safety.")
+
+        input_data = json.loads(raw_input)
     except json.JSONDecodeError:
-        emit_deny("Hook received malformed or empty input. Blocking for safety.")
-        return
+        emit_deny("Hook received malformed JSON input. Blocking for safety.")
     except Exception as e:
-        emit_deny(f"Hook encountered an unexpected error: {e}. Blocking for safety.")
-        return
+        emit_deny(f"Hook encountered an unexpected error during parsing: {e}. Blocking for safety.")
 
     # Defensive: ensure parsed JSON is a dict before calling .get()
     if not isinstance(input_data, dict):
-        emit_deny("Hook received unexpected JSON type. Blocking for safety.")
-        return
+        emit_deny("Hook received non-object JSON. Blocking for safety.")
 
     tool_name = input_data.get("tool_name", "")
-    tool_input = input_data.get("tool_input", {})
+    tool_input = input_data.get("tool_input")
 
-    # Defensive: ensure tool_input is a dict
+    # Only check if tool_input is a dict
     if not isinstance(tool_input, dict):
-        emit_deny("Hook received unexpected tool_input type. Blocking for safety.")
-        return
+        # For non-read tools, we can allow if they don't have tool_input (though they usually do)
+        # But for safety, if it's supposed to be a tool call, tool_input should be a dict.
+        # Let's check if it's missing entirely.
+        if tool_input is None:
+            tool_input = {}
+        else:
+            emit_deny("Hook received malformed tool input type. Blocking for safety.")
 
     # Check for file_path in Read tool
     file_path = tool_input.get("file_path", "")
@@ -62,10 +85,10 @@ def main():
 
     # Check if any path contains .beads/issues.jsonl
     for path in paths_to_check:
-        if path and ".beads/issues.jsonl" in path:
+        if path and isinstance(path, str) and ".beads/issues.jsonl" in path:
             emit_deny(
-                "Direct access to .beads/issues.jsonl is not allowed. "
-                "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc. "
+                "Direct access to .beads/issues.jsonl is not allowed.\n\n"
+                "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc.\n"
                 "The tm CLI provides the correct interface for reading task specifications."
             )
 
