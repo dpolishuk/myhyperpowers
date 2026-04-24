@@ -5,11 +5,10 @@ const path = require("node:path")
 
 const repoRoot = path.resolve(__dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
-
 test("test_subagent_protocol_enforces_sha_drift_for_implementation_tasks", () => {
   const skill = read("skills/subagent-driven-development/SKILL.md")
-  // Should enforce SHA drift for feature|bug|task
-  assert.ok(skill.match(/if\s*\[\[\s*["']?\$TASK_TYPE["']?\s*=~\s*\^\(feature\|bug\|task\)\$\s*\]\]/i), "Should enforce SHA drift for implementation tasks")
+  // Should enforce SHA drift for feature|bug|task|chore
+  assert.ok(skill.match(/if\s*\[\[\s*["']?\$TASK_TYPE["']?\s*=~\s*\^\(feature\|bug\|task\|chore\)\$\s*\]\]/i), "Should enforce SHA drift for implementation tasks")
   // Should allow SHA unchanged for others (implicit success if closed)
   assert.ok(skill.match(/if\s*\[\s*["']?\$PRE_SHA["']?\s*==\s*["']?\$POST_SHA["']?\s*\]\s*;\s*then/i), "Should handle unchanged SHA case")
   // Positive assertion for the closed no-op path in description

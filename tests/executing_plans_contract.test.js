@@ -16,10 +16,20 @@ test('executing-plans skill contract', async (t) => {
   });
 
   await t.test('should include verification steps for stateless path', () => {
-    assert.ok(content.match(/Record\s*[`"']?POST_SHA[`"']?/i), 'Missing POST_SHA step');
-    assert.ok(content.match(/git diff\s*[`"']?PRE_SHA\.\.POST_SHA[`"']?/i), 'Missing git diff step');
-    assert.ok(content.match(/tm show\s*[`"']?bd-\d+[`"']?/i), 'Missing tm show step');
-    assert.ok(content.match(/tm close\s*[`"']?bd-\d+[`"']?/i), 'Missing tm close fallback step');
+    const optionBParts = content.split(/### Option B: Stateless Dispatch/i);
+    // Should have 2 parts: [before, implementation]
+    assert.ok(optionBParts.length > 1, 'Missing main implementation of Option B section');
+
+    const mainImplementation = optionBParts[1];
+    const nextSectionMatch = mainImplementation.match(/\n---/);
+    const optionBSection = nextSectionMatch
+      ? mainImplementation.slice(0, nextSectionMatch.index)
+      : mainImplementation;
+
+    assert.ok(optionBSection.match(/Record\s*[`"']?POST_SHA[`"']?/i), 'Missing POST_SHA step');
+    assert.ok(optionBSection.match(/git diff\s*[`"']?PRE_SHA\.\.POST_SHA[`"']?/i), 'Missing git diff step');
+    assert.ok(optionBSection.match(/tm show\s*[`"']?bd-\d+[`"']?/i), 'Missing tm show step');
+    assert.ok(!optionBSection.match(/tm close\s*[`"']?bd-\d+[`"']?/i), 'Stateless path should be fail-closed (no auto tm close)');
   });
 
   await t.test('should update Review phase with subagent findings', () => {

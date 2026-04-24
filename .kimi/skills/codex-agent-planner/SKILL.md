@@ -131,11 +131,13 @@ Task 2: [title] (depends on Task 1) - Risk: MEDIUM
   Deliverable: [specific, verifiable outcome]
   Files: [list of files]
   Reason for dependency: [why Task 1 must complete first]
+  **Stateless Handoff**: Include "Immutable Epic Requirements" from the epic design.
 
 Task 3: [title] (depends on Task 1) - Risk: LOW
   Deliverable: [specific, verifiable outcome]
   Files: [list of files]
   Note: Can run in parallel with Task 2
+  **Stateless Handoff**: Include "Immutable Epic Requirements" from the epic design.
 
 ## Risk Assessment
 

@@ -9,10 +9,21 @@ test("subagent-driven-development skill has required content", () => {
   assert.equal(fs.existsSync(skillPath), true, `Skill file missing at ${skillPath}`)
   const content = fs.readFileSync(skillPath, "utf8")
 
+  assert.match(
+    content,
+    /^---\s*\n[\s\S]*\bname:\s*subagent-driven-development\b[\s\S]*\bdescription:\s*.+\n---/m,
+    "Missing required YAML frontmatter with name and description"
+  )
+
   const requiredSections = [
     "<skill_overview>",
     "<quick_reference>",
+    "<rigidity_level>",
+    "<when_to_use>",
     "<the_process>",
+    "<examples>",
+    "<critical_rules>",
+    "<verification_checklist>",
     "PRE_SHA",
     "POST_SHA",
     "git rev-parse HEAD",

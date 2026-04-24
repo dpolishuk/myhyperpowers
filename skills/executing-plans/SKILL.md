@@ -194,19 +194,8 @@ Before switching to a previously rejected approach, you MUST:
 - Check "Dead-End Paths" for approaches already abandoned during research
 - Check "Key Decisions Made" for user requirements that constrain options
 - Check "Open Concerns Raised" for context on prior discussions
-### Option B: Stateless Dispatch (Complex/Heavy)
 
-**Use for:** Multi-file implementations, long TDD cycles, or if you suspect context drift.
-
-1. **Load Requirements**: `tm show bd-1` (Epic) and `tm show bd-2` (Task).
-2. **Record State**: `PRE_SHA=$(git rev-parse HEAD)`.
-3. **Dispatch**: Use `invoke_agent` with the standardized prompt from `subagent-driven-development`.
-4. **Verify Work**:
-   - Record `POST_SHA=$(git rev-parse HEAD)`.
-   - Run `git diff PRE_SHA..POST_SHA` to review changes.
-   - Run `tm show bd-2` to verify status is `closed`.
-5. **Fail closed**: If the task is not closed, do **not** close it locally in this flow. Treat the dispatch as incomplete, stop, and either re-dispatch or explicitly review/fix the task before any manual closure.
-6. **Review and Continue**: Proceed to the Review phase below.
+**Note:** For complex obstacles that risk context drift, consider using **Option B: Stateless Dispatch** as defined in Step 2 above.
 
 ---
 

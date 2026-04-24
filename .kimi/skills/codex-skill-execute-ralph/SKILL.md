@@ -18,7 +18,7 @@ flowchart TD
 ```
 
 <skill_overview>
-Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 7 agents (4 review + 2 guard + test-effectiveness-analyst) in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
+Execute a complete epic autonomously by dispatching one Agent subagent per task. Each subagent handles SRE refinement, TDD, test-runner, commit, and task closure in its own context. The main loop only tracks git log progress and epic criteria. End-of-epic: 3 specialized reviews (review-quality, security-scanner, test-effectiveness-analyst) in parallel, then dual final gate (autonomous-reviewer + review-implementation). Branch completion via finishing-a-development-branch.
 </skill_overview>
 
 <rigidity_level>
@@ -32,7 +32,7 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 | **0. Setup** | Triage, load epic, create branch, extract criteria | Ready |
 | **1. Get Task** | Claim ready / resume in-progress / auto-create | Task identified |
 | **2. Dispatch Subagent** | Agent tool runs task end-to-end, main checks git log | Task done or retried |
-| **3. End-of-Epic Review** | 7 agents + final gate (both must APPROVED) | Epic validated or remediation |
+| **3. End-of-Epic Review** | 3 specialized reviews + final gate (both must APPROVED) | Epic validated or remediation |
 | **4. Branch Completion** | finishing-a-development-branch | Epic closed |
 
 </quick_reference>
@@ -119,17 +119,18 @@ Use the **Subagent Prompt Template** from `subagent-driven-development` skill, p
 ```bash
 POST_SHA=$(git rev-parse HEAD)
 TASK_TYPE=$(tm show bd-N --json | jq -r .type)
+STATUS=$(tm show bd-N --json | jq -r .status)
 ```
 - **Success**:
-  - Verify `tm show bd-N` status is `closed`.
+  - Require `STATUS == "closed"`.
   - **Implementation Tasks** (feature, bug, task): MUST have `POST_SHA != PRE_SHA`.
   - **Analytical Tasks**: Accepted as success even if `POST_SHA == PRE_SHA` as long as status is `closed`.
   - If verified, proceed to **Parallel Review Phase**.
-- **Retry (SHA Unchanged & Not Closed)**: If `POST_SHA == PRE_SHA` and status is not `closed`:
+- **Retry (Not Closed)**: If `STATUS != "closed"`:
   - If subagent summary claims success, **retry once** with the same prompt.
   - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
 - **Failure (Closed but no SHA drift on implementation task)**:
-  - If `POST_SHA == PRE_SHA` for an implementation task, flag as hallucinated completion and STOP.
+  - If `STATUS == "closed"` and `POST_SHA == PRE_SHA` for an implementation task (feature/bug/task type), flag as hallucinated completion and STOP.
 
 ### Parallel Review Phase (Per Task)
 Once verified, trigger the following review:
