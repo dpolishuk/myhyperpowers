@@ -14,7 +14,7 @@ test("test_subagent_protocol_enforces_sha_drift_for_implementation_tasks", () =>
   // Positive assertion for the closed no-op path in description
   assert.ok(skill.match(/Analytical Tasks.*POST_SHA.*PRE_SHA/i), "Should explicitly allow analytical no-op")
   // Negative assertion: Ensure no permissive pattern allows no-op for non-analytical
-  assert.equal(skill.match(/If.*PRE_SHA\s*==\s*POST_SHA\s*then.*success/i), null, "Should not have permissive no-op pattern")
+  assert.equal(skill.match(/If[\s\S]*PRE_SHA\s*==\s*POST_SHA\s*then[\s\S]*success/i), null, "Should not have permissive no-op pattern")
 })
 
 test("test_execute_ralph_mandates_sre_refinement_in_phase_1", () => {

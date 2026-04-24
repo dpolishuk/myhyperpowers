@@ -21,7 +21,8 @@ test('executing-plans skill contract', async (t) => {
     assert.ok(optionBParts.length > 1, 'Missing main implementation of Option B section');
 
     const mainImplementation = optionBParts[1];
-    const nextSectionMatch = mainImplementation.match(/\n---/);
+    // Stop at the next header or horizontal rule
+    const nextSectionMatch = mainImplementation.match(/\n(##|---|[*]{2}Execute steps)/);
     const optionBSection = nextSectionMatch
       ? mainImplementation.slice(0, nextSectionMatch.index)
       : mainImplementation;

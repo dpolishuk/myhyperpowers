@@ -120,7 +120,16 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 ### Option B: Stateless Dispatch (Complex/Heavy)
 
 **Use for:** Multi-file implementations, long TDD cycles, or if you suspect context drift.
-Follow the stateless dispatch protocol detailed in [Option B under Step 2 below](#option-b-stateless-dispatch-complexheavy-1).
+
+1. **Load Requirements**: `tm show bd-1` (Epic) and `tm show bd-2` (Task).
+2. **Record State**: `PRE_SHA=$(git rev-parse HEAD)`.
+3. **Dispatch**: Use `invoke_agent` with the standardized prompt from `subagent-driven-development`.
+4. **Verify Work**:
+   - Record `POST_SHA=$(git rev-parse HEAD)`.
+   - Run `git diff PRE_SHA..POST_SHA` to review changes.
+   - Run `tm show bd-2` to verify status is `closed`.
+5. **Fail closed**: If the task is not closed, do **not** close it locally in this flow. Treat the dispatch as incomplete, stop, and either re-dispatch or explicitly review/fix the task before any manual closure.
+6. **Review and Continue**: Proceed to the Review phase below.
 
 **Execute steps (Option A):**
 - Use `test-driven-development` when implementing features
