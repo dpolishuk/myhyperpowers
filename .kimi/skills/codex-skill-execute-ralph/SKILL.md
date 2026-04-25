@@ -11,6 +11,8 @@ flowchart TD
     P0 --> P1[Phase 1: Get Next Task]
     P1 --> P2[Phase 2: Dispatch Subagent]
     P2 -->|criteria unmet| P1
+    P2 -->|Turn-Limit-Hit -> resume| P1
+    P2 -->|Critical/High -> create remediation task| P1
     P2 -->|all criteria met| P3[Phase 3: End-of-Epic Review]
     P3 -->|BOTH APPROVED| P4[Phase 4: Branch Completion]
     P3 -->|non-approval| P1
@@ -49,13 +51,12 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 ## Phase 0: Setup
 
 ```bash
-bv -robot-triage 2>/dev/null        # fallback: tm ready + tm list
+bv --robot-triage || (tm ready && tm list)
 ```
 **Health gate:** If dependency cycles or zero actionable items, alert user and stop.
 
 ```bash
-bv -robot-next 2>/dev/null           # load epic
-tm show bd-EPIC                      # extract success criteria + anti-patterns
+bv --robot-next || tm show bd-EPIC
 ```
 
 ```bash
@@ -70,9 +71,7 @@ Extract from epic: success criteria (immutable), anti-patterns (forbidden). Stor
 ## Phase 1: Get Next Task (loop entry)
 
 ```bash
-tm list --status in_progress
-tm ready
-tm show bd-EPIC   # re-read criteria
+bv --robot-next                      # Automated triage
 ```
 
 **A) In-progress task exists** -- resume it (proceed to Phase 2).
@@ -81,7 +80,7 @@ tm show bd-EPIC   # re-read criteria
 
 **Refinement Step**:
 After task selection/creation, run SRE refinement to ensure the task design is robust:
-`Use Skill tool: hyperpowers:sre-task-refinement`
+`Use Skill tool: hyperpowers:sre-task-refinement (prefer Opus 4.1 model)`
 
 ### Auto-create next task from unmet criterion
 
@@ -126,8 +125,10 @@ STATUS=$(tm show bd-N --json | jq -r .status)
   - **Implementation Tasks** (feature, bug, task, chore): MUST have `POST_SHA != PRE_SHA`.
   - **Analytical Tasks**: Accepted as success even if `POST_SHA == PRE_SHA` as long as status is `closed`.
   - If verified, proceed to **Parallel Review Phase**.
-- **Retry (Not Closed)**: If `STATUS != "closed"`:
-  - If subagent summary claims success, **retry once** with the same prompt.
+- **Turn Limit Hit (Open but Changed)**:
+  - If `STATUS == "open"` AND `POST_SHA != PRE_SHA`: Trigger **Resume** path. Return to Phase 1 and immediately re-dispatch the same task.
+- **Retry (Not Closed and No Drift)**: If `STATUS != "closed"` AND `POST_SHA == PRE_SHA`:
+  - If subagent summary claims success, **retry once** with 'Verification Emphasis' prompt.
   - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
 - **Failure (Closed but no SHA drift on implementation task)**:
   - If `STATUS == "closed"` and `POST_SHA == PRE_SHA` for an implementation task (feature/bug/task/chore type), flag as hallucinated completion and STOP.
@@ -159,7 +160,7 @@ Dispatch specialized reviews **in parallel** via Agent tool:
 2. **security-scanner** -- OWASP, secrets, CVEs
 3. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
-If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, STOP and wait for explicit user override).
+If any issues found, create remediation task and return to Phase 1 (max 2 consecutive Phase 3 re-entries; after 2 rounds with unresolved issues, STOP and wait for explicit user override).
 
 **Final gate** -- dispatch in parallel:
 - **autonomous-reviewer**: return APPROVED or GAPS_FOUND
@@ -178,7 +179,7 @@ Mixed final reviewer outputs are non-approval.
 Do not close the epic unless both final reviewers return an approval verdict.
 Unknown or malformed verdict must create a remediation task and continue the loop.
 
-Non-approval --> create remediation task, return to Phase 1 (max 50 no-progress remediation cycles).
+Non-approval --> create remediation task, return to Phase 1 (max 50 overall no-progress remediation cycles across all phases).
 
 ---
 
@@ -196,12 +197,63 @@ Present summary: tasks completed, commits made, review results, any flagged item
 
 ### Quality Gate Sequence (pre-commit-equivalent for this repo)
 
-Run these verification commands and keep output as epic-closure evidence:
+**MANDATORY**: Run these verification commands and verify all pass before epic closure:
+```bash
+set -e  # Exit on any failure
+node --test tests/execute-ralph-contract.test.js
+node --test tests/codex-*.test.js
+node --test tests/*.test.js
+node scripts/sync-codex-skills.js --check
+```
+
+If any verification fails, create remediation task and return to Phase 1.
+
 In guarded environments, direct .git/hooks/pre-commit execution may be blocked by safety guardrails.
 
-- `node --test tests/execute-ralph-contract.test.js`
-- `node --test tests/codex-*.test.js`
-- `node --test tests/*.test.js`
-- `node scripts/sync-codex-skills.js --check`
-
 </the_process>
+
+<common_rationalizations>
+
+**"The subagent said it's done, so I'll skip verification"**
+NO. Always verify via `tm show --json` status and SHA drift. Subagent claims are not proof.
+
+**"I'll just ask the user if the task is complete"**
+NO. Ralph is autonomous. Never ask for confirmation. Use objective verification only.
+
+**"The test passed, so I don't need to check git log"**
+NO. Implementation tasks MUST produce commits. Tests passing without SHA drift is a failure.
+
+**"I'll skip SRE refinement for simple tasks"**
+NO. Every task requires refinement to catch edge cases before implementation.
+
+</common_rationalizations>
+
+<red_flags>
+
+- Skipping `tm show --json` status verification
+- Accepting subagent completion claims without SHA drift check
+- Closing epic without both final reviewers returning APPROVED
+- Creating >50 remediation cycles without user escalation
+- Skipping sre-task-refinement step
+- Auto-approving unknown/malformed review verdicts
+
+</red_flags>
+
+<integration>
+
+**Calls:**
+- `hyperpowers:sre-task-refinement` -- mandatory per-task refinement after task selection
+- `subagent-driven-development` -- canonical Dispatch Protocol for each task
+- `hyperpowers:finishing-a-development-branch` -- final branch completion
+- Agent tool with specialized reviewers: review-quality, security-scanner, test-effectiveness-analyst, autonomous-reviewer, review-implementation
+
+**Called by:**
+- User when epic is well-defined and autonomous execution is desired
+- Should not be called for ambiguous requirements (use execute-plans instead)
+
+**Prerequisites:**
+- Epic must have clear success criteria
+- Tasks should be implementation-focused
+- User must trust autonomous execution
+
+</integration>

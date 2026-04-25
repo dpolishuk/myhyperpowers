@@ -146,8 +146,67 @@ Offer execution choice:
 
 </the_process>
 
-<critical_rules>
+<examples>
+<example>
+<scenario>Expanding a task for Stateless Dispatch (SCIU)</scenario>
 
+<code>
+**bd-2: Implement user login logic**
+
+**Stateless Handoff (Epic Contract):**
+- Users authenticate via Google OAuth2
+- Tokens stored in httpOnly cookies (NOT localStorage)
+- ❌ NO localStorage tokens (security)
+- ❌ NO new user model (consistency)
+
+**Implementation steps based on actual codebase state:**
+
+### SCIU 1: Define OAuth strategy
+**Files:**
+- Create: `src/auth/strategies/google.ts`
+- Modify: `src/auth/passport-config.ts`
+
+**Step 1: Write the failing test**
+```typescript
+// tests/auth/google-strategy.test.ts
+import { GoogleStrategy } from '../src/auth/strategies/google';
+test('should verify strategy name', () => {
+  const strategy = new GoogleStrategy();
+  expect(strategy.name).toBe('google');
+});
+```
+
+**Step 2: Run test (Expected Failure)**
+```bash
+node --test tests/auth/google-strategy.test.ts
+# Expected: Cannot find module '../src/auth/strategies/google'
+```
+
+**Step 3: Implement minimal fix**
+```typescript
+// src/auth/strategies/google.ts
+export class GoogleStrategy {
+  name = 'google';
+}
+```
+
+**Step 4: Verify test passes**
+```bash
+node --test tests/auth/google-strategy.test.ts
+# Expected: 1 test passed
+```
+
+**Step 5: Commit**
+```bash
+git add src/auth/strategies/google.ts tests/auth/google-strategy.test.ts
+git commit -m "Complete bd-2: Define OAuth strategy"
+```
+</code>
+</example>
+</examples>
+
+<critical_rules>
+...
 ## Rules That Have No Exceptions
 
 1. **SCIU Mandate** → Every task must be a 2-5 minute implementation atom

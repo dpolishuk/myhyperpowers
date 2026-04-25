@@ -32,7 +32,18 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
   const skill = read("skills/execute-ralph/SKILL.md")
   const command = read("commands/execute-ralph.md")
   
-  // Phase 3 should only have these 3 agents
+  const extractPhase3 = (content) => {
+    // Matches "## Phase 3" OR "8. **Phase 3"
+    const match = content.match(/(## Phase 3: End-of-Epic Review|Phase 3 - End-of-Epic Review)[\s\S]*?(?=\n(##|9\.)|$)/i)
+    return match ? match[0] : ""
+  }
+
+  const skillPhase3 = extractPhase3(skill)
+  const commandPhase3 = extractPhase3(command)
+
+  assert.ok(skillPhase3, "Should find Phase 3 in SKILL.md")
+  assert.ok(commandPhase3, "Should find Phase 3 in commands/execute-ralph.md")
+
   const expectedAgents = [
     "review-quality",
     "security-scanner",
@@ -40,11 +51,10 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
   ]
   
   for (const agent of expectedAgents) {
-    assert.match(skill, new RegExp(agent))
-    assert.match(command, new RegExp(agent))
+    assert.ok(skillPhase3.includes(agent), `SKILL.md Phase 3 missing: ${agent}`)
+    assert.ok(commandPhase3.includes(agent), `Command Phase 3 missing: ${agent}`)
   }
   
-  // These should be pruned
   const prunedAgents = [
     "review-testing",
     "review-simplification",
@@ -53,7 +63,7 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
   ]
   
   for (const agent of prunedAgents) {
-    assert.ok(!skill.includes(agent) || skill.indexOf(agent) > skill.indexOf("Phase 3"), `Agent ${agent} should be pruned from Phase 3 in SKILL.md`)
-    assert.ok(!command.includes(agent) || command.indexOf(agent) > command.indexOf("Phase 3"), `Agent ${agent} should be pruned from Phase 3 in commands/execute-ralph.md`)
+    assert.ok(!skillPhase3.includes(agent), `SKILL.md Phase 3 should NOT have: ${agent}`)
+    assert.ok(!commandPhase3.includes(agent), `Command Phase 3 should NOT have: ${agent}`)
   }
 })

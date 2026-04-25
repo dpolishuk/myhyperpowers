@@ -13,6 +13,13 @@ The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context
 STRICT - Follow the 5-step verification process exactly. Never skip SHA drift checks for implementation tasks.
 </rigidity_level>
 
+<when_to_use>
+- Implementing complex features or bug fixes.
+- Running multi-task epics autonomously (Ralph mode).
+- Executing tasks that involve 3+ file changes.
+- When context drift or token exhaustion is detected in the main session.
+</when_to_use>
+
 <quick_reference>
 
 | Step | Action | Deliverable |

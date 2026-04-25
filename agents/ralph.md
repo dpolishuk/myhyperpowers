@@ -33,7 +33,7 @@ When activated, run this sequence:
 ### Step 1: Get Smart Triage
 
 ```bash
-bv -robot-triage 2>/dev/null
+bv --robot-triage 2>/dev/null
 ```
 
 Parse the JSON output to understand:
@@ -51,7 +51,7 @@ From `triage.project_health.graph`:
 ### Step 3: Get Next Task
 
 ```bash
-bv -robot-next 2>/dev/null
+bv --robot-next 2>/dev/null
 ```
 
 This returns the optimal next task with:
@@ -71,21 +71,21 @@ This returns the optimal next task with:
 2. Run the `show_command` to get full details
 3. Check issue type:
    - **epic** → Use `execute-ralph` skill for full epic execution.
-   - **task/bug/feature** → Use **Stateless Dispatch**:
+   - **task/bug/feature/chore** → Use **Stateless Dispatch**:
      - Record current HEAD: `PRE_SHA=$(git rev-parse HEAD)`
      - Invoke `generalist` subagent using the canonical prompt from `subagent-driven-development`.
      - **Side-Effect Verification**: After subagent returns, run `POST_SHA=$(git rev-parse HEAD)`. 
      - If `POST_SHA == PRE_SHA`, the task is NOT complete (unless it was purely analytical). 
-     - Verify task is `closed` using `tm show <id>`.
+     - Verify task is `closed` using `tm show <id> --json`.
 4. Use `test-runner` agent for test execution (keeps context clean)
 5. Use `autonomous-reviewer` agent for validation after each task
 
 ### Step 5: Loop
 
 After completing each item:
-1. Confirm it is already closed via `tm show <id> --json`; unresolved status is a verification failure.
+1. Confirm it is already closed via `tm show <id> --json`; unresolved status is a verification failure. Do **not** close locally.
 2. Auto-commit: Ensure each task has its own commit (usually handled by subagent)
-3. Run `bv -robot-next` again
+3. Run `bv --robot-next` again
 4. If no more actionable items → Present summary and stop
 
 ## Execution Plan (Multi-Track)
@@ -93,7 +93,7 @@ After completing each item:
 For parallel work, use:
 
 ```bash
-bv -robot-plan 2>/dev/null
+bv --robot-plan 2>/dev/null
 ```
 
 This returns tracks that can be executed in parallel. Consider spawning parallel subagents for independent tracks.
@@ -123,9 +123,9 @@ This returns tracks that can be executed in parallel. Consider spawning parallel
 
 | Need | Command |
 |------|---------|
-| Smart next pick | `bv -robot-next` |
-| Full triage | `bv -robot-triage` |
-| Execution plan | `bv -robot-plan` |
+| Smart next pick | `bv --robot-next` |
+| Full triage | `bv --robot-triage` |
+| Execution plan | `bv --robot-plan` |
 | Ready items | `bd ready --json` |
 | Blocked items | `bd blocked --json` |
 | Claim task | `bd update <id> --status in_progress` |
