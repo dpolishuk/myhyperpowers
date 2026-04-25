@@ -48,12 +48,12 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 ## Phase 0: Setup
 
 ```bash
-bv -robot-triage 2>/dev/null        # fallback: tm ready + tm list
+bv --robot-triage 2>/dev/null        # fallback: tm ready + tm list
 ```
 **Health gate:** If dependency cycles or zero actionable items, alert user and stop.
 
 ```bash
-bv -robot-next 2>/dev/null           # load epic
+bv --robot-next 2>/dev/null           # load epic
 tm show bd-EPIC                      # extract success criteria + anti-patterns
 ```
 
@@ -69,9 +69,7 @@ Extract from epic: success criteria (immutable), anti-patterns (forbidden). Stor
 ## Phase 1: Get Next Task (loop entry)
 
 ```bash
-tm list --status in_progress
-tm ready
-tm show bd-EPIC   # re-read criteria
+bv --robot-next                      # Automated triage
 ```
 
 **A) In-progress task exists** -- resume it (proceed to Phase 2).
@@ -122,14 +120,16 @@ STATUS=$(tm show bd-N --json | jq -r .status)
 ```
 - **Success**:
   - Require `STATUS == "closed"`.
-  - **Implementation Tasks** (feature, bug, task): MUST have `POST_SHA != PRE_SHA`.
+  - **Implementation Tasks** (feature, bug, task, chore): MUST have `POST_SHA != PRE_SHA`.
   - **Analytical Tasks**: Accepted as success even if `POST_SHA == PRE_SHA` as long as status is `closed`.
   - If verified, proceed to **Parallel Review Phase**.
-- **Retry (Not Closed)**: If `STATUS != "closed"`:
-  - If subagent summary claims success, **retry once** with the same prompt.
+- **Turn Limit Hit (Open but Changed)**:
+  - If `STATUS == "open"` AND `POST_SHA != PRE_SHA`: Trigger **Resume** path. Return to Phase 1 and immediately re-dispatch the same task.
+- **Retry (Not Closed and No Drift)**: If `STATUS != "closed"` AND `POST_SHA == PRE_SHA`:
+  - If subagent summary claims success, **retry once** with 'Verification Emphasis' prompt.
   - If retry also fails, clean worktree (`git checkout .`), defer the task (`tm update bd-N --status deferred`), and return to Phase 1.
 - **Failure (Closed but no SHA drift on implementation task)**:
-  - If `STATUS == "closed"` and `POST_SHA == PRE_SHA` for an implementation task (feature/bug/task type), flag as hallucinated completion and STOP.
+  - If `STATUS == "closed"` and `POST_SHA == PRE_SHA` for an implementation task (feature/bug/task/chore type), flag as hallucinated completion and STOP.
 
 ### Parallel Review Phase (Per Task)
 Once verified, trigger the following review:
@@ -158,7 +158,7 @@ Dispatch specialized reviews **in parallel** via Agent tool:
 2. **security-scanner** -- OWASP, secrets, CVEs
 3. **test-effectiveness-analyst** -- tautological tests, coverage gaming
 
-If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, flag for user and proceed to final gate).
+If any issues found, create remediation task and return to Phase 1 (max 2 end-of-epic review rounds; after 2 rounds with unresolved issues, STOP and wait for explicit user override).
 
 **Final gate** -- dispatch in parallel:
 - **autonomous-reviewer**: return APPROVED or GAPS_FOUND

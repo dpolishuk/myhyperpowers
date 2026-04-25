@@ -11,13 +11,6 @@ The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context
 STRICT - Follow the 5-step verification process exactly. Never skip SHA drift checks for implementation tasks.
 </rigidity_level>
 
-<when_to_use>
-- Implementing complex features or bug fixes.
-- Running multi-task epics autonomously (Ralph mode).
-- Executing tasks that involve 3+ file changes.
-- When context drift or token exhaustion is detected in the main session.
-</when_to_use>
-
 <quick_reference>
 
 | Step | Action | Deliverable |
@@ -26,7 +19,7 @@ STRICT - Follow the 5-step verification process exactly. Never skip SHA drift ch
 | 2 | **Load Task** | `tm show [task-id]` (Task design) |
 | 3 | **Dispatch** | `invoke_agent` with Structured Prompt |
 | 4 | **Verify** | SHA change (git) + Status check (tm) |
-| 5 | **Review** | Single per-task review via `autonomous-reviewer` |
+| 5 | **Review** | Parallel Quality/Testing/Simplification reviews |
 
 **Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.  
 **Review**: Run `mcp_agents_agent_autonomous_reviewer()` once per task after verification passes.
@@ -70,8 +63,12 @@ Project Root: [root path]
 4. Provide a one-paragraph summary of your implementation and verification steps.
 
 ## 3. Execution
-Run the subagent using the constructed prompt:
-`invoke_agent(agent_name='generalist', prompt='[Constructed Prompt]')`
+Build the prompt into a variable to avoid quote escaping issues, then run the subagent:
+
+```javascript
+const prompt = `... [Constructed Template Content] ...`;
+invoke_agent(agent_name='generalist', prompt=prompt)
+```
 
 ## 4. Verification
 After the subagent returns, the orchestrator MUST perform independent verification:
@@ -151,11 +148,3 @@ if [ "$PRE_SHA" == "$POST_SHA" ]; then
 fi
 ```
 </verification_logic>
-
-<anti_patterns>
-- ❌ NO implementing tasks in the main orchestrator context.
-- ❌ NO moving to the next task without verifying SHA change.
-- ❌ NO skipping the Parallel Review phase in autonomous mode.
-- ❌ NO relying on subagent summaries alone; MUST verify side-effects (git/tm).
-- ❌ NO ignoring failed reviews; MUST create remediation tasks.
-</anti_patterns>
