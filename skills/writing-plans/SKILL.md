@@ -4,13 +4,13 @@ description: Use to expand bd tasks with detailed implementation steps - adds ex
 ---
 
 <skill_overview>
-Enhance bd tasks with comprehensive implementation details for engineers with zero codebase context. Expand checklists into explicit steps: which files, complete code examples, exact commands, verification steps.
+Enhance bd tasks with comprehensive implementation details for engineers with zero codebase context. Expand checklists into explicit steps: which files, complete code examples, exact commands, verification steps. Every task must be a **Smallest Completable Independent Unit (SCIU)** that takes 2-5 minutes to implement and verify.
 </skill_overview>
 
 <rigidity_level>
 MEDIUM FREEDOM - Follow task-by-task validation pattern, use codebase-investigator for verification.
 
-Adapt implementation details to actual codebase state. Never use placeholders or meta-references.
+Adapt implementation details to actual codebase state. Every task MUST be an SCIU. Use 'tm create' to break down large tasks.
 </rigidity_level>
 
 <quick_reference>
@@ -19,13 +19,14 @@ Adapt implementation details to actual codebase state. Never use placeholders or
 |------|--------|---------------|
 | **Identify Scope** | Single task, range, or full epic | No artificial limits |
 | **Verify Codebase** | Use `codebase-investigator` agent | NEVER verify yourself, report discrepancies |
-| **Draft Steps** | Write bite-sized (2-5 min) actions | Follow TDD cycle for new features |
+| **Draft SCIUs** | Write atomic (2-5 min) actions | One commit per task |
+| **Decompose** | `tm create` for any task >8 hours | Link with parent-child deps |
 | **Present to User** | Show COMPLETE expansion FIRST | Then ask for approval |
 | **Update bd** | `tm update bd-N --design "..."` | Only after user approves |
 | **Continue** | Move to next task automatically | NO asking permission between tasks |
 
 **FORBIDDEN:** Placeholders like `[Full implementation steps as detailed above]`
-**REQUIRED:** Actual content - complete code, exact paths, real commands
+**REQUIRED:** SCIU granularity, exact paths, real commands, tm-based breakdown
 
 </quick_reference>
 
@@ -34,9 +35,8 @@ Adapt implementation details to actual codebase state. Never use placeholders or
 
 Symptoms:
 - bd tasks have implementation checklists but need expansion
+- Task is too large (>8 hours) and needs decomposition into atoms
 - Engineer needs step-by-step guide with zero context
-- Want explicit file paths, complete code examples
-- Need exact verification commands
 
 </when_to_use>
 
@@ -52,7 +52,6 @@ Symptoms:
 **If epic:**
 ```bash
 tm dep tree bd-1  # View complete dependency tree
-# Note all child task IDs
 ```
 
 **Create TodoWrite tracker:**
@@ -75,404 +74,96 @@ tm show bd-3  # Read current task design
 
 **CRITICAL: Use codebase-investigator agent, NEVER verify yourself.**
 
-**Provide agent with bd assumptions:**
+### 2c. Decomposition Protocol (MANDATORY)
+
+If the task effort estimate is **>8 hours**, or if the checklist contains multiple unrelated components, you MUST break it down into SCIUs.
+
+**SCIU Rule**: Every task must produce exactly one logical change that can be verified by a single test run and committed.
+
+**Breakdown Steps:**
+1. Create atomic subtasks:
+```bash
+tm create "SCIU 1: [Atomic Goal]" --type feature --priority 1 --design "..."
+tm create "SCIU 2: [Atomic Goal]" --type feature --priority 1 --design "..."
 ```
-Assumptions from bd-3:
-- Auth service should be in src/services/auth.ts with login() and logout()
-- User model in src/models/user.ts with email and password fields
-- Test file at tests/services/auth.test.ts
-- Uses bcrypt dependency for password hashing
+2. Link to parent:
+```bash
+tm dep add bd-SCIU-1 bd-PARENT --type parent-child
+tm dep add bd-SCIU-2 bd-PARENT --type parent-child
+```
+3. Update parent to 'Coordinator' role:
+```bash
+tm update bd-PARENT --design "## Goal
+Coordinate implementation of [Component].
 
-Verify these assumptions and report:
-1. What exists vs what bd-3 expects
-2. Structural differences (different paths, functions, exports)
-3. Missing or additional components
-4. Current dependency versions
+## SCIU Sequence
+- [ ] bd-SCIU-1: [Atomic Goal]
+- [ ] bd-SCIU-2: [Atomic Goal]"
 ```
 
-**Based on investigator report:**
-- ✓ Confirmed assumptions → Use in implementation
-- ✗ Incorrect assumptions → Adjust plan to match reality
-- + Found additional → Document and incorporate
+### 2d. Draft Expanded Implementation Steps (The Handoff)
 
-**NEVER write conditional steps:**
-❌ "Update `index.js` if exists"
-❌ "Modify `config.py` (if present)"
+For each SCIU, provide the **Stateless Handoff**:
 
-**ALWAYS write definitive steps:**
-✅ "Create `src/auth.ts`" (investigator confirmed doesn't exist)
-✅ "Modify `src/index.ts:45-67`" (investigator confirmed exists)
+**Stateless Handoff Requirement**:
+Every expanded task design MUST include a copy of the **Immutable Epic Requirements** and **Anti-patterns** to ensure the subagent has the complete contract.
 
-### 2c. Draft Expanded Implementation Steps
-
-**Bite-sized granularity (2-5 minutes per step):**
-
-For new features (follow test-driven-development):
+**Step Granularity (2-5 minutes per step):**
 1. Write the failing test (one step)
 2. Run it to verify it fails (one step)
 3. Implement minimal code to pass (one step)
 4. Run tests to verify they pass (one step)
 5. Commit (one step)
 
-**Include in each step:**
-- Exact file path
-- Complete code example (not pseudo-code)
-- Exact command to run
-- Expected output
-
-### 2d. Present COMPLETE Expansion to User
-
-**CRITICAL: Show the full expansion BEFORE asking for approval.**
+### 2e. Present COMPLETE Expansion to User
 
 **Format:**
 ```markdown
 **bd-[N]: [Task Title]**
 
-**From bd issue:**
-- Goal: [From tm show]
-- Effort estimate: [From bd issue]
-- Success criteria: [From bd issue]
-
-**Codebase verification findings:**
-- ✓ Confirmed: [what matched]
-- ✗ Incorrect: [what issue said] - ACTUALLY: [reality]
-- + Found: [unexpected discoveries]
+**Stateless Handoff (Epic Contract):**
+[Immutable Requirements and Anti-patterns from Epic]
 
 **Implementation steps based on actual codebase state:**
 
-### Step Group 1: [Component Name]
-
+### SCIU 1: [Atomic Goal]
 **Files:**
-- Create: `exact/path/to/file.py`
 - Modify: `exact/path/to/existing.py:123-145`
-- Test: `tests/exact/path/to/test.py`
 
 **Step 1: Write the failing test**
-```python
-# tests/auth/test_login.py
-def test_login_with_valid_credentials():
-    user = create_test_user(email="test@example.com", password="secure123")
-    result = login(email="test@example.com", password="secure123")
-    assert result.success is True
-    assert result.user_id == user.id
+[Code]
+
+**Step 2: Run test (Expected Failure)**
+[Command]
+
+[...]
 ```
-
-**Step 2: Run test to verify it fails**
-```bash
-pytest tests/auth/test_login.py::test_login_with_valid_credentials
-# Expected: ModuleNotFoundError: No module named 'auth.login'
-```
-
-[... continue for all steps ...]
-```
-
-**THEN ask for approval using AskUserQuestion:**
-- Question: "Is this expansion approved for bd-[N]?"
-- Options:
-  - "Approved - continue to next task"
-  - "Needs revision"
-  - "Other"
-
-### 2e. If Approved: Update bd and Continue
-
-```bash
-tm update bd-3 --design "[paste complete expansion]"
-# Mark completed in TodoWrite
-# IMMEDIATELY continue to next task (NO asking permission)
-```
-
-### 2f. If Needs Revision: Iterate
-
-- Keep as in_progress in TodoWrite
-- Revise based on feedback
-- Present again (step 2d)
 
 ## 3. After ALL Tasks Done
 
-```
-All bd issues now contain detailed implementation steps.
-Epic ready for execution.
-```
-
-**Offer execution choice:**
+Offer execution choice:
 "Ready to execute? I can use hyperpowers:executing-plans to implement iteratively."
 
 </the_process>
-
-<examples>
-
-<example>
-<scenario>Developer writes placeholder text instead of actual implementation steps</scenario>
-
-<code>
-tm update bd-3 --design "## Goal
-Implement user authentication
-
-## Implementation
-[Full implementation steps as detailed above - includes all 6 step groups with complete code examples]
-
-## Tests
-[Complete code examples will be added here]"
-</code>
-
-<why_it_fails>
-**Placeholders defeat the purpose:**
-- Engineer executing bd-3 has zero context
-- There is no "above" to reference (bd issue is the source of truth)
-- Violates "exact instructions for zero-context engineer" principle
-- Makes task impossible to execute
-
-**Common placeholder patterns (ALL FORBIDDEN):**
-- `[Full implementation steps as detailed above]`
-- `[See above for detailed steps]`
-- `[As specified in success criteria]`
-- `[Complete code examples will be added here]`
-</why_it_fails>
-
-<correction>
-**Write actual content:**
-
-```bash
-tm update bd-3 --design "## Goal
-Implement user authentication
-
-## Implementation
-
-### Step 1: Write failing login test
-```python
-# tests/auth/test_login.py
-import pytest
-from auth.service import login
-
-def test_login_with_valid_credentials():
-    result = login(email='test@example.com', password='pass123')
-    assert result.success is True
-```
-
-### Step 2: Run test (should fail)
-```bash
-pytest tests/auth/test_login.py::test_login_with_valid_credentials
-# Expected: ModuleNotFoundError: No module named 'auth.service'
-```
-
-### Step 3: Create login function
-```python
-# src/auth/service.py
-from dataclasses import dataclass
-
-@dataclass
-class LoginResult:
-    success: bool
-    user_id: int | None = None
-
-def login(email: str, password: str) -> LoginResult:
-    # Minimal implementation
-    return LoginResult(success=True, user_id=1)
-```
-
-[... continue for all steps with complete code ...]
-
-## Tests
-All test code included in implementation steps above following TDD cycle."
-```
-
-**Result:** Engineer can execute without any context.
-</correction>
-</example>
-
-<example>
-<scenario>Developer verifies codebase state themselves instead of using codebase-investigator agent</scenario>
-
-<code>
-Developer reads files manually:
-- Reads src/services/auth.ts directly
-- Checks package.json manually
-- Assumes file structure based on quick look
-
-Writes expansion based on quick check:
-"Modify src/services/auth.ts (if exists)"
-</code>
-
-<why_it_fails>
-**Manual verification problems:**
-- Misses nuances (existing functions, imports, structure)
-- Creates conditional steps ("if exists")
-- Doesn't catch version mismatches
-- Doesn't report discrepancies from bd assumptions
-
-**Result:** Implementation plan may not match actual codebase state.
-</why_it_fails>
-
-<correction>
-**Use codebase-investigator agent:**
-
-```
-Dispatch agent with bd-3 assumptions:
-"bd-3 expects auth service in src/services/auth.ts with login() and logout() functions.
-Verify:
-1. Does src/services/auth.ts exist?
-2. What functions does it export?
-3. How do login() and logout() work currently?
-4. Any other relevant auth code?
-5. What's the bcrypt version?"
-```
-
-**Agent reports:**
-```
-✓ src/services/auth.ts exists
-✗ ONLY has login() function - NO logout() yet
-+ Found: login() uses argon2 NOT bcrypt
-+ Found: Session management in src/services/session.ts
-✓ argon2 version: 0.31.2
-```
-
-**Write definitive steps based on findings:**
-```
-Step 1: Add logout() function to EXISTING src/services/auth.ts:45-67
-(no "if exists" - investigator confirmed location)
-
-Step 2: Use argon2 (already installed 0.31.2) not bcrypt
-(no assumption - investigator confirmed actual dependency)
-```
-
-**Result:** Plan matches actual codebase state.
-</correction>
-</example>
-
-<example>
-<scenario>Developer asks permission between each task validation instead of continuing automatically</scenario>
-
-<code>
-After user approves bd-3 expansion:
-
-Developer: "bd-3 expansion approved and updated in bd.
-Should I continue to bd-4 now? What's your preference?"
-
-[Waits for user response]
-</code>
-
-<why_it_fails>
-**Breaks workflow momentum:**
-- Unnecessary interruption
-- User has to respond multiple times
-- Slows down batch processing
-- TodoWrite list IS the plan
-
-**Why it happens:** Over-asking for permission instead of executing the plan.
-</why_it_fails>
-
-<correction>
-**After user approves bd-3:**
-
-```bash
-tm update bd-3 --design "[expansion]"  # Update bd
-# Mark completed in TodoWrite
-```
-
-**IMMEDIATELY continue to bd-4:**
-```bash
-tm show bd-4  # Read next task
-# Dispatch codebase-investigator with bd-4 assumptions
-# Draft expansion
-# Present bd-4 expansion to user
-```
-
-**NO asking:** "Should I continue?" or "What's your preference?"
-
-**ONLY ask user:**
-1. When presenting each task expansion for validation
-2. At the VERY END after ALL tasks done to offer execution choice
-
-**Between validations: JUST CONTINUE.**
-
-**Result:** Efficient batch processing of all tasks.
-</correction>
-</example>
-
-</examples>
 
 <critical_rules>
 
 ## Rules That Have No Exceptions
 
-1. **No placeholders or meta-references** → Write actual content
-   - ❌ FORBIDDEN: `[Full implementation steps as detailed above]`
-   - ✅ REQUIRED: Complete code, exact paths, real commands
-
-2. **Use codebase-investigator agent** → Never verify yourself
-   - Agent gets bd assumptions
-   - Agent reports discrepancies
-   - You adjust plan to match reality
-
-3. **Present COMPLETE expansion before asking** → User must SEE before approving
-   - Show full expansion in message text
-   - Then use AskUserQuestion for approval
-   - Never ask without showing first
-
-4. **Continue automatically between validations** → Don't ask permission
-   - TodoWrite list IS your plan
-   - Execute it completely
-   - Only ask: (a) task validation, (b) final execution choice
-
-5. **Write definitive steps** → Never conditional
-   - ❌ "Update `index.js` if exists"
-   - ✅ "Create `src/auth.ts`" (investigator confirmed)
-
-## Common Excuses
-
-All of these mean: Stop, write actual content:
-- "I'll add the details later"
-- "The implementation is obvious from the goal"
-- "See above for the steps"
-- "User can figure out the code"
+1. **SCIU Mandate** → Every task must be a 2-5 minute implementation atom
+2. **tm-First Breakdown** → Use `tm create` for any task >8 hours
+3. **Stateless Handoff** → Every expanded task MUST include the full Epic Contract
+4. **No placeholders or meta-references** → Write actual content
+5. **Use codebase-investigator agent** → Never verify yourself
 
 </critical_rules>
 
 <verification_checklist>
 
 Before marking each task complete in TodoWrite:
-- [ ] Used codebase-investigator agent (not manual verification)
-- [ ] Presented COMPLETE expansion to user (showed full text)
-- [ ] User approved expansion (via AskUserQuestion)
-- [ ] Updated bd with actual content (no placeholders)
-- [ ] No meta-references in design field
-
-Before finishing all tasks:
-- [ ] All tasks in TodoWrite marked completed
-- [ ] All bd issues updated with expansions
-- [ ] No conditional steps ("if exists")
-- [ ] Complete code examples in all steps
-- [ ] Exact file paths and commands throughout
+- [ ] Used codebase-investigator agent
+- [ ] Task is an SCIU (or broken into SCIUs via tm create)
+- [ ] Expansion includes the 'Stateless Handoff' (Epic Contract)
+- [ ] User approved expansion
 
 </verification_checklist>
-
-<integration>
-
-**This skill calls:**
-- sre-task-refinement (optional, can run before this)
-- codebase-investigator (REQUIRED for each task verification)
-- executing-plans (offered after all tasks expanded)
-
-**This skill is called by:**
-- User (via /hyperpowers:write-plan command)
-- After brainstorming creates epic
-
-**Agents used:**
-- hyperpowers:codebase-investigator (verify assumptions, report discrepancies)
-
-</integration>
-
-<resources>
-
-**Detailed guidance:**
-- [bd command reference](../common-patterns/bd-commands.md)
-- [Task structure examples](resources/task-examples.md) (if exists)
-
-**When stuck:**
-- Unsure about file structure → Use codebase-investigator
-- Don't know version → Use codebase-investigator
-- Tempted to write "if exists" → Use codebase-investigator first
-- About to write placeholder → Stop, write actual content
-- Want to ask permission → Check: Is this task validation or final choice? If neither, don't ask
-
-</resources>
