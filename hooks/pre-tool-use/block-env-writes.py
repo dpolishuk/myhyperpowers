@@ -122,7 +122,7 @@ def main():
             "- id_rsa, id_rsa.pub (SSH keys)\n"
             "- *.key (private keys)\n\n"
             "If you need to modify these files:\n"
-            "1. Ask the user for explicit permission\n"
+            "1. Ask the user for permission to modify hooks\n"
             "2. Use dedicated secret management tools\n"
             "3. Ensure sensitive values are never committed to version control"
         )

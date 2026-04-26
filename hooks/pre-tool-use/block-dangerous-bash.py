@@ -25,7 +25,7 @@ DANGEROUS_PATTERNS = [
     # curl | bash / wget | bash
     r'\bcurl\b.*\|\s*\b(?:bash|sh|zsh)\b',
     r'\bwget\b.*\|\s*\b(?:bash|sh|zsh)\b',
-    # docker system prune -f
+    # docker system prune (any flags)
     r'\bdocker\s+system\s+prune\b',
 ]
 
@@ -136,7 +136,7 @@ def main():
             "- git reset --hard (can destroy uncommitted work)\n"
             "- sudo / su (privilege escalation)\n"
             "- curl | bash or wget | bash (arbitrary code execution)\n"
-            "- docker system prune -f (destructive cleanup)\n\n"
+            "- docker system prune (destructive cleanup)\n\n"
             "If you believe this is safe, ask the user for explicit permission."
         )
 

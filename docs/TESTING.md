@@ -106,4 +106,4 @@ Run an npm audit before pushing changes:
 npm audit --audit-level=moderate
 ```
 
-This is enforced in CI.
+This is enforced in CI to prevent the introduction of known vulnerabilities.

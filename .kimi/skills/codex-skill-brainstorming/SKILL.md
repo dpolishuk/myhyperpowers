@@ -134,14 +134,15 @@ This preserves the Socratic Q&A for future reference during task creation and ob
 ---
 
 **Phase 1 Completion Criteria:**
-- [ ] AskUserQuestion (or equivalent structured questions) invoked at least 3 times
+- [ ] AskUserQuestion tool (or equivalent structured questions) invoked at least 3 times
 - [ ] Purpose clearly understood
 - [ ] Constraints identified
 - [ ] Success criteria gathered
-- [ ] Mark Phase 1 as completed in TodoWrite
+- [ ] Verified message history contains at least 3 `<function_calls><invoke name="AskUserQuestion">` entries (or properly formatted structured question blocks)
+- [ ] Mark Phase 1 as completed in TodoWrite only after the count is verified
 
-**Verification:** Check your message history. Do you see tool invocations or properly formatted text blocks for "Question:", "Options:", "Priority:"?
-If NO → You skipped Phase 1. Go back.
+**Verification:** Count your message history entries matching AskUserQuestion tool or "Question:", "Options:", "Priority:" blocks.
+If fewer than 3 → You skipped Phase 1. Go back and invoke Socratic questioning until the count is 3+.
 
 ---
 

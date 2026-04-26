@@ -396,6 +396,45 @@ test("03-block-pre-commit-bash: allows redirection to pre-commit-report.txt", ()
   assertAllow(stdout, "03-block-pre-commit-bash report file")
 })
 
+test("03-block-pre-commit-bash: blocks relative write with cd into hooks dir (bypass check)", () => {
+  const stdout = runHook(
+    "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    JSON.stringify({
+      tool_name: "Bash",
+      tool_input: {
+        command: "cd .git/hooks && cp my-hook pre-commit",
+      },
+    })
+  )
+  assertDeny(stdout, "03-block-pre-commit-bash relative bypass")
+})
+
+test("03-block-pre-commit-bash: allows relative write to OTHER files even if .git/hooks is mentioned", () => {
+  const stdout = runHook(
+    "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    JSON.stringify({
+      tool_name: "Bash",
+      tool_input: {
+        command: "cd .git/hooks && cp pre-commit-report.txt backup.txt",
+      },
+    })
+  )
+  assertAllow(stdout, "03-block-pre-commit-bash non-bypass safe write")
+})
+
+test("03-block-pre-commit-bash: allows read-only operation on pre-commit even if .git/hooks is mentioned", () => {
+  const stdout = runHook(
+    "hooks/post-tool-use/03-block-pre-commit-bash.py",
+    JSON.stringify({
+      tool_name: "Bash",
+      tool_input: {
+        command: "cd .git/hooks && cp pre-commit backup.txt",
+      },
+    })
+  )
+  assertAllow(stdout, "03-block-pre-commit-bash read-only safe operation")
+})
+
 // ---------------------------------------------------------------------------
 // Extra coverage for 04-block-pre-existing-checks
 // ---------------------------------------------------------------------------
@@ -430,6 +469,16 @@ const missingFieldInputs = [
   {
     name: "01-block-pre-commit-edits",
     path: "hooks/pre-tool-use/01-block-pre-commit-edits.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "block-dangerous-bash",
+    path: "hooks/pre-tool-use/block-dangerous-bash.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "block-env-writes",
+    path: "hooks/pre-tool-use/block-env-writes.py",
     input: JSON.stringify(["not", "a", "dict"]),
   },
   {
