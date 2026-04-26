@@ -129,7 +129,7 @@ This returns tracks that can be executed in parallel. Consider spawning parallel
 | Ready items | `bd ready --json` |
 | Blocked items | `bd blocked --json` |
 | Claim task | `bd update <id> --status in_progress` |
-| Complete task | `bd close <id>` |
+| Verify task closure | `tm show <id> --json` |
 
 ## Integration
 
@@ -137,7 +137,8 @@ You invoke:
 - `execute-ralph` skill (for epics)
 - `test-runner` agent (test execution — context isolation)
 - `autonomous-reviewer` agent (validation — pass/fail verdicts)
-- `security-scanner` agent (security checks during review phase)
-- `devops` agent (pipeline health checks)
+- `security-scanner` agent (end-of-epic security review)
+- `review-quality` agent (end-of-epic quality review)
+- `test-effectiveness-analyst` agent (end-of-epic test effectiveness review)
 
 You are the hands-off execution mode for users who trust autonomous operation.

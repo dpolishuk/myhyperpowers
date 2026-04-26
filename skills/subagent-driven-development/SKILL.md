@@ -122,8 +122,9 @@ Orchestrator: STATUS=closed (SUCCESS)
 <critical_rules>
 - ❌ NO implementing tasks in the main context.
 - ❌ NO skipping status/SHA verification.
+- ❌ NO closing implementation-type tasks (feature/bug/task/chore) without git commits. Analytical tasks may close with no SHA drift.
 - ❌ NO auto-closing tasks if subagent fails (FAIL-CLOSED).
-- ❌ NO relying on subagent summaries for proof.
+- ❌ NO moving to the next task without verifying SHA drift and Status.
 </critical_rules>
 
 <verification_checklist>

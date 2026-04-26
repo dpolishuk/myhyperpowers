@@ -206,7 +206,7 @@ git commit -m "Complete bd-2: Define OAuth strategy"
 </examples>
 
 <critical_rules>
-...
+
 ## Rules That Have No Exceptions
 
 1. **SCIU Mandate** → Every task must be a 2-5 minute implementation atom

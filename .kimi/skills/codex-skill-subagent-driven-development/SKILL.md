@@ -13,29 +13,29 @@ Stateless dispatch prevents context drift and hallucination by isolating each ta
 STRICT - Follow the 5-step verification process exactly. Never skip SHA drift checks for implementation tasks.
 </rigidity_level>
 
-<when_to_use>
-- When executing complex implementation tasks that require context isolation.
-- When context drift or "agentic slop" is detected in the main session.
-- When running autonomous loops (Ralph mode) where every step must be verifiable.
-</when_to_use>
-
 <quick_reference>
 
 | Step | Action | Deliverable |
 |------|--------|-------------|
-| 1 | **Load Epic** | `tm show [epic-id]` (Immutable requirements) |
-| 2 | **Load Task** | `tm show [task-id]` (Task design) |
-| 3 | **Dispatch** | `invoke_agent` with Structured Prompt |
+| 1 | **Load Context** | `tm show [epic-id]` + `tm show [task-id]` |
+| 2 | **Record State** | `PRE_SHA=$(git rev-parse HEAD)` |
+| 3 | **Dispatch** | `invoke_agent` with Stateless Handoff |
 | 4 | **Verify** | SHA change (git) + Status check (tm) |
-| 5 | **Review** | Single per-task review via `autonomous-reviewer` |
+| 5 | **Soft Gate** | Remediation prompt if no-drift on feature task |
 
-**Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.  
-**Review**: Run `mcp_agents_agent_autonomous_reviewer()` once per task after verification passes.
+**Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.
 </quick_reference>
+
+<when_to_use>
+- Implementing complex features or bug fixes.
+- Running multi-task epics autonomously (Ralph mode).
+- Executing tasks that involve 3+ file changes.
+- When context drift or token exhaustion is detected in the main session.
+</when_to_use>
 
 <the_process>
 ## 1. Requirement Loading
-The orchestrator must first load the source of truth for the entire epic to ensure consistency across all tasks.
+The orchestrator must first load the source of truth for the entire epic and the specific task.
 - Run `tm show [epic-id]` and capture the "DESIGN" section (Requirements).
 - Run `tm show [task-id]` and capture the "DESIGN" section (Task Specification).
 - Record the current git SHA: `PRE_SHA=$(git rev-parse HEAD)`.
@@ -43,7 +43,7 @@ The orchestrator must first load the source of truth for the entire epic to ensu
 ## 2. Dispatch Construction
 Construct a prompt that provides the subagent with everything it needs to work in isolation.
 
-### Subagent Prompt Template (REQUIRED)
+### Stateless Handoff Template (REQUIRED)
 Role: Senior Implementation Engineer.
 Context: You are working in a fresh, stateless environment. Your goal is to implement bd-[N] in the project root.
 Project Root: [root path]
@@ -55,7 +55,7 @@ Project Root: [root path]
 
 **Epic Summary (Current Progress)**:
 <epic_summary>
-[Insert summary of completed/remaining work]
+[Insert summary of completed/remaining tasks]
 </epic_summary>
 
 **Task Specification (bd-[N])**:
@@ -64,96 +64,77 @@ Project Root: [root path]
 </task_spec>
 
 **Mandatory Workflow (RED-GREEN-REFACTOR)**:
-1. **RED**: Use `sre-task-refinement` on the task design BEFORE implementation. Write a failing test using the project's testing framework.
+1. **RED**: Use `sre-task-refinement` on the task design BEFORE implementation. Write a failing test.
 2. **GREEN**: Implement the minimal code required to pass the test. Use `test-runner` for all verifications.
 3. **REFACTOR**: Improve code quality while ensuring tests remain green.
-4. **Safety**: Adhere strictly to the project's anti-patterns and safety standards.
 
 **Completion**:
-1. Run all relevant tests via `test-runner` to verify the fix.
+1. Run all relevant tests via `test-runner`.
 2. `git add [relevant files] && git commit -m 'Complete bd-[N]: [Task Title]'`
 3. `tm close bd-[N]`
-4. Provide a one-paragraph summary of your implementation and verification steps.
+4. Provide a one-paragraph summary of implementation and verification steps.
 
 ## 3. Execution
 Run the subagent using the constructed prompt:
 `invoke_agent(agent_name='generalist', prompt='[Constructed Prompt]')`
 
-## 4. Verification
+## 4. Verification & Soft Gate
 After the subagent returns, the orchestrator MUST perform independent verification:
-1. **Status Check**: Run `tm show [task-id] --json`. If the status is not 'closed', the task was not completed. **FAILURE**.
-2. **SHA Check**: Run `git rev-parse HEAD`. 
-   - **For Implementation Tasks** (feature, bug, task, chore): If `POST_SHA == PRE_SHA`, the subagent failed to commit changes. **FAILURE**.
-   - **For Analytical Tasks**: Accept success even if `POST_SHA == PRE_SHA` (no-op).
-3. **Safety Gate**: If verification fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
+
+```bash
+POST_SHA=$(git rev-parse HEAD)
+JSON_OUTPUT=$(tm show [task-id] --json)
+STATUS=$(echo "$JSON_OUTPUT" | jq -r .status 2>/dev/null)
+TASK_TYPE=$(echo "$JSON_OUTPUT" | jq -r .type 2>/dev/null)
+
+if [ "$STATUS" != "closed" ]; then
+  if [ "$POST_SHA" != "$PRE_SHA" ]; then
+    echo "TURN LIMIT HIT: Subagent made commits but didn't close task. Resume."
+  else
+    echo "FAILURE: Task not closed and no changes detected."
+  fi
+  exit 1
+fi
+
+if [ "$PRE_SHA" == "$POST_SHA" ] && [[ "$TASK_TYPE" =~ ^(feature|bug|task|chore)$ ]]; then
+  echo "SOFT GATE TRIGGERED: Hallucinated completion detected."
+  # Trigger Soft Gate Remediation Prompt:
+  # "Warning: Task marked 'closed' but no Git SHA drift detected. Did you forget to commit? If this was a no-op, please confirm. Otherwise, re-verify and commit."
+fi
+```
 
 ## 5. Parallel Review Phase
-Once the task is closed and verified, trigger independent review to ensure high standards:
+Once verified, trigger review:
 - `mcp_agents_agent_autonomous_reviewer()`
-
-If the review identifies critical issues or regressions, create a child remediation task under the epic:
-`tm create "Remediation: [Review Findings]" --parent [epic-id]`
 </the_process>
 
 <examples>
 <example>
-<scenario>Successful implementation task execution</scenario>
+<scenario>Successful implementation with SHA drift</scenario>
 <code>
 Orchestrator: Record PRE_SHA=a1b2c3d
-Orchestrator: Dispatch subagent to implement bd-2.
-Subagent: [Red-Green-Refactor logic]
-Subagent: Commit e5f6g7h "Complete bd-2"
-Subagent: tm close bd-2
-Orchestrator: Verify status=closed (PASS)
-Orchestrator: Verify PRE_SHA != POST_SHA (PASS)
-Orchestrator: Run autonomous-reviewer (PASS)
-Next Task Ready.
+Orchestrator: Dispatch subagent for feature bd-2.
+Subagent: [TDD logic + Commit + Close]
+Orchestrator: POST_SHA=e5f6g7h (DRIFT DETECTED)
+Orchestrator: STATUS=closed (SUCCESS)
 </code>
 </example>
 </examples>
 
 <critical_rules>
 - ❌ NO implementing tasks in the main context.
-- ❌ NO skipping SRE refinement inside the subagent.
-- ❌ NO closing tasks without git commits (for implementation tasks).
+- ❌ NO skipping status/SHA verification.
+- ❌ NO closing implementation-type tasks (feature/bug/task/chore) without git commits. Analytical tasks may close with no SHA drift.
+- ❌ NO auto-closing tasks if subagent fails (FAIL-CLOSED).
 - ❌ NO moving to the next task without verifying SHA drift and Status.
 </critical_rules>
 
 <verification_checklist>
-- [ ] `tm show [task-id] --json` status is "closed".
-- [ ] `git rev-parse HEAD` has changed (for implementation tasks).
-- [ ] `mcp_agents_agent_autonomous_reviewer()` returned APPROVED.
+- [ ] \`SKILL.md\` includes \`<epic_contract>\`, \`<epic_summary>\`, and \`<task_spec>\` tags.
+- [ ] Verification logic explicitly checks for SHA drift using \`git rev-parse HEAD\`.
+- [ ] Remediation prompt is defined for no-drift implementation tasks.
 </verification_checklist>
 
 <integration>
-This skill is used by `execute-ralph` and `executing-plans` to delegate work to subagents.
+This skill is used by \`execute-ralph\` and \`executing-plans\` to delegate work to subagents.
 </integration>
-
-<verification_logic>
-```bash
-# Before Dispatch
-PRE_SHA=$(git rev-parse HEAD)
-
-# After Dispatch
-# 1. Status Check (Priority)
-JSON_OUTPUT=$(tm show [task-id] --json)
-STATUS=$(echo "$JSON_OUTPUT" | jq -r .status 2>/dev/null)
-TASK_TYPE=$(echo "$JSON_OUTPUT" | jq -r .type 2>/dev/null)
-
-if [ "$STATUS" != "closed" ]; then
-  echo "FAILURE: Task status is '$STATUS', expected 'closed'."
-  exit 1
-fi
-
-# 2. SHA Check (Enforce Drift for Implementation Tasks)
-POST_SHA=$(git rev-parse HEAD)
-
-if [ "$PRE_SHA" == "$POST_SHA" ]; then
-  if [[ "$TASK_TYPE" =~ ^(feature|bug|task|chore)$ ]]; then
-    echo "FAILURE: SHA drift not detected for implementation task type '$TASK_TYPE'."
-    exit 1
-  fi
-  # Else: Accept success even if POST_SHA == PRE_SHA (Analytical Tasks)
-fi
-```
-</verification_logic>
