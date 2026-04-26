@@ -7,8 +7,13 @@ import { Type } from "@sinclair/typebox"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
 
 function getTmBin(cwd: string): string {
-  const localTm = join(cwd, "scripts", "tm")
-  if (existsSync(localTm)) return localTm
+  let current = cwd
+  while (current !== "/" && current !== "") {
+    const localTm = join(current, "scripts", "tm")
+    if (existsSync(localTm)) return localTm
+    if (existsSync(join(current, ".git"))) break
+    current = dirname(current)
+  }
   return "tm"
 }
 

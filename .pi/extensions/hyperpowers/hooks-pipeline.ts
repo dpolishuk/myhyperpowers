@@ -1,10 +1,21 @@
 import { exec } from "node:child_process"
-import { join } from "node:path"
+import { join, dirname, resolve } from "node:path"
 import { readFileSync, existsSync } from "node:fs"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
 
+function findRepoRoot(cwd: string): string {
+  let current = cwd
+  while (current !== "/" && current !== "") {
+    if (existsSync(join(current, "hooks", "hooks.json"))) return current
+    if (existsSync(join(current, ".git"))) return current
+    current = dirname(current)
+  }
+  return cwd
+}
+
 function loadHooksConfig(cwd: string) {
-  const hooksPath = join(cwd, "hooks", "hooks.json")
+  const root = findRepoRoot(cwd)
+  const hooksPath = join(root, "hooks", "hooks.json")
   if (existsSync(hooksPath)) {
     try {
       return JSON.parse(readFileSync(hooksPath, "utf8"))
@@ -16,13 +27,14 @@ function loadHooksConfig(cwd: string) {
 }
 
 async function runHookCommand(command: string, cwd: string, inputData?: any, timeout = 5000): Promise<any> {
-  const finalCommand = command.replace(/\${CLAUDE_PLUGIN_ROOT}/g, cwd)
+  const root = findRepoRoot(cwd)
+  const finalCommand = command.replace(/\${CLAUDE_PLUGIN_ROOT}/g, root)
 
   return new Promise((resolve, reject) => {
     const child = exec(finalCommand, {
-      cwd,
+      cwd: root,
       timeout,
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: cwd }
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: root }
     }, (error, stdout) => {
       if (error) {
         reject(error)
@@ -128,8 +140,12 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
     let effectiveToolName = event.toolName
     let effectiveInput = event.input
     if (effectiveToolName.startsWith("tm_")) {
+      const sub = event.toolName.slice(3)
+      const argv = Object.entries(event.input || {})
+        .map(([k, v]) => `--${k}=${JSON.stringify(v)}`)
+        .join(" ")
       effectiveToolName = "bash"
-      effectiveInput = { command: `tm ${event.toolName.slice(3)}` }
+      effectiveInput = { command: `tm ${sub} ${argv}`.trim() }
     }
     const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
@@ -159,10 +175,7 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
               }
               
               const hookOut = out?.hookSpecificOutput
-              if (!out || !hookOut || typeof hookOut !== "object") {
-                return { block: true, reason: "Hook returned invalid or missing structured output." }
-              }
-              if (hookOut.permissionDecision === "deny") {
+              if (hookOut && typeof hookOut === "object" && hookOut.permissionDecision === "deny") {
                 return { block: true, reason: hookOut.permissionDecisionReason || "Blocked by hook" }
               }
             }
@@ -177,8 +190,12 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
     let effectiveToolName = event.toolName
     let effectiveInput = event.input
     if (effectiveToolName.startsWith("tm_")) {
+      const sub = event.toolName.slice(3)
+      const argv = Object.entries(event.input || {})
+        .map(([k, v]) => `--${k}=${JSON.stringify(v)}`)
+        .join(" ")
       effectiveToolName = "bash"
-      effectiveInput = { command: `tm ${event.toolName.slice(3)}` }
+      effectiveInput = { command: `tm ${sub} ${argv}`.trim() }
     }
     const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
@@ -215,13 +232,7 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
               }
               
               const hookOut = out?.hookSpecificOutput
-              if (!out || !hookOut || typeof hookOut !== "object") {
-                return { 
-                  isError: true, 
-                  content: [{ type: "text", text: "Hook returned invalid or missing structured output." }] 
-                }
-              }
-              if (hookOut.permissionDecision === "deny") {
+              if (hookOut && typeof hookOut === "object" && hookOut.permissionDecision === "deny") {
                 return { 
                   isError: true, 
                   content: [{ type: "text", text: `Hook blocked result: ${hookOut.permissionDecisionReason}` }] 

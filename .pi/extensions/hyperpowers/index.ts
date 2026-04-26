@@ -697,7 +697,7 @@ export default function (pi: any) {
         history: params.history || []
       };
       
-      if (params.question && params.options) {
+      if (params.question && params.options?.length > 0) {
         state.currentQuestion = {
           question: params.question,
           options: params.options,
