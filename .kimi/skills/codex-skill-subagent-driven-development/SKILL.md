@@ -6,7 +6,7 @@ description: "Use when the original skill 'subagent-driven-development' applies.
 <!-- Generated from skills/subagent-driven-development/SKILL.md -->
 
 <skill_overview>
-The **Stateless Orchestrator** pattern (via stateless dispatch) prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
+Stateless dispatch prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
 </skill_overview>
 
 <rigidity_level>
@@ -14,10 +14,9 @@ STRICT - Follow the 5-step verification process exactly. Never skip SHA drift ch
 </rigidity_level>
 
 <when_to_use>
-- Implementing complex features or bug fixes.
-- Running multi-task epics autonomously (Ralph mode).
-- Executing tasks that involve 3+ file changes.
-- When context drift or token exhaustion is detected in the main session.
+- When executing complex implementation tasks that require context isolation.
+- When context drift or "agentic slop" is detected in the main session.
+- When running autonomous loops (Ralph mode) where every step must be verifiable.
 </when_to_use>
 
 <quick_reference>
@@ -28,7 +27,7 @@ STRICT - Follow the 5-step verification process exactly. Never skip SHA drift ch
 | 2 | **Load Task** | `tm show [task-id]` (Task design) |
 | 3 | **Dispatch** | `invoke_agent` with Structured Prompt |
 | 4 | **Verify** | SHA change (git) + Status check (tm) |
-| 5 | **Review** | Parallel Quality/Testing/Simplification reviews |
+| 5 | **Review** | Single per-task review via `autonomous-reviewer` |
 
 **Verification**: `tm show [task-id] --json` status == 'closed' + `git rev-parse HEAD` drift.  
 **Review**: Run `mcp_agents_agent_autonomous_reviewer()` once per task after verification passes.
@@ -54,6 +53,11 @@ Project Root: [root path]
 [Insert requirements from tm show epic-id]
 </epic_contract>
 
+**Epic Summary (Current Progress)**:
+<epic_summary>
+[Insert summary of completed/remaining work]
+</epic_summary>
+
 **Task Specification (bd-[N])**:
 <task_spec>
 [Insert design from tm show task-id]
@@ -72,12 +76,8 @@ Project Root: [root path]
 4. Provide a one-paragraph summary of your implementation and verification steps.
 
 ## 3. Execution
-Build the prompt into a variable to avoid quote escaping issues, then run the subagent:
-
-```javascript
-const prompt = `... [Constructed Template Content] ...`;
-invoke_agent(agent_name='generalist', prompt=prompt)
-```
+Run the subagent using the constructed prompt:
+`invoke_agent(agent_name='generalist', prompt='[Constructed Prompt]')`
 
 ## 4. Verification
 After the subagent returns, the orchestrator MUST perform independent verification:
@@ -153,7 +153,7 @@ if [ "$PRE_SHA" == "$POST_SHA" ]; then
     echo "FAILURE: SHA drift not detected for implementation task type '$TASK_TYPE'."
     exit 1
   fi
-  # Else: Accept no-op for non-implementation types
+  # Else: Accept success even if POST_SHA == PRE_SHA (Analytical Tasks)
 fi
 ```
 </verification_logic>

@@ -11,6 +11,12 @@ Stateless dispatch prevents context drift and hallucination by isolating each ta
 STRICT - Follow the 5-step verification process exactly. Never skip SHA drift checks for implementation tasks.
 </rigidity_level>
 
+<when_to_use>
+- When executing complex implementation tasks that require context isolation.
+- When context drift or "agentic slop" is detected in the main session.
+- When running autonomous loops (Ralph mode) where every step must be verifiable.
+</when_to_use>
+
 <quick_reference>
 
 | Step | Action | Deliverable |
@@ -75,7 +81,7 @@ Run the subagent using the constructed prompt:
 After the subagent returns, the orchestrator MUST perform independent verification:
 1. **Status Check**: Run `tm show [task-id] --json`. If the status is not 'closed', the task was not completed. **FAILURE**.
 2. **SHA Check**: Run `git rev-parse HEAD`. 
-   - **For Implementation Tasks** (feature, bug, task): If `POST_SHA == PRE_SHA`, the subagent failed to commit changes. **FAILURE**.
+   - **For Implementation Tasks** (feature, bug, task, chore): If `POST_SHA == PRE_SHA`, the subagent failed to commit changes. **FAILURE**.
    - **For Analytical Tasks**: Accept success even if `POST_SHA == PRE_SHA` (no-op).
 3. **Safety Gate**: If verification fails, the orchestrator MUST NOT move to the next task. It must report the failure details and stop.
 
@@ -141,11 +147,11 @@ fi
 POST_SHA=$(git rev-parse HEAD)
 
 if [ "$PRE_SHA" == "$POST_SHA" ]; then
-  if [[ "$TASK_TYPE" =~ ^(feature|bug|task)$ ]]; then
+  if [[ "$TASK_TYPE" =~ ^(feature|bug|task|chore)$ ]]; then
     echo "FAILURE: SHA drift not detected for implementation task type '$TASK_TYPE'."
-    # Remediation Path: Trigger manual verification or retry
+    exit 1
   fi
-  # Else: Accept no-op for non-implementation types
+  # Else: Accept success even if POST_SHA == PRE_SHA (Analytical Tasks)
 fi
 ```
 </verification_logic>
