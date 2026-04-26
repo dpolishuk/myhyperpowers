@@ -20,6 +20,7 @@ export interface ParallelReviewRequest {
 export interface ParallelReviewExecutionContext {
   cwd?: string
   resolveRoute?: (params: Pick<ParallelReviewParams, "type" | "agent">) => ResolvedParallelReviewRoute
+  uiCtx?: any
 }
 
 export type ParallelReviewExecutor = (params: ParallelReviewParams) => Promise<StructuredSubagentOutput>
@@ -85,22 +86,64 @@ export async function runParallelReview(
   execute: ParallelReviewExecutor = defaultParallelReviewExecutor,
 ): Promise<string> {
   const requests = buildParallelReviewRequests(ctx.cwd).map((request) => applyResolvedRoute(request, ctx.resolveRoute))
+  
+  let dashboard: any = null
+  let handle: any = null
+
+  if (ctx.uiCtx?.ui?.custom) {
+    const { LiveExecutionDashboard } = await import("./execution-dashboard-tui.js")
+    const initialState = {
+      title: "Parallel Review",
+      tasks: requests.map(req => ({
+        id: req.lane,
+        title: `Review ${req.lane}`,
+        status: "pending" as const,
+        effort: req.params.effort
+      }))
+    }
+    dashboard = new LiveExecutionDashboard(initialState, () => {
+      // Abort execution when user cancels
+      // Ideally we'd abort via a signal here
+    })
+    // Launch dashboard and save handle
+    handle = ctx.uiCtx.ui.custom(dashboard, { overlay: true })
+  }
+
   const results = await executePiTasksParallel(requests, async ({ lane, params }) => {
     try {
+      if (dashboard && handle) {
+        dashboard.updateTask(lane, { status: "running" })
+        handle.requestRender()
+      }
       const result = await execute(params)
+      if (dashboard && handle) {
+        dashboard.updateTask(lane, { status: result.status, summary: result.summary })
+        handle.requestRender()
+      }
       return {
         lane,
         status: result.status,
         summary: result.summary,
       }
     } catch (error: any) {
+      const summary = error?.message || String(error)
+      if (dashboard && handle) {
+        dashboard.updateTask(lane, { status: "FAIL", summary })
+        handle.requestRender()
+      }
       return {
         lane,
         status: "FAIL",
-        summary: error?.message || String(error),
+        summary,
       }
     }
   }, { maxConcurrency: 3 })
+
+  if (handle) {
+    // Wait for user to explicitly dismiss it to see results?
+    // Actually, let's close it so the markdown gets printed.
+    handle.close()
+  }
 
   const lines = [
     "# Parallel Review",

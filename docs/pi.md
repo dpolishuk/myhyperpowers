@@ -182,3 +182,33 @@ Inspect:
 ### `/review-parallel` behaves differently than before
 
 `/review-parallel` now performs real extension-managed fan-out/fan-in instead of returning prompt text telling the model to invoke parallel subagents itself. The command name and purpose are unchanged, but result aggregation is now deterministic.
+
+## Ideas for Improvement
+
+Here are several high-impact ideas to improve and expand the Pi integration:
+
+### 1. Elevate Pi TUI for Core Workflows
+Currently, `@mariozechner/pi-tui` is mostly used for `/routing-settings`. We could build rich TUI dashboards for the core workflows:
+- **Interactive Brainstorming (`/brainstorm`)**: Replace text-based `AskUserQuestion` loops with a persistent TUI wizard that builds the Epic/PRD step-by-step.
+- **Live Execution Dashboard (`/execute-ralph` & `/review-parallel`)**: Instead of dumping streaming text, show a TUI dashboard tracking parallel subagents, task graph completion, and structured tool statuses (PASS/FAIL/ISSUES_FOUND) in real-time.
+- **Skill Browser (`/skills`)**: A TUI component to browse, search, and activate available Hyperpowers skills interactively.
+
+### 2. Implement Pi-Native Hooks Pipeline
+The repository relies heavily on hooks (e.g., `PreToolUse` blocking dangerous bash, `PostToolUse` tracking edits) originally designed for Claude Code/OpenCode. 
+- **Action**: Implement a middleware in the Pi extension that intercepts Pi tool invocations and routes them through the Python/Bash scripts in `hooks/`. If a hook returns a block decision, the extension can cancel the tool execution natively in Pi.
+
+### 3. Leverage "Chain" Execution Mode
+The `task-runner.ts` mentions `chain` execution is "available in the shared runner for future workflows". 
+- **Action**: Implement `/tdd` (Red-Green-Refactor) or `/execute-plan` as a fully headless chain sequence where each subagent passes its structured output state to the next without polluting the main session context, stopping only when human intervention is required.
+
+### 4. Move `metadata.pi` from Advisory to Authoritative
+Currently, the `metadata.pi` frontmatter in `SKILL.md` is parsed but remains advisory (routing config takes precedence).
+- **Action**: Allow skills to define "strict" requirements (e.g., `requires: opus` or `minimumThinking: high`) that temporarily override local `/routing-settings` when a specific hyperpower mathematically requires a stronger model to succeed (like `sre-task-refinement`).
+
+### 5. Advanced Context & Memory Management
+- **Fork Session Pruning**: The task runner supports `fork` context mode. We could implement a feature that prunes or summarizes the fork's `.jsonl` seed before passing it to a subagent to save tokens and prevent context bloat.
+- **TUI Memory Manager**: A slash command like `/memory` to view what `memsearch` has recalled, and manually pin/unpin memories for the current Pi session.
+
+### 6. Seamless Task Backend Integrations
+Hyperpowers uses `tm` heavily with backends like `bd` (beads) and `linear`.
+- **Action**: Implement Pi native tools that map directly to `tm` commands, allowing Pi to query the task queue, update statuses, or render a TUI Kanban board directly inside the terminal without shelling out to `bash` for every read/write.

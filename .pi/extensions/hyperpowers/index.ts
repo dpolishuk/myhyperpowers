@@ -18,6 +18,8 @@ import { executePiSubagent } from "./subagent"
 import { executePiTaskAsync } from "./task-runner"
 import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
+import { registerHooksPipeline } from "./hooks-pipeline"
+import { registerTmTools } from "./tm-tools"
 import {
   HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
@@ -631,6 +633,12 @@ async function runRoutingWizard(ctx: any): Promise<string> {
 }
 
 export default function (pi: any) {
+  // Register hooks pipeline
+  registerHooksPipeline(pi)
+  
+  // Register TM (Task Manager) tools
+  registerTmTools(pi)
+
   // Capture ask_user tool definition to use in shim
   let askUserTool: any = null
   const piShim = {
@@ -642,6 +650,73 @@ export default function (pi: any) {
       return pi.registerTool(def)
     }
   }
+
+
+  // Brainstorm TUI Tool
+  pi.registerTool({
+    name: "update_brainstorm_state",
+    label: "Brainstorm Dashboard",
+    description: "Update the interactive Brainstorm Dashboard TUI with the current Epic state and ask the next multiple-choice question. Always use this instead of AskUserQuestion when brainstorming.",
+    parameters: Type.Object({
+      requirements: Type.Array(Type.String()),
+      antiPatterns: Type.Array(Type.Object({
+        pattern: Type.String(),
+        reason: Type.String()
+      })),
+      researchFindings: Type.Array(Type.String()),
+      openQuestions: Type.Array(Type.String()),
+      history: Type.Array(Type.Object({
+        role: Type.Union([Type.Literal("agent"), Type.Literal("user")]),
+        content: Type.String()
+      })),
+      question: Type.Optional(Type.String({ description: "The next question to ask the user" })),
+      options: Type.Optional(Type.Array(Type.Object({
+        label: Type.String(),
+        description: Type.Optional(Type.String())
+      }))),
+      priority: Type.Optional(Type.String({ description: "CRITICAL, IMPORTANT, or NICE_TO_HAVE" }))
+    }),
+    async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
+      if (!ctx?.ui?.custom) {
+        return "TUI not supported in this environment.";
+      }
+      const { BrainstormDashboard } = await import("./brainstorm-tui.js");
+      
+      const state = {
+        requirements: params.requirements || [],
+        antiPatterns: params.antiPatterns || [],
+        researchFindings: params.researchFindings || [],
+        openQuestions: params.openQuestions || [],
+        history: params.history || []
+      };
+      
+      if (params.question && params.options) {
+        state.currentQuestion = {
+          question: params.question,
+          options: params.options,
+          priority: params.priority || "IMPORTANT"
+        };
+      }
+
+      return await new Promise<string>((resolve) => {
+        let handle: any;
+        const dashboard = new BrainstormDashboard(state);
+        
+        dashboard.onOptionSelect = (index) => {
+          const selected = params.options[index].label;
+          handle?.close();
+          resolve(selected);
+        };
+        
+        dashboard.onCancel = () => {
+          handle?.close();
+          resolve("User cancelled the question.");
+        };
+        
+        handle = ctx.ui.custom(dashboard, { overlay: true });
+      });
+    }
+  });
 
   // Register third-party plugins
   askUserPlugin(piShim)
@@ -827,6 +902,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       return await runParallelReview({
         cwd: ctx?.cwd || process.cwd(),
         resolveRoute: ({ type, agent }) => resolveSubagentRouting(type, agent, undefined),
+        uiCtx: ctx,
       })
     },
   })
