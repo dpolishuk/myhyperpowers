@@ -120,29 +120,36 @@ function resolveArgumentsString(args: unknown): string {
   return String(args)
 }
 
-const PI_COMPAT_BLOCK = `
+function getPiCompatBlock(skillName: string): string {
+  const askQuestionInstruction = skillName === "brainstorming"
+    ? "- In the brainstorming skill, you MUST use the `update_brainstorm_state` tool for interactive Q&A instead of AskUserQuestion."
+    : "- ALWAYS use the provided `AskUserQuestion` tool for clarifying questions. It triggers an interactive TUI.";
+
+  return `
 <pi_compat>
 This workflow was ported from Claude Code. In Pi, please adapt your tool usage:
-- ALWAYS use the provided "AskUserQuestion" tool for clarifying questions. It triggers an interactive TUI.
-- Map skill instructions: "AskUserQuestion" is available as a first-class tool in your toolbox.
+${askQuestionInstruction}
+- Map skill instructions: tools for interaction are available as first-class functions in your toolbox.
 - When asked to "Use Skill tool: [name]", use your \`read\` tool to load \`skills/[name]/SKILL.md\` from the repository.
 - When asked to use "Task()" or dispatch parallel agents, use the \`hyperpowers_subagent\` tool.
 </pi_compat>
-`
+`;
+}
 
 function loadPiCommandPrompt(commandName: string, skillName: string, args: unknown): string | null {
   const argsStr = resolveArgumentsString(args)
+  const compatBlock = getPiCompatBlock(skillName)
 
   const commandContent = loadCommandContent(commandName)
   if (commandContent) {
     const substituted = commandContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${compatBlock}`
   }
 
   const skillContent = loadSkillContent(skillName)
   if (skillContent) {
     const substituted = skillContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${compatBlock}`
   }
 
   return null

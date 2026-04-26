@@ -1,17 +1,19 @@
 import { spawnSync } from "node:child_process"
 import { join, resolve, dirname } from "node:path"
-import { writeFileSync, rmSync, mkdtempSync } from "node:fs"
+import { writeFileSync, rmSync, mkdtempSync, existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import { Type } from "@sinclair/typebox"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
 
-const SOURCE_DIR = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(SOURCE_DIR, "..", "..", "..")
-const TM_BIN = join(REPO_ROOT, "scripts", "tm")
+function getTmBin(cwd: string): string {
+  const localTm = join(cwd, "scripts", "tm")
+  if (existsSync(localTm)) return localTm
+  return "tm"
+}
 
 function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): string {
-  const result = spawnSync(TM_BIN, args, {
+  const result = spawnSync(getTmBin(cwd), args, {
     encoding: "utf8",
     cwd,
     timeout: timeoutMs,
