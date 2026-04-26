@@ -12,6 +12,10 @@ Hyperpowers includes first-class support for the Pi coding agent through the ext
 - Model routing by subagent type and concrete agent
 - Routed effort mapped to Pi thinking controls when configured
 - True extension-side `/review-parallel` fan-out/fan-in
+- Interactive Brainstorming TUI dashboard for `/brainstorm`
+- Live Execution TUI dashboard for tracking `/review-parallel`
+- Native Hooks pipeline mapping to repository `hooks.json`
+- Native `tm` tools mapping to `tm` commands (`tm_ready`, `tm_create`, etc.)
 - Advisory `metadata.pi` skill frontmatter parsing for future Pi-specific execution hints
 - Interactive routing configuration through `/routing-settings`
 - Session-start memory recall via `memsearch` when available
@@ -182,3 +186,22 @@ Inspect:
 ### `/review-parallel` behaves differently than before
 
 `/review-parallel` now performs real extension-managed fan-out/fan-in instead of returning prompt text telling the model to invoke parallel subagents itself. The command name and purpose are unchanged, but result aggregation is now deterministic.
+
+## Ideas for Improvement
+
+Here are several high-impact ideas to improve and expand the Pi integration:
+
+### 1. Leverage "Chain" Execution Mode
+The `task-runner.ts` mentions `chain` execution is "available in the shared runner for future workflows". 
+- **Action**: Implement `/tdd` (Red-Green-Refactor) or `/execute-plan` as a fully headless chain sequence where each subagent passes its structured output state to the next without polluting the main session context, stopping only when human intervention is required.
+
+### 2. Move `metadata.pi` from Advisory to Authoritative
+Currently, the `metadata.pi` frontmatter in `SKILL.md` is parsed but remains advisory (routing config takes precedence).
+- **Action**: Allow skills to define "strict" requirements (e.g., `requires: opus` or `minimumThinking: high`) that temporarily override local `/routing-settings` when a specific hyperpower mathematically requires a stronger model to succeed (like `sre-task-refinement`).
+
+### 3. Advanced Context & Memory Management
+- **Fork Session Pruning**: The task runner supports `fork` context mode. We could implement a feature that prunes or summarizes the fork's `.jsonl` seed before passing it to a subagent to save tokens and prevent context bloat.
+- **TUI Memory Manager**: A slash command like `/memory` to view what `memsearch` has recalled, and manually pin/unpin memories for the current Pi session.
+
+### 4. Skill Browser TUI
+- **Action**: A TUI component to browse, search, and activate available Hyperpowers skills interactively via `/skills`.

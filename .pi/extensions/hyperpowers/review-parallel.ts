@@ -20,6 +20,7 @@ export interface ParallelReviewRequest {
 export interface ParallelReviewExecutionContext {
   cwd?: string
   resolveRoute?: (params: Pick<ParallelReviewParams, "type" | "agent">) => ResolvedParallelReviewRoute
+  uiCtx?: any
 }
 
 export type ParallelReviewExecutor = (params: ParallelReviewParams) => Promise<StructuredSubagentOutput>
@@ -85,22 +86,64 @@ export async function runParallelReview(
   execute: ParallelReviewExecutor = defaultParallelReviewExecutor,
 ): Promise<string> {
   const requests = buildParallelReviewRequests(ctx.cwd).map((request) => applyResolvedRoute(request, ctx.resolveRoute))
-  const results = await executePiTasksParallel(requests, async ({ lane, params }) => {
-    try {
-      const result = await execute(params)
-      return {
-        lane,
-        status: result.status,
-        summary: result.summary,
-      }
-    } catch (error: any) {
-      return {
-        lane,
-        status: "FAIL",
-        summary: error?.message || String(error),
-      }
+  
+  let dashboard: any = null
+  let handle: any = null
+  const controller = new AbortController()
+
+  if (ctx.uiCtx?.ui?.custom) {
+    const { LiveExecutionDashboard } = await import("./execution-dashboard-tui.js")
+    const initialState = {
+      title: "Parallel Review",
+      tasks: requests.map(req => ({
+        id: req.lane,
+        title: `Review ${req.lane}`,
+        status: "pending" as const,
+        effort: req.params.effort
+      }))
     }
-  }, { maxConcurrency: 3 })
+    dashboard = new LiveExecutionDashboard(initialState, () => {
+      // Abort execution when user cancels
+      controller.abort()
+    })
+    // Launch dashboard and save handle
+    handle = ctx.uiCtx.ui.custom(dashboard, { overlay: true })
+  }
+
+  let results: any[] = []
+  try {
+    results = await executePiTasksParallel(requests, async ({ lane, params }) => {
+      try {
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: "running" })
+          handle.requestRender()
+        }
+        const result = await execute(params)
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: result.status, summary: result.summary })
+          handle.requestRender()
+        }
+        return {
+          lane,
+          status: result.status,
+          summary: result.summary,
+        }
+      } catch (error: any) {
+        const summary = error?.message || String(error)
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: "FAIL", summary })
+          handle.requestRender()
+        }
+        return {
+          lane,
+          status: "FAIL",
+          summary,
+        }
+      }
+    }, { maxConcurrency: 3, signal: controller.signal })
+  } finally {
+    handle?.close()
+  }
 
   const lines = [
     "# Parallel Review",

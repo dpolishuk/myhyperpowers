@@ -18,6 +18,8 @@ import { executePiSubagent } from "./subagent"
 import { executePiTaskAsync } from "./task-runner"
 import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
+import { registerHooksPipeline } from "./hooks-pipeline"
+import { registerTmTools } from "./tm-tools"
 import {
   HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
@@ -118,29 +120,36 @@ function resolveArgumentsString(args: unknown): string {
   return String(args)
 }
 
-const PI_COMPAT_BLOCK = `
+function getPiCompatBlock(skillName: string): string {
+  const askQuestionInstruction = skillName === "brainstorming"
+    ? "- In the brainstorming skill, you MUST use the `update_brainstorm_state` tool for interactive Q&A instead of AskUserQuestion."
+    : "- ALWAYS use the provided `AskUserQuestion` tool for clarifying questions. It triggers an interactive TUI.";
+
+  return `
 <pi_compat>
 This workflow was ported from Claude Code. In Pi, please adapt your tool usage:
-- ALWAYS use the provided "AskUserQuestion" tool for clarifying questions. It triggers an interactive TUI.
-- Map skill instructions: "AskUserQuestion" is available as a first-class tool in your toolbox.
+${askQuestionInstruction}
+- Map skill instructions: tools for interaction are available as first-class functions in your toolbox.
 - When asked to "Use Skill tool: [name]", use your \`read\` tool to load \`skills/[name]/SKILL.md\` from the repository.
 - When asked to use "Task()" or dispatch parallel agents, use the \`hyperpowers_subagent\` tool.
 </pi_compat>
-`
+`;
+}
 
 function loadPiCommandPrompt(commandName: string, skillName: string, args: unknown): string | null {
   const argsStr = resolveArgumentsString(args)
+  const compatBlock = getPiCompatBlock(skillName)
 
   const commandContent = loadCommandContent(commandName)
   if (commandContent) {
     const substituted = commandContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${compatBlock}`
   }
 
   const skillContent = loadSkillContent(skillName)
   if (skillContent) {
     const substituted = skillContent.replace(/\$ARGUMENTS/g, () => argsStr)
-    return `${substituted}${formatPiCommandArgs(args)}\n${PI_COMPAT_BLOCK}`
+    return `${substituted}${formatPiCommandArgs(args)}\n${compatBlock}`
   }
 
   return null
@@ -631,6 +640,12 @@ async function runRoutingWizard(ctx: any): Promise<string> {
 }
 
 export default function (pi: any) {
+  // Register hooks pipeline
+  registerHooksPipeline(pi)
+  
+  // Register TM (Task Manager) tools
+  registerTmTools(pi)
+
   // Capture ask_user tool definition to use in shim
   let askUserTool: any = null
   const piShim = {
@@ -642,6 +657,77 @@ export default function (pi: any) {
       return pi.registerTool(def)
     }
   }
+
+
+  // Brainstorm TUI Tool
+  pi.registerTool({
+    name: "update_brainstorm_state",
+    label: "Brainstorm Dashboard",
+    description: "Update the interactive Brainstorm Dashboard TUI with the current Epic state and ask the next multiple-choice question. Always use this instead of AskUserQuestion when brainstorming.",
+    parameters: Type.Object({
+      requirements: Type.Optional(Type.Array(Type.String())),
+      antiPatterns: Type.Optional(Type.Array(Type.Object({
+        pattern: Type.String(),
+        reason: Type.String()
+      }))),
+      researchFindings: Type.Optional(Type.Array(Type.String())),
+      openQuestions: Type.Optional(Type.Array(Type.String())),
+      history: Type.Optional(Type.Array(Type.Object({
+        role: Type.Union([Type.Literal("agent"), Type.Literal("user")]),
+        content: Type.String()
+      }))),
+      question: Type.Optional(Type.String({ description: "The next question to ask the user" })),
+      options: Type.Optional(Type.Array(Type.Object({
+        label: Type.String(),
+        description: Type.Optional(Type.String())
+      }))),
+      priority: Type.Optional(Type.String({ description: "CRITICAL, IMPORTANT, or NICE_TO_HAVE" }))
+    }),
+    async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
+      if (!ctx?.ui?.custom) {
+        return { content: [{ type: "text", text: "TUI not supported in this environment." }] };
+      }
+      const { BrainstormDashboard } = await import("./brainstorm-tui.js");
+      
+      const state = {
+        requirements: params.requirements || [],
+        antiPatterns: params.antiPatterns || [],
+        researchFindings: params.researchFindings || [],
+        openQuestions: params.openQuestions || [],
+        history: params.history || []
+      };
+      
+      if (params.question && params.options?.length > 0) {
+        state.currentQuestion = {
+          question: params.question,
+          options: params.options,
+          priority: params.priority || "IMPORTANT"
+        };
+      }
+
+      const result = await new Promise<string>((resolve) => {
+        let handle: any;
+        const dashboard = new BrainstormDashboard(state);
+        
+        dashboard.onOptionSelect = (index: number) => {
+          const selected = params.options?.[index]?.label
+            ?? state.currentQuestion?.options?.[index]?.label
+            ?? `option ${index}`;
+          handle?.close();
+          resolve(selected);
+        };
+        
+        dashboard.onCancel = () => {
+          handle?.close();
+          resolve("User cancelled the question.");
+        };
+        
+        handle = ctx.ui.custom(dashboard, { overlay: true });
+      });
+
+      return { content: [{ type: "text", text: result }] };
+    }
+  });
 
   // Register third-party plugins
   askUserPlugin(piShim)
@@ -827,6 +913,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       return await runParallelReview({
         cwd: ctx?.cwd || process.cwd(),
         resolveRoute: ({ type, agent }) => resolveSubagentRouting(type, agent, undefined),
+        uiCtx: ctx,
       })
     },
   })
