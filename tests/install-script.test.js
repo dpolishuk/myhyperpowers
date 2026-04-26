@@ -17,7 +17,7 @@ function installEnv(home, extra = {}) {
   }
 }
 
-test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules directory", () => {
+test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules directory", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
   const binDir = path.join(home, ".local", "bin")
@@ -48,7 +48,7 @@ test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules di
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
 })
 
-test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlink", () => {
+test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlink", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
   const binDir = path.join(home, ".local", "bin")
@@ -81,7 +81,7 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), false)
 })
 
-test("install.sh partial uninstall preserves shared tm runtime", () => {
+test("install.sh partial uninstall preserves shared tm runtime", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
   const binDir = path.join(home, ".local", "bin")
@@ -115,7 +115,7 @@ test("install.sh partial uninstall preserves shared tm runtime", () => {
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), true)
 })
 
-test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", () => {
+test("install.sh opencode moves pre-existing node_modules directory aside and installs managed symlink", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const binDir = path.join(home, ".local", "bin")
   const libDir = path.join(home, ".local", "lib", "tm")
@@ -328,7 +328,7 @@ test("pi installer rollback preserves pre-existing extension files on failure", 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
-test("install.sh opencode provisions tm runtime and OpenCode command surface", () => {
+test("install.sh opencode provisions tm runtime and OpenCode command surface", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const opencodeHome = path.join(home, ".config", "opencode")
 
