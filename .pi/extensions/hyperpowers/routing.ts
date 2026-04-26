@@ -30,7 +30,7 @@ export const HYPERPOWERS_AGENTS: HyperpowersAgentDefinition[] = [
   { name: "codebase-investigator", type: "research", group: "workers", description: "Find existing patterns in the codebase" },
   { name: "internet-researcher", type: "research", group: "workers", description: "Research external docs and APIs" },
   { name: "knowledge-aggregator", type: "research", group: "workers", description: "Consolidate information from multiple sources" },
-  { name: "devops", type: "test-runner", group: "workers", description: "Pipeline health checks and deployment verification" },
+  { name: "devops", type: "review", group: "guards", description: "Pipeline health checks and deployment verification" },
   { name: "test-runner", type: "test-runner", group: "workers", description: "Run tests in isolated subprocesses" },
 ]
 

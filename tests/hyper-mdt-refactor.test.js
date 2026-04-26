@@ -39,8 +39,10 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
     if (!startMatch) return ""
     const start = startMatch.index
     const rest = content.slice(start)
-    // Find next header (##) or explicit Phase 4 marker (e.g. "13. **Phase 4")
-    const nextSectionMatch = rest.slice(startMatch[0].length).match(/\r?\n(?:##|\d+\.\s+\*\*Phase\s*4\b)/)
+    // Find next markdown header (##) or next top-level numbered Phase bullet
+    const nextSectionMatch = rest
+      .slice(startMatch[0].length)
+      .match(/\r?\n(?:##\s|\d+\.\s+\*\*Phase\b)/)
     return nextSectionMatch ? rest.slice(0, startMatch[0].length + nextSectionMatch.index) : rest
   }
 
