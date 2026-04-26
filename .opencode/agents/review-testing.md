@@ -1,15 +1,19 @@
 ---
+name: review-testing
+model: inherit
 description: Testing reviewer - evaluates test coverage, test quality, and testing gaps. Returns PASS or ISSUES_FOUND.
-mode: subagent
-permission:
-  edit: deny
-  write: deny
-  bash: allow
-  read: allow
-  grep: allow
-  glob: allow
-  webfetch: deny
+tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+disallowedTools:
+  - Edit
+  - Write
+  - WebFetch
 ---
+
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Testing Review Agent
 

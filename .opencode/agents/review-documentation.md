@@ -1,15 +1,19 @@
 ---
+name: review-documentation
+model: inherit
 description: Documentation reviewer - checks if docs need updates for API changes, new features, config changes. Returns PASS or ISSUES_FOUND.
-mode: subagent
-permission:
-  edit: deny
-  write: deny
-  bash: deny
-  read: allow
-  grep: allow
-  glob: allow
-  webfetch: deny
+tools:
+  - Read
+  - Grep
+  - Glob
+disallowedTools:
+  - Edit
+  - Write
+  - Bash
+  - WebFetch
 ---
+
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Documentation Review Agent
 

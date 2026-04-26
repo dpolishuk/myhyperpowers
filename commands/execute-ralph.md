@@ -21,12 +21,15 @@ Executes a complete bd epic without stopping for user review:
 
 1. **Phase 0 - Setup:** Runs smart triage and loads the best epic/task context
 2. Creates a feature branch from the epic name before implementation
-3. **Phase 1 - Get Task:** Claims or auto-creates the next task when success criteria remain unmet
-4. **Phase 2 - Dispatch Subagent:** Runs SRE refinement, TDD, test-runner, commit, and task closure per subagent
-5. Uses SHA comparison to verify subagent progress (HEAD changed = success)
+3. **Phase 1 - Get Task:** Uses `bv --robot-next` for automated triage. Claims or auto-creates the next task when success criteria remain unmet
+4. **Phase 2 - Dispatch Subagent:** Runs `subagent-driven-development` protocol. Handles SRE refinement, TDD, test-runner, commit, and task closure per subagent
+5. Uses SHA comparison to verify subagent progress (HEAD changed = success). Detects 'Turn Limit Hit' (Open but Changed) and 'Hallucinated Completion' (Closed but No Drift).
 6. Re-checks epic success criteria after every task cycle
 7. If criteria are unmet and no task is ready, auto-creates the next task, runs SRE refinement, and continues
-8. **Phase 3 - End-of-Epic Review:** Dispatches 7 agents in parallel (4 review + 2 guard + test-effectiveness-analyst)
+8. **Phase 3 - End-of-Epic Review:** Dispatches 3 specialized agents in parallel:
+  - review-quality (bugs, race conditions, error handling)
+  - security-scanner (OWASP, secrets, CVEs)
+  - test-effectiveness-analyst (tautological tests, coverage gaming)
 9. If any issues found, creates remediation task and returns to Phase 1
 10. Final close requires BOTH: autonomous-reviewer APPROVED and review-implementation PASS
 11. If final reviewers do not both approve, creates a remediation task and continues the loop
@@ -57,14 +60,10 @@ Executes a complete bd epic without stopping for user review:
 
 Reviews happen ONCE at end of epic (not per-task). Ralph uses:
 
-- 7 parallel agents dispatched after all epic criteria are met:
+- 3 specialized agents dispatched in parallel after all epic criteria are met:
   - review-quality (bugs, race conditions, error handling)
-  - review-testing (test coverage)
-  - review-simplification (over-engineering)
-  - review-documentation (docs completeness)
   - security-scanner (OWASP, secrets, CVEs)
-  - devops (CI/CD pipeline health)
-- test-effectiveness-analyst after review aggregation
+  - test-effectiveness-analyst (tautological tests, coverage gaming)
 - autonomous remediation with max 2 fix iterations per task
 - If any issues found, creates remediation task and loops back
 
