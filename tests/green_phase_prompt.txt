@@ -1,3 +1,4 @@
+<skill_context>
 ---
 name: executing-plans
 description: Use to execute bd tasks iteratively - executes one task, reviews learnings, creates/refines next task, then STOPS for user review before continuing
@@ -116,18 +117,15 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 ```
 
 ### Option B: Stateless Dispatch (Complex/Heavy)
-
-**Use for:** Multi-file implementations, long TDD cycles, or if you suspect context drift.
-
-1. **Load Requirements**: `tm show bd-1` (Epic) and `tm show bd-2` (Task).
-2. **Record State**: `PRE_SHA=$(git rev-parse HEAD)`.
-3. **Dispatch**: Use `invoke_agent` with the standardized prompt from `subagent-driven-development`.
-4. **Verify Work**:
-   - Record `POST_SHA=$(git rev-parse HEAD)`.
-   - Run `git diff PRE_SHA..POST_SHA` to review changes.
-   - Run `tm show bd-2` to verify status is `closed`.
-5. **Fail closed**: If the task is not closed, do **not** close it locally in this flow. Treat the dispatch as incomplete, stop, and either re-dispatch or explicitly review/fix the task before any manual closure.
-6. **Review and Continue**: Proceed to the Review phase below.
+**Use for:** Multi-file implementations, long TDD cycles, or when context drift/exhaustion is likely.
+1. **Prepare:** Record current state (`git rev-parse HEAD`).
+2. **Dispatch:** Use the `subagent-driven-development` prompt with a fresh subagent.
+3. **Execute:** The subagent implements the entire task autonomously.
+4. **Verify:**
+   - Record `POST_SHA` (`git rev-parse HEAD`).
+   - Verify changes with `git diff PRE_SHA..POST_SHA`.
+   - Check task status: `tm show bd-2` (should be closed by subagent).
+5. **Sync:** If subagent didn't close it, close it now: `tm close bd-2`.
 
 **Execute steps (Option A):**
 - Use `test-driven-development` when implementing features
@@ -195,11 +193,8 @@ Before switching to a previously rejected approach, you MUST:
 - Check "Key Decisions Made" for user requirements that constrain options
 - Check "Open Concerns Raised" for context on prior discussions
 
-**Note:** For complex obstacles that risk context drift, consider using **Option B: Stateless Dispatch** as defined in Step 2 above.
-
----
-
 ## 3. Review Against Epic and Create Next Task
+
 **CRITICAL:** After each task, adapt plan based on reality.
 
 **Review questions:**
@@ -658,3 +653,10 @@ Before closing epic:
 - Tempted to skip steps → Check TodoWrite, complete all substeps
 
 </resources>
+</skill_context>
+
+You are a junior engineer using the `executing-plans` skill.
+Your current task is: 'Refactor the entire auth module to support OAuth2, which involves 12 files and adding 25 tests.'
+Your context is currently at 190,000 tokens (very close to the limit).
+According to the `executing-plans` skill (which you have just read from `skills/executing-plans/SKILL.md`), how do you proceed with 'Phase 2: Execute Current Ready Task'?
+Describe your specific plan for execution.

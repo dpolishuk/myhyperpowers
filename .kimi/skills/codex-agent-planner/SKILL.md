@@ -84,10 +84,11 @@ For every file that needs to change:
 ### Step 5: Create Task Dependency Graph
 
 Break work into tasks where:
-- Each task is 4-8 hours of work
-- Each task has a clear, independently verifiable deliverable
-- Dependencies are explicit (Task B depends on Task A because...)
-- Tasks follow TDD: test first, then implementation
+- Each task is 4-8 hours of work.
+- Each task has a clear, independently verifiable deliverable.
+- **Stateless Handoff Ready**: Every task MUST include an **"Immutable Epic Requirements"** section in its design. This ensures that a stateless subagent can implement the task without needing the full session context.
+- Dependencies are explicit (Task B depends on Task A because...).
+- Tasks follow TDD: test first, then implementation.
 
 ### Step 6: Assess Risk Per Task
 
@@ -124,16 +125,19 @@ Task 1: [title] (no dependencies) - Risk: LOW
   Deliverable: [specific, verifiable outcome]
   Files: [list of files this task touches]
   Pattern: follows `reference_file.ts:line`
+  **Stateless Handoff**: Include "Immutable Epic Requirements" from the epic design.
 
 Task 2: [title] (depends on Task 1) - Risk: MEDIUM
   Deliverable: [specific, verifiable outcome]
   Files: [list of files]
   Reason for dependency: [why Task 1 must complete first]
+  **Stateless Handoff**: Include "Immutable Epic Requirements" from the epic design.
 
 Task 3: [title] (depends on Task 1) - Risk: LOW
   Deliverable: [specific, verifiable outcome]
   Files: [list of files]
   Note: Can run in parallel with Task 2
+  **Stateless Handoff**: Include "Immutable Epic Requirements" from the epic design.
 
 ## Risk Assessment
 

@@ -95,7 +95,16 @@ tm update bd-2 --status in_progress # Start it
 tm show bd-2                       # Read details
 ```
 
-**CRITICAL - Create TodoWrite for ALL substeps:**
+Choose your execution strategy based on task complexity:
+
+### Option A: In-Context Execution (Standard)
+**Use for:** Simple file edits, research, or when context is low.
+- Execute steps directly in your current session.
+- Use `test-driven-development` when implementing features.
+- Mark each substep completed immediately after finishing.
+- Use `test-runner` agent for verifications.
+
+**CRITICAL - Create TodoWrite for ALL substeps (Option A only):**
 
 Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to prevent incomplete execution:
 
@@ -108,12 +117,26 @@ Tasks contain 4-8 implementation steps. Create TodoWrite todos for each to preve
 - bd-2 Step 6: Commit (pending)
 ```
 
-**Execute steps:**
+### Option B: Stateless Dispatch (Complex/Heavy)
+
+**Use for:** Multi-file implementations, long TDD cycles, or if you suspect context drift.
+
+1. **Load Requirements**: `tm show bd-1` (Epic) and `tm show bd-2` (Task).
+2. **Record State**: `PRE_SHA=$(git rev-parse HEAD)`.
+3. **Dispatch**: Use `invoke_agent` with the standardized prompt from `subagent-driven-development`.
+4. **Verify Work**:
+   - Record `POST_SHA=$(git rev-parse HEAD)`.
+   - Run `git diff PRE_SHA..POST_SHA` to review changes.
+   - Run `tm show bd-2` to verify status is `closed`.
+5. **Fail closed**: If the task is not closed, do **not** close it locally in this flow. Treat the dispatch as incomplete, stop, and either re-dispatch or explicitly review/fix the task before any manual closure.
+6. **Review and Continue**: Proceed to the Review phase below.
+
+**Execute steps (Option A):**
 - Use `test-driven-development` when implementing features
 - Mark each substep completed immediately after finishing
 - Use `test-runner` agent for verifications
 
-**Pre-close verification:**
+**Pre-close verification (Option A):**
 - Check TodoWrite: All substeps completed?
 - If incomplete: Continue with remaining substeps
 - If complete: Close task and commit
@@ -174,8 +197,11 @@ Before switching to a previously rejected approach, you MUST:
 - Check "Key Decisions Made" for user requirements that constrain options
 - Check "Open Concerns Raised" for context on prior discussions
 
-## 3. Review Against Epic and Create Next Task
+**Note:** For complex obstacles that risk context drift, consider using **Option B: Stateless Dispatch** as defined in Step 2 above.
 
+---
+
+## 3. Review Against Epic and Create Next Task
 **CRITICAL:** After each task, adapt plan based on reality.
 
 **Review questions:**
@@ -184,6 +210,7 @@ Before switching to a previously rejected approach, you MUST:
 3. Does this move us toward epic success criteria?
 4. What's next logical step?
 5. Any epic anti-patterns to avoid?
+6. **For Stateless Dispatch:** What findings or architectural risks did the subagent report in its final summary?
 
 **Re-read epic:**
 ```bash
@@ -565,6 +592,8 @@ All of these mean: Re-read epic, STOP as required, ask for help:
 - "All tasks done, epic must be complete" → Verify with review-implementation
 - "Hit obstacle, let me try the other approach" → Check Design Discovery first, rejection reasons often still apply
 - "The rejected approach would be easier now" → Check "DO NOT REVISIT UNLESS" conditions, get user approval
+- "Stateless dispatch is too slow" → Correct, but context exhaustion is slower. Use Option B for complex tasks.
+- "I can handle this in-context" → If task involves 3+ files or high context, use Option B to prevent drift.
 
 </critical_rules>
 
