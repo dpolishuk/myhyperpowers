@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { join, resolve, dirname } from "node:path"
+import { writeFileSync, rmSync, mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import { Type } from "@sinclair/typebox"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
@@ -8,16 +10,16 @@ const SOURCE_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SOURCE_DIR, "..", "..", "..")
 const TM_BIN = join(REPO_ROOT, "scripts", "tm")
 
-function runTmCommand(args: string[], cwd: string): string {
+function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): string {
   const result = spawnSync(TM_BIN, args, {
     encoding: "utf8",
     cwd,
-    timeout: 30000,
+    timeout: timeoutMs,
     env: { ...process.env }
   })
 
   if (result.error) {
-    throw result.error
+    return `Error invoking tm: ${(result.error as Error).message}`
   }
   
   if (result.status !== 0) {
@@ -71,13 +73,33 @@ export function registerTmTools(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId: string, params: { title: string, type?: string, priority?: number, design?: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
-      const args = ["create", params.title]
+      const args = ["create", "--title", params.title]
       if (params.type) args.push("--type", params.type)
       if (params.priority !== undefined) args.push("--priority", params.priority.toString())
-      if (params.design) args.push("--design", params.design)
+      
+      let tempFile: string | undefined
+      if (params.design) {
+        if (params.design.length > 8192) {
+          const dir = mkdtempSync(join(tmpdir(), "tm-design-"))
+          tempFile = join(dir, "design.md")
+          writeFileSync(tempFile, params.design, "utf8")
+          args.push("--design-file", tempFile)
+        } else {
+          args.push("--design", params.design)
+        }
+      }
+
+      let resultText = ""
+      try {
+        resultText = runTmCommand(args, cwd)
+      } finally {
+        if (tempFile) {
+          rmSync(dirname(tempFile), { recursive: true, force: true })
+        }
+      }
 
       return {
-        content: [{ type: "text", text: runTmCommand(args, cwd) }]
+        content: [{ type: "text", text: resultText }]
       }
     }
   })
@@ -129,7 +151,7 @@ export function registerTmTools(pi: ExtensionAPI) {
     async execute(_toolCallId: string, _params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
       return {
-        content: [{ type: "text", text: runTmCommand(["sync"], cwd) }]
+        content: [{ type: "text", text: runTmCommand(["sync"], cwd, 60000) }]
       }
     }
   })

@@ -89,6 +89,7 @@ export async function runParallelReview(
   
   let dashboard: any = null
   let handle: any = null
+  const controller = new AbortController()
 
   if (ctx.uiCtx?.ui?.custom) {
     const { LiveExecutionDashboard } = await import("./execution-dashboard-tui.js")
@@ -103,46 +104,45 @@ export async function runParallelReview(
     }
     dashboard = new LiveExecutionDashboard(initialState, () => {
       // Abort execution when user cancels
-      // Ideally we'd abort via a signal here
+      controller.abort()
     })
     // Launch dashboard and save handle
     handle = ctx.uiCtx.ui.custom(dashboard, { overlay: true })
   }
 
-  const results = await executePiTasksParallel(requests, async ({ lane, params }) => {
-    try {
-      if (dashboard && handle) {
-        dashboard.updateTask(lane, { status: "running" })
-        handle.requestRender()
+  let results: any[] = []
+  try {
+    results = await executePiTasksParallel(requests, async ({ lane, params }) => {
+      try {
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: "running" })
+          handle.requestRender()
+        }
+        const result = await execute(params)
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: result.status, summary: result.summary })
+          handle.requestRender()
+        }
+        return {
+          lane,
+          status: result.status,
+          summary: result.summary,
+        }
+      } catch (error: any) {
+        const summary = error?.message || String(error)
+        if (dashboard && handle) {
+          dashboard.updateTask(lane, { status: "FAIL", summary })
+          handle.requestRender()
+        }
+        return {
+          lane,
+          status: "FAIL",
+          summary,
+        }
       }
-      const result = await execute(params)
-      if (dashboard && handle) {
-        dashboard.updateTask(lane, { status: result.status, summary: result.summary })
-        handle.requestRender()
-      }
-      return {
-        lane,
-        status: result.status,
-        summary: result.summary,
-      }
-    } catch (error: any) {
-      const summary = error?.message || String(error)
-      if (dashboard && handle) {
-        dashboard.updateTask(lane, { status: "FAIL", summary })
-        handle.requestRender()
-      }
-      return {
-        lane,
-        status: "FAIL",
-        summary,
-      }
-    }
-  }, { maxConcurrency: 3 })
-
-  if (handle) {
-    // Wait for user to explicitly dismiss it to see results?
-    // Actually, let's close it so the markdown gets printed.
-    handle.close()
+    }, { maxConcurrency: 3, signal: controller.signal })
+  } finally {
+    handle?.close()
   }
 
   const lines = [

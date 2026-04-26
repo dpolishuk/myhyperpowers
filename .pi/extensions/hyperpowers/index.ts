@@ -702,8 +702,10 @@ export default function (pi: any) {
         let handle: any;
         const dashboard = new BrainstormDashboard(state);
         
-        dashboard.onOptionSelect = (index) => {
-          const selected = params.options[index].label;
+        dashboard.onOptionSelect = (index: number) => {
+          const selected = params.options?.[index]?.label
+            ?? state.currentQuestion?.options?.[index]?.label
+            ?? `option ${index}`;
           handle?.close();
           resolve(selected);
         };
