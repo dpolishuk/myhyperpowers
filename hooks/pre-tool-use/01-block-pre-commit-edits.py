@@ -67,7 +67,7 @@ def main():
         file_path = tool_input.get("file_path", "") or tool_input.get("path", "")
 
         # Block direct edits to pre-commit hook
-        if file_path and (".git/hooks/pre-commit" in file_path or ".git\\hooks\\pre-commit" in file_path):
+        if file_path and isinstance(file_path, str) and (".git/hooks/pre-commit" in file_path or ".git\\hooks\\pre-commit" in file_path):
             emit_deny(
                 "🚫 PRE-COMMIT HOOK MODIFICATION BLOCKED\n\n"
                 f"Attempted to edit: {file_path}\n\n"

@@ -3,6 +3,7 @@
 PostToolUse hook to block Bash commands that modify .git/hooks/pre-commit
 
 Catches sneaky modifications through sed, redirection, chmod, mv, cp, etc.
+Includes fallback detection for cd-into-hooks-dir bypasses.
 """
 
 import json
@@ -44,10 +45,28 @@ def check_precommit_modification(command):
     if not command:
         return None
 
+    # First, check the explicit patterns
     for pattern in PRECOMMIT_MODIFICATION_PATTERNS:
         match = re.search(pattern, command, re.IGNORECASE)
         if match:
             return match.group(0)
+
+    # Second, catch cd-into-hooks-dir bypasses:
+    # If the command mentions .git/hooks and also targets a file named pre-commit
+    if (".git/hooks" in command or ".git\\hooks" in command) and "pre-commit" in command:
+        # Check if pre-commit is used with a write-capable command/operator
+        # Ensure we match EXACTLY "pre-commit" as a DESTINATION
+        write_indicators = [
+            r'>\s*(?:\S+/)?pre-commit(?![-\w\.])',
+            r'>>\s*(?:\S+/)?pre-commit(?![-\w\.])',
+            # For mv/cp, pre-commit must be the second operand or the last token
+            r'\b(?:mv|cp)\b.*\s+\S+\s+(?:\S+/)?pre-commit(?![-\w\.])',
+            r'\b(?:chmod|tee)\b.*\s+(?:\S+/)?pre-commit(?![-\w\.])',
+        ]
+        for indicator in write_indicators:
+            match = re.search(indicator, command, re.IGNORECASE)
+            if match:
+                return f"directory-relative write: {match.group(0)}"
 
     return None
 

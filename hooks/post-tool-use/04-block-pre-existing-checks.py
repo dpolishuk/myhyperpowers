@@ -86,6 +86,8 @@ def main():
             emit_deny("Hook received malformed tool input type. Blocking for safety.")
 
         command = tool_input.get("command", "")
+        if not isinstance(command, str):
+            emit_deny("Hook received malformed command type. Blocking for safety.")
 
         # Check if this is a checkout/switch command
         is_checkout = any(re.search(p, command, re.IGNORECASE) for p in CHECKOUT_PATTERNS)

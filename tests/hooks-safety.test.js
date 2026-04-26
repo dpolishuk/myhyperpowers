@@ -11,6 +11,7 @@ const runHook = (hookPath, input) => {
     input: input ?? "",
     encoding: "utf8",
     timeout: 5000,
+    maxBuffer: 1024 * 1024,
   })
 }
 
@@ -430,6 +431,16 @@ const missingFieldInputs = [
   {
     name: "01-block-pre-commit-edits",
     path: "hooks/pre-tool-use/01-block-pre-commit-edits.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "block-dangerous-bash",
+    path: "hooks/pre-tool-use/block-dangerous-bash.py",
+    input: JSON.stringify(["not", "a", "dict"]),
+  },
+  {
+    name: "block-env-writes",
+    path: "hooks/pre-tool-use/block-env-writes.py",
     input: JSON.stringify(["not", "a", "dict"]),
   },
   {

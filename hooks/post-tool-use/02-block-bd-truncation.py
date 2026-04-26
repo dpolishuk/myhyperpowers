@@ -54,14 +54,19 @@ def main():
             emit_deny("Hook received non-object JSON. Blocking for safety.")
 
         tool_name = input_data.get("tool_name", "")
-        tool_input = input_data.get("tool_input", {})
+        tool_input = input_data.get("tool_input")
         tool_output = input_data.get("tool_output", "")
 
         # Only check Bash tool calls
         if tool_name != "Bash":
             emit_allow()
 
+        if not isinstance(tool_input, dict):
+            emit_deny("Hook received malformed tool input type. Blocking for safety.")
+
         command = tool_input.get("command", "")
+        if not isinstance(command, str):
+             emit_deny("Hook received malformed command type. Blocking for safety.")
 
         # Check both bd and tm commands
         cmd_stripped = command.strip()
@@ -69,7 +74,7 @@ def main():
             emit_allow()
 
         # Check for truncation markers in output
-        if has_truncation_marker(tool_output):
+        if has_truncation_marker(str(tool_output)):
             # Block the result and provide helpful feedback
             emit_deny(
                 "🚫 BEADS OUTPUT TRUNCATED\n\n"
