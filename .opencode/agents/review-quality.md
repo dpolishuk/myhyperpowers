@@ -1,15 +1,18 @@
 ---
+name: review-quality
 description: Quality reviewer - finds bugs, race conditions, error handling gaps, resource leaks. Returns PASS or ISSUES_FOUND with severity.
-mode: subagent
-permission:
-  edit: deny
-  write: deny
-  bash: deny
-  read: allow
-  grep: allow
-  glob: allow
-  webfetch: allow
+tools:
+  - Read
+  - Grep
+  - Glob
+  - WebFetch
+disallowedTools:
+  - Edit
+  - Write
+  - Bash
 ---
+
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Quality Review Agent
 

@@ -1,15 +1,18 @@
 ---
-description: Implementation reviewer - verifies code achieves stated goals and requirements. Returns PASS or ISSUES_FOUND.
-mode: subagent
-permission:
-  edit: deny
-  write: deny
-  bash: deny
-  read: allow
-  grep: allow
-  glob: allow
-  webfetch: deny
+name: review-implementation
+description: Spec-focused implementation reviewer - verifies code achieves stated goals and requirements alignment. Checks each requirement against actual code with file:line evidence. Contrast with code-reviewer (human-facing, broad quality) and autonomous-reviewer (machine-facing, verdict-only). Returns PASS or ISSUES_FOUND.
+tools:
+  - Read
+  - Grep
+  - Glob
+disallowedTools:
+  - Edit
+  - Write
+  - Bash
+  - WebFetch
 ---
+
+> 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Implementation Review Agent
 

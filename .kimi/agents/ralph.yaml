@@ -1,8 +1,8 @@
 version: 1
 agent:
-  name: test-effectiveness-analyst
+  name: ralph
   extend: default
-  system_prompt_path: ./test-effectiveness-analyst-system.md
+  system_prompt_path: ./ralph-system.md
   tools:
     - "kimi_cli.tools.file:ReadFile"
     - "kimi_cli.tools.web:SearchWeb"
