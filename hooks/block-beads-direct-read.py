@@ -8,6 +8,7 @@ Direct file access bypasses validation and often fails due to file size.
 
 import json
 import sys
+import os
 
 TRUNCATION_MARKERS = (
     "truncated",
@@ -81,12 +82,14 @@ def main():
 
         # Check if any path contains .beads/issues.jsonl
         for path in paths_to_check:
-            if path and isinstance(path, str) and ".beads/issues.jsonl" in path:
-                emit_deny(
-                    "Direct access to .beads/issues.jsonl is not allowed.\n\n"
-                    "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc.\n"
-                    "The tm CLI provides the correct interface for reading task specifications."
-                )
+            if path and isinstance(path, str):
+                normalized_path = os.path.normpath(path).replace("\\", "/")
+                if ".beads/issues.jsonl" in normalized_path:
+                    emit_deny(
+                        "Direct access to .beads/issues.jsonl is not allowed.\n\n"
+                        "Use tm CLI commands instead: tm show, tm list, tm ready, tm dep tree, etc.\n"
+                        "The tm CLI provides the correct interface for reading task specifications."
+                    )
 
         # Allow all other reads
         emit_allow()

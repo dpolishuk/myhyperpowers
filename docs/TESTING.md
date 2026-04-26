@@ -44,13 +44,13 @@ Hooks that run as standalone processes (Python and Bash hooks) are tested via st
 ### Python Hooks
 
 Python hooks read JSON from stdin and write JSON to stdout. The test harness verifies:
-1. **Blocked input returns deny** — For known dangerous operations, the hook returns `"decision": "deny"`.
-2. **Allowed input returns allow** — For safe operations, the hook returns `"decision": "allow"`.
+1. **Blocked input returns deny** — For known dangerous operations, the hook returns `"hookSpecificOutput": {"permissionDecision": "deny"}`.
+2. **Allowed input returns allow** — For safe operations, the hook returns `"hookSpecificOutput": {"permissionDecision": "allow"}`.
 3. **Malformed JSON returns deny** — Security hooks fail-closed on parse errors.
 4. **Empty stdin returns deny** — Missing input is treated as a parse error.
 5. **Stdout is valid JSON** — Every response must be parseable.
 
-Example test pattern (from `tests/cass-memory-hook.test.js`):
+Example test pattern (from `tests/hooks-safety.test.js`):
 
 ```javascript
 const { execSync } = require("child_process")
@@ -58,14 +58,17 @@ const test = require("node:test")
 const assert = require("node:assert/strict")
 
 test("hook returns deny for valid blocked input", () => {
-  const input = JSON.stringify({ tool: "ReadFile", params: { path: ".beads/issues.jsonl" } })
-  const result = execSync("python3 hooks/pre-tool-use/block-beads-direct-read.py", {
+  const input = JSON.stringify({
+    tool_name: "Read",
+    tool_input: { file_path: ".beads/issues.jsonl" },
+  })
+  const result = execSync("python3 hooks/block-beads-direct-read.py", {
     input,
     encoding: "utf-8",
     timeout: 5000,
   })
   const parsed = JSON.parse(result)
-  assert.equal(parsed.decision, "deny")
+  assert.equal(parsed.hookSpecificOutput.permissionDecision, "deny")
 })
 ```
 
@@ -103,4 +106,4 @@ Run an npm audit before pushing changes:
 npm audit --audit-level=moderate
 ```
 
-This is enforced in CI.
+This is enforced in CI to prevent the introduction of known vulnerabilities.
