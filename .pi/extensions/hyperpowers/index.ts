@@ -32,7 +32,8 @@ import {
 } from "./routing"
 
 // Resolve skill paths: try extension-local skills first, then repo root
-const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url))
+const SOURCE_DIR = dirname(fileURLToPath(import.meta.url))
+const EXTENSION_DIR = basename(SOURCE_DIR) === "dist" ? resolve(SOURCE_DIR, "..") : SOURCE_DIR
 const ROUTING_CONFIG_PATH = join(EXTENSION_DIR, "routing.json")
 const SKILLS_DIRS = [
   join(EXTENSION_DIR, "skills"),                        // installed: ~/.pi/agent/extensions/hyperpowers/skills/
@@ -325,6 +326,7 @@ function createSelectUI(
           selectedPrefix: (text: string) => theme.fg("accent", text),
           description: (text: string) => theme.fg("muted", text),
           scrollInfo: (text: string) => theme.fg("muted", text),
+          scrollPrefix: (text: string) => theme.fg("muted", text),
           noMatch: (text: string) => theme.fg("warning", text),
         }
       )
@@ -366,6 +368,7 @@ function createSearchableSelectUI(
           selectedPrefix: (text: string) => theme.fg("accent", text),
           description: (text: string) => theme.fg("muted", text),
           scrollInfo: (text: string) => theme.fg("muted", text),
+          scrollPrefix: (text: string) => theme.fg("muted", text),
           noMatch: (text: string) => theme.fg("warning", text),
         }
       )
