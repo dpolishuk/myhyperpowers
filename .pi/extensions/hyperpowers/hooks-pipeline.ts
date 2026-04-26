@@ -40,18 +40,23 @@ async function runHookCommand(command: string, cwd: string, inputData?: any, tim
     })
 
     if (inputData) {
-      child.stdin?.write(JSON.stringify(inputData))
+      child.stdin?.write(JSON.stringify(inputData) + "\n")
       child.stdin?.end()
     }
   })
 }
 
-function camelCaseToolName(name: string): string {
-  if (name === "bash") return "Bash"
-  if (name === "edit") return "Edit"
-  if (name === "read") return "Read"
-  if (name === "write") return "Write"
-  return name
+const TOOL_NAME_MAP: Record<string, string> = {
+  bash: "Bash",
+  edit: "Edit",
+  read: "Read",
+  write: "Write",
+  grep: "Grep",
+  notebook_edit: "NotebookEdit",
+}
+
+function toClaudeToolName(name: string): string {
+  return TOOL_NAME_MAP[name] ?? name
 }
 
 export function registerHooksPipeline(pi: ExtensionAPI) {
@@ -120,7 +125,13 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
 
   // tool_call (PreToolUse)
   pi.on("tool_call", async (event, ctx) => {
-    const camelName = camelCaseToolName(event.toolName)
+    let effectiveToolName = event.toolName
+    let effectiveInput = event.input
+    if (effectiveToolName.startsWith("tm_")) {
+      effectiveToolName = "bash"
+      effectiveInput = { command: `tm ${event.toolName.slice(3)}` }
+    }
+    const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
     const config = loadHooksConfig(cwd)
     const hooks = config.hooks || {}
@@ -129,7 +140,7 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
       for (const handler of hooks.PreToolUse) {
         let match = false
         try {
-          match = !handler.matcher || new RegExp(handler.matcher).test(camelName)
+          match = !handler.matcher || new RegExp(handler.matcher).test(claudeName)
         } catch {
           match = false
         }
@@ -137,8 +148,8 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
           for (const hook of handler.hooks || []) {
             if (hook.type === "command") {
               const payload = {
-                tool_name: camelName,
-                tool_input: event.input
+                tool_name: claudeName,
+                tool_input: effectiveInput
               }
               let out: any
               try {
@@ -163,7 +174,13 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
 
   // tool_result (PostToolUse)
   pi.on("tool_result", async (event, ctx) => {
-    const camelName = camelCaseToolName(event.toolName)
+    let effectiveToolName = event.toolName
+    let effectiveInput = event.input
+    if (effectiveToolName.startsWith("tm_")) {
+      effectiveToolName = "bash"
+      effectiveInput = { command: `tm ${event.toolName.slice(3)}` }
+    }
+    const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
     const config = loadHooksConfig(cwd)
     const hooks = config.hooks || {}
@@ -172,7 +189,7 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
       for (const handler of hooks.PostToolUse) {
         let match = false
         try {
-          match = !handler.matcher || new RegExp(handler.matcher).test(camelName)
+          match = !handler.matcher || new RegExp(handler.matcher).test(claudeName)
         } catch {
           match = false
         }
@@ -180,8 +197,8 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
           for (const hook of handler.hooks || []) {
             if (hook.type === "command") {
               const payload = {
-                tool_name: camelName,
-                tool_input: event.input,
+                tool_name: claudeName,
+                tool_input: effectiveInput,
                 tool_output: {
                   content: typeof event.content === "string" ? event.content : JSON.stringify(event.content),
                   is_error: event.isError || false
