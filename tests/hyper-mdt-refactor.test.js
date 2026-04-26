@@ -34,13 +34,13 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
   
   const extractPhase3 = (content) => {
     // Anchor to the actual Phase 3 header (skill heading or numbered "Phase 3 -" bullet),
-    // and end at the next markdown header or any numbered section.
+    // and end at the next markdown header or an explicit next phase marker.
     const startMatch = content.match(/^(##\s+Phase\s*3\b|\d+\.\s+\*\*Phase\s*3\b)/m)
     if (!startMatch) return ""
     const start = startMatch.index
     const rest = content.slice(start)
-    // Find next header (##) or next numbered section (N.)
-    const nextSectionMatch = rest.slice(startMatch[0].length).match(/\r?\n(?:##|\d+\.)/)
+    // Find next header (##) or explicit Phase 4 marker (e.g. "13. **Phase 4")
+    const nextSectionMatch = rest.slice(startMatch[0].length).match(/\r?\n(?:##|\d+\.\s+\*\*Phase\s*4\b)/)
     return nextSectionMatch ? rest.slice(0, startMatch[0].length + nextSectionMatch.index) : rest
   }
 
