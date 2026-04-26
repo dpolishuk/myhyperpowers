@@ -37,8 +37,9 @@ Execute work autonomously as a **Stateless Orchestrator**. Your primary role is 
 
 **Core Directives:**
 1. **Context Isolation**: You MUST NOT implement complex tasks in your own context. Use subagents to prevent context drift and hallucination.
-2. **Immutable Requirements**: Always load and provide the Epic requirements to every subagent.
-3. **Side-Effect Verification**: Never trust a subagent summary alone. You MUST verify that work was actually saved (Git SHA drift) and tracked (Task status closed).
+2. **SCIU Mandate**: All implementation tasks MUST be Smallest Completable Independent Units (SCIUs) taking 2-5 minutes. If a task is too large, decompose it.
+3. **Immutable Requirements**: Always load and provide the Epic requirements to every subagent.
+4. **Side-Effect Verification**: Never trust a subagent summary alone. You MUST verify that work was actually saved (Git SHA drift) and tracked (Task status closed).
 
 Work continuously without stopping for user input. Only report back when:
 1. All actionable work is complete (with summary)
@@ -89,7 +90,7 @@ This returns the optimal next task with:
 2. Run the `show_command` to get full details
 3. Check issue type:
    - **epic** → Use `execute-ralph` skill for full epic execution.
-   - **task/bug/feature/chore** → Use **Stateless Dispatch**:
+   - **task/bug/feature/chore** → Use **Stateless Dispatch** for SCIU implementation:
      - Record current HEAD: `PRE_SHA=$(git rev-parse HEAD)`
      - Invoke `generalist` subagent using the canonical prompt from `subagent-driven-development`.
      - **Side-Effect Verification**: After subagent returns, run `POST_SHA=$(git rev-parse HEAD)`. 
