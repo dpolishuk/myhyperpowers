@@ -52,8 +52,11 @@ export class BrainstormDashboard extends Container implements Focusable {
   }
 
   public updateState(newState: Partial<BrainstormState>) {
+    const prevQuestion = this.state.currentQuestion?.question
     this.state = { ...this.state, ...newState }
-    this.selectedOption = 0 // reset selection on new question
+    if (this.state.currentQuestion?.question !== prevQuestion) {
+      this.selectedOption = 0 // reset selection only when the question changes
+    }
     this.invalidate()
   }
 

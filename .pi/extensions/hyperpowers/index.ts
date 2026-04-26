@@ -658,17 +658,17 @@ export default function (pi: any) {
     label: "Brainstorm Dashboard",
     description: "Update the interactive Brainstorm Dashboard TUI with the current Epic state and ask the next multiple-choice question. Always use this instead of AskUserQuestion when brainstorming.",
     parameters: Type.Object({
-      requirements: Type.Array(Type.String()),
-      antiPatterns: Type.Array(Type.Object({
+      requirements: Type.Optional(Type.Array(Type.String())),
+      antiPatterns: Type.Optional(Type.Array(Type.Object({
         pattern: Type.String(),
         reason: Type.String()
-      })),
-      researchFindings: Type.Array(Type.String()),
-      openQuestions: Type.Array(Type.String()),
-      history: Type.Array(Type.Object({
+      }))),
+      researchFindings: Type.Optional(Type.Array(Type.String())),
+      openQuestions: Type.Optional(Type.Array(Type.String())),
+      history: Type.Optional(Type.Array(Type.Object({
         role: Type.Union([Type.Literal("agent"), Type.Literal("user")]),
         content: Type.String()
-      })),
+      }))),
       question: Type.Optional(Type.String({ description: "The next question to ask the user" })),
       options: Type.Optional(Type.Array(Type.Object({
         label: Type.String(),
@@ -678,7 +678,7 @@ export default function (pi: any) {
     }),
     async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
       if (!ctx?.ui?.custom) {
-        return "TUI not supported in this environment.";
+        return { content: [{ type: "text", text: "TUI not supported in this environment." }] };
       }
       const { BrainstormDashboard } = await import("./brainstorm-tui.js");
       
@@ -698,7 +698,7 @@ export default function (pi: any) {
         };
       }
 
-      return await new Promise<string>((resolve) => {
+      const result = await new Promise<string>((resolve) => {
         let handle: any;
         const dashboard = new BrainstormDashboard(state);
         
@@ -717,6 +717,8 @@ export default function (pi: any) {
         
         handle = ctx.ui.custom(dashboard, { overlay: true });
       });
+
+      return { content: [{ type: "text", text: result }] };
     }
   });
 

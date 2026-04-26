@@ -100,3 +100,28 @@ test("runParallelReview surfaces cancelled lanes without hiding successful resul
   expect(output).toContain("implementation | FAIL | Subagent cancelled by parent signal")
   expect(output).toContain("simplification | PASS | ok")
 })
+
+test("runParallelReview uses TUI dashboard when UI context is available", async () => {
+  let customCalled = false
+  let handleClosed = false
+  const execute = mock(async () => ({ status: "PASS", summary: "ok", findings: [] }))
+
+  const mockUiCtx = {
+    ui: {
+      custom: (component: any, options: any) => {
+        customCalled = true
+        expect(options).toEqual({ overlay: true })
+        expect(typeof component.updateTask).toBe("function")
+        return { 
+          close: () => { handleClosed = true },
+          requestRender: () => {}
+        }
+      }
+    }
+  }
+
+  await runParallelReview({ cwd: "/tmp/project", uiCtx: mockUiCtx }, execute)
+
+  expect(customCalled).toBe(true)
+  expect(handleClosed).toBe(true)
+})
