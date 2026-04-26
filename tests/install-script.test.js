@@ -264,7 +264,7 @@ test("pi installer fails when dependency install tooling is unavailable", { time
   })
 
   assert.notEqual(result.status, 0)
-  assert.match(result.stderr + result.stdout, /Pi install requires bun or npm|Pi extension dependency install failed/)
+  assert.match(result.stderr + result.stdout, /Pi install requires bun to build the extension|Pi extension dependency install failed/)
   assert.equal(fs.readFileSync(agentsPath, "utf8"), originalAgents)
   assert.equal(fs.existsSync(extensionPath), false)
 

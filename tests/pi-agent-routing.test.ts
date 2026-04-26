@@ -164,6 +164,8 @@ test("resolveRoutingEntry prefers agent effort over type effort", () => {
 
 test("agent catalog exposes worker and reviewer routing targets", () => {
   expect(HYPERPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
+    "ralph",
+    "planner",
     "code-reviewer",
     "autonomous-reviewer",
     "review-quality",
@@ -171,9 +173,12 @@ test("agent catalog exposes worker and reviewer routing targets", () => {
     "review-simplification",
     "review-testing",
     "review-documentation",
+    "security-scanner",
     "test-effectiveness-analyst",
     "codebase-investigator",
     "internet-researcher",
+    "knowledge-aggregator",
+    "devops",
     "test-runner",
   ])
 })

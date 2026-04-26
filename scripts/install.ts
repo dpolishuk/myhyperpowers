@@ -235,15 +235,11 @@ const HOSTS: HostConfig[] = [
 
       // Install extension dependencies (pi-tui, typebox, etc.) before mutating user files.
       if (existsSync(join(extDir, "package.json"))) {
-        const installResult = commandExists("bun")
-          ? Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-          : commandExists("npm")
-            ? Bun.spawnSync(["npm", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
-            : null
-
-        if (!installResult) {
-          throw new Error("Pi install requires bun or npm to install extension dependencies")
+        if (!commandExists("bun")) {
+          throw new Error("Pi install requires bun to build the extension (npm is not sufficient to generate dist/index.js)")
         }
+
+        const installResult = Bun.spawnSync(["bun", "install", "--silent"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
 
         if (installResult.exitCode !== 0) {
           const stderr = installResult.stderr.toString().trim()
@@ -252,10 +248,6 @@ const HOSTS: HostConfig[] = [
         }
 
         // Build the TypeScript source to ESM to avoid Jiti transpilation bugs in Pi
-        if (!commandExists("bun")) {
-          throw new Error("Pi install requires bun to build the extension (npm is not sufficient to produce dist/index.js)")
-        }
-
         const buildResult = Bun.spawnSync(["bun", "build", "index.ts", "--target=node", "--format=esm", "--packages=external", "--outfile=dist/index.js"], { cwd: extDir, stdout: "pipe", stderr: "pipe" })
         if (buildResult.exitCode !== 0) {
           const stderr = buildResult.stderr.toString().trim()
@@ -263,7 +255,7 @@ const HOSTS: HostConfig[] = [
         }
 
         if (!existsSync(join(extDir, "dist", "index.js"))) {
-          throw new Error("Pi extension build failed: dist/index.js was not created")
+          throw new Error("Pi extension build failed to produce dist/index.js")
         }
       }
 
