@@ -17,7 +17,12 @@ function getTmBin(cwd: string): string {
   return "tm"
 }
 
-function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): string {
+interface TmCommandResult {
+  text: string
+  isError?: boolean
+}
+
+function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): TmCommandResult {
   const result = spawnSync(getTmBin(cwd), args, {
     encoding: "utf8",
     cwd,
@@ -26,14 +31,14 @@ function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): string {
   })
 
   if (result.error) {
-    return `Error invoking tm: ${(result.error as Error).message}`
+    return { text: `Error invoking tm: ${(result.error as Error).message}`, isError: true }
   }
   
   if (result.status !== 0) {
-    return `Error (exit ${result.status}):\n${result.stderr || result.stdout}`
+    return { text: `Error (exit ${result.status}):\n${result.stderr || result.stdout}`, isError: true }
   }
 
-  return result.stdout || "Success (no output)"
+  return { text: result.stdout || "Success (no output)" }
 }
 
 export function registerTmTools(pi: ExtensionAPI) {
@@ -45,8 +50,10 @@ export function registerTmTools(pi: ExtensionAPI) {
     parameters: Type.Object({}),
     async execute(_toolCallId: string, _params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
+      const res = runTmCommand(["ready"], cwd)
       return {
-        content: [{ type: "text", text: runTmCommand(["ready"], cwd) }]
+        isError: res.isError,
+        content: [{ type: "text", text: res.text }]
       }
     }
   })
@@ -61,8 +68,10 @@ export function registerTmTools(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId: string, params: { id: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
+      const res = runTmCommand(["show", params.id], cwd)
       return {
-        content: [{ type: "text", text: runTmCommand(["show", params.id], cwd) }]
+        isError: res.isError,
+        content: [{ type: "text", text: res.text }]
       }
     }
   })
@@ -97,8 +106,11 @@ export function registerTmTools(pi: ExtensionAPI) {
       }
 
       let resultText = ""
+      let isError = false
       try {
-        resultText = runTmCommand(args, cwd)
+        const res = runTmCommand(args, cwd)
+        resultText = res.text
+        isError = res.isError || false
       } finally {
         if (tempFile) {
           rmSync(dirname(tempFile), { recursive: true, force: true })
@@ -106,6 +118,7 @@ export function registerTmTools(pi: ExtensionAPI) {
       }
 
       return {
+        isError,
         content: [{ type: "text", text: resultText }]
       }
     }
@@ -127,8 +140,10 @@ export function registerTmTools(pi: ExtensionAPI) {
       if (params.status) args.push("--status", params.status)
       if (params.priority !== undefined) args.push("--priority", params.priority.toString())
 
+      const res = runTmCommand(args, cwd)
       return {
-        content: [{ type: "text", text: runTmCommand(args, cwd) }]
+        isError: res.isError,
+        content: [{ type: "text", text: res.text }]
       }
     }
   })
@@ -143,8 +158,10 @@ export function registerTmTools(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId: string, params: { id: string }, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
+      const res = runTmCommand(["close", params.id], cwd)
       return {
-        content: [{ type: "text", text: runTmCommand(["close", params.id], cwd) }]
+        isError: res.isError,
+        content: [{ type: "text", text: res.text }]
       }
     }
   })
@@ -157,8 +174,10 @@ export function registerTmTools(pi: ExtensionAPI) {
     parameters: Type.Object({}),
     async execute(_toolCallId: string, _params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
       const cwd = ctx?.cwd || process.cwd()
+      const res = runTmCommand(["sync"], cwd, 60000)
       return {
-        content: [{ type: "text", text: runTmCommand(["sync"], cwd, 60000) }]
+        isError: res.isError,
+        content: [{ type: "text", text: res.text }]
       }
     }
   })

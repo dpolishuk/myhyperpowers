@@ -71,6 +71,26 @@ function toClaudeToolName(name: string): string {
   return TOOL_NAME_MAP[name] ?? name
 }
 
+function buildTmSyntheticArgv(toolName: string, input: any): string {
+  const sub = toolName.slice(3)
+  if (sub === "ready" || sub === "sync") return `tm ${sub}`
+  if (sub === "show" || sub === "close") return `tm ${sub} ${input?.id || ""}`.trim()
+  if (sub === "update") {
+    const parts = [`tm update ${input?.id || ""}`.trim()]
+    if (input?.status) parts.push(`--status=${JSON.stringify(input.status)}`)
+    if (input?.priority !== undefined) parts.push(`--priority=${input.priority}`)
+    return parts.join(" ")
+  }
+  if (sub === "create") {
+    const parts = [`tm create --title=${JSON.stringify(input?.title || "")}`]
+    if (input?.type) parts.push(`--type=${JSON.stringify(input.type)}`)
+    if (input?.priority !== undefined) parts.push(`--priority=${input.priority}`)
+    if (input?.design) parts.push(`--design-file=<temp_design_file.md>`)
+    return parts.join(" ")
+  }
+  return `tm ${sub}`
+}
+
 export function registerHooksPipeline(pi: ExtensionAPI) {
   // session_start (SessionStart)
   pi.on("session_start", async (event, ctx) => {
@@ -140,12 +160,8 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
     let effectiveToolName = event.toolName
     let effectiveInput = event.input
     if (effectiveToolName.startsWith("tm_")) {
-      const sub = event.toolName.slice(3)
-      const argv = Object.entries(event.input || {})
-        .map(([k, v]) => `--${k}=${JSON.stringify(v)}`)
-        .join(" ")
       effectiveToolName = "bash"
-      effectiveInput = { command: `tm ${sub} ${argv}`.trim() }
+      effectiveInput = { command: buildTmSyntheticArgv(event.toolName, event.input) }
     }
     const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
@@ -190,12 +206,8 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
     let effectiveToolName = event.toolName
     let effectiveInput = event.input
     if (effectiveToolName.startsWith("tm_")) {
-      const sub = event.toolName.slice(3)
-      const argv = Object.entries(event.input || {})
-        .map(([k, v]) => `--${k}=${JSON.stringify(v)}`)
-        .join(" ")
       effectiveToolName = "bash"
-      effectiveInput = { command: `tm ${sub} ${argv}`.trim() }
+      effectiveInput = { command: buildTmSyntheticArgv(event.toolName, event.input) }
     }
     const claudeName = toClaudeToolName(effectiveToolName)
     const cwd = ctx.cwd || process.cwd()
@@ -245,24 +257,34 @@ export function registerHooksPipeline(pi: ExtensionAPI) {
     }
   })
 
-  // Stop (session_shutdown)
-  pi.on("session_shutdown", async (event, ctx) => {
-    const cwd = ctx.cwd || process.cwd()
+  // Stop (message_end & session_shutdown)
+  const runStopHooks = async (eventName: string, cwd: string) => {
     const config = loadHooksConfig(cwd)
     const hooks = config.hooks || {}
-
     if (hooks.Stop?.length > 0) {
       for (const handler of hooks.Stop) {
         for (const hook of handler.hooks || []) {
           if (hook.type === "command") {
             try {
-              await runHookCommand(hook.command, cwd, { event: "session_shutdown" })
+              await runHookCommand(hook.command, cwd, { event: eventName })
             } catch (e) {
-              console.error("Session_shutdown hook failed:", e)
+              console.error(`Stop hook failed on ${eventName}:`, e)
             }
           }
         }
       }
     }
+  }
+
+  pi.on("message_end", async (event, ctx) => {
+    if (event.message?.role === "assistant") {
+      const cwd = ctx.cwd || process.cwd()
+      await runStopHooks("message_end", cwd)
+    }
+  })
+
+  pi.on("session_shutdown", async (event, ctx) => {
+    const cwd = ctx.cwd || process.cwd()
+    await runStopHooks("session_shutdown", cwd)
   })
 }
