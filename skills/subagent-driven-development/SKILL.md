@@ -122,8 +122,9 @@ Orchestrator: STATUS=closed (SUCCESS)
 <critical_rules>
 - ❌ NO implementing tasks in the main context.
 - ❌ NO skipping status/SHA verification.
+- ❌ NO closing implementation-type tasks (feature/bug/task/chore) without git commits. Analytical tasks may close with no SHA drift.
 - ❌ NO auto-closing tasks if subagent fails (FAIL-CLOSED).
-- ❌ NO relying on subagent summaries for proof.
+- ❌ NO moving to the next task without verifying SHA drift and Status.
 </critical_rules>
 
 <verification_checklist>
@@ -135,3 +136,32 @@ Orchestrator: STATUS=closed (SUCCESS)
 <integration>
 This skill is used by \`execute-ralph\` and \`executing-plans\` to delegate work to subagents.
 </integration>
+
+<verification_logic>
+```bash
+# Before Dispatch
+PRE_SHA=$(git rev-parse HEAD)
+
+# After Dispatch
+# 1. Status Check (Priority)
+JSON_OUTPUT=$(tm show [task-id] --json)
+STATUS=$(echo "$JSON_OUTPUT" | jq -r .status 2>/dev/null)
+TASK_TYPE=$(echo "$JSON_OUTPUT" | jq -r .type 2>/dev/null)
+
+if [ "$STATUS" != "closed" ]; then
+  echo "FAILURE: Task status is '$STATUS', expected 'closed'."
+  exit 1
+fi
+
+# 2. SHA Check (Enforce Drift for Implementation Tasks)
+POST_SHA=$(git rev-parse HEAD)
+
+if [ "$PRE_SHA" == "$POST_SHA" ]; then
+  if [[ "$TASK_TYPE" =~ ^(feature|bug|task|chore)$ ]]; then
+    echo "FAILURE: SHA drift not detected for implementation task type '$TASK_TYPE'."
+    exit 1
+  fi
+  # Else: Analytical Tasks: Accept success even if POST_SHA == PRE_SHA
+fi
+```
+</verification_logic>

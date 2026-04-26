@@ -33,9 +33,17 @@ test("test_execute_ralph_pruned_phase_3_agents", () => {
   const command = read("commands/execute-ralph.md")
   
   const extractPhase3 = (content) => {
-    // Matches "## Phase 3" OR "8. **Phase 3"
-    const match = content.match(/(## Phase 3: End-of-Epic Review|Phase 3 - End-of-Epic Review)[\s\S]*?(?=\n(##|9\.)|$)/i)
-    return match ? match[0] : ""
+    // Anchor to the actual Phase 3 header (skill heading or numbered "Phase 3 -" bullet),
+    // and end at the next markdown header or an explicit next phase marker.
+    const startMatch = content.match(/^(##\s+Phase\s*3\b|\d+\.\s+\*\*Phase\s*3\b)/m)
+    if (!startMatch) return ""
+    const start = startMatch.index
+    const rest = content.slice(start)
+    // Find next markdown header (##) or next top-level numbered Phase bullet
+    const nextSectionMatch = rest
+      .slice(startMatch[0].length)
+      .match(/\r?\n(?:##\s|\d+\.\s+\*\*Phase\b)/)
+    return nextSectionMatch ? rest.slice(0, startMatch[0].length + nextSectionMatch.index) : rest
   }
 
   const skillPhase3 = extractPhase3(skill)

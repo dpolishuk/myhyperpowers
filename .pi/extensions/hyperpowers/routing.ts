@@ -16,6 +16,8 @@ export const DEFAULT_ROUTING_COMMENT =
   "Model format: 'provider/model' (e.g., 'anthropic/claude-haiku-4-5', 'ollama/llama3.1:8b') or 'inherit' for session model"
 
 export const HYPERPOWERS_AGENTS: HyperpowersAgentDefinition[] = [
+  { name: "ralph", type: "orchestration", group: "workers", description: "Autonomous executor (YOLO mode)" },
+  { name: "planner", type: "research", group: "workers", description: "Architecture and task planning" },
   { name: "code-reviewer", type: "review", group: "reviewers", description: "Code review, quality checks" },
   { name: "autonomous-reviewer", type: "validation", group: "reviewers", description: "Final review and validation" },
   { name: "review-quality", type: "review", group: "reviewers", description: "Focused review for bugs, safety, and code quality" },
@@ -23,9 +25,12 @@ export const HYPERPOWERS_AGENTS: HyperpowersAgentDefinition[] = [
   { name: "review-simplification", type: "review", group: "reviewers", description: "Identify unnecessary complexity and simplifications" },
   { name: "review-testing", type: "review", group: "reviewers", description: "Review test quality and missing coverage" },
   { name: "review-documentation", type: "review", group: "reviewers", description: "Review docs for correctness and completeness" },
+  { name: "security-scanner", type: "review", group: "reviewers", description: "Dedicated security audit and vulnerability scanning" },
   { name: "test-effectiveness-analyst", type: "validation", group: "reviewers", description: "Audit tests for strength, realism, and gaps" },
   { name: "codebase-investigator", type: "research", group: "workers", description: "Find existing patterns in the codebase" },
   { name: "internet-researcher", type: "research", group: "workers", description: "Research external docs and APIs" },
+  { name: "knowledge-aggregator", type: "research", group: "workers", description: "Consolidate information from multiple sources" },
+  { name: "devops", type: "review", group: "guards", description: "Pipeline health checks and deployment verification" },
   { name: "test-runner", type: "test-runner", group: "workers", description: "Run tests in isolated subprocesses" },
 ]
 

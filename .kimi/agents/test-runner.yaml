@@ -6,7 +6,6 @@ agent:
   tools:
     - "kimi_cli.tools.shell:Shell"
     - "kimi_cli.tools.file:ReadFile"
-    - "kimi_cli.tools.todo:SetTodoList"
   exclude_tools:
     - "kimi_cli.tools.file:WriteFile"
     - "kimi_cli.tools.file:StrReplaceFile"
