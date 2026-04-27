@@ -60,12 +60,12 @@ export class BrainstormDashboard extends Container implements Focusable {
     this.invalidate()
   }
 
-  handleInput(data: string): void {
+  handleInput(data: string): boolean {
     if (!this.state.currentQuestion) {
-      if (matchesKey(data, Key.escape)) {
+      if (matchesKey(data, Key.escape) || data === "\x1b") {
         this.onCancel?.()
       }
-      return
+      return true
     }
 
     const optionsCount = this.state.currentQuestion.options.length
@@ -77,9 +77,10 @@ export class BrainstormDashboard extends Container implements Focusable {
       this.invalidate()
     } else if (matchesKey(data, Key.enter)) {
       this.onOptionSelect?.(this.selectedOption)
-    } else if (matchesKey(data, Key.escape)) {
+    } else if (matchesKey(data, Key.escape) || data === "\x1b") {
       this.onCancel?.()
     }
+    return true
   }
 
   render(width: number): string[] {
