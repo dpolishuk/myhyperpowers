@@ -94,18 +94,6 @@ test("space triggers onClaim callback", () => {
   expect(claimedId).toBe("bd-1")
 })
 
-test("c key triggers onClose callback", () => {
-  let closedId = ""
-  const dashboard = new TmDashboard(makeState([
-    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug" },
-  ]))
-  dashboard.onClose = (id) => { closedId = id }
-
-  dashboard.handleInput("c")
-
-  expect(closedId).toBe("bd-1")
-})
-
 test("r key triggers onRefresh callback", () => {
   let refreshed = false
   const dashboard = new TmDashboard(makeState([

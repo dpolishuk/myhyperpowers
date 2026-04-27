@@ -953,20 +953,30 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         const result = claimTask(id, cwd)
         if (!result.ok) {
           dashboard.updateState({ error: result.error })
-        } else {
-          const refreshed = await fetchTasks()
-          dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
+          return
         }
+        const refreshed = await fetchTasks()
+        dashboard.updateState({
+          tasks: refreshed.tasks,
+          error: refreshed.error
+            ? `Claimed ${id}, but refresh failed: ${refreshed.error}`
+            : undefined,
+        })
       }
 
       dashboard.onClose = async (id: string) => {
         const result = closeTask(id, cwd)
         if (!result.ok) {
           dashboard.updateState({ error: result.error })
-        } else {
-          const refreshed = await fetchTasks()
-          dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
+          return
         }
+        const refreshed = await fetchTasks()
+        dashboard.updateState({
+          tasks: refreshed.tasks,
+          error: refreshed.error
+            ? `Closed ${id}, but refresh failed: ${refreshed.error}`
+            : undefined,
+        })
       }
 
       dashboard.onRefresh = async () => {

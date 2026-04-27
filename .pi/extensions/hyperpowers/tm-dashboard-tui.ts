@@ -97,9 +97,6 @@ export class TmDashboard extends Container implements Focusable {
     } else if (matchesKey(data, Key.space)) {
       const task = this.state.tasks[this.selectedIndex]
       if (task) this.onClaim?.(task.id)
-    } else if (data === "c") {
-      const task = this.state.tasks[this.selectedIndex]
-      if (task) this.onClose?.(task.id)
     } else if (data === "r") {
       this.onRefresh?.()
     }
@@ -130,7 +127,7 @@ export class TmDashboard extends Container implements Focusable {
     out.push("")
     const help = this.showingActions
       ? "[c] Claim  [x] Close  [Esc] Back"
-      : "[↑↓] Navigate  [Enter] Actions  [Space] Claim  [c] Close  [r] Refresh  [Esc] Exit"
+      : "[↑↓] Navigate  [Enter] Actions  [Space] Claim  [r] Refresh  [Esc] Exit"
     out.push(truncateToWidth(help, width))
 
     return out

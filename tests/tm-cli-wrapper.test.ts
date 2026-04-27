@@ -77,6 +77,31 @@ test("getReadyTasks strips non-JSON prefix warnings", () => {
   expect(result.data![0].id).toBe("bd-2")
 })
 
+test("getReadyTasks handles bracket inside warning prefix", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-2b",
+      title: "Bracket test",
+      status: "open",
+      priority: 1,
+      issue_type: "task",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: `tm-sync: [WARN] corrupted mapping\n${JSON.stringify(tasks)}`,
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getReadyTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data).toHaveLength(1)
+  expect(result.data![0].id).toBe("bd-2b")
+})
+
 test("getReadyTasks returns error when tm binary is missing", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: null,
@@ -180,7 +205,7 @@ test("updateTask passes correct arguments", () => {
   expect(args).toContain("--json")
 })
 
-test("claimTask passes --claim flag", () => {
+test("claimTask uses portable --status in_progress", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,
     stdout: JSON.stringify({ message: "claimed" }),
@@ -193,8 +218,12 @@ test("claimTask passes --claim flag", () => {
   expect(result.ok).toBe(true)
 
   const [, args] = mockSpawnSync.mock.calls[0]!
-  expect(args).toContain("--claim")
+  expect(args).toContain("update")
+  expect(args).toContain("bd-5")
+  expect(args).toContain("--status")
+  expect(args).toContain("in_progress")
   expect(args).toContain("--json")
+  expect(args).not.toContain("--claim")
 })
 
 test("closeTask passes correct arguments", () => {

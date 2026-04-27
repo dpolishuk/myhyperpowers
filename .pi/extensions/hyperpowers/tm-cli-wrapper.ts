@@ -71,13 +71,18 @@ function runTmJson<T>(
     return { ok: true, data: undefined as unknown as T }
   }
 
-  // Handle non-JSON prefix text (e.g. warnings) by finding the first '[' or '{'
-  let jsonStart = stdout.indexOf("[")
-  if (jsonStart === -1) {
-    jsonStart = stdout.indexOf("{")
+  // Handle non-JSON prefix text (e.g. warnings) by finding the first line
+  // whose first non-whitespace character is '[' or '{'.
+  const lines = stdout.split("\n")
+  let jsonStartLine = -1
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart()
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      jsonStartLine = i
+      break
+    }
   }
-
-  const jsonText = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout
+  const jsonText = jsonStartLine >= 0 ? lines.slice(jsonStartLine).join("\n") : stdout
 
   try {
     const parsed = JSON.parse(jsonText)
@@ -140,13 +145,15 @@ export function updateTask(
 }
 
 /**
- * Claim a task (set assignee to current user and status to in_progress).
+ * Claim a task (set status to in_progress).
+ * Uses portable `--status in_progress` instead of backend-specific `--claim`
+ * so it works across bd, br, tk, and linear backends.
  */
 export function claimTask(
   id: string,
   cwd?: string,
 ): TmCommandResult<{ message: string }> {
-  return runTmJson<{ message: string }>(["update", id, "--claim"], cwd || process.cwd())
+  return updateTask(id, { status: "in_progress" }, cwd)
 }
 
 /**
