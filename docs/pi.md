@@ -40,6 +40,7 @@ Primary Pi commands:
 - `/setup-models`
 - `/review-parallel`
 - `/review-branch`
+- `/tm`
 
 Compatibility alias:
 

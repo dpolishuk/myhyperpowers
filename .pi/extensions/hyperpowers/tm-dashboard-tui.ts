@@ -1,7 +1,5 @@
 import {
   Container,
-  Box,
-  Text,
   matchesKey,
   Key,
   type Focusable,

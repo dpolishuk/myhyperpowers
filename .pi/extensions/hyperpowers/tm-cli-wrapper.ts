@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { join, resolve, dirname } from "node:path"
+import { join, dirname } from "node:path"
 import { existsSync } from "node:fs"
 
 export interface TmTask {
@@ -83,6 +83,9 @@ function runTmJson<T>(
     const parsed = JSON.parse(jsonText)
     return { ok: true, data: parsed as T }
   } catch (parseErr) {
+    // TODO: Add text-mode fallback for backends that don't support --json (e.g. linear).
+    // When implemented, detect non-JSON output here and return a synthetic TmTask[]
+    // or fall back to a plain-text representation.
     return {
       ok: false,
       error: `Failed to parse tm JSON output: ${(parseErr as Error).message}. Raw output: ${stdout.slice(0, 500)}`,
