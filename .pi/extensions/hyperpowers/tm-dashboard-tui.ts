@@ -28,9 +28,8 @@ export class TmDashboard extends Container implements Focusable {
   public onCancel?: () => void
 
   public tui?: any
-  public theme?: any
 
-  private mdCache: { taskId: string; width: number; lines: string[] } | null = null
+  private mdCache: { taskId: string; design: string; width: number; lines: string[] } | null = null
 
   get focused(): boolean {
     return this._focused
@@ -167,7 +166,7 @@ export class TmDashboard extends Container implements Focusable {
     }
 
     const termHeight = this.tui?.terminal?.rows || 24
-    const maxListLines = Math.max(1, termHeight - 6) // Account for headers and footers
+    const maxListLines = Math.max(1, Math.floor(termHeight * 0.9) - 6) // Account for headers and footers
 
     let startIdx = 0
     let endIdx = this.state.tasks.length
@@ -175,7 +174,7 @@ export class TmDashboard extends Container implements Focusable {
     if (this.state.tasks.length > maxListLines) {
       startIdx = Math.max(0, this.selectedIndex - Math.floor(maxListLines / 2))
       endIdx = Math.min(this.state.tasks.length, startIdx + maxListLines)
-      
+
       // Adjust start if end hit the boundary
       if (endIdx - startIdx < maxListLines) {
         startIdx = Math.max(0, endIdx - maxListLines)
@@ -234,17 +233,22 @@ export class TmDashboard extends Container implements Focusable {
       lines.push("[Esc] Back to list")
     } else if (task.design) {
       const termHeight = this.tui?.terminal?.rows || 24
-      // Calculate available height for design: terminal height * 0.9 (overlay height) - approx 10 lines for header/footer and padding
+      // Calculate available height for design: terminal height * 0.9 (overlay height) - approx 14 lines for header/footer and padding
       const maxDesignLines = Math.max(1, Math.floor(termHeight * 0.9) - 14)
       
       let designLines: string[]
-      if (this.mdCache && this.mdCache.taskId === task.id && this.mdCache.width === width) {
+      if (
+        this.mdCache &&
+        this.mdCache.taskId === task.id &&
+        this.mdCache.width === width &&
+        this.mdCache.design === task.design
+      ) {
         designLines = this.mdCache.lines
       } else {
         const mdTheme = getMarkdownTheme()
         const md = new Markdown(task.design, 0, 0, mdTheme)
         designLines = md.render(width)
-        this.mdCache = { taskId: task.id, width, lines: designLines }
+        this.mdCache = { taskId: task.id, design: task.design, width, lines: designLines }
       }
 
       // Clamp scroll offset to not scroll completely past the content

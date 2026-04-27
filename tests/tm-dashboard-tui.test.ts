@@ -223,4 +223,14 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
   dashboard.handleInput("k")
   lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1 ")
+
+  dashboard.handleInput("\x1b[6~") // PageDown
+  lines = dashboard.render(80).join("\n")
+  expect(lines).not.toContain("Line 1 ")
+  expect(lines).toContain("Line 2 ")
+  expect(lines).toContain("Line 8 ")
+
+  dashboard.handleInput("\x1b[5~") // PageUp
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("Line 1 ")
 })
