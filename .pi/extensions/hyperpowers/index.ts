@@ -20,6 +20,8 @@ import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import { registerHooksPipeline } from "./hooks-pipeline"
 import { registerTmTools } from "./tm-tools"
+import { getReadyTasks, getAssignedTasks, claimTask, closeTask, type TmTask } from "./tm-cli-wrapper"
+import { TmDashboard } from "./tm-dashboard-tui"
 import {
   HYPERPOWERS_AGENTS,
   normalizeRoutingConfig,
@@ -904,6 +906,93 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       if (!askUserTool?.renderResult) return new Text("User answered question", 0, 0)
       return askUserTool.renderResult(result, options, theme)
     }
+  })
+
+  // Task Management dashboard — interactive TUI for tm
+  pi.registerCommand("tm", {
+    description: "Open interactive task management dashboard",
+    handler: async (_args: unknown, ctx: any) => {
+      if (!ctx?.ui?.custom) {
+        return "Task Management TUI requires an interactive Pi session with UI support."
+      }
+
+      const cwd = ctx?.cwd || process.cwd()
+
+      async function fetchTasks() {
+        const ready = getReadyTasks(cwd)
+        const assigned = getAssignedTasks(cwd)
+
+        const tasks: TmTask[] = []
+        const errors: string[] = []
+
+        if (ready.ok && ready.data) {
+          tasks.push(...ready.data)
+        } else if (ready.error) {
+          errors.push(ready.error)
+        }
+
+        if (assigned.ok && assigned.data) {
+          const seen = new Set(tasks.map((t) => t.id))
+          for (const task of assigned.data) {
+            if (!seen.has(task.id)) {
+              tasks.push(task)
+              seen.add(task.id)
+            }
+          }
+        } else if (assigned.error) {
+          errors.push(assigned.error)
+        }
+
+        return { tasks, error: errors.join("; ") || undefined }
+      }
+
+      const initial = await fetchTasks()
+      const dashboard = new TmDashboard(initial)
+
+      dashboard.onClaim = async (id: string) => {
+        const result = claimTask(id, cwd)
+        if (!result.ok) {
+          dashboard.updateState({ error: result.error })
+          return
+        }
+        const refreshed = await fetchTasks()
+        dashboard.updateState({
+          tasks: refreshed.tasks,
+          error: refreshed.error
+            ? `Claimed ${id}, but refresh failed: ${refreshed.error}`
+            : undefined,
+        })
+      }
+
+      dashboard.onClose = async (id: string) => {
+        const result = closeTask(id, cwd)
+        if (!result.ok) {
+          dashboard.updateState({ error: result.error })
+          return
+        }
+        const refreshed = await fetchTasks()
+        dashboard.updateState({
+          tasks: refreshed.tasks,
+          error: refreshed.error
+            ? `Closed ${id}, but refresh failed: ${refreshed.error}`
+            : undefined,
+        })
+      }
+
+      dashboard.onRefresh = async () => {
+        const refreshed = await fetchTasks()
+        dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
+      }
+
+      return await new Promise<string>((resolve) => {
+        let handle: any
+        dashboard.onCancel = () => {
+          handle?.close()
+          resolve("Task Management dashboard closed.")
+        }
+        handle = ctx.ui.custom(dashboard, { overlay: true })
+      })
+    },
   })
 
   // Parallel review — dispatches multiple subagents
