@@ -312,7 +312,7 @@ export function executePiTask(
     const args = buildPiTaskArgs(task, params.model, params.effort, contextMode, forkSession?.seedPath, forkSession?.dir)
     const result = run("pi", args, {
       encoding: "utf8",
-      timeout: 1200000,
+      timeout: 120000,
       maxBuffer: 1024 * 1024 * 10,
       cwd,
       env: {
