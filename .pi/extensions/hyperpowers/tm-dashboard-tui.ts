@@ -16,6 +16,7 @@ export interface TmDashboardState {
 export class TmDashboard extends Container implements Focusable {
   private state: TmDashboardState
   private selectedIndex = 0
+  private designScrollOffset = 0
   private _focused = true
   private showingActions = false
 
@@ -42,33 +43,35 @@ export class TmDashboard extends Container implements Focusable {
     // Reset selection if tasks changed significantly or if previously empty
     if (!hadTasks || this.state.tasks.length === 0) {
       this.selectedIndex = 0
+      this.designScrollOffset = 0
     }
     // Clamp selection
     if (this.selectedIndex >= this.state.tasks.length) {
       this.selectedIndex = Math.max(0, this.state.tasks.length - 1)
+      this.designScrollOffset = 0
     }
     this.showingActions = false
     this.invalidate()
   }
 
-  handleInput(data: string): void {
+  handleInput(data: string): boolean {
     const taskCount = this.state.tasks.length
 
-    if (matchesKey(data, Key.escape)) {
+    if (matchesKey(data, Key.escape) || data === "\x1b") {
       if (this.showingActions) {
         this.showingActions = false
         this.invalidate()
-        return
+        return true
       }
       this.onCancel?.()
-      return
+      return true
     }
 
     if (taskCount === 0) {
-      if (matchesKey(data, Key.lowercase("r"))) {
+      if (data === "r") {
         this.onRefresh?.()
       }
-      return
+      return true
     }
 
     if (this.showingActions) {
@@ -82,14 +85,22 @@ export class TmDashboard extends Container implements Focusable {
         this.showingActions = false
       }
       this.invalidate()
-      return
+      return true
     }
 
     if (matchesKey(data, Key.up) && this.selectedIndex > 0) {
       this.selectedIndex--
+      this.designScrollOffset = 0
       this.invalidate()
     } else if (matchesKey(data, Key.down) && this.selectedIndex < taskCount - 1) {
       this.selectedIndex++
+      this.designScrollOffset = 0
+      this.invalidate()
+    } else if (matchesKey(data, Key.pageUp) || data === "k") {
+      this.designScrollOffset = Math.max(0, this.designScrollOffset - 5)
+      this.invalidate()
+    } else if (matchesKey(data, Key.pageDown) || data === "j") {
+      this.designScrollOffset += 5
       this.invalidate()
     } else if (matchesKey(data, Key.enter)) {
       this.showingActions = true
@@ -100,6 +111,7 @@ export class TmDashboard extends Container implements Focusable {
     } else if (data === "r") {
       this.onRefresh?.()
     }
+    return true
   }
 
   render(width: number): string[] {
@@ -127,7 +139,7 @@ export class TmDashboard extends Container implements Focusable {
     out.push("")
     const help = this.showingActions
       ? "[c] Claim  [x] Close  [Esc] Back"
-      : "[↑↓] Navigate  [Enter] Actions  [Space] Claim  [r] Refresh  [Esc] Exit"
+      : "[↑↓] Nav  [j/k] Scroll  [Enter] Actions  [Space] Claim  [r] Refresh  [Esc] Exit"
     out.push(truncateToWidth(help, width))
 
     return out
@@ -186,13 +198,22 @@ export class TmDashboard extends Container implements Focusable {
       lines.push("[x] Close task")
       lines.push("[Esc] Back to list")
     } else if (task.design) {
-      const preview = task.design.split("\n").slice(0, 8).join("\n")
-      lines.push(truncateToWidth("Design preview:", width))
-      for (const line of preview.split("\n")) {
+      const maxDesignLines = 25
+      const designLines = task.design.split("\n")
+      // Clamp scroll offset to not scroll completely past the content
+      const maxScroll = Math.max(0, designLines.length - maxDesignLines)
+      const offset = Math.min(this.designScrollOffset, maxScroll)
+      this.designScrollOffset = offset
+
+      const preview = designLines.slice(offset, offset + maxDesignLines)
+      
+      lines.push(truncateToWidth(`Design preview: (lines ${offset + 1}-${Math.min(designLines.length, offset + maxDesignLines)} of ${designLines.length})`, width))
+      if (offset > 0) lines.push(truncateToWidth("↑ ...", width))
+      for (const line of preview) {
         lines.push(truncateToWidth(line, width))
       }
-      if (task.design.split("\n").length > 8) {
-        lines.push("...")
+      if (offset + maxDesignLines < designLines.length) {
+        lines.push(truncateToWidth("↓ ...", width))
       }
     }
 

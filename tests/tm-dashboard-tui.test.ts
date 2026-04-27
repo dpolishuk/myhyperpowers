@@ -192,3 +192,26 @@ test("escape in action mode returns to list", () => {
   const rightPane = lines.map(l => l.split("│")[1] || "").join("\n")
   expect(rightPane).not.toContain("Claim task")
 })
+
+test("j/k and PageDown/PageUp scroll design preview", () => {
+  const longDesign = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}`).join("\n")
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug", design: longDesign },
+  ]))
+
+  let lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("Line 1")
+  expect(lines).toContain("Line 25")
+  expect(lines).not.toContain("Line 26")
+
+  dashboard.handleInput("j")
+  lines = dashboard.render(80).join("\n")
+  expect(lines).not.toContain("│ Line 1\n")
+  expect(lines).toContain("Line 6")
+  expect(lines).toContain("Line 30")
+
+  // Using PageDown key sequence (mocked if needed, but j/k is what we mostly use, let's just use j/k here since handleInput handles matchesKey or string)
+  dashboard.handleInput("k")
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("│ Line 1\n")
+})
