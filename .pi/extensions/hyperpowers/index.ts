@@ -707,25 +707,25 @@ export default function (pi: any) {
         };
       }
 
-      const result = await new Promise<string>((resolve) => {
-        let handle: any;
-        const dashboard = new BrainstormDashboard(state);
-        
-        dashboard.onOptionSelect = (index: number) => {
-          const selected = params.options?.[index]?.label
-            ?? state.currentQuestion?.options?.[index]?.label
-            ?? `option ${index}`;
-          handle?.close();
-          resolve(selected);
-        };
-        
-        dashboard.onCancel = () => {
-          handle?.close();
-          resolve("User cancelled the question.");
-        };
-        
-        handle = ctx.ui.custom(dashboard, { overlay: true });
-      });
+      const result = await ctx.ui.custom<string>(
+        (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
+          const dashboard = new BrainstormDashboard(state);
+          
+          dashboard.onOptionSelect = (index: number) => {
+            const selected = params.options?.[index]?.label
+              ?? state.currentQuestion?.options?.[index]?.label
+              ?? `option ${index}`;
+            done(selected);
+          };
+          
+          dashboard.onCancel = () => {
+            done("User cancelled the question.");
+          };
+          
+          return dashboard;
+        },
+        { overlay: true }
+      );
 
       return { content: [{ type: "text", text: result }] };
     }
@@ -984,14 +984,15 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
       }
 
-      return await new Promise<string>((resolve) => {
-        let handle: any
-        dashboard.onCancel = () => {
-          handle?.close()
-          resolve("Task Management dashboard closed.")
-        }
-        handle = ctx.ui.custom(dashboard, { overlay: true })
-      })
+      return await ctx.ui.custom<string>(
+        (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
+          dashboard.onCancel = () => {
+            done("Task Management dashboard closed.")
+          }
+          return dashboard
+        },
+        { overlay: true }
+      )
     },
   })
 
