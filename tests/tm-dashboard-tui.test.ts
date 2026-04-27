@@ -34,7 +34,7 @@ test("first task is selected by default", () => {
   ]))
   const lines = dashboard.render(80)
   // First task should have ❯ prefix, second should have spaces
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
   expect(leftPane.some(l => l.includes("  ") && l.includes("Add tests"))).toBe(true)
 })
@@ -49,7 +49,7 @@ test("arrow down moves selection", () => {
   dashboard.handleInput("\x1b[B")
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("  ") && l.includes("Fix auth"))).toBe(true)
   expect(leftPane.some(l => l.includes("❯") && l.includes("Add tests"))).toBe(true)
 })
@@ -64,7 +64,7 @@ test("arrow up moves selection back", () => {
   dashboard.handleInput("\x1b[A") // up
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
 })
 
@@ -143,7 +143,7 @@ test("updateState resets selection when tasks change", () => {
   dashboard.updateState({ tasks: [{ id: "bd-3", title: "New task", status: "open", priority: 2, issue_type: "feature" }] })
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("New task"))).toBe(true)
 })
 
@@ -211,14 +211,14 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
 
   let lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1")
-  expect(lines).toContain("Line 8")
-  expect(lines).not.toContain("Line 9")
+  expect(lines).toContain("Line 6")
+  expect(lines).not.toContain("Line 7")
 
   dashboard.handleInput("j")
   lines = dashboard.render(80).join("\n")
   expect(lines).not.toContain("Line 1 ")
   expect(lines).toContain("Line 2 ")
-  expect(lines).toContain("Line 9 ")
+  expect(lines).toContain("Line 7 ")
 
   dashboard.handleInput("k")
   lines = dashboard.render(80).join("\n")
@@ -228,7 +228,7 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
   lines = dashboard.render(80).join("\n")
   expect(lines).not.toContain("Line 1 ")
   expect(lines).toContain("Line 2 ")
-  expect(lines).toContain("Line 9 ")
+  expect(lines).toContain("Line 7 ")
 
   dashboard.handleInput("\x1b[5~") // PageUp
   lines = dashboard.render(80).join("\n")
