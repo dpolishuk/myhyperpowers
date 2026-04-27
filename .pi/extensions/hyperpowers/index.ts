@@ -986,12 +986,14 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
       return await ctx.ui.custom<string>(
         (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
+          dashboard.tui = _tui
+          dashboard.theme = _theme
           dashboard.onCancel = () => {
             done("Task Management dashboard closed.")
           }
           return dashboard
         },
-        { overlay: true }
+        { overlay: true, overlayOptions: { width: "90%", maxHeight: "90%" } }
       )
     },
   })

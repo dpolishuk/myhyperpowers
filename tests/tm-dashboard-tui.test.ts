@@ -116,6 +116,16 @@ test("escape triggers onCancel callback", () => {
   expect(cancelled).toBe(true)
 })
 
+test("q key triggers onCancel callback", () => {
+  let cancelled = false
+  const dashboard = new TmDashboard(makeState([]))
+  dashboard.onCancel = () => { cancelled = true }
+
+  dashboard.handleInput("q")
+
+  expect(cancelled).toBe(true)
+})
+
 test("displays error bar when error is set", () => {
   const dashboard = new TmDashboard(makeState([], "tm binary not found"))
   const lines = dashboard.render(80)
@@ -201,17 +211,16 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
 
   let lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1")
-  expect(lines).toContain("Line 25")
-  expect(lines).not.toContain("Line 26")
+  expect(lines).toContain("Line 7")
+  expect(lines).not.toContain("Line 8")
 
   dashboard.handleInput("j")
   lines = dashboard.render(80).join("\n")
-  expect(lines).not.toContain("│ Line 1\n")
-  expect(lines).toContain("Line 6")
-  expect(lines).toContain("Line 30")
+  expect(lines).not.toContain("Line 1 ")
+  expect(lines).toContain("Line 2 ")
+  expect(lines).toContain("Line 8 ")
 
-  // Using PageDown key sequence (mocked if needed, but j/k is what we mostly use, let's just use j/k here since handleInput handles matchesKey or string)
   dashboard.handleInput("k")
   lines = dashboard.render(80).join("\n")
-  expect(lines).toContain("│ Line 1\n")
+  expect(lines).toContain("Line 1 ")
 })
