@@ -31,6 +31,11 @@ export class TmDashboard extends Container implements Focusable {
 
   private mdCache: { taskId: string; design: string; width: number; lines: string[] } | null = null
 
+  private getOverlayHeight(): number {
+    const rows = this.tui?.terminal?.rows ?? 24
+    return Math.max(1, Math.floor(rows * 0.9))
+  }
+
   get focused(): boolean {
     return this._focused
   }
@@ -165,8 +170,11 @@ export class TmDashboard extends Container implements Focusable {
       return lines
     }
 
-    const termHeight = this.tui?.terminal?.rows || 24
-    const maxListLines = Math.max(1, Math.floor(termHeight * 0.9) - 6) // Account for headers and footers
+    const overlayHeight = this.getOverlayHeight()
+    const footerLines = this.state.error ? 4 : 2 // global bottom bars
+    const staticLines = 2 // "Tasks" header + divider
+    const indicatorReserve = this.state.tasks.length > 1 ? 2 : 0
+    const maxListLines = Math.max(1, overlayHeight - footerLines - staticLines - indicatorReserve)
 
     let startIdx = 0
     let endIdx = this.state.tasks.length
@@ -232,10 +240,9 @@ export class TmDashboard extends Container implements Focusable {
       lines.push("[x] Close task")
       lines.push("[Esc] Back to list")
     } else if (task.design) {
-      const termHeight = this.tui?.terminal?.rows || 24
-      // Calculate available height for design: terminal height * 0.9 (overlay height) - approx 14 lines for header/footer and padding
-      const maxDesignLines = Math.max(1, Math.floor(termHeight * 0.9) - 14)
-      
+      const overlayHeight = this.getOverlayHeight()
+      const footerLines = this.state.error ? 4 : 2
+
       let designLines: string[]
       if (
         this.mdCache &&
@@ -250,6 +257,10 @@ export class TmDashboard extends Container implements Focusable {
         designLines = md.render(width)
         this.mdCache = { taskId: task.id, design: task.design, width, lines: designLines }
       }
+
+      const staticLines = lines.length + 1 // existing right-pane lines + "Design preview" line
+      const indicatorReserve = designLines.length > 0 ? 2 : 0
+      const maxDesignLines = Math.max(1, overlayHeight - footerLines - staticLines - indicatorReserve)
 
       // Clamp scroll offset to not scroll completely past the content
       const maxScroll = Math.max(0, designLines.length - maxDesignLines)

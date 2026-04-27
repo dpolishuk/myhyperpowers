@@ -211,14 +211,14 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
 
   let lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1")
-  expect(lines).toContain("Line 7")
-  expect(lines).not.toContain("Line 8")
+  expect(lines).toContain("Line 8")
+  expect(lines).not.toContain("Line 9")
 
   dashboard.handleInput("j")
   lines = dashboard.render(80).join("\n")
   expect(lines).not.toContain("Line 1 ")
   expect(lines).toContain("Line 2 ")
-  expect(lines).toContain("Line 8 ")
+  expect(lines).toContain("Line 9 ")
 
   dashboard.handleInput("k")
   lines = dashboard.render(80).join("\n")
@@ -228,7 +228,7 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
   lines = dashboard.render(80).join("\n")
   expect(lines).not.toContain("Line 1 ")
   expect(lines).toContain("Line 2 ")
-  expect(lines).toContain("Line 8 ")
+  expect(lines).toContain("Line 9 ")
 
   dashboard.handleInput("\x1b[5~") // PageUp
   lines = dashboard.render(80).join("\n")
