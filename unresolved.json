@@ -1,0 +1,41 @@
+[
+  {
+    "id": "PRRT_kwDOQ6WFH859rgBW",
+    "isResolved": false,
+    "comments": {
+      "nodes": [
+        {
+          "body": "_⚠️ Potential issue_ | _🟡 Minor_\n\n**Synthesized `tm <sub>` bash command doesn't reflect the real `tm` argv used by `tm-tools.ts`.**\n\nThe serializer always emits `--key=<JSON>` for every input field, but the actual invocations in `tm-tools.ts` use a mix of positional args and flags:\n\n- `tm_show`/`tm_close` → `tm show <id>` (positional), here synthesized as `tm show --id=\"bd-42\"`\n- `tm_update` → `tm update <id> --status …` (positional id), here synthesized as `tm update --id=… --status=…`\n- `tm_create` `design` field can carry a multi-KB markdown body — `JSON.stringify`'d and shoved into a single command string here (in real execution it's written to a temp file and passed via `--design-file`).\n\nSince this string is only handed to `PreToolUse`/`PostToolUse` hooks for matching/inspection (the real tm execution still goes through `runTmCommand` argv), it's not a correctness break, but any future Bash-safety hook that pattern-matches on the actual tm CLI shape will see a synthetic form that doesn't reflect reality. Worth either (a) mirroring the real argv from `tm-tools.ts`, or (b) skipping the bash-rewrite entirely and matching hooks on the original `tm_*` tool name.\n\nAlso note this block is duplicated verbatim between the `tool_call` and `tool_result` handlers — extracting a shared helper would prevent these two from drifting.\n\n \n\n\nAlso applies to: 192-199\n\n<details>\n<summary>🤖 Prompt for AI Agents</summary>\n\n```\nVerify each finding against the current code and only fix it if needed.\n\nIn @.pi/extensions/hyperpowers/hooks-pipeline.ts around lines 142 - 149, The\nsynthesized tm command incorrectly serializes all inputs as --key=<JSON> and\nduplicates logic in both tool_call and tool_result; update the tm rewrite in the\neffectiveToolName.startsWith(\"tm_\") branch to mirror the real argv used by\nrunTmCommand in tm-tools.ts (handle tm_show/tm_close as positional \"tm <sub>\n<id>\", tm_update as \"tm update <id> [--status=...]\" with id as positional, and\ntm_create to reference a design file via \"--design-file=<path>\" or a clear\nplaceholder instead of JSON.stringify'ing large markdown), and extract this\nlogic into a shared helper (e.g., buildTmSyntheticArgv(event) used from both\nhandlers) so the two blocks don't drift; alternatively support a config flag to\nskip the bash-rewrite and leave effectiveToolName as the original tm_* for hook\nmatching.\n```\n\n</details>\n\n<!-- fingerprinting:phantom:poseidon:nectarine:e70ca075-4b66-408d-98d9-74511eeef24c -->\n\n<!-- d98c2f50 -->\n\n<!-- This is an auto-generated comment by CodeRabbit -->",
+          "path": ".pi/extensions/hyperpowers/hooks-pipeline.ts",
+          "line": 149
+        }
+      ]
+    }
+  },
+  {
+    "id": "PRRT_kwDOQ6WFH859rhCO",
+    "isResolved": false,
+    "comments": {
+      "nodes": [
+        {
+          "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Trigger Stop hooks on response events, not only shutdown**\n\nThis wires the `Stop` hook family to `session_shutdown`, so reminders only run when a session exits. In this repo, `hooks/stop/10-gentle-reminders.sh` is designed to run after assistant responses (it inspects response text and recent edits), so mapping it to shutdown silently drops the intended in-session guidance. Use a per-turn event (for example an agent/message end event) to preserve existing hook behavior.\n\nUseful? React with 👍 / 👎.",
+          "path": ".pi/extensions/hyperpowers/hooks-pipeline.ts",
+          "line": 249
+        }
+      ]
+    }
+  },
+  {
+    "id": "PRRT_kwDOQ6WFH859rhCQ",
+    "isResolved": false,
+    "comments": {
+      "nodes": [
+        {
+          "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Mark tm subprocess failures as tool errors**\n\nWhen `tm` exits non-zero (or spawn fails), this helper returns an error string as normal text, and all `tm_*` tools then return a successful result shape instead of setting `isError`. In failure scenarios (missing backend binary, invalid args, timeout), callers and hook logic that rely on tool error semantics cannot reliably detect that the operation failed, so workflows can proceed as if task updates succeeded.\n\nUseful? React with 👍 / 👎.",
+          "path": ".pi/extensions/hyperpowers/tm-tools.ts",
+          "line": 34
+        }
+      ]
+    }
+  }
+]

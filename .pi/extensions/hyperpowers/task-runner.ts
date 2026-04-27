@@ -211,7 +211,7 @@ export function buildPiTaskArgs(
   if (normalizedThinking) {
     args.push("--thinking", normalizedThinking)
   }
-  args.push("--", task)
+  args.push(task)
   return args
 }
 
@@ -312,7 +312,7 @@ export function executePiTask(
     const args = buildPiTaskArgs(task, params.model, params.effort, contextMode, forkSession?.seedPath, forkSession?.dir)
     const result = run("pi", args, {
       encoding: "utf8",
-      timeout: 120000,
+      timeout: 1200000,
       maxBuffer: 1024 * 1024 * 10,
       cwd,
       env: {

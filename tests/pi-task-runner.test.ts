@@ -18,7 +18,6 @@ test("buildPiTaskArgs uses no-session for fresh context", () => {
   expect(buildPiTaskArgs("Investigate auth", null, undefined, "fresh")).toEqual([
     "--print",
     "--no-session",
-    "--",
     "Investigate auth",
   ])
 })
