@@ -5,7 +5,9 @@ import {
   type Focusable,
   truncateToWidth,
   visibleWidth,
+  Markdown,
 } from "@mariozechner/pi-tui"
+import { getMarkdownTheme } from "@mariozechner/pi-coding-agent"
 import type { TmTask } from "./tm-cli-wrapper"
 
 export interface TmDashboardState {
@@ -24,6 +26,11 @@ export class TmDashboard extends Container implements Focusable {
   public onClose?: (taskId: string) => void
   public onRefresh?: () => void
   public onCancel?: () => void
+
+  public tui?: any
+  public theme?: any
+
+  private mdCache: { taskId: string; width: number; lines: string[] } | null = null
 
   get focused(): boolean {
     return this._focused
@@ -70,6 +77,8 @@ export class TmDashboard extends Container implements Focusable {
     if (taskCount === 0) {
       if (data === "r") {
         this.onRefresh?.()
+      } else if (data === "q") {
+        this.onCancel?.()
       }
       return true
     }
@@ -97,10 +106,10 @@ export class TmDashboard extends Container implements Focusable {
       this.designScrollOffset = 0
       this.invalidate()
     } else if (matchesKey(data, Key.pageUp) || data === "k") {
-      this.designScrollOffset = Math.max(0, this.designScrollOffset - 5)
+      this.designScrollOffset = Math.max(0, this.designScrollOffset - 1)
       this.invalidate()
     } else if (matchesKey(data, Key.pageDown) || data === "j") {
-      this.designScrollOffset += 5
+      this.designScrollOffset += 1
       this.invalidate()
     } else if (matchesKey(data, Key.enter)) {
       this.showingActions = true
@@ -110,6 +119,8 @@ export class TmDashboard extends Container implements Focusable {
       if (task) this.onClaim?.(task.id)
     } else if (data === "r") {
       this.onRefresh?.()
+    } else if (data === "q") {
+      this.onCancel?.()
     }
     return true
   }
@@ -139,7 +150,7 @@ export class TmDashboard extends Container implements Focusable {
     out.push("")
     const help = this.showingActions
       ? "[c] Claim  [x] Close  [Esc] Back"
-      : "[↑↓] Nav  [j/k] Scroll  [Enter] Actions  [Space] Claim  [r] Refresh  [Esc] Exit"
+      : "[↑↓] Nav  [j/k] Scroll  [Enter] Actions  [Space] Claim  [r] Refresh  [q/Esc] Exit"
     out.push(truncateToWidth(help, width))
 
     return out
@@ -155,12 +166,36 @@ export class TmDashboard extends Container implements Focusable {
       return lines
     }
 
-    for (let i = 0; i < this.state.tasks.length; i++) {
+    const termHeight = this.tui?.terminal?.rows || 24
+    const maxListLines = Math.max(1, termHeight - 6) // Account for headers and footers
+
+    let startIdx = 0
+    let endIdx = this.state.tasks.length
+
+    if (this.state.tasks.length > maxListLines) {
+      startIdx = Math.max(0, this.selectedIndex - Math.floor(maxListLines / 2))
+      endIdx = Math.min(this.state.tasks.length, startIdx + maxListLines)
+      
+      // Adjust start if end hit the boundary
+      if (endIdx - startIdx < maxListLines) {
+        startIdx = Math.max(0, endIdx - maxListLines)
+      }
+    }
+
+    if (startIdx > 0) {
+      lines.push(truncateToWidth("↑ ...", width))
+    }
+
+    for (let i = startIdx; i < endIdx; i++) {
       const task = this.state.tasks[i]!
       const icon = this.statusIcon(task.status)
       const prefix = i === this.selectedIndex ? "❯ " : "  "
       const title = truncateToWidth(task.title, width - 4 - visibleWidth(icon))
       lines.push(truncateToWidth(`${prefix}${icon} ${title}`, width))
+    }
+
+    if (endIdx < this.state.tasks.length) {
+      lines.push(truncateToWidth("↓ ...", width))
     }
 
     return lines
@@ -198,8 +233,20 @@ export class TmDashboard extends Container implements Focusable {
       lines.push("[x] Close task")
       lines.push("[Esc] Back to list")
     } else if (task.design) {
-      const maxDesignLines = 25
-      const designLines = task.design.split("\n")
+      const termHeight = this.tui?.terminal?.rows || 24
+      // Calculate available height for design: terminal height * 0.9 (overlay height) - approx 10 lines for header/footer and padding
+      const maxDesignLines = Math.max(1, Math.floor(termHeight * 0.9) - 14)
+      
+      let designLines: string[]
+      if (this.mdCache && this.mdCache.taskId === task.id && this.mdCache.width === width) {
+        designLines = this.mdCache.lines
+      } else {
+        const mdTheme = getMarkdownTheme()
+        const md = new Markdown(task.design, 0, 0, mdTheme)
+        designLines = md.render(width)
+        this.mdCache = { taskId: task.id, width, lines: designLines }
+      }
+
       // Clamp scroll offset to not scroll completely past the content
       const maxScroll = Math.max(0, designLines.length - maxDesignLines)
       const offset = Math.min(this.designScrollOffset, maxScroll)

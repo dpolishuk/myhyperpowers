@@ -37,6 +37,10 @@ TRUNCATION_MARKERS = (
 
 def has_truncation_marker(value):
     """Return True when hook input appears truncated."""
+    if isinstance(value, dict):
+        value = str(value)
+    elif not isinstance(value, str):
+        return False
     return any(marker in value.lower() for marker in TRUNCATION_MARKERS)
 
 
