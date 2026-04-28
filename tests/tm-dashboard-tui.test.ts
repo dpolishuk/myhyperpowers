@@ -264,6 +264,27 @@ test("mouse wheel scrolls left pane", () => {
   expect(leftPaneUp.some(l => l.includes("❯") && l.includes("Task 0"))).toBe(true)
 })
 
+test("mouse wheel ignores scroll when actions menu is open", () => {
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug" },
+    { id: "bd-2", title: "Add tests", status: "open", priority: 1, issue_type: "task" },
+  ]))
+  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+
+  // Open actions menu
+  dashboard.handleInput("\r")
+
+  // Mouse scroll down (65) in left pane (x=10)
+  dashboard.handleInput("\x1b[<65;10;10M")
+
+  const lines = dashboard.render(80)
+  const leftPane = lines.map(l => l.split("│")[1] || "")
+  
+  // Selection should NOT move to bd-2, should remain on bd-1
+  expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
+  expect(leftPane.some(l => l.includes(" ") && l.includes("Add tests"))).toBe(true)
+})
+
 test("kanban mode toggles on m key and renders 3 columns", () => {
   const dashboard = new TmDashboard(makeState([
     { id: "bd-1", title: "Task 1", status: "todo", priority: 1, issue_type: "task" },

@@ -167,6 +167,9 @@ export class TmDashboard extends Container implements Focusable {
 
     const mouseMatch = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/)
     if (mouseMatch) {
+      if (this.showingActions) {
+        return true
+      }
       const button = parseInt(mouseMatch[1]!, 10)
       const x = parseInt(mouseMatch[2]!, 10)
       const isRelease = mouseMatch[4] === "m"
