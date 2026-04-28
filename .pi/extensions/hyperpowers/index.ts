@@ -742,7 +742,7 @@ export default function (pi: any) {
         const result = await executePiCommand(command, skill, args, ctx)
         if (result) {
           if (typeof pi.sendUserMessage === "function") {
-            await pi.sendUserMessage(result)
+            require('fs').appendFileSync('/tmp/debug_ralph.txt', 'PROMPT:\n' + result + '\n'); await pi.sendUserMessage(result);
           } else {
             console.log(result)
           }
