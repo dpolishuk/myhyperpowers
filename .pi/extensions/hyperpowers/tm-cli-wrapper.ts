@@ -136,6 +136,13 @@ export function getAssignedTasks(cwd?: string): TmCommandResult<TmTask[]> {
 }
 
 /**
+ * Fetch closed / done tasks from tm.
+ */
+export function getClosedTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "closed"], cwd || process.cwd())
+}
+
+/**
  * Show details for a specific task.
  */
 export function showTask(

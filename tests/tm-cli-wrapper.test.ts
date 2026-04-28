@@ -2,6 +2,7 @@ import { test, expect, mock, beforeEach } from "bun:test"
 import {
   getReadyTasks,
   getAssignedTasks,
+  getClosedTasks,
   showTask,
   updateTask,
   claimTask,
@@ -326,4 +327,33 @@ test("getAssignedTasks calls list --status in_progress", () => {
   expect(args).toContain("list")
   expect(args).toContain("--status")
   expect(args).toContain("in_progress")
+})
+
+test("getClosedTasks calls list --status closed", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-8",
+      title: "Closed task",
+      status: "closed",
+      priority: 2,
+      issue_type: "feature",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getClosedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("closed")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("closed")
 })

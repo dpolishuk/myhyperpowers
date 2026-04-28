@@ -20,7 +20,7 @@ import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import { registerHooksPipeline } from "./hooks-pipeline"
 import { registerTmTools } from "./tm-tools"
-import { getReadyTasks, getAssignedTasks, claimTask, closeTask, type TmTask } from "./tm-cli-wrapper"
+import { getReadyTasks, getAssignedTasks, getClosedTasks, claimTask, closeTask, type TmTask } from "./tm-cli-wrapper"
 import { TmDashboard } from "./tm-dashboard-tui"
 import {
   HYPERPOWERS_AGENTS,
@@ -929,6 +929,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       async function fetchTasks() {
         const ready = getReadyTasks(cwd)
         const assigned = getAssignedTasks(cwd)
+        const closed = getClosedTasks(cwd)
 
         const tasks: TmTask[] = []
         const errors: string[] = []
@@ -939,8 +940,9 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           errors.push(ready.error)
         }
 
+        const seen = new Set(tasks.map((t) => t.id))
+
         if (assigned.ok && assigned.data) {
-          const seen = new Set(tasks.map((t) => t.id))
           for (const task of assigned.data) {
             if (!seen.has(task.id)) {
               tasks.push(task)
@@ -949,6 +951,19 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           }
         } else if (assigned.error) {
           errors.push(assigned.error)
+        }
+
+        if (closed.ok && closed.data) {
+          // Add up to 50 recent closed tasks to prevent performance issues
+          const recentClosed = closed.data.slice(0, 50)
+          for (const task of recentClosed) {
+            if (!seen.has(task.id)) {
+              tasks.push(task)
+              seen.add(task.id)
+            }
+          }
+        } else if (closed.error) {
+          errors.push(closed.error)
         }
 
         return { tasks, error: errors.join("; ") || undefined }
