@@ -1049,6 +1049,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
             _tui.terminal.write("\x1b[?1000h\x1b[?1006h")
 
             dashboard.onCancel = () => {
+              dashboard.dispose?.()
               _done("Task Management dashboard closed.")
             }
 
