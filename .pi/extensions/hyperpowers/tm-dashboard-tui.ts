@@ -100,6 +100,7 @@ export class TmDashboard extends Container implements Focusable {
     const taskCount = this.state.tasks.length
 
     if (data === "m") {
+      this.showingActions = false
       this.viewMode = this.viewMode === "list" ? "kanban" : "list"
       if (this.viewMode === "kanban") {
          const selectedTask = this.state.tasks[this.selectedIndex]
@@ -148,24 +149,24 @@ export class TmDashboard extends Container implements Focusable {
         const isScrollUp = button === 64 || button === 64 + 32 // Some terminals add 32 for motion
         const isScrollDown = button === 65 || button === 65 + 32
         
-        if (button === 64 || button === 65) {
+        if (isScrollUp || isScrollDown) {
           const termWidth = this.tui?.terminal?.columns || 80
           // Overlay is 90% wide, centered. Left pane is 40% of overlay.
           // That means left pane is roughly from 5% to 41% of the terminal width.
           const isLeftPane = x <= Math.floor(termWidth * 0.45)
           
           if (isLeftPane) {
-            if (button === 64 && this.selectedIndex > 0) {
+            if (isScrollUp && this.selectedIndex > 0) {
               this.selectedIndex--
               this.designScrollOffset = 0
-            } else if (button === 65 && this.selectedIndex < taskCount - 1) {
+            } else if (isScrollDown && this.selectedIndex < taskCount - 1) {
               this.selectedIndex++
               this.designScrollOffset = 0
             }
           } else {
-            if (button === 64) {
+            if (isScrollUp) {
               this.designScrollOffset = Math.max(0, this.designScrollOffset - 1)
-            } else if (button === 65) {
+            } else if (isScrollDown) {
               this.designScrollOffset += 1
             }
           }
@@ -265,8 +266,8 @@ export class TmDashboard extends Container implements Focusable {
       return this.renderKanbanView(width)
     }
 
-    const leftWidth = Math.floor(width * 0.4) - 1 // 1 for left border
-    const rightWidth = width - leftWidth - 3 // 3 total border lines
+    const leftWidth = Math.max(1, Math.floor(width * 0.4) - 1) // 1 for left border
+    const rightWidth = Math.max(1, width - leftWidth - 3) // 3 total border lines
 
     const leftLines = this.renderLeftPane(leftWidth)
     const rightLines = this.renderRightPane(rightWidth)

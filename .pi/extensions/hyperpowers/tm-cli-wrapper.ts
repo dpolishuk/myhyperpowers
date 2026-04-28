@@ -26,11 +26,13 @@ export interface TmCommandResult<T> {
 
 function getTmBin(cwd: string): string {
   let current = cwd
-  while (current !== "/" && current !== "") {
+  while (current) {
     const localTm = join(current, "scripts", "tm")
     if (existsSync(localTm)) return localTm
     if (existsSync(join(current, ".git"))) break
-    current = dirname(current)
+    const parent = dirname(current)
+    if (parent === current) break
+    current = parent
   }
   return "tm"
 }

@@ -211,7 +211,7 @@ export function buildPiTaskArgs(
   if (normalizedThinking) {
     args.push("--thinking", normalizedThinking)
   }
-  args.push(task)
+  args.push("--", task)
   return args
 }
 

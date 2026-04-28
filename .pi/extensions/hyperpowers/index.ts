@@ -742,7 +742,7 @@ export default function (pi: any) {
         const result = await executePiCommand(command, skill, args, ctx)
         if (result) {
           if (typeof pi.sendUserMessage === "function") {
-            require('fs').appendFileSync('/tmp/debug_ralph.txt', 'PROMPT:\n' + result + '\n'); await pi.sendUserMessage(result);
+            await pi.sendUserMessage(result)
           } else {
             console.log(result)
           }
@@ -991,23 +991,28 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
       }
 
+      dashboard.onCancel = () => {
+        done("Task Management dashboard closed.")
+      }
+
       return await ctx.ui.custom<string>(
-        (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
+        (_tui: any, _theme: any, _keybindings: any, _done: (v: string) => void) => {
           dashboard.tui = _tui
 
-          // Enable SGR mouse tracking for scrolling
-          _tui.terminal.write("\x1b[?1000h\x1b[?1006h")
+          try {
+            // Enable SGR mouse tracking for scrolling
+            _tui.terminal.write("\x1b[?1000h\x1b[?1006h")
 
-          dashboard.onCancel = () => {
-            _tui.terminal.write("\x1b[?1000l\x1b[?1006l")
-            done("Task Management dashboard closed.")
+            dashboard.onCancel = () => {
+              _done("Task Management dashboard closed.")
+            }
+
+            return dashboard
+          } finally {
+            dashboard.dispose = () => {
+              _tui.terminal.write("\x1b[?1000l\x1b[?1006l")
+            }
           }
-
-          dashboard.dispose = () => {
-            _tui.terminal.write("\x1b[?1000l\x1b[?1006l")
-          }
-
-          return dashboard
         },
         { overlay: true, overlayOptions: { width: "90%", maxHeight: "90%" } }
       )
