@@ -144,6 +144,23 @@ test("getReadyTasks returns text fallback on invalid JSON", () => {
   expect(result.ok).toBe(true)
   expect((result.data as any)[0].id).toBe("ENG-123")
   expect((result.data as any)[0].title).toBe("Some Task")
+  expect((result.data as any)[0].status).toBe("ready")
+})
+
+test("getAssignedTasks returns text fallback on invalid JSON using status from arguments", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: "ENG-456 In Progress Task",
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getAssignedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect((result.data as any)[0].id).toBe("ENG-456")
+  expect((result.data as any)[0].title).toBe("In Progress Task")
+  expect((result.data as any)[0].status).toBe("in_progress")
 })
 
 test("showTask returns single task from JSON array", () => {

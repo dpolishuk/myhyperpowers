@@ -81,12 +81,18 @@ function runTmJson<T>(
     const nonEmptyLines = lines.filter(l => l.trim() !== "")
 
     if (cmd === "ready" || cmd === "list") {
+      let statusValue = cmd === "ready" ? "ready" : "open"
+      const statusIdx = args.indexOf("--status")
+      if (statusIdx >= 0 && statusIdx + 1 < args.length) {
+        statusValue = args[statusIdx + 1]!
+      }
+
       const tasks: TmTask[] = nonEmptyLines.map(line => {
         const match = line.match(/^(\S+)\s+(.+)$/)
         return {
           id: match ? match[1]! : "unknown",
           title: match ? match[2]! : line,
-          status: cmd === "ready" ? "ready" : "open",
+          status: statusValue,
           priority: 2,
           issue_type: "task"
         }
