@@ -741,8 +741,8 @@ export default function (pi: any) {
       handler: async (args: unknown, ctx: any) => {
         const result = await executePiCommand(command, skill, args, ctx)
         if (result) {
-          if (typeof ctx.sendUserMessage === "function") {
-            await ctx.sendUserMessage(result)
+          if (typeof pi.sendUserMessage === "function") {
+            await pi.sendUserMessage(result)
           } else {
             console.log(result)
           }
