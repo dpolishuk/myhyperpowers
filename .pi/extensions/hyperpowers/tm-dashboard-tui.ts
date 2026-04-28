@@ -147,8 +147,8 @@ export class TmDashboard extends Container implements Focusable {
     out.push(`╭${"─".repeat(leftWidth)}┬${"─".repeat(rightWidth)}╮`)
 
     // Headers
-    const lTitle = " 📋 Tasks "
-    const rTitle = " 📄 Details "
+    const lTitle = truncateToWidth(" 📋 Tasks ", leftWidth)
+    const rTitle = truncateToWidth(" 📄 Details ", rightWidth)
     const lTitlePad = " ".repeat(Math.max(0, leftWidth - visibleWidth(lTitle)))
     const rTitlePad = " ".repeat(Math.max(0, rightWidth - visibleWidth(rTitle)))
     out.push(`│${lTitle}${lTitlePad}│${rTitle}${rTitlePad}│`)
