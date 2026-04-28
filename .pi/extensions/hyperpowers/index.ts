@@ -987,9 +987,19 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       return await ctx.ui.custom<string>(
         (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
           dashboard.tui = _tui
+
+          // Enable SGR mouse tracking for scrolling
+          _tui.terminal.write("\x1b[?1000h\x1b[?1006h")
+
           dashboard.onCancel = () => {
+            _tui.terminal.write("\x1b[?1000l\x1b[?1006l")
             done("Task Management dashboard closed.")
           }
+
+          dashboard.dispose = () => {
+            _tui.terminal.write("\x1b[?1000l\x1b[?1006l")
+          }
+
           return dashboard
         },
         { overlay: true, overlayOptions: { width: "90%", maxHeight: "90%" } }

@@ -234,3 +234,52 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
   lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1 ")
 })
+
+test("mouse wheel scrolls left pane", () => {
+  const dashboard = new TmDashboard(makeState(
+    Array.from({ length: 50 }, (_, i) => ({
+      id: `bd-${i}`,
+      title: `Task ${i}`,
+      status: "open",
+      priority: 1,
+      issue_type: "task"
+    }))
+  ))
+  
+  // Set terminal columns explicitly so pane boundary is predictable
+  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+  
+  // Mouse scroll down (65) in left pane (x=10)
+  dashboard.handleInput("\x1b[<65;10;10M")
+  
+  const lines = dashboard.render(80)
+  const leftPane = lines.map(l => l.split("│")[1] || "")
+  // First task should not be selected anymore, it should be the second
+  expect(leftPane.some(l => l.includes("❯") && l.includes("Task 1"))).toBe(true)
+  
+  // Mouse scroll up (64) in left pane (x=10)
+  dashboard.handleInput("\x1b[<64;10;10M")
+  const linesUp = dashboard.render(80)
+  const leftPaneUp = linesUp.map(l => l.split("│")[1] || "")
+  expect(leftPaneUp.some(l => l.includes("❯") && l.includes("Task 0"))).toBe(true)
+})
+
+test("mouse wheel scrolls right pane details", () => {
+  const longDesign = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}`).join("\n")
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug", design: longDesign },
+  ]))
+  
+  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+  
+  // Mouse scroll down (65) in right pane (x=50)
+  dashboard.handleInput("\x1b[<65;50;10M")
+  
+  let lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("Line 2 ")
+  
+  // Mouse scroll up (64) in right pane (x=50)
+  dashboard.handleInput("\x1b[<64;50;10M")
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("Line 1 ")
+})
