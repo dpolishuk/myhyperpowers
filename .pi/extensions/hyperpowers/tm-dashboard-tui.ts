@@ -31,6 +31,9 @@ export class TmDashboard extends Container implements Focusable {
 
   private mdCache: { taskId: string; design: string; width: number; lines: string[] } | null = null
 
+  // Used for disposing mouse tracking
+  dispose?(): void
+
   private getOverlayHeight(): number {
     const rows = this.tui?.terminal?.rows ?? 24
     return Math.max(1, Math.floor(rows * 0.9))
@@ -75,6 +78,44 @@ export class TmDashboard extends Container implements Focusable {
         return true
       }
       this.onCancel?.()
+      return true
+    }
+
+    const mouseMatch = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/)
+    if (mouseMatch) {
+      const button = parseInt(mouseMatch[1]!, 10)
+      const x = parseInt(mouseMatch[2]!, 10)
+      const isRelease = mouseMatch[4] === "m"
+
+      if (!isRelease) {
+        // Scroll Up = 64, Scroll Down = 65
+        const isScrollUp = button === 64 || button === 64 + 32 // Some terminals add 32 for motion
+        const isScrollDown = button === 65 || button === 65 + 32
+        
+        if (button === 64 || button === 65) {
+          const termWidth = this.tui?.terminal?.columns || 80
+          // Overlay is 90% wide, centered. Left pane is 40% of overlay.
+          // That means left pane is roughly from 5% to 41% of the terminal width.
+          const isLeftPane = x <= Math.floor(termWidth * 0.45)
+          
+          if (isLeftPane) {
+            if (button === 64 && this.selectedIndex > 0) {
+              this.selectedIndex--
+              this.designScrollOffset = 0
+            } else if (button === 65 && this.selectedIndex < taskCount - 1) {
+              this.selectedIndex++
+              this.designScrollOffset = 0
+            }
+          } else {
+            if (button === 64) {
+              this.designScrollOffset = Math.max(0, this.designScrollOffset - 1)
+            } else if (button === 65) {
+              this.designScrollOffset += 1
+            }
+          }
+          this.invalidate()
+        }
+      }
       return true
     }
 
