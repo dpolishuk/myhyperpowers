@@ -15,6 +15,8 @@ export interface TmDashboardState {
   error?: string
 }
 
+type DashboardCallback<TArgs extends unknown[] = []> = (...args: TArgs) => void | Promise<void>
+
 export class TmDashboard extends Container implements Focusable {
   private state: TmDashboardState
   private selectedIndex = 0
@@ -22,10 +24,10 @@ export class TmDashboard extends Container implements Focusable {
   private _focused = true
   private showingActions = false
 
-  public onClaim?: (taskId: string) => void
-  public onClose?: (taskId: string) => void
-  public onRefresh?: () => void
-  public onCancel?: () => void
+  public onClaim?: DashboardCallback<[taskId: string]>
+  public onClose?: DashboardCallback<[taskId: string]>
+  public onRefresh?: DashboardCallback
+  public onCancel?: DashboardCallback
 
   public tui?: any
 
@@ -35,6 +37,22 @@ export class TmDashboard extends Container implements Focusable {
   private kanbanActiveColumn: 0 | 1 | 2 = 0
   private kanbanSelectedIndex: [number, number, number] = [0, 0, 0]
   private kanbanTasks: [TmTask[], TmTask[], TmTask[]] = [[], [], []]
+
+  private invokeCallback<TArgs extends unknown[]>(
+    cb: DashboardCallback<TArgs> | undefined,
+    ...args: TArgs
+  ) {
+    try {
+      const result = cb?.(...args)
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        void (result as Promise<void>).catch((err) => {
+          this.updateState({ error: err instanceof Error ? err.message : String(err) })
+        })
+      }
+    } catch (err) {
+      this.updateState({ error: err instanceof Error ? err.message : String(err) })
+    }
+  }
 
   // Used for disposing mouse tracking
   dispose?(): void
@@ -78,6 +96,7 @@ export class TmDashboard extends Container implements Focusable {
   }
 
   public updateState(newState: Partial<TmDashboardState>) {
+    const previousSelectedTaskId = this.state.tasks[this.selectedIndex]?.id
     const hadTasks = this.state.tasks.length > 0
     this.state = { ...this.state, ...newState }
     // Reset selection if tasks changed significantly or if previously empty
@@ -85,7 +104,15 @@ export class TmDashboard extends Container implements Focusable {
       this.selectedIndex = 0
       this.designScrollOffset = 0
       this.kanbanSelectedIndex = [0, 0, 0]
+    } else if (previousSelectedTaskId) {
+      // Preserve selection by task id when possible
+      const newIndex = this.state.tasks.findIndex((t) => t.id === previousSelectedTaskId)
+      if (newIndex !== -1 && newIndex !== this.selectedIndex) {
+        this.selectedIndex = newIndex
+        this.designScrollOffset = 0
+      }
     }
+
     // Clamp selection
     if (this.selectedIndex >= this.state.tasks.length) {
       this.selectedIndex = Math.max(0, this.state.tasks.length - 1)
@@ -134,7 +161,7 @@ export class TmDashboard extends Container implements Focusable {
         this.invalidate()
         return true
       }
-      this.onCancel?.()
+      this.invokeCallback(this.onCancel)
       return true
     }
 
@@ -178,9 +205,9 @@ export class TmDashboard extends Container implements Focusable {
 
     if (taskCount === 0) {
       if (data === "r") {
-        this.onRefresh?.()
+        this.invokeCallback(this.onRefresh)
       } else if (data === "q") {
-        this.onCancel?.()
+        this.invokeCallback(this.onCancel)
       }
       return true
     }
@@ -188,11 +215,11 @@ export class TmDashboard extends Container implements Focusable {
     if (this.showingActions) {
       if (data === "c") {
         const task = this.viewMode === "list" ? this.state.tasks[this.selectedIndex] : this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
-        if (task) this.onClaim?.(task.id)
+        if (task) this.invokeCallback(this.onClaim, task.id)
         this.showingActions = false
       } else if (data === "x") {
         const task = this.viewMode === "list" ? this.state.tasks[this.selectedIndex] : this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
-        if (task) this.onClose?.(task.id)
+        if (task) this.invokeCallback(this.onClose, task.id)
         this.showingActions = false
       }
       this.invalidate()
@@ -219,11 +246,11 @@ export class TmDashboard extends Container implements Focusable {
         this.invalidate()
       } else if (matchesKey(data, Key.space)) {
         const task = this.state.tasks[this.selectedIndex]
-        if (task) this.onClaim?.(task.id)
+        if (task) this.invokeCallback(this.onClaim, task.id)
       } else if (data === "r") {
-        this.onRefresh?.()
+        this.invokeCallback(this.onRefresh)
       } else if (data === "q") {
-        this.onCancel?.()
+        this.invokeCallback(this.onCancel)
       }
     } else { // kanban mode
       if (matchesKey(data, Key.left) && this.kanbanActiveColumn > 0) {
@@ -251,11 +278,11 @@ export class TmDashboard extends Container implements Focusable {
         }
       } else if (matchesKey(data, Key.space)) {
         const task = this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
-        if (task) this.onClaim?.(task.id)
+        if (task) this.invokeCallback(this.onClaim, task.id)
       } else if (data === "r") {
-        this.onRefresh?.()
+        this.invokeCallback(this.onRefresh)
       } else if (data === "q") {
-        this.onCancel?.()
+        this.invokeCallback(this.onCancel)
       }
     }
     return true
