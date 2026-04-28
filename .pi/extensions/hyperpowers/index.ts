@@ -20,7 +20,7 @@ import { runParallelReview } from "./review-parallel"
 import { parsePiSkillMetadataFromSkillContent } from "./skill-metadata"
 import { registerHooksPipeline } from "./hooks-pipeline"
 import { registerTmTools } from "./tm-tools"
-import { getReadyTasks, getAssignedTasks, getClosedTasks, claimTask, closeTask, type TmTask } from "./tm-cli-wrapper"
+import { getReadyTasks, getOpenTasks, getBlockedTasks, getAssignedTasks, getClosedTasks, claimTask, closeTask, type TmTask } from "./tm-cli-wrapper"
 import { TmDashboard } from "./tm-dashboard-tui"
 import {
   HYPERPOWERS_AGENTS,
@@ -927,7 +927,9 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       const cwd = ctx?.cwd || process.cwd()
 
       async function fetchTasks() {
-        const ready = getReadyTasks(cwd)
+        const ready = getReadyTasks(cwd) // keep ready tasks since they are unblocked (for backends that don't distinct well)
+        const open = getOpenTasks(cwd)
+        const blocked = getBlockedTasks(cwd)
         const assigned = getAssignedTasks(cwd)
         const closed = getClosedTasks(cwd)
 
@@ -941,6 +943,28 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
 
         const seen = new Set(tasks.map((t) => t.id))
+
+        if (open.ok && open.data) {
+          for (const task of open.data) {
+            if (!seen.has(task.id)) {
+              tasks.push(task)
+              seen.add(task.id)
+            }
+          }
+        } else if (open.error) {
+          errors.push(open.error)
+        }
+
+        if (blocked.ok && blocked.data) {
+          for (const task of blocked.data) {
+            if (!seen.has(task.id)) {
+              tasks.push(task)
+              seen.add(task.id)
+            }
+          }
+        } else if (blocked.error) {
+          errors.push(blocked.error)
+        }
 
         if (assigned.ok && assigned.data) {
           for (const task of assigned.data) {

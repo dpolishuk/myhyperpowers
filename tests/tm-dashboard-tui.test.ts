@@ -199,7 +199,7 @@ test("escape in action mode returns to list", () => {
   dashboard.handleInput("\x1b") // escape
   lines = dashboard.render(80)
   // Right pane should no longer show the action menu options
-  const rightPane = lines.map(l => l.split("│")[1] || "").join("\n")
+  const rightPane = lines.map(l => l.split("│")[2] || "").join("\n")
   expect(rightPane).not.toContain("Claim task")
 })
 

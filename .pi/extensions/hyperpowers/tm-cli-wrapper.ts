@@ -135,6 +135,20 @@ export function getReadyTasks(cwd?: string): TmCommandResult<TmTask[]> {
 /**
  * Fetch assigned / in-progress tasks from tm.
  */
+export function getOpenTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "open"], cwd || process.cwd())
+}
+
+/**
+ * Fetch blocked tasks from tm.
+ */
+export function getBlockedTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "blocked"], cwd || process.cwd())
+}
+
+/**
+ * Fetch assigned / in-progress tasks from tm.
+ */
 export function getAssignedTasks(cwd?: string): TmCommandResult<TmTask[]> {
   return runTmJson<TmTask[]>(["list", "--status", "in_progress"], cwd || process.cwd())
 }

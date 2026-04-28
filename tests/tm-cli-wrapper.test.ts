@@ -3,6 +3,8 @@ import {
   getReadyTasks,
   getAssignedTasks,
   getClosedTasks,
+  getOpenTasks,
+  getBlockedTasks,
   showTask,
   updateTask,
   claimTask,
@@ -376,4 +378,62 @@ test("getClosedTasks calls list --status closed", () => {
   expect(args).toContain("list")
   expect(args).toContain("--status")
   expect(args).toContain("closed")
+})
+
+test("getOpenTasks calls list --status open", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-9",
+      title: "Open task",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getOpenTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("open")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("open")
+})
+
+test("getBlockedTasks calls list --status blocked", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-10",
+      title: "Blocked task",
+      status: "blocked",
+      priority: 2,
+      issue_type: "task",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getBlockedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("blocked")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("blocked")
 })
