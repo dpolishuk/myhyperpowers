@@ -731,6 +731,78 @@ export default function (pi: any) {
     }
   });
 
+  // Ralph Execution TUI Tool
+  let ralphDashboard: any = null
+  let ralphHandle: any = null
+
+  pi.registerTool({
+    name: "update_ralph_state",
+    label: "Ralph Dashboard",
+    description: "Update the interactive Ralph Execution Dashboard TUI with current phase, epic/task status, and logs. Always use this during execute-ralph to show progress.",
+    parameters: Type.Object({
+      phase: Type.Optional(Type.String({ description: "setup, get_task, subagent, review, completion, done" })),
+      epicId: Type.Optional(Type.String()),
+      epicTitle: Type.Optional(Type.String()),
+      currentTaskId: Type.Optional(Type.String()),
+      currentTaskTitle: Type.Optional(Type.String()),
+      subagentStatus: Type.Optional(Type.String({ description: "pending, running, pass, fail, issues_found" })),
+      subagentOutput: Type.Optional(Type.String()),
+      branchName: Type.Optional(Type.String()),
+      gitProgress: Type.Optional(Type.String()),
+      unmetCriteria: Type.Optional(Type.Number()),
+      totalCriteria: Type.Optional(Type.Number()),
+      logMessage: Type.Optional(Type.String({ description: "A new log message to append" }))
+    }),
+    async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
+      if (!ctx?.ui?.custom) {
+        return { content: [{ type: "text", text: "TUI not supported in this environment." }] };
+      }
+      
+      const { RalphDashboard } = await import("./ralph-dashboard-tui.js");
+
+      if (!ralphDashboard) {
+        ralphDashboard = new RalphDashboard({
+          phase: "setup",
+          unmetCriteria: 0,
+          totalCriteria: 0,
+          logs: [],
+          ...params
+        }, () => {
+          if (ralphHandle) {
+            ralphHandle.close?.()
+            ralphHandle = null
+            ralphDashboard = null
+          }
+        })
+        ralphDashboard.tui = ctx.ui.tui // try to grab tui reference if available
+      } else {
+        ralphDashboard.updateState(params)
+      }
+
+      if (params.logMessage) {
+        ralphDashboard.addLog(params.logMessage)
+      }
+
+      if (!ralphHandle) {
+        ralphHandle = ctx.ui.custom(ralphDashboard, { overlay: true })
+      } else {
+        ralphHandle.requestRender?.()
+      }
+
+      if (params.phase === "done") {
+        setTimeout(() => {
+          if (ralphHandle) {
+            ralphHandle.close?.()
+            ralphHandle = null
+            ralphDashboard = null
+          }
+        }, 2000)
+      }
+
+      return { content: [{ type: "text", text: "Dashboard updated successfully." }] };
+    }
+  });
+
   // Register third-party plugins
   askUserPlugin(piShim)
 
