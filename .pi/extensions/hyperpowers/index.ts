@@ -935,9 +935,11 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
         const tasks: TmTask[] = []
         const errors: string[] = []
+        let hadSuccess = false
 
         if (ready.ok && ready.data) {
           tasks.push(...ready.data)
+          hadSuccess = true
         } else if (ready.error) {
           errors.push(ready.error)
         }
@@ -945,6 +947,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         const seen = new Set(tasks.map((t) => t.id))
 
         if (open.ok && open.data) {
+          hadSuccess = true
           for (const task of open.data) {
             if (!seen.has(task.id)) {
               tasks.push(task)
@@ -956,6 +959,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
 
         if (blocked.ok && blocked.data) {
+          hadSuccess = true
           for (const task of blocked.data) {
             if (!seen.has(task.id)) {
               tasks.push(task)
@@ -967,6 +971,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
 
         if (assigned.ok && assigned.data) {
+          hadSuccess = true
           for (const task of assigned.data) {
             if (!seen.has(task.id)) {
               tasks.push(task)
@@ -978,6 +983,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
 
         if (closed.ok && closed.data) {
+          hadSuccess = true
           // Add up to 50 recent closed tasks to prevent performance issues
           const recentClosed = closed.data.slice(0, 50)
           for (const task of recentClosed) {
@@ -990,7 +996,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
           errors.push(closed.error)
         }
 
-        return { tasks, error: errors.join("; ") || undefined }
+        return { tasks, error: errors.join("; ") || undefined, hadSuccess }
       }
 
       const initial = await fetchTasks()
@@ -1004,7 +1010,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
         const refreshed = await fetchTasks()
         dashboard.updateState({
-          tasks: refreshed.tasks,
+          ...(refreshed.hadSuccess ? { tasks: refreshed.tasks } : {}),
           error: refreshed.error
             ? `Claimed ${id}, but refresh failed: ${refreshed.error}`
             : undefined,
@@ -1019,7 +1025,7 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
         }
         const refreshed = await fetchTasks()
         dashboard.updateState({
-          tasks: refreshed.tasks,
+          ...(refreshed.hadSuccess ? { tasks: refreshed.tasks } : {}),
           error: refreshed.error
             ? `Closed ${id}, but refresh failed: ${refreshed.error}`
             : undefined,
@@ -1028,7 +1034,10 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
 
       dashboard.onRefresh = async () => {
         const refreshed = await fetchTasks()
-        dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
+        dashboard.updateState({
+          ...(refreshed.hadSuccess ? { tasks: refreshed.tasks } : {}),
+          error: refreshed.error
+        })
       }
 
       return await ctx.ui.custom<string>(
