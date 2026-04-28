@@ -34,7 +34,7 @@ test("first task is selected by default", () => {
   ]))
   const lines = dashboard.render(80)
   // First task should have ❯ prefix, second should have spaces
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
   expect(leftPane.some(l => l.includes("  ") && l.includes("Add tests"))).toBe(true)
 })
@@ -49,7 +49,7 @@ test("arrow down moves selection", () => {
   dashboard.handleInput("\x1b[B")
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("  ") && l.includes("Fix auth"))).toBe(true)
   expect(leftPane.some(l => l.includes("❯") && l.includes("Add tests"))).toBe(true)
 })
@@ -64,7 +64,7 @@ test("arrow up moves selection back", () => {
   dashboard.handleInput("\x1b[A") // up
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
 })
 
@@ -116,6 +116,16 @@ test("escape triggers onCancel callback", () => {
   expect(cancelled).toBe(true)
 })
 
+test("q key triggers onCancel callback", () => {
+  let cancelled = false
+  const dashboard = new TmDashboard(makeState([]))
+  dashboard.onCancel = () => { cancelled = true }
+
+  dashboard.handleInput("q")
+
+  expect(cancelled).toBe(true)
+})
+
 test("displays error bar when error is set", () => {
   const dashboard = new TmDashboard(makeState([], "tm binary not found"))
   const lines = dashboard.render(80)
@@ -133,7 +143,7 @@ test("updateState resets selection when tasks change", () => {
   dashboard.updateState({ tasks: [{ id: "bd-3", title: "New task", status: "open", priority: 2, issue_type: "feature" }] })
 
   const lines = dashboard.render(80)
-  const leftPane = lines.map(l => l.split("│")[0] || "")
+  const leftPane = lines.map(l => l.split("│")[1] || "")
   expect(leftPane.some(l => l.includes("❯") && l.includes("New task"))).toBe(true)
 })
 
@@ -189,7 +199,7 @@ test("escape in action mode returns to list", () => {
   dashboard.handleInput("\x1b") // escape
   lines = dashboard.render(80)
   // Right pane should no longer show the action menu options
-  const rightPane = lines.map(l => l.split("│")[1] || "").join("\n")
+  const rightPane = lines.map(l => l.split("│")[2] || "").join("\n")
   expect(rightPane).not.toContain("Claim task")
 })
 
@@ -201,17 +211,126 @@ test("j/k and PageDown/PageUp scroll design preview", () => {
 
   let lines = dashboard.render(80).join("\n")
   expect(lines).toContain("Line 1")
-  expect(lines).toContain("Line 25")
-  expect(lines).not.toContain("Line 26")
+  expect(lines).toContain("Line 6")
+  expect(lines).not.toContain("Line 7")
 
   dashboard.handleInput("j")
   lines = dashboard.render(80).join("\n")
-  expect(lines).not.toContain("│ Line 1\n")
-  expect(lines).toContain("Line 6")
-  expect(lines).toContain("Line 30")
+  expect(lines).not.toContain("Line 1 ")
+  expect(lines).toContain("Line 2 ")
+  expect(lines).toContain("Line 7 ")
 
-  // Using PageDown key sequence (mocked if needed, but j/k is what we mostly use, let's just use j/k here since handleInput handles matchesKey or string)
   dashboard.handleInput("k")
   lines = dashboard.render(80).join("\n")
-  expect(lines).toContain("│ Line 1\n")
+  expect(lines).toContain("Line 1 ")
+
+  dashboard.handleInput("\x1b[6~") // PageDown
+  lines = dashboard.render(80).join("\n")
+  expect(lines).not.toContain("Line 1 ")
+  expect(lines).toContain("Line 2 ")
+  expect(lines).toContain("Line 7 ")
+
+  dashboard.handleInput("\x1b[5~") // PageUp
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("Line 1 ")
+})
+
+test("mouse wheel scrolls left pane", () => {
+  const dashboard = new TmDashboard(makeState(
+    Array.from({ length: 50 }, (_, i) => ({
+      id: `bd-${i}`,
+      title: `Task ${i}`,
+      status: "open",
+      priority: 1,
+      issue_type: "task"
+    }))
+  ))
+  
+  // Set terminal columns explicitly so pane boundary is predictable
+  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+  
+  // Mouse scroll down (65) in left pane (x=10)
+  dashboard.handleInput("\x1b[<65;10;10M")
+  
+  const lines = dashboard.render(80)
+  const leftPane = lines.map(l => l.split("│")[1] || "")
+  // First task should not be selected anymore, it should be the second
+  expect(leftPane.some(l => l.includes("❯") && l.includes("Task 1"))).toBe(true)
+  
+  // Mouse scroll up (64) in left pane (x=10)
+  dashboard.handleInput("\x1b[<64;10;10M")
+  const linesUp = dashboard.render(80)
+  const leftPaneUp = linesUp.map(l => l.split("│")[1] || "")
+  expect(leftPaneUp.some(l => l.includes("❯") && l.includes("Task 0"))).toBe(true)
+})
+
+test("mouse wheel ignores scroll when actions menu is open", () => {
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug" },
+    { id: "bd-2", title: "Add tests", status: "open", priority: 1, issue_type: "task" },
+  ]))
+  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+
+  // Open actions menu
+  dashboard.handleInput("\r")
+
+  // Mouse scroll down (65) in left pane (x=10)
+  dashboard.handleInput("\x1b[<65;10;10M")
+
+  const lines = dashboard.render(80)
+  const leftPane = lines.map(l => l.split("│")[1] || "")
+  
+  // Selection should NOT move to bd-2, should remain on bd-1
+  expect(leftPane.some(l => l.includes("❯") && l.includes("Fix auth"))).toBe(true)
+  expect(leftPane.some(l => l.includes(" ") && l.includes("Add tests"))).toBe(true)
+})
+
+test("kanban mode toggles on m key and renders 3 columns", () => {
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Task 1", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-2", title: "Task 2", status: "in_progress", priority: 1, issue_type: "task" },
+    { id: "bd-3", title: "Task 3", status: "done", priority: 1, issue_type: "task" },
+  ]))
+  
+  // Toggle to kanban
+  dashboard.handleInput("m")
+  const lines = dashboard.render(80).join("\n")
+  
+  // Should have 3 columns
+  expect(lines).toContain("⏳ Todo")
+  expect(lines).toContain("🔄 In Progress")
+  expect(lines).toContain("✅ Done")
+  
+  // Tasks should be sorted into the columns (all 3 should be visible on screen)
+  expect(lines).toContain("Task 1")
+  expect(lines).toContain("Task 2")
+  expect(lines).toContain("Task 3")
+})
+
+test("kanban mode navigation", () => {
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Task 1", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-2", title: "Task 2", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-3", title: "Task 3", status: "in_progress", priority: 1, issue_type: "task" },
+  ]))
+  
+  dashboard.handleInput("m")
+  
+  // By default, active column is 0, task 0 selected. Press down to select task 1 in column 0
+  dashboard.handleInput("\x1b[B") // down
+  let lines = dashboard.render(80).join("\n")
+  expect(lines).toContain("❯ bd-2 Task 2")
+  
+  // Right to move to column 1
+  dashboard.handleInput("\x1b[C") // right
+  lines = dashboard.render(80).join("\n")
+  // Now column 1 header should be highlighted (inverse) and its task selected
+  expect(lines).toContain("\x1b[7m 🔄 In Progress")
+  expect(lines).toContain("❯ bd-3 Task 3")
+  
+  // Enter should switch back to list mode with the selected task
+  dashboard.handleInput("\r")
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain(" 📄 Details ")
+  expect(lines).toContain("ID:    bd-3")
 })

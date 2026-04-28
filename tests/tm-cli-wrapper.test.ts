@@ -2,6 +2,9 @@ import { test, expect, mock, beforeEach } from "bun:test"
 import {
   getReadyTasks,
   getAssignedTasks,
+  getClosedTasks,
+  getOpenTasks,
+  getBlockedTasks,
   showTask,
   updateTask,
   claimTask,
@@ -131,18 +134,51 @@ test("getReadyTasks returns error on non-zero exit", () => {
   expect(result.error).toContain("bad config")
 })
 
-test("getReadyTasks returns error on invalid JSON", () => {
+test("getReadyTasks returns empty array for empty text fallback output", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,
-    stdout: "not json at all",
+    stdout: "",
     stderr: "",
     error: undefined,
     signal: null,
   }))
 
   const result = getReadyTasks("/tmp/project")
-  expect(result.ok).toBe(false)
-  expect(result.error).toContain("Failed to parse tm JSON output")
+  expect(result.ok).toBe(true)
+  expect(Array.isArray(result.data)).toBe(true)
+  expect(result.data).toHaveLength(0)
+})
+
+test("getReadyTasks returns text fallback on invalid JSON", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: "ENG-123 Some Task",
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getReadyTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect((result.data as any)[0].id).toBe("ENG-123")
+  expect((result.data as any)[0].title).toBe("Some Task")
+  expect((result.data as any)[0].status).toBe("ready")
+})
+
+test("getAssignedTasks returns text fallback on invalid JSON using status from arguments", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: "ENG-456 In Progress Task",
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getAssignedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect((result.data as any)[0].id).toBe("ENG-456")
+  expect((result.data as any)[0].title).toBe("In Progress Task")
+  expect((result.data as any)[0].status).toBe("in_progress")
 })
 
 test("showTask returns single task from JSON array", () => {
@@ -169,6 +205,29 @@ test("showTask returns single task from JSON array", () => {
   expect(result.data!.title).toBe("Epic: OAuth")
 })
 
+test("showTask returns single task from JSON object", () => {
+  const task: TmTask = {
+    id: "bd-4",
+    title: "Epic: Auth",
+    status: "in_progress",
+    priority: 1,
+    issue_type: "epic",
+  }
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(task),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = showTask("bd-4", "/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data!.id).toBe("bd-4")
+  expect(result.data!.title).toBe("Epic: Auth")
+})
+
 test("showTask returns error when task not found", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,
@@ -181,6 +240,40 @@ test("showTask returns error when task not found", () => {
   const result = showTask("bd-99", "/tmp/project")
   expect(result.ok).toBe(false)
   expect(result.error).toContain("not found")
+})
+
+test("showTask parses text fallback output", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: `bd-42: Text fallback task
+Status: in_progress
+
+## Design
+- item`,
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = showTask("bd-42", "/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data!.id).toBe("bd-42")
+  expect(result.data!.title).toBe("Text fallback task")
+  expect(result.data!.status).toBe("in_progress")
+})
+
+test("showTask returns not found for text fallback empty output", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: "Task bd-99 not found",
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = showTask("bd-99", "/tmp/project")
+  expect(result.ok).toBe(false)
+  expect(result.error).toContain("Task not found or invalid format: Task bd-99 not found")
 })
 
 test("updateTask passes correct arguments", () => {
@@ -271,4 +364,91 @@ test("getAssignedTasks calls list --status in_progress", () => {
   expect(args).toContain("list")
   expect(args).toContain("--status")
   expect(args).toContain("in_progress")
+})
+
+test("getClosedTasks calls list --status closed", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-8",
+      title: "Closed task",
+      status: "closed",
+      priority: 2,
+      issue_type: "feature",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getClosedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("closed")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("closed")
+})
+
+test("getOpenTasks calls list --status open", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-9",
+      title: "Open task",
+      status: "open",
+      priority: 2,
+      issue_type: "task",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getOpenTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("open")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("open")
+})
+
+test("getBlockedTasks calls list --status blocked", () => {
+  const tasks: TmTask[] = [
+    {
+      id: "bd-10",
+      title: "Blocked task",
+      status: "blocked",
+      priority: 2,
+      issue_type: "task",
+    },
+  ]
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(tasks),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getBlockedTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data![0].status).toBe("blocked")
+
+  const [, args] = mockSpawnSync.mock.calls[0]!
+  expect(args).toContain("list")
+  expect(args).toContain("--status")
+  expect(args).toContain("blocked")
 })

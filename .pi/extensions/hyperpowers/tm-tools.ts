@@ -5,17 +5,7 @@ import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import { Type } from "@sinclair/typebox"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
-
-function getTmBin(cwd: string): string {
-  let current = cwd
-  while (current !== "/" && current !== "") {
-    const localTm = join(current, "scripts", "tm")
-    if (existsSync(localTm)) return localTm
-    if (existsSync(join(current, ".git"))) break
-    current = dirname(current)
-  }
-  return "tm"
-}
+import { getTmBin } from "./tm-utils"
 
 function runTmCommand(args: string[], cwd: string, timeoutMs = 30000): string {
   const result = spawnSync(getTmBin(cwd), args, {

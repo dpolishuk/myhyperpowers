@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { join, dirname } from "node:path"
-import { existsSync } from "node:fs"
+import { getTmBin } from "./tm-utils"
 
 export interface TmTask {
   id: string
@@ -22,17 +21,6 @@ export interface TmCommandResult<T> {
   ok: boolean
   data?: T
   error?: string
-}
-
-function getTmBin(cwd: string): string {
-  let current = cwd
-  while (current !== "/" && current !== "") {
-    const localTm = join(current, "scripts", "tm")
-    if (existsSync(localTm)) return localTm
-    if (existsSync(join(current, ".git"))) break
-    current = dirname(current)
-  }
-  return "tm"
 }
 
 function runTmJson<T>(
@@ -68,6 +56,10 @@ function runTmJson<T>(
 
   const stdout = result.stdout?.trim() || ""
   if (!stdout) {
+    const cmd = args[0]
+    if (cmd === "ready" || cmd === "list") {
+      return { ok: true, data: [] as unknown as T }
+    }
     return { ok: true, data: undefined as unknown as T }
   }
 
@@ -88,13 +80,52 @@ function runTmJson<T>(
     const parsed = JSON.parse(jsonText)
     return { ok: true, data: parsed as T }
   } catch (parseErr) {
-    // TODO: Add text-mode fallback for backends that don't support --json (e.g. linear).
-    // When implemented, detect non-JSON output here and return a synthetic TmTask[]
-    // or fall back to a plain-text representation.
-    return {
-      ok: false,
-      error: `Failed to parse tm JSON output: ${(parseErr as Error).message}. Raw output: ${stdout.slice(0, 500)}`,
+    // Text-mode fallback for backends that don't support --json (e.g. linear)
+    const cmd = args[0]
+    const nonEmptyLines = lines.filter(l => l.trim() !== "")
+
+    if (cmd === "ready" || cmd === "list") {
+      let statusValue = cmd === "ready" ? "ready" : "open"
+      const statusIdx = args.indexOf("--status")
+      if (statusIdx >= 0 && statusIdx + 1 < args.length) {
+        statusValue = args[statusIdx + 1]!
+      }
+
+      const tasks: TmTask[] = nonEmptyLines.map(line => {
+        const match = line.match(/^(\S+)\s+(.+)$/)
+        return {
+          id: match ? match[1]! : "unknown",
+          title: match ? match[2]! : line,
+          status: statusValue,
+          priority: 2,
+          issue_type: "task"
+        }
+      })
+      return { ok: true, data: tasks as unknown as T }
+    } else if (cmd === "show") {
+      const idMatch = lines[0]?.match(/^(\S+):\s+(.+)$/)
+      if (!idMatch) {
+        return { ok: false, error: `Task not found or invalid format: ${stdout}` }
+      }
+      
+      const statusMatch = lines.find(l => l.startsWith("Status:"))?.match(/^Status:\s+(.+)$/)
+      
+      const designStart = lines.findIndex(l => l.trim() === "")
+      const design = designStart >= 0 ? lines.slice(designStart + 1).join("\n") : ""
+      
+      const task: TmTask = {
+        id: idMatch[1]!,
+        title: idMatch[2]!,
+        status: statusMatch ? statusMatch[1]! : "open",
+        priority: 2,
+        issue_type: "task",
+        design
+      }
+      return { ok: true, data: [task] as unknown as T }
     }
+
+    // For update / close, return the raw stdout as a message object
+    return { ok: true, data: { message: stdout } as unknown as T }
   }
 }
 
@@ -108,8 +139,29 @@ export function getReadyTasks(cwd?: string): TmCommandResult<TmTask[]> {
 /**
  * Fetch assigned / in-progress tasks from tm.
  */
+export function getOpenTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "open"], cwd || process.cwd())
+}
+
+/**
+ * Fetch blocked tasks from tm.
+ */
+export function getBlockedTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "blocked"], cwd || process.cwd())
+}
+
+/**
+ * Fetch assigned / in-progress tasks from tm.
+ */
 export function getAssignedTasks(cwd?: string): TmCommandResult<TmTask[]> {
   return runTmJson<TmTask[]>(["list", "--status", "in_progress"], cwd || process.cwd())
+}
+
+/**
+ * Fetch closed / done tasks from tm.
+ */
+export function getClosedTasks(cwd?: string): TmCommandResult<TmTask[]> {
+  return runTmJson<TmTask[]>(["list", "--status", "closed"], cwd || process.cwd())
 }
 
 /**
@@ -119,13 +171,20 @@ export function showTask(
   id: string,
   cwd?: string,
 ): TmCommandResult<TmTask> {
-  const result = runTmJson<TmTask[]>(["show", id], cwd || process.cwd())
-  if (!result.ok) return result
-  const tasks = result.data || []
-  if (tasks.length === 0) {
+  const result = runTmJson<TmTask | TmTask[]>(["show", id], cwd || process.cwd())
+  if (!result.ok) return { ok: false, error: result.error }
+  
+  const data = result.data
+  if (!data) {
     return { ok: false, error: `Task ${id} not found` }
   }
-  return { ok: true, data: tasks[0] }
+  
+  const task = Array.isArray(data) ? data[0] : data
+  if (!task) {
+    return { ok: false, error: `Task ${id} not found` }
+  }
+  
+  return { ok: true, data: task as TmTask }
 }
 
 /**
