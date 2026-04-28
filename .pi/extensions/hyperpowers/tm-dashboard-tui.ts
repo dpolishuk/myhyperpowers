@@ -31,6 +31,11 @@ export class TmDashboard extends Container implements Focusable {
 
   private mdCache: { taskId: string; design: string; width: number; lines: string[] } | null = null
 
+  private viewMode: "list" | "kanban" = "list"
+  private kanbanActiveColumn: 0 | 1 | 2 = 0
+  private kanbanSelectedIndex: [number, number, number] = [0, 0, 0]
+  private kanbanTasks: [TmTask[], TmTask[], TmTask[]] = [[], [], []]
+
   // Used for disposing mouse tracking
   dispose?(): void
 
@@ -49,6 +54,27 @@ export class TmDashboard extends Container implements Focusable {
   constructor(initialState: TmDashboardState) {
     super()
     this.state = initialState
+    this.updateKanbanTasks()
+  }
+
+  private updateKanbanTasks() {
+    this.kanbanTasks = [[], [], []]
+    for (const task of this.state.tasks) {
+      if (task.status === "in_progress") {
+        this.kanbanTasks[1].push(task)
+      } else if (task.status === "done" || task.status === "closed") {
+        this.kanbanTasks[2].push(task)
+      } else {
+        this.kanbanTasks[0].push(task)
+      }
+    }
+    
+    // clamp selection
+    for (let i = 0; i < 3; i++) {
+      if (this.kanbanSelectedIndex[i] >= this.kanbanTasks[i]!.length) {
+        this.kanbanSelectedIndex[i] = Math.max(0, this.kanbanTasks[i]!.length - 1)
+      }
+    }
   }
 
   public updateState(newState: Partial<TmDashboardState>) {
@@ -58,18 +84,48 @@ export class TmDashboard extends Container implements Focusable {
     if (!hadTasks || this.state.tasks.length === 0) {
       this.selectedIndex = 0
       this.designScrollOffset = 0
+      this.kanbanSelectedIndex = [0, 0, 0]
     }
     // Clamp selection
     if (this.selectedIndex >= this.state.tasks.length) {
       this.selectedIndex = Math.max(0, this.state.tasks.length - 1)
       this.designScrollOffset = 0
     }
+    this.updateKanbanTasks()
     this.showingActions = false
     this.invalidate()
   }
 
   handleInput(data: string): boolean {
     const taskCount = this.state.tasks.length
+
+    if (data === "m") {
+      this.viewMode = this.viewMode === "list" ? "kanban" : "list"
+      if (this.viewMode === "kanban") {
+         const selectedTask = this.state.tasks[this.selectedIndex]
+         if (selectedTask) {
+           for (let i = 0; i < 3; i++) {
+             const idx = this.kanbanTasks[i]!.findIndex(t => t.id === selectedTask.id)
+             if (idx !== -1) {
+               this.kanbanActiveColumn = i as 0 | 1 | 2
+               this.kanbanSelectedIndex[i] = idx
+               break
+             }
+           }
+         }
+      } else {
+         const activeTask = this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
+         if (activeTask) {
+           const idx = this.state.tasks.findIndex(t => t.id === activeTask.id)
+           if (idx !== -1) {
+             this.selectedIndex = idx
+             this.designScrollOffset = 0
+           }
+         }
+      }
+      this.invalidate()
+      return true
+    }
 
     if (matchesKey(data, Key.escape) || data === "\x1b") {
       if (this.showingActions) {
@@ -130,11 +186,11 @@ export class TmDashboard extends Container implements Focusable {
 
     if (this.showingActions) {
       if (data === "c") {
-        const task = this.state.tasks[this.selectedIndex]
+        const task = this.viewMode === "list" ? this.state.tasks[this.selectedIndex] : this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
         if (task) this.onClaim?.(task.id)
         this.showingActions = false
       } else if (data === "x") {
-        const task = this.state.tasks[this.selectedIndex]
+        const task = this.viewMode === "list" ? this.state.tasks[this.selectedIndex] : this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
         if (task) this.onClose?.(task.id)
         this.showingActions = false
       }
@@ -142,35 +198,73 @@ export class TmDashboard extends Container implements Focusable {
       return true
     }
 
-    if (matchesKey(data, Key.up) && this.selectedIndex > 0) {
-      this.selectedIndex--
-      this.designScrollOffset = 0
-      this.invalidate()
-    } else if (matchesKey(data, Key.down) && this.selectedIndex < taskCount - 1) {
-      this.selectedIndex++
-      this.designScrollOffset = 0
-      this.invalidate()
-    } else if (matchesKey(data, Key.pageUp) || data === "k") {
-      this.designScrollOffset = Math.max(0, this.designScrollOffset - 1)
-      this.invalidate()
-    } else if (matchesKey(data, Key.pageDown) || data === "j") {
-      this.designScrollOffset += 1
-      this.invalidate()
-    } else if (matchesKey(data, Key.enter)) {
-      this.showingActions = true
-      this.invalidate()
-    } else if (matchesKey(data, Key.space)) {
-      const task = this.state.tasks[this.selectedIndex]
-      if (task) this.onClaim?.(task.id)
-    } else if (data === "r") {
-      this.onRefresh?.()
-    } else if (data === "q") {
-      this.onCancel?.()
+    if (this.viewMode === "list") {
+      if (matchesKey(data, Key.up) && this.selectedIndex > 0) {
+        this.selectedIndex--
+        this.designScrollOffset = 0
+        this.invalidate()
+      } else if (matchesKey(data, Key.down) && this.selectedIndex < taskCount - 1) {
+        this.selectedIndex++
+        this.designScrollOffset = 0
+        this.invalidate()
+      } else if (matchesKey(data, Key.pageUp) || data === "k") {
+        this.designScrollOffset = Math.max(0, this.designScrollOffset - 1)
+        this.invalidate()
+      } else if (matchesKey(data, Key.pageDown) || data === "j") {
+        this.designScrollOffset += 1
+        this.invalidate()
+      } else if (matchesKey(data, Key.enter)) {
+        this.showingActions = true
+        this.invalidate()
+      } else if (matchesKey(data, Key.space)) {
+        const task = this.state.tasks[this.selectedIndex]
+        if (task) this.onClaim?.(task.id)
+      } else if (data === "r") {
+        this.onRefresh?.()
+      } else if (data === "q") {
+        this.onCancel?.()
+      }
+    } else { // kanban mode
+      if (matchesKey(data, Key.left) && this.kanbanActiveColumn > 0) {
+        this.kanbanActiveColumn--
+        this.invalidate()
+      } else if (matchesKey(data, Key.right) && this.kanbanActiveColumn < 2) {
+        this.kanbanActiveColumn++
+        this.invalidate()
+      } else if (matchesKey(data, Key.up) && this.kanbanSelectedIndex[this.kanbanActiveColumn] > 0) {
+        this.kanbanSelectedIndex[this.kanbanActiveColumn]--
+        this.invalidate()
+      } else if (matchesKey(data, Key.down) && this.kanbanSelectedIndex[this.kanbanActiveColumn] < (this.kanbanTasks[this.kanbanActiveColumn]?.length || 0) - 1) {
+        this.kanbanSelectedIndex[this.kanbanActiveColumn]++
+        this.invalidate()
+      } else if (matchesKey(data, Key.enter)) {
+        const activeTask = this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
+        if (activeTask) {
+          const idx = this.state.tasks.findIndex(t => t.id === activeTask.id)
+          if (idx !== -1) {
+            this.selectedIndex = idx
+            this.viewMode = "list"
+            this.designScrollOffset = 0
+            this.invalidate()
+          }
+        }
+      } else if (matchesKey(data, Key.space)) {
+        const task = this.kanbanTasks[this.kanbanActiveColumn]?.[this.kanbanSelectedIndex[this.kanbanActiveColumn]]
+        if (task) this.onClaim?.(task.id)
+      } else if (data === "r") {
+        this.onRefresh?.()
+      } else if (data === "q") {
+        this.onCancel?.()
+      }
     }
     return true
   }
 
   render(width: number): string[] {
+    if (this.viewMode === "kanban") {
+      return this.renderKanbanView(width)
+    }
+
     const leftWidth = Math.floor(width * 0.4) - 1 // 1 for left border
     const rightWidth = width - leftWidth - 3 // 3 total border lines
 
@@ -218,7 +312,7 @@ export class TmDashboard extends Container implements Focusable {
     out.push("")
     const help = this.showingActions
       ? "[c] Claim  [x] Close  [Esc] Back"
-      : "[↑↓] Nav  [j/k] Scroll  [Enter] Actions  [Space] Claim  [r] Refresh  [q/Esc] Exit"
+      : "[m] Kanban  [↑↓] Nav  [j/k] Scroll  [Enter] Actions  [Space] Claim  [r] Refresh  [q/Esc] Exit"
     out.push(truncateToWidth(help, width))
 
     return out
@@ -337,6 +431,118 @@ export class TmDashboard extends Container implements Focusable {
       if (offset + maxDesignLines < designLines.length) {
         lines.push(truncateToWidth(" ↓ ...", width))
       }
+    }
+
+    return lines
+  }
+
+  private renderKanbanView(width: number): string[] {
+    const colWidth = Math.max(1, Math.floor(width / 3)) - 1 // 1 for border
+    const extraWidth = width - (colWidth + 1) * 3
+    const c1Width = colWidth + (extraWidth > 0 ? 1 : 0)
+    const c2Width = colWidth + (extraWidth > 1 ? 1 : 0)
+    const c3Width = Math.max(1, width - c1Width - c2Width - 4) // 4 borders: ╭ ┬ ┬ ╮
+
+    const footerLines = this.state.error ? 4 : 2
+    // 4 static lines for borders: top, header, divider, bottom
+    const targetPaneLines = Math.max(1, this.getOverlayHeight() - footerLines - 4)
+
+    const cols = [
+      this.renderKanbanColumn(0, c1Width, targetPaneLines),
+      this.renderKanbanColumn(1, c2Width, targetPaneLines),
+      this.renderKanbanColumn(2, c3Width, targetPaneLines),
+    ]
+
+    const maxLines = Math.max(cols[0]!.length, cols[1]!.length, cols[2]!.length, targetPaneLines)
+
+    const out: string[] = []
+
+    // Top border
+    out.push(`╭${"─".repeat(c1Width)}┬${"─".repeat(c2Width)}┬${"─".repeat(c3Width)}╮`)
+
+    // Headers
+    const t1 = truncateToWidth(" ⏳ Todo ", c1Width)
+    const t2 = truncateToWidth(" 🔄 In Progress ", c2Width)
+    const t3 = truncateToWidth(" ✅ Done ", c3Width)
+    const p1 = " ".repeat(Math.max(0, c1Width - visibleWidth(t1)))
+    const p2 = " ".repeat(Math.max(0, c2Width - visibleWidth(t2)))
+    const p3 = " ".repeat(Math.max(0, c3Width - visibleWidth(t3)))
+    
+    // Highlight active column header
+    const h1 = this.kanbanActiveColumn === 0 ? `\x1b[7m${t1}${p1}\x1b[27m` : `${t1}${p1}`
+    const h2 = this.kanbanActiveColumn === 1 ? `\x1b[7m${t2}${p2}\x1b[27m` : `${t2}${p2}`
+    const h3 = this.kanbanActiveColumn === 2 ? `\x1b[7m${t3}${p3}\x1b[27m` : `${t3}${p3}`
+    out.push(`│${h1}│${h2}│${h3}│`)
+
+    // Divider
+    out.push(`├${"─".repeat(c1Width)}┼${"─".repeat(c2Width)}┼${"─".repeat(c3Width)}┤`)
+
+    for (let i = 0; i < maxLines; i++) {
+      const l1 = cols[0]![i] || ""
+      const l2 = cols[1]![i] || ""
+      const l3 = cols[2]![i] || ""
+      const pad1 = " ".repeat(Math.max(0, c1Width - visibleWidth(l1)))
+      const pad2 = " ".repeat(Math.max(0, c2Width - visibleWidth(l2)))
+      const pad3 = " ".repeat(Math.max(0, c3Width - visibleWidth(l3)))
+      out.push(`│${l1}${pad1}│${l2}${pad2}│${l3}${pad3}│`)
+    }
+
+    // Bottom border
+    out.push(`╰${"─".repeat(c1Width)}┴${"─".repeat(c2Width)}┴${"─".repeat(c3Width)}╯`)
+
+    // Error / Help bar at bottom
+    if (this.state.error) {
+      out.push("")
+      out.push(truncateToWidth(`⚠️  ${this.state.error}`, width))
+    }
+    out.push("")
+    const help = this.showingActions
+      ? "[c] Claim  [x] Close  [Esc] Back"
+      : "[m] List View  [←→] Cols  [↑↓] Tasks  [Enter] Details  [Space] Claim  [r] Refresh  [q/Esc] Exit"
+    out.push(truncateToWidth(help, width))
+
+    return out
+  }
+
+  private renderKanbanColumn(colIdx: 0 | 1 | 2, width: number, targetLines: number): string[] {
+    const lines: string[] = []
+    const tasks = this.kanbanTasks[colIdx]!
+
+    if (tasks.length === 0) {
+      lines.push(" No tasks.")
+      return lines
+    }
+
+    const indicatorReserve = tasks.length > 1 ? 2 : 0
+    const maxListLines = Math.max(1, targetLines - indicatorReserve)
+
+    let startIdx = 0
+    let endIdx = tasks.length
+    const activeIdx = this.kanbanSelectedIndex[colIdx]
+
+    if (tasks.length > maxListLines) {
+      startIdx = Math.max(0, activeIdx - Math.floor(maxListLines / 2))
+      endIdx = Math.min(tasks.length, startIdx + maxListLines)
+
+      if (endIdx - startIdx < maxListLines) {
+        startIdx = Math.max(0, endIdx - maxListLines)
+      }
+    }
+
+    if (startIdx > 0) {
+      lines.push(truncateToWidth(" ↑ ...", width))
+    }
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const task = tasks[i]!
+      const isActive = this.kanbanActiveColumn === colIdx && i === activeIdx
+      const prefix = isActive ? " ❯ " : "   "
+      const taskStr = truncateToWidth(`${prefix}${task.id} ${task.title}`, width)
+      lines.push(taskStr)
+    }
+
+    if (endIdx < tasks.length) {
+      lines.push(truncateToWidth(" ↓ ...", width))
     }
 
     return lines

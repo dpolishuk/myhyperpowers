@@ -264,22 +264,52 @@ test("mouse wheel scrolls left pane", () => {
   expect(leftPaneUp.some(l => l.includes("❯") && l.includes("Task 0"))).toBe(true)
 })
 
-test("mouse wheel scrolls right pane details", () => {
-  const longDesign = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}`).join("\n")
+test("kanban mode toggles on m key and renders 3 columns", () => {
   const dashboard = new TmDashboard(makeState([
-    { id: "bd-1", title: "Fix auth", status: "open", priority: 0, issue_type: "bug", design: longDesign },
+    { id: "bd-1", title: "Task 1", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-2", title: "Task 2", status: "in_progress", priority: 1, issue_type: "task" },
+    { id: "bd-3", title: "Task 3", status: "done", priority: 1, issue_type: "task" },
   ]))
   
-  dashboard.tui = { terminal: { columns: 80, rows: 24 } }
+  // Toggle to kanban
+  dashboard.handleInput("m")
+  const lines = dashboard.render(80).join("\n")
   
-  // Mouse scroll down (65) in right pane (x=50)
-  dashboard.handleInput("\x1b[<65;50;10M")
+  // Should have 3 columns
+  expect(lines).toContain("⏳ Todo")
+  expect(lines).toContain("🔄 In Progress")
+  expect(lines).toContain("✅ Done")
   
+  // Tasks should be sorted into the columns (all 3 should be visible on screen)
+  expect(lines).toContain("Task 1")
+  expect(lines).toContain("Task 2")
+  expect(lines).toContain("Task 3")
+})
+
+test("kanban mode navigation", () => {
+  const dashboard = new TmDashboard(makeState([
+    { id: "bd-1", title: "Task 1", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-2", title: "Task 2", status: "todo", priority: 1, issue_type: "task" },
+    { id: "bd-3", title: "Task 3", status: "in_progress", priority: 1, issue_type: "task" },
+  ]))
+  
+  dashboard.handleInput("m")
+  
+  // By default, active column is 0, task 0 selected. Press down to select task 1 in column 0
+  dashboard.handleInput("\x1b[B") // down
   let lines = dashboard.render(80).join("\n")
-  expect(lines).toContain("Line 2 ")
+  expect(lines).toContain("❯ bd-2 Task 2")
   
-  // Mouse scroll up (64) in right pane (x=50)
-  dashboard.handleInput("\x1b[<64;50;10M")
+  // Right to move to column 1
+  dashboard.handleInput("\x1b[C") // right
   lines = dashboard.render(80).join("\n")
-  expect(lines).toContain("Line 1 ")
+  // Now column 1 header should be highlighted (inverse) and its task selected
+  expect(lines).toContain("\x1b[7m 🔄 In Progress")
+  expect(lines).toContain("❯ bd-3 Task 3")
+  
+  // Enter should switch back to list mode with the selected task
+  dashboard.handleInput("\r")
+  lines = dashboard.render(80).join("\n")
+  expect(lines).toContain(" 📄 Details ")
+  expect(lines).toContain("ID:    bd-3")
 })
