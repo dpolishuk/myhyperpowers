@@ -134,6 +134,21 @@ test("getReadyTasks returns error on non-zero exit", () => {
   expect(result.error).toContain("bad config")
 })
 
+test("getReadyTasks returns empty array for empty text fallback output", () => {
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: "",
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = getReadyTasks("/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(Array.isArray(result.data)).toBe(true)
+  expect(result.data).toHaveLength(0)
+})
+
 test("getReadyTasks returns text fallback on invalid JSON", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,

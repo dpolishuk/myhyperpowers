@@ -56,6 +56,10 @@ function runTmJson<T>(
 
   const stdout = result.stdout?.trim() || ""
   if (!stdout) {
+    const cmd = args[0]
+    if (cmd === "ready" || cmd === "list") {
+      return { ok: true, data: [] as unknown as T }
+    }
     return { ok: true, data: undefined as unknown as T }
   }
 
