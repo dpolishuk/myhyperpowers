@@ -739,7 +739,14 @@ export default function (pi: any) {
     pi.registerCommand(command, {
       description,
       handler: async (args: unknown, ctx: any) => {
-        return await executePiCommand(command, skill, args, ctx)
+        const result = await executePiCommand(command, skill, args, ctx)
+        if (result) {
+          if (typeof ctx.sendUserMessage === "function") {
+            await ctx.sendUserMessage(result)
+          } else {
+            console.log(result)
+          }
+        }
       },
     })
   }
