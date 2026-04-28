@@ -131,18 +131,19 @@ test("getReadyTasks returns error on non-zero exit", () => {
   expect(result.error).toContain("bad config")
 })
 
-test("getReadyTasks returns error on invalid JSON", () => {
+test("getReadyTasks returns text fallback on invalid JSON", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,
-    stdout: "not json at all",
+    stdout: "ENG-123 Some Task",
     stderr: "",
     error: undefined,
     signal: null,
   }))
 
   const result = getReadyTasks("/tmp/project")
-  expect(result.ok).toBe(false)
-  expect(result.error).toContain("Failed to parse tm JSON output")
+  expect(result.ok).toBe(true)
+  expect((result.data as any)[0].id).toBe("ENG-123")
+  expect((result.data as any)[0].title).toBe("Some Task")
 })
 
 test("showTask returns single task from JSON array", () => {

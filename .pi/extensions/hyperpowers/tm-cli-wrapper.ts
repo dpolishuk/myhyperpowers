@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { join, dirname } from "node:path"
-import { existsSync } from "node:fs"
+import { getTmBin } from "./tm-utils"
 
 export interface TmTask {
   id: string
@@ -22,19 +21,6 @@ export interface TmCommandResult<T> {
   ok: boolean
   data?: T
   error?: string
-}
-
-function getTmBin(cwd: string): string {
-  let current = cwd
-  while (current) {
-    const localTm = join(current, "scripts", "tm")
-    if (existsSync(localTm)) return localTm
-    if (existsSync(join(current, ".git"))) break
-    const parent = dirname(current)
-    if (parent === current) break
-    current = parent
-  }
-  return "tm"
 }
 
 function runTmJson<T>(
@@ -90,13 +76,42 @@ function runTmJson<T>(
     const parsed = JSON.parse(jsonText)
     return { ok: true, data: parsed as T }
   } catch (parseErr) {
-    // TODO: Add text-mode fallback for backends that don't support --json (e.g. linear).
-    // When implemented, detect non-JSON output here and return a synthetic TmTask[]
-    // or fall back to a plain-text representation.
-    return {
-      ok: false,
-      error: `Failed to parse tm JSON output: ${(parseErr as Error).message}. Raw output: ${stdout.slice(0, 500)}`,
+    // Text-mode fallback for backends that don't support --json (e.g. linear)
+    const cmd = args[0]
+    const nonEmptyLines = lines.filter(l => l.trim() !== "")
+
+    if (cmd === "ready" || cmd === "list") {
+      const tasks: TmTask[] = nonEmptyLines.map(line => {
+        const match = line.match(/^(\S+)\s+(.+)$/)
+        return {
+          id: match ? match[1]! : "unknown",
+          title: match ? match[2]! : line,
+          status: cmd === "ready" ? "ready" : "open",
+          priority: 2,
+          issue_type: "task"
+        }
+      })
+      return { ok: true, data: tasks as unknown as T }
+    } else if (cmd === "show") {
+      const idMatch = lines[0]?.match(/^(\S+):\s+(.+)$/)
+      const statusMatch = lines.find(l => l.startsWith("Status:"))?.match(/^Status:\s+(.+)$/)
+      
+      const designStart = lines.findIndex(l => l.trim() === "")
+      const design = designStart >= 0 ? lines.slice(designStart + 1).join("\n") : ""
+      
+      const task: TmTask = {
+        id: idMatch ? idMatch[1]! : args[1] || "unknown",
+        title: idMatch ? idMatch[2]! : lines[0] || "Unknown",
+        status: statusMatch ? statusMatch[1]! : "open",
+        priority: 2,
+        issue_type: "task",
+        design
+      }
+      return { ok: true, data: [task] as unknown as T }
     }
+
+    // For update / close, return the raw stdout as a message object
+    return { ok: true, data: { message: stdout } as unknown as T }
   }
 }
 
