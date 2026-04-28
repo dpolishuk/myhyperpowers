@@ -231,12 +231,9 @@ test("showTask returns not found for text fallback empty output", () => {
     signal: null,
   }))
 
-  // Since text fallback parses "Task bd-99 not found" into id="Task", title="bd-99 not found", status="open",
-  // it returns that synthetic task. It's an artifact of the current text parser logic.
-  // We'll just assert it behaves gracefully without crashing.
   const result = showTask("bd-99", "/tmp/project")
-  expect(result.ok).toBe(true)
-  expect(result.data).toBeDefined()
+  expect(result.ok).toBe(false)
+  expect(result.error).toContain("Task not found or invalid format: Task bd-99 not found")
 })
 
 test("updateTask passes correct arguments", () => {

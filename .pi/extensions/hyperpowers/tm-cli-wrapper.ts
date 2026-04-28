@@ -100,14 +100,18 @@ function runTmJson<T>(
       return { ok: true, data: tasks as unknown as T }
     } else if (cmd === "show") {
       const idMatch = lines[0]?.match(/^(\S+):\s+(.+)$/)
+      if (!idMatch) {
+        return { ok: false, error: `Task not found or invalid format: ${stdout}` }
+      }
+      
       const statusMatch = lines.find(l => l.startsWith("Status:"))?.match(/^Status:\s+(.+)$/)
       
       const designStart = lines.findIndex(l => l.trim() === "")
       const design = designStart >= 0 ? lines.slice(designStart + 1).join("\n") : ""
       
       const task: TmTask = {
-        id: idMatch ? idMatch[1]! : args[1] || "unknown",
-        title: idMatch ? idMatch[2]! : lines[0] || "Unknown",
+        id: idMatch[1]!,
+        title: idMatch[2]!,
         status: statusMatch ? statusMatch[1]! : "open",
         priority: 2,
         issue_type: "task",
