@@ -188,6 +188,29 @@ test("showTask returns single task from JSON array", () => {
   expect(result.data!.title).toBe("Epic: OAuth")
 })
 
+test("showTask returns single task from JSON object", () => {
+  const task: TmTask = {
+    id: "bd-4",
+    title: "Epic: Auth",
+    status: "in_progress",
+    priority: 1,
+    issue_type: "epic",
+  }
+
+  mockSpawnSync.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify(task),
+    stderr: "",
+    error: undefined,
+    signal: null,
+  }))
+
+  const result = showTask("bd-4", "/tmp/project")
+  expect(result.ok).toBe(true)
+  expect(result.data!.id).toBe("bd-4")
+  expect(result.data!.title).toBe("Epic: Auth")
+})
+
 test("showTask returns error when task not found", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,

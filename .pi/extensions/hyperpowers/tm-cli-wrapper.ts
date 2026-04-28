@@ -153,13 +153,20 @@ export function showTask(
   id: string,
   cwd?: string,
 ): TmCommandResult<TmTask> {
-  const result = runTmJson<TmTask[]>(["show", id], cwd || process.cwd())
-  if (!result.ok) return result
-  const tasks = result.data || []
-  if (tasks.length === 0) {
+  const result = runTmJson<TmTask | TmTask[]>(["show", id], cwd || process.cwd())
+  if (!result.ok) return { ok: false, error: result.error }
+  
+  const data = result.data
+  if (!data) {
     return { ok: false, error: `Task ${id} not found` }
   }
-  return { ok: true, data: tasks[0] }
+  
+  const task = Array.isArray(data) ? data[0] : data
+  if (!task) {
+    return { ok: false, error: `Task ${id} not found` }
+  }
+  
+  return { ok: true, data: task as TmTask }
 }
 
 /**
