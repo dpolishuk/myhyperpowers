@@ -746,6 +746,7 @@ export default function (pi: any) {
           } else {
             console.log(result)
           }
+          return result
         }
       },
     })
@@ -989,10 +990,6 @@ Write your config to \`~/.pi/agent/models.json\` and restart Pi to apply.`
       dashboard.onRefresh = async () => {
         const refreshed = await fetchTasks()
         dashboard.updateState({ tasks: refreshed.tasks, error: refreshed.error })
-      }
-
-      dashboard.onCancel = () => {
-        done("Task Management dashboard closed.")
       }
 
       return await ctx.ui.custom<string>(
