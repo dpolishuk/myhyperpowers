@@ -96,12 +96,14 @@ function runTmJson<T>(
           // Clean typical tm output decorators
           const cleanLine = line.replace(/^[○◐●✓❄]\s+/, "")
           
-          // Match standard ID (e.g. bd-42, ENG-123) and title
-          const match = cleanLine.match(/^([a-zA-Z0-9-]+)\s+(.+)$/)
-          if (!match) return null
+          // Reject matches that are obviously not IDs (like summary or decorative lines)
+          if (cleanLine.startsWith("Total:") || cleanLine.startsWith("Status:") || cleanLine.startsWith("-")) {
+            return null
+          }
 
-          // Reject matches that are obviously not IDs (like "Total:")
-          if (match[1] === "Total:" || match[1] === "Status:") return null
+          // Match standard ID (e.g. bd-42, ENG_CORE-123) and title
+          const match = cleanLine.match(/^([a-zA-Z0-9-_]+)\s+(.+)$/)
+          if (!match) return null
 
           return {
             id: match[1]!,
