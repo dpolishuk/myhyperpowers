@@ -91,16 +91,32 @@ function runTmJson<T>(
         statusValue = args[statusIdx + 1]!
       }
 
-      const tasks: TmTask[] = nonEmptyLines.map(line => {
-        const match = line.match(/^(\S+)\s+(.+)$/)
-        return {
-          id: match ? match[1]! : "unknown",
-          title: match ? match[2]! : line,
-          status: statusValue,
-          priority: 2,
-          issue_type: "task"
-        }
-      })
+      const tasks: TmTask[] = nonEmptyLines
+        .map(line => {
+          // Clean typical tm output decorators
+          const cleanLine = line.replace(/^[○◐●✓❄]\s+/, "")
+          
+          // Match standard ID (e.g. bd-42, ENG-123) and title
+          const match = cleanLine.match(/^([a-zA-Z0-9-]+)\s+(.+)$/)
+          if (!match) return null
+
+          // Reject matches that are obviously not IDs (like "Total:")
+          if (match[1] === "Total:" || match[1] === "Status:") return null
+
+          return {
+            id: match[1]!,
+            title: match[2]!,
+            status: statusValue,
+            priority: 2,
+            issue_type: "task"
+          }
+        })
+        .filter((t): t is TmTask => t !== null)
+
+      if (tasks.length === 0 && nonEmptyLines.length > 0) {
+        return { ok: false, error: `Failed to parse task list from text output: ${stdout}` }
+      }
+
       return { ok: true, data: tasks as unknown as T }
     } else if (cmd === "show") {
       const idMatch = lines[0]?.match(/^(\S+):\s+(.+)$/)
