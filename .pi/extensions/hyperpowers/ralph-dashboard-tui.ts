@@ -92,7 +92,7 @@ export class RalphDashboard extends Container {
 
     // 3. Two-column Layout: Current Target vs Epic Status
     const leftWidth = Math.floor(width * 0.55)
-    const rightWidth = width - leftWidth - 1
+    const rightWidth = Math.max(1, width - leftWidth - 1)
 
     const leftLines: string[] = []
     const rightLines: string[] = []
