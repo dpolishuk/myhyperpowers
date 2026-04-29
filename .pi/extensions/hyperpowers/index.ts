@@ -782,9 +782,16 @@ export default function (pi: any) {
           ...stateUpdate
         }, () => {
           const currSession = ralphSessions.get(sessionKey)
-          if (currSession && currSession.handle) {
-            currSession.handle.close?.()
+          if (currSession) {
+            currSession.handle?.close?.()
             ralphSessions.delete(sessionKey)
+            
+            // Abort the pi host execution so the LLM workflow halts
+            if (typeof ctx?.abort === "function") {
+              ctx.abort()
+            } else if (typeof ctx?.ui?.cancel === "function") {
+              ctx.ui.cancel()
+            }
           }
         })
         dashboard.tui = ctx.ui.tui // try to grab tui reference if available
@@ -808,8 +815,8 @@ export default function (pi: any) {
         session.closeTimer = setTimeout(() => {
           const currSession = ralphSessions.get(sessionKey)
           // only close if the timer hasn't been replaced or cleared
-          if (currSession === session && currSession.handle) {
-            currSession.handle.close?.()
+          if (currSession === session) {
+            currSession.handle?.close?.()
             ralphSessions.delete(sessionKey)
           }
         }, 2000)
