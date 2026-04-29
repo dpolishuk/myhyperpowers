@@ -731,6 +731,94 @@ export default function (pi: any) {
     }
   });
 
+  // Ralph Execution TUI Tool
+  const ralphSessions = new Map<string, {
+    dashboard: any
+    handle: any
+    closeTimer?: ReturnType<typeof setTimeout>
+  }>()
+
+  pi.registerTool({
+    name: "update_ralph_state",
+    label: "Ralph Dashboard",
+    description: "Update the interactive Ralph Execution Dashboard TUI with current phase, epic/task status, and logs. Always use this during execute-ralph to show progress.",
+    parameters: Type.Object({
+      phase: Type.Optional(Type.String({ description: "setup, get_task, subagent, review, completion, done" })),
+      epicId: Type.Optional(Type.String()),
+      epicTitle: Type.Optional(Type.String()),
+      currentTaskId: Type.Optional(Type.String()),
+      currentTaskTitle: Type.Optional(Type.String()),
+      subagentStatus: Type.Optional(Type.String({ description: "pending, running, pass, fail, issues_found" })),
+      subagentOutput: Type.Optional(Type.String()),
+      branchName: Type.Optional(Type.String()),
+      gitProgress: Type.Optional(Type.String()),
+      unmetCriteria: Type.Optional(Type.Number()),
+      totalCriteria: Type.Optional(Type.Number()),
+      logMessage: Type.Optional(Type.String({ description: "A new log message to append" }))
+    }),
+    async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
+      if (!ctx?.ui?.custom) {
+        return { content: [] };
+      }
+      
+      const { RalphDashboard } = await import("./ralph-dashboard-tui.js");
+
+      const sessionKey = ctx?.sessionManager?.getSessionFile?.() || "default"
+      let session = ralphSessions.get(sessionKey)
+
+      if (session?.closeTimer) {
+        clearTimeout(session.closeTimer)
+        session.closeTimer = undefined
+      }
+
+      const { logMessage, ...stateUpdate } = params
+
+      if (!session || !session.dashboard) {
+        const dashboard = new RalphDashboard({
+          phase: "setup",
+          unmetCriteria: 0,
+          totalCriteria: 0,
+          logs: [],
+          ...stateUpdate
+        }, () => {
+          const currSession = ralphSessions.get(sessionKey)
+          if (currSession && currSession.handle) {
+            currSession.handle.close?.()
+            ralphSessions.delete(sessionKey)
+          }
+        })
+        dashboard.tui = ctx.ui.tui // try to grab tui reference if available
+        session = { dashboard, handle: null }
+        ralphSessions.set(sessionKey, session)
+      } else {
+        session.dashboard.updateState(stateUpdate)
+      }
+
+      if (logMessage) {
+        session.dashboard.addLog(logMessage)
+      }
+
+      if (!session.handle) {
+        session.handle = ctx.ui.custom(session.dashboard, { overlay: true })
+      } else {
+        session.handle.requestRender?.()
+      }
+
+      if (params.phase === "done") {
+        session.closeTimer = setTimeout(() => {
+          const currSession = ralphSessions.get(sessionKey)
+          // only close if the timer hasn't been replaced or cleared
+          if (currSession === session && currSession.handle) {
+            currSession.handle.close?.()
+            ralphSessions.delete(sessionKey)
+          }
+        }, 2000)
+      }
+
+      return { content: [] };
+    }
+  });
+
   // Register third-party plugins
   askUserPlugin(piShim)
 
