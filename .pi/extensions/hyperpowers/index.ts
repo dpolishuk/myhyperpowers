@@ -785,6 +785,13 @@ export default function (pi: any) {
           if (currSession && currSession.handle) {
             currSession.handle.close?.()
             ralphSessions.delete(sessionKey)
+            
+            // Abort the pi host execution so the LLM workflow halts
+            if (typeof ctx?.abort === "function") {
+              ctx.abort()
+            } else if (typeof ctx?.ui?.cancel === "function") {
+              ctx.ui.cancel()
+            }
           }
         })
         dashboard.tui = ctx.ui.tui // try to grab tui reference if available
