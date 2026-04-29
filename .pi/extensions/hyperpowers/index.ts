@@ -783,9 +783,13 @@ export default function (pi: any) {
         }, () => {
           const currSession = ralphSessions.get(sessionKey)
           if (currSession) {
+            if (currSession.closeTimer) {
+              clearTimeout(currSession.closeTimer)
+              currSession.closeTimer = undefined
+            }
             currSession.handle?.close?.()
             ralphSessions.delete(sessionKey)
-            
+
             // Abort the pi host execution so the LLM workflow halts
             if (typeof ctx?.abort === "function") {
               ctx.abort()
