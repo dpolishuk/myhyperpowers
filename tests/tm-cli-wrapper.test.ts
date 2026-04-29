@@ -152,17 +152,23 @@ test("getReadyTasks returns empty array for empty text fallback output", () => {
 test("getReadyTasks returns text fallback on invalid JSON", () => {
   mockSpawnSync.mockImplementation(() => ({
     status: 0,
-    stdout: "ENG-123 Some Task",
+    stdout: `○ ENG_CORE-123 Some Task
+--------------------------------------------------------------------------------
+Total: 4 issues (4 open, 0 in progress)
+
+Status: ○ open  ◐ in_progress  ● blocked  ✓ closed  ❄ deferred`,
     stderr: "",
     error: undefined,
     signal: null,
   }))
 
   const result = getReadyTasks("/tmp/project")
+  if (!result.ok) console.error(result.error)
   expect(result.ok).toBe(true)
-  expect((result.data as any)[0].id).toBe("ENG-123")
+  expect((result.data as any)[0].id).toBe("ENG_CORE-123")
   expect((result.data as any)[0].title).toBe("Some Task")
   expect((result.data as any)[0].status).toBe("ready")
+  expect((result.data as any).length).toBe(1)
 })
 
 test("getAssignedTasks returns text fallback on invalid JSON using status from arguments", () => {
