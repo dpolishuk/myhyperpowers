@@ -43,7 +43,7 @@ export class RalphDashboard extends Container {
 
   public updateState(newState: Partial<RalphState>) {
     this.state = { ...this.state, ...newState }
-    this.invalidate()
+    this.requestInvalidate()
   }
 
   public addLog(message: string) {
@@ -52,7 +52,18 @@ export class RalphDashboard extends Container {
     if (this.state.logs.length > 50) {
       this.state.logs.shift()
     }
-    this.invalidate()
+    this.requestInvalidate()
+  }
+
+  private invalidateScheduled = false
+
+  private requestInvalidate() {
+    if (this.invalidateScheduled) return
+    this.invalidateScheduled = true
+    queueMicrotask(() => {
+      this.invalidateScheduled = false
+      this.invalidate()
+    })
   }
 
   handleInput(data: string): boolean {
