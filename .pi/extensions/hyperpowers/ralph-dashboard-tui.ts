@@ -80,6 +80,7 @@ export class RalphDashboard extends Container {
       { id: "subagent", label: "Subagent" },
       { id: "review", label: "Review" },
       { id: "completion", label: "Completion" },
+      { id: "done", label: "Done" },
     ]
 
     const phaseLabels = phases.map(p => {
@@ -128,25 +129,30 @@ export class RalphDashboard extends Container {
     // Right: Epic Progress
     rightLines.push("╭── Epic Progress ──────────────────────")
     if (this.state.totalCriteria > 0) {
-      const met = this.state.totalCriteria - this.state.unmetCriteria
-      const percent = Math.floor((met / this.state.totalCriteria) * 100)
+      const total = Math.max(0, this.state.totalCriteria)
+      const unmet = Math.min(Math.max(0, this.state.unmetCriteria), total)
+      const met = total - unmet
+      const percent = total === 0 ? 0 : Math.floor((met / total) * 100)
       const barWidth = 20
-      const filled = Math.floor((percent / 100) * barWidth)
+      const filled = Math.max(0, Math.min(barWidth, Math.floor((percent / 100) * barWidth)))
       const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
       rightLines.push(`│ Criteria: [${bar}] ${percent}%`)
-      rightLines.push(`│ Completed: ${met}/${this.state.totalCriteria}`)
+      rightLines.push(`│ Completed: ${met}/${total}`)
     } else {
       rightLines.push("│ Criteria: Parsing...")
+    }
+
+    const fit = (text: string, w: number) => {
+      const t = truncateToWidth(text, Math.max(1, w))
+      return `${t}${" ".repeat(Math.max(0, w - visibleWidth(t)))}`
     }
 
     // Merge columns
     const maxCols = Math.max(leftLines.length, rightLines.length)
     for (let i = 0; i < maxCols; i++) {
-      const l = leftLines[i] || "│"
-      const r = rightLines[i] || "│"
-      const lLen = visibleWidth(l)
-      const lPad = " ".repeat(Math.max(0, leftWidth - lLen))
-      lines.push(`${l}${lPad} ${r}`)
+      const l = fit(leftLines[i] || "│", leftWidth)
+      const r = truncateToWidth(rightLines[i] || "│", Math.max(1, rightWidth))
+      lines.push(truncateToWidth(`${l} ${r}`, width))
     }
     lines.push("")
 

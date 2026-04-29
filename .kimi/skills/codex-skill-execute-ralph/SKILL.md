@@ -48,6 +48,14 @@ STRICT - Follow the four-phase loop exactly. Epic requirements are immutable. Ne
 
 <the_process>
 
+**CRITICAL: TUI Dashboard Updates**
+Throughout the execution, you MUST continually use the `update_ralph_state` tool to keep the live TUI dashboard updated. 
+- Call it immediately upon entering a new Phase.
+- Call it when claiming or creating a task.
+- Call it before dispatching a subagent (set status to "running") and after it returns.
+- Provide the `logMessage` field frequently to narrate your progress.
+- When all phases are done, call it once with `phase: "done"`.
+
 ## Phase 0: Setup
 
 ```bash

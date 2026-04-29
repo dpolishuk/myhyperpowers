@@ -732,8 +732,11 @@ export default function (pi: any) {
   });
 
   // Ralph Execution TUI Tool
-  let ralphDashboard: any = null
-  let ralphHandle: any = null
+  const ralphSessions = new Map<string, {
+    dashboard: any
+    handle: any
+    closeTimer?: ReturnType<typeof setTimeout>
+  }>()
 
   pi.registerTool({
     name: "update_ralph_state",
@@ -755,51 +758,64 @@ export default function (pi: any) {
     }),
     async execute(_toolCallId: string, params: any, _signal?: unknown, _update?: unknown, ctx?: any) {
       if (!ctx?.ui?.custom) {
-        return { content: [{ type: "text", text: "TUI not supported in this environment." }] };
+        return { content: [] };
       }
       
       const { RalphDashboard } = await import("./ralph-dashboard-tui.js");
 
-      if (!ralphDashboard) {
-        ralphDashboard = new RalphDashboard({
+      const sessionKey = ctx?.sessionManager?.getSessionFile?.() || "default"
+      let session = ralphSessions.get(sessionKey)
+
+      if (session?.closeTimer) {
+        clearTimeout(session.closeTimer)
+        session.closeTimer = undefined
+      }
+
+      const { logMessage, ...stateUpdate } = params
+
+      if (!session || !session.dashboard) {
+        const dashboard = new RalphDashboard({
           phase: "setup",
           unmetCriteria: 0,
           totalCriteria: 0,
           logs: [],
-          ...params
+          ...stateUpdate
         }, () => {
-          if (ralphHandle) {
-            ralphHandle.close?.()
-            ralphHandle = null
-            ralphDashboard = null
+          const currSession = ralphSessions.get(sessionKey)
+          if (currSession && currSession.handle) {
+            currSession.handle.close?.()
+            ralphSessions.delete(sessionKey)
           }
         })
-        ralphDashboard.tui = ctx.ui.tui // try to grab tui reference if available
+        dashboard.tui = ctx.ui.tui // try to grab tui reference if available
+        session = { dashboard, handle: null }
+        ralphSessions.set(sessionKey, session)
       } else {
-        ralphDashboard.updateState(params)
+        session.dashboard.updateState(stateUpdate)
       }
 
-      if (params.logMessage) {
-        ralphDashboard.addLog(params.logMessage)
+      if (logMessage) {
+        session.dashboard.addLog(logMessage)
       }
 
-      if (!ralphHandle) {
-        ralphHandle = ctx.ui.custom(ralphDashboard, { overlay: true })
+      if (!session.handle) {
+        session.handle = ctx.ui.custom(session.dashboard, { overlay: true })
       } else {
-        ralphHandle.requestRender?.()
+        session.handle.requestRender?.()
       }
 
       if (params.phase === "done") {
-        setTimeout(() => {
-          if (ralphHandle) {
-            ralphHandle.close?.()
-            ralphHandle = null
-            ralphDashboard = null
+        session.closeTimer = setTimeout(() => {
+          const currSession = ralphSessions.get(sessionKey)
+          // only close if the timer hasn't been replaced or cleared
+          if (currSession === session && currSession.handle) {
+            currSession.handle.close?.()
+            ralphSessions.delete(sessionKey)
           }
         }, 2000)
       }
 
-      return { content: [{ type: "text", text: "Dashboard updated successfully." }] };
+      return { content: [] };
     }
   });
 
