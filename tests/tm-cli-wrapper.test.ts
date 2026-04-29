@@ -163,7 +163,6 @@ Status: ○ open  ◐ in_progress  ● blocked  ✓ closed  ❄ deferred`,
   }))
 
   const result = getReadyTasks("/tmp/project")
-  if (!result.ok) console.error(result.error)
   expect(result.ok).toBe(true)
   expect((result.data as any)[0].id).toBe("ENG_CORE-123")
   expect((result.data as any)[0].title).toBe("Some Task")
