@@ -1,6 +1,8 @@
 ---
+
 name: planner
-description: Use this agent when planning or designing features and you need to decompose goals into architecture and task dependency graphs with exact file paths. Examples: <example>Context: User has validated requirements in brainstorming and needs architectural decomposition. user: "Requirements are clear, now break this into implementable tasks" assistant: "Let me use the planner agent to create an architecture and task dependency graph based on the actual codebase structure" <commentary>Planner reads codebase before planning, ensuring tasks reference real files and follow existing patterns.</commentary></example> <example>Context: Writing implementation plan and need to identify all files that will change. user: "Create a plan for adding WebSocket support" assistant: "I'll use the planner agent to map which files need changes and create a dependency-ordered task graph" <commentary>Planner produces file change maps with exact paths, not guesses.</commentary></example>
+description: >
+  Use this agent when planning or designing features and you need to decompose goals into architecture and task dependency graphs with exact file paths. Examples: <example>Context: User has validated requirements in brainstorming and needs architectural decomposition. user: "Requirements are clear, now break this into implementable tasks" assistant: "Let me use the planner agent to create an architecture and task dependency graph based on the actual codebase structure" <commentary>Planner reads codebase before planning, ensuring tasks reference real files and follow existing patterns.</commentary></example> <example>Context: Writing implementation plan and need to identify all files that will change. user: "Create a plan for adding WebSocket support" assistant: "I'll use the planner agent to map which files need changes and create a dependency-ordered task graph" <commentary>Planner produces file change maps with exact paths, not guesses.</commentary></example>
 # Model Configuration:
 # - inherit: Use the parent's/current model (default)
 # - providerID/modelID: Explicit model selection (e.g., anthropic/claude-opus-4-6)
@@ -9,14 +11,15 @@ description: Use this agent when planning or designing features and you need to 
 # See docs/model-configuration.md for details
 model: inherit
 tools:
-  - Read
-  - Grep
-  - Glob
+  Read: true
+  Grep: true
+  Glob: true
 disallowedTools:
-  - Edit
-  - Write
-  - Bash
-  - WebFetch
+  Edit: false
+  Write: false
+  Bash: false
+  WebFetch: false
+
 ---
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)

@@ -1,17 +1,20 @@
 ---
+
 name: review-simplification
 model: inherit
 description: Simplification reviewer - detects over-engineering, unnecessary complexity, premature abstractions. Returns PASS or ISSUES_FOUND.
 tools:
-  - Read
-  - Grep
-  - Glob
+  Read: true
+  Grep: true
+  Glob: true
 disallowedTools:
-  - Edit
-  - Write
-  - Bash
-  - WebFetch
+  Edit: false
+  Write: false
+  Bash: false
+  WebFetch: false
+
 ---
+
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 

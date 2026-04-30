@@ -1,17 +1,20 @@
 ---
+
 name: review-testing
 model: inherit
 description: Testing reviewer - evaluates test coverage, test quality, and testing gaps. Returns PASS or ISSUES_FOUND.
 tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
+  Read: true
+  Grep: true
+  Glob: true
+  Bash: true
 disallowedTools:
-  - Edit
-  - Write
-  - WebFetch
+  Edit: false
+  Write: false
+  WebFetch: false
+
 ---
+
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
