@@ -61,19 +61,14 @@ function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return null;
   
-  const frontmatter = {};
-  const lines = match[1].split('\n');
-  
-  for (const line of lines) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex > 0) {
-      const key = line.slice(0, colonIndex).trim();
-      const value = line.slice(colonIndex + 1).trim();
-      frontmatter[key] = value;
-    }
+  // Use js-yaml to handle folded block scalars and full YAML objects
+  const jsYaml = require("js-yaml");
+  try {
+    return jsYaml.load(match[1]) || {};
+  } catch (e) {
+    console.error("Warning: invalid frontmatter YAML", e.message);
+    return {};
   }
-  
-  return frontmatter;
 }
 
 /**

@@ -57,22 +57,15 @@ const parseFrontmatter = (rawContent, filePath, options = {}) => {
     throw new Error(`missing frontmatter: ${filePath} (add YAML frontmatter with 'name' and 'description')`)
   }
 
-  const frontmatter = {}
-  for (const line of match[1].split("\n")) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith("#")) {
-      continue
-    }
-
-    const separatorIndex = trimmed.indexOf(":")
-    if (separatorIndex === -1) {
-      continue
-    }
-
-    const key = trimmed.slice(0, separatorIndex).trim()
-    let value = trimmed.slice(separatorIndex + 1).trim()
-    value = value.replace(/^['"]/, "").replace(/['"]$/, "")
-    frontmatter[key] = value
+  // We need to parse block scalars like description: > and object maps like tools:
+  const jsYaml = require("js-yaml")
+  let frontmatter
+  try {
+    frontmatter = jsYaml.load(match[1]) || {}
+  } catch (err) {
+    // If YAML fails (e.g. because of "!!!" which fails as a tag), fallback or report
+    // For this sync script we want to be permissive with raw values if strict YAML fails
+    throw new Error(`invalid YAML frontmatter: ${err.message}`)
   }
 
   if (requireName && !frontmatter.name) {

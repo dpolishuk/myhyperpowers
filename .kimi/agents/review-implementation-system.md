@@ -1,16 +1,20 @@
 ---
+
 name: review-implementation
-description: Spec-focused implementation reviewer - verifies code achieves stated goals and requirements alignment. Checks each requirement against actual code with file:line evidence. Contrast with code-reviewer (human-facing, broad quality) and autonomous-reviewer (machine-facing, verdict-only). Returns PASS or ISSUES_FOUND.
+description: >
+  Spec-focused implementation reviewer - verifies code achieves stated goals and requirements alignment. Checks each requirement against actual code with file:line evidence. Contrast with code-reviewer (human-facing, broad quality) and autonomous-reviewer (machine-facing, verdict-only). Returns PASS or ISSUES_FOUND.
 tools:
-  - Read
-  - Grep
-  - Glob
+  Read: true
+  Grep: true
+  Glob: true
 disallowedTools:
-  - Edit
-  - Write
-  - Bash
-  - WebFetch
+  Edit: false
+  Write: false
+  Bash: false
+  WebFetch: false
+
 ---
+
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 

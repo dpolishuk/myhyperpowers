@@ -43,7 +43,7 @@ test("syncCodexSkills emits YAML-safe quoted descriptions in generated frontmatt
   try {
     write(
       path.join(root, "skills", "alpha", "SKILL.md"),
-      "---\nname: alpha\ndescription: Has YAML-risk chars: [x] # comment {obj} \"quote\" \\slash\n---\n\nbody\n",
+      "---\nname: alpha\ndescription: \"Has YAML-risk chars: [x] # comment {obj} \\\"quote\\\" \\\\slash\"\n---\n\nbody\n",
     )
 
     const result = syncCodexSkills({ projectRoot: root, mode: "write" })

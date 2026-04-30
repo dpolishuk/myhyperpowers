@@ -1,16 +1,19 @@
 ---
+
 name: devops
 description: DevOps reviewer - analyzes CI/CD pipelines, pre-commit hooks, build configurations, and diagnoses pipeline failures. Returns PASS or ISSUES_FOUND.
 tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash
+  Read: true
+  Grep: true
+  Glob: true
+  Bash: true
 disallowedTools:
-  - Edit
-  - Write
-  - WebFetch
+  Edit: false
+  Write: false
+  WebFetch: false
+
 ---
+
 
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 

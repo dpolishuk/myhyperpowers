@@ -2,16 +2,15 @@
 name: review-documentation
 description: Documentation reviewer - checks if docs need updates for API changes, new features, config changes. Returns PASS or ISSUES_FOUND.
 tools:
-  - Read
-  - Grep
-  - Glob
+  Read: true
+  Grep: true
+  Glob: true
 disallowedTools:
-  - Edit
-  - Write
-  - Bash
-  - WebFetch
+  Edit: false
+  Write: false
+  Bash: false
+  WebFetch: false
 ---
-
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Documentation Review Agent

@@ -2,16 +2,15 @@
 name: security-scanner
 description: Security scanner - performs OWASP Top 10 scanning, secrets detection, and dependency vulnerability checks. Returns PASS or ISSUES_FOUND with severity.
 tools:
-  - Read
-  - Grep
-  - Glob
-  - WebFetch
+  Read: true
+  Grep: true
+  Glob: true
+  WebFetch: true
 disallowedTools:
-  - Edit
-  - Write
-  - Bash
+  Edit: false
+  Write: false
+  Bash: false
 ---
-
 > 📚 See the main hyperpowers documentation: [Global README](../README.md)
 
 # Security Scanner Agent

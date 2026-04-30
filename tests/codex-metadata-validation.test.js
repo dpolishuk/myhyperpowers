@@ -121,7 +121,7 @@ test("syncCodexSkills fails on invalid canonical skill names", () => {
   try {
     write(
       path.join(root, "skills", "invalid", "SKILL.md"),
-      "---\nname: !!!\ndescription: Invalid slug target.\n---\n\nbody\n",
+      "---\nname: '!!!'\ndescription: Invalid slug target.\n---\n\nbody\n",
     )
 
     const result = syncCodexSkills({ projectRoot: root, mode: "write" })
