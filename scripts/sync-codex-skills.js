@@ -59,7 +59,7 @@ const parseFrontmatter = (rawContent, filePath, options = {}) => {
 
   // We need to parse block scalars like description: > and object maps like tools:
   const jsYaml = require("js-yaml")
-  let frontmatter = {}
+  let frontmatter
   try {
     frontmatter = jsYaml.load(match[1]) || {}
   } catch (err) {
