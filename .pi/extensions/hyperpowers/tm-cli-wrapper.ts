@@ -102,7 +102,7 @@ function runTmJson<T>(
           }
 
           // Match standard ID (e.g. bd-42, ENG_CORE-123) and title
-          const match = cleanLine.match(/^([a-zA-Z0-9-_]+)\s+(.+)$/)
+          const match = cleanLine.match(/^([a-zA-Z0-9_-]+)\s+(.+)$/)
           if (!match) return null
 
           return {
