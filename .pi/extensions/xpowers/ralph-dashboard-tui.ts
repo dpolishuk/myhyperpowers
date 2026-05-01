@@ -79,134 +79,131 @@ export class RalphDashboard extends Container implements Focusable {
   handleInput(data: string): boolean {
     if (matchesKey(data, Key.escape) || data === "\x1b" || matchesKey(data, Key.ctrl("c")) || data === "\x03" || data === "q" || data === "Q") {
       this.onCancel?.()
+      this.tui?.requestRender?.()
       return true
     }
     return true
   }
 
   render(width: number): string[] {
+    const renderWidth = Math.max(20, Math.min(width, this.tui?.terminal?.columns || width))
+    const termRows = Math.max(8, this.tui?.terminal?.rows || 24)
+    const narrow = renderWidth < 80
     const lines: string[] = []
+    const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
 
-    // 1. Header
     const epicStr = this.state.epicId ? `[${this.state.epicId}] ${this.state.epicTitle || ""}` : "Loading Epic..."
-    const header = ` 🤖 Ralph Autonomous Execution ── ${epicStr} `
-    lines.push(truncateToWidth(header, width))
-    lines.push("─".repeat(Math.min(width, visibleWidth(header))))
-    lines.push("")
-    
-    // 2. Phase Tracker
+    const title = narrow ? ` 🤖 Ralph ── ${epicStr} ` : ` 🤖 Ralph Autonomous Execution ── ${epicStr} `
+    push(title)
+    push("─".repeat(renderWidth))
+    push()
+
     const phases = [
-      { id: "setup", label: "Setup" },
-      { id: "get_task", label: "Get Task" },
-      { id: "subagent", label: "Subagent" },
-      { id: "review", label: "Review" },
-      { id: "completion", label: "Completion" },
-      { id: "done", label: "Done" },
+      { id: "setup", label: narrow ? "Setup" : "Setup" },
+      { id: "get_task", label: narrow ? "Task" : "Get Task" },
+      { id: "subagent", label: narrow ? "Agent" : "Subagent" },
+      { id: "review", label: narrow ? "Review" : "Review" },
+      { id: "completion", label: narrow ? "Finish" : "Completion" },
+      { id: "done", label: narrow ? "Done" : "Done" },
     ]
 
-    const phaseLabels = phases.map(p => {
-      if (this.state.phase === p.id) return `\x1b[7m ${p.label} \x1b[27m`
-      return ` ${p.label} `
-    })
-    lines.push(` 📍 Phase:  ${phaseLabels.join(" ➞ ")}`)
-    lines.push("")
+    const currentPhase = phases.find(p => p.id === this.state.phase)?.label || this.state.phase
+    if (narrow) {
+      push(` 📍 Phase: ${currentPhase}`)
+    } else {
+      const phaseLabels = phases.map(p => {
+        if (this.state.phase === p.id) return `\x1b[7m ${p.label} \x1b[27m`
+        return ` ${p.label} `
+      })
+      push(` 📍 Phase:  ${phaseLabels.join(" ➞ ")}`)
+    }
+    push()
 
-    // 3. Two-column Layout: Current Target vs Epic Status
-    const leftWidth = Math.floor(width * 0.55)
-    const rightWidth = Math.max(1, width - leftWidth - 1)
+    const statusIcon = this.statusIcon()
+    const focusLines = this.buildFocusLines(statusIcon, narrow)
+    const progressLines = this.buildProgressLines(narrow ? renderWidth : Math.max(1, Math.floor(renderWidth * 0.45)))
 
-    const leftLines: string[] = []
-    const rightLines: string[] = []
+    if (narrow) {
+      for (const line of focusLines.slice(0, 5)) push(line)
+      push()
+      for (const line of progressLines) push(line)
+    } else {
+      const leftWidth = Math.floor(renderWidth * 0.55)
+      const rightWidth = Math.max(1, renderWidth - leftWidth - 1)
+      const fit = (text: string, w: number) => {
+        const t = truncateToWidth(text, Math.max(1, w))
+        return `${t}${" ".repeat(Math.max(0, w - visibleWidth(t)))}`
+      }
+      const maxCols = Math.max(focusLines.length, progressLines.length)
+      for (let i = 0; i < maxCols; i++) {
+        const l = fit(focusLines[i] || "│", leftWidth)
+        const r = truncateToWidth(progressLines[i] || "│", Math.max(1, rightWidth))
+        push(`${l} ${r}`)
+      }
+    }
+    push()
 
-    // Left: Current Action / Subagent
-    leftLines.push("╭── Current Focus ──────────────────────")
+    push("── Execution Logs ──")
+
+    const helpLine = "[q / Esc / Ctrl+C] Cancel Execution"
+    const reservedForHelp = 2
+    const remainingRows = Math.max(0, termRows - lines.length - reservedForHelp)
+    const maxLogLines = narrow ? Math.min(remainingRows, 3) : remainingRows
+    const displayLogs = maxLogLines > 0 ? this.state.logs.slice(-maxLogLines) : []
+
+    if (displayLogs.length === 0 && maxLogLines > 0) {
+      push(" Waiting for logs...")
+    } else {
+      for (const log of displayLogs) push(` > ${log}`)
+    }
+
+    push()
+    push(helpLine)
+
+    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
+  }
+
+  private statusIcon(): string {
+    if (this.state.subagentStatus === "running") return "🔄"
+    if (this.state.subagentStatus === "pass") return "✅"
+    if (this.state.subagentStatus === "fail") return "❌"
+    if (this.state.subagentStatus === "issues_found") return "⚠️ "
+    return "⏳"
+  }
+
+  private buildFocusLines(statusIcon: string, compact: boolean): string[] {
+    const lines: string[] = [compact ? "╭─ Current Focus" : "╭── Current Focus ──────────────────────"]
     if (this.state.currentTaskId) {
-      leftLines.push(`│ Task: ${this.state.currentTaskId} - ${this.state.currentTaskTitle || ""}`)
-      
-      let statusIcon = "⏳"
-      if (this.state.subagentStatus === "running") statusIcon = "🔄"
-      else if (this.state.subagentStatus === "pass") statusIcon = "✅"
-      else if (this.state.subagentStatus === "fail") statusIcon = "❌"
-      else if (this.state.subagentStatus === "issues_found") statusIcon = "⚠️ "
-
-      leftLines.push(`│ Subagent: ${statusIcon} ${this.state.subagentStatus || "pending"}`)
-      if (this.state.subagentOutput) {
-        leftLines.push(`│ Output: ${this.state.subagentOutput}`)
+      lines.push(`│ Task: ${this.state.currentTaskId} - ${this.state.currentTaskTitle || ""}`)
+      lines.push(`│ Agent: ${statusIcon} ${this.state.subagentStatus || "pending"}`)
+      if (this.state.subagentOutput && !compact) {
+        lines.push(`│ Output: ${this.state.subagentOutput}`)
       }
     } else {
-      leftLines.push("│ Task: Identifying next work item...")
+      lines.push("│ Task: Identifying next work item...")
     }
 
-    leftLines.push("│")
-    if (this.state.branchName) {
-      leftLines.push(`│ Branch: 🌿 ${this.state.branchName}`)
-      if (this.state.gitProgress) {
-        leftLines.push(`│ Commits: ${this.state.gitProgress}`)
-      }
-    } else {
-      leftLines.push(`│ Branch: pending...`)
-    }
+    const branch = this.state.branchName ? `🌿 ${this.state.branchName}` : "pending..."
+    lines.push(`│ Branch: ${branch}`)
+    if (this.state.gitProgress && !compact) lines.push(`│ Commits: ${this.state.gitProgress}`)
+    return lines
+  }
 
-    // Right: Epic Progress
-    rightLines.push("╭── Epic Progress ──────────────────────")
+  private buildProgressLines(width: number): string[] {
+    const lines: string[] = [width < 40 ? "╭─ Epic Progress" : "╭── Epic Progress ──────────────────────"]
     if (this.state.totalCriteria > 0) {
       const total = Math.max(0, this.state.totalCriteria)
       const unmet = Math.min(Math.max(0, this.state.unmetCriteria), total)
       const met = total - unmet
       const percent = total === 0 ? 0 : Math.floor((met / total) * 100)
-      const barWidth = 20
+      const barWidth = Math.max(4, Math.min(20, width - 22))
       const filled = Math.max(0, Math.min(barWidth, Math.floor((percent / 100) * barWidth)))
       const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
-      rightLines.push(`│ Criteria: [${bar}] ${percent}%`)
-      rightLines.push(`│ Completed: ${met}/${total}`)
+      lines.push(`│ Criteria: [${bar}] ${percent}%`)
+      lines.push(`│ Completed: ${met}/${total}`)
     } else {
-      rightLines.push("│ Criteria: Parsing...")
+      lines.push("│ Criteria: Parsing...")
     }
-
-    const fit = (text: string, w: number) => {
-      const t = truncateToWidth(text, Math.max(1, w))
-      return `${t}${" ".repeat(Math.max(0, w - visibleWidth(t)))}`
-    }
-
-    // Merge columns
-    const maxCols = Math.max(leftLines.length, rightLines.length)
-    for (let i = 0; i < maxCols; i++) {
-      const l = fit(leftLines[i] || "│", leftWidth)
-      const r = truncateToWidth(rightLines[i] || "│", Math.max(1, rightWidth))
-      lines.push(truncateToWidth(`${l} ${r}`, width))
-    }
-    lines.push("")
-
-    // 4. Logs
-    lines.push("── Execution Logs ──")
-    
-    // We want to leave space for the bottom help text (2 lines) and account for lines already used.
-    // If terminal object exists, we can dynamically size the log area.
-    const termRows = this.tui?.terminal?.rows || 24
-    const bottomReserved = 2
-    const currentLinesCount = lines.length
-    
-    // Calculate how many logs we can fit, minimum 5
-    const maxLogLines = Math.max(5, termRows - currentLinesCount - bottomReserved)
-    const displayLogs = this.state.logs.slice(-maxLogLines)
-    
-    if (displayLogs.length === 0) {
-      lines.push(" Waiting for logs...")
-      // pad out remaining lines to prevent flickering height
-      const toPad = maxLogLines - 1
-      for(let i=0; i < toPad; i++) lines.push("")
-    } else {
-      for (const log of displayLogs) {
-        lines.push(truncateToWidth(` > ${log}`, width))
-      }
-      // pad out remaining lines if fewer than maxLogLines
-      const toPad = maxLogLines - displayLogs.length
-      for(let i=0; i < toPad; i++) lines.push("")
-    }
-
-    lines.push("")
-    lines.push("[q / Esc / Ctrl+C] Cancel Execution")
-
     return lines
   }
 }
