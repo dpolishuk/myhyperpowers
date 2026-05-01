@@ -708,9 +708,8 @@ export default function (pi: any) {
       }
 
       const result = await ctx.ui.custom<string>(
-        (tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
+        (_tui: any, _theme: any, _keybindings: any, done: (v: string) => void) => {
           const dashboard = new BrainstormDashboard(state);
-          dashboard.tui = tui;
           
           dashboard.onOptionSelect = (index: number) => {
             const selected = params.options?.[index]?.label
@@ -725,7 +724,7 @@ export default function (pi: any) {
           
           return dashboard;
         },
-        { overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } }
+        { overlay: true }
       );
 
       return { content: [{ type: "text", text: result }] };
@@ -814,16 +813,9 @@ export default function (pi: any) {
         session.handle = ctx.ui.custom(
           (tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => {
             session!.dashboard.tui = tui
-            return {
-              render: (width: number) => session!.dashboard.render(width),
-              invalidate: () => session!.dashboard.invalidate(),
-              handleInput: (data: string) => {
-                session!.dashboard.handleInput(data)
-                tui.requestRender?.()
-              },
-            }
+            return session!.dashboard
           },
-          { overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } }
+          { overlay: true }
         )
       } else {
         session.handle.requestRender?.()

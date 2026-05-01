@@ -91,8 +91,8 @@ test("update_ralph_state opens dashboard with Pi custom factory", async () => {
       custom: (factory: any, options: any) => {
         customCalled = true
         expect(typeof factory).toBe("function")
-        expect(options).toEqual({ overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } })
-        dashboard = factory({ terminal: { rows: 30, columns: 100 }, requestRender: () => {} }, {}, {}, () => {})
+        expect(options).toEqual({ overlay: true })
+        dashboard = factory({ terminal: { rows: 30 } }, {}, {}, () => {})
         return { close: () => {}, requestRender: () => {} }
       }
     }
@@ -102,7 +102,7 @@ test("update_ralph_state opens dashboard with Pi custom factory", async () => {
 
   expect(customCalled).toBe(true)
   expect(typeof dashboard.render).toBe("function")
-  expect(typeof dashboard.handleInput).toBe("function")
+  expect(dashboard.focused).toBe(true)
   expect(result.content).toEqual([])
 })
 

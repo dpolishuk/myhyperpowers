@@ -1,8 +1,11 @@
 import {
   Container,
+  Box,
+  Text,
   matchesKey,
   Key,
   truncateToWidth,
+  visibleWidth,
 } from "@mariozechner/pi-tui"
 import type { StructuredTaskStatus } from "./task-runner"
 
@@ -23,7 +26,6 @@ export interface LiveExecutionState {
 export class LiveExecutionDashboard extends Container {
   private state: LiveExecutionState
   private onCancel?: () => void
-  public tui?: any
 
   constructor(initialState: LiveExecutionState, onCancel?: () => void) {
     super()
@@ -42,73 +44,57 @@ export class LiveExecutionDashboard extends Container {
   handleInput(data: string): void {
     if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
       this.onCancel?.()
-      this.tui?.requestRender?.()
     }
   }
 
   render(width: number): string[] {
-    const renderWidth = Math.max(20, Math.min(width, this.tui?.terminal?.columns || width))
-    const termRows = Math.max(8, this.tui?.terminal?.rows || 24)
-    const narrow = renderWidth < 80
     const lines: string[] = []
-    const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
-
+    
+    // Header
     const titleText = ` 🚀 ${this.state.title} `
-    push(titleText)
-    push("─".repeat(renderWidth))
-
+    lines.push(truncateToWidth(titleText, width))
+    lines.push("─".repeat(Math.min(width, titleText.length)))
+    
+    // Progress
     const total = this.state.tasks.length
     const completed = this.state.tasks.filter(t => t.status !== "pending" && t.status !== "running").length
     const percent = total > 0 ? Math.floor((completed / total) * 100) : 0
-    const barWidth = Math.max(4, Math.min(20, renderWidth - (narrow ? 19 : 28)))
+    
+    const barWidth = 20
     const filled = Math.floor((percent / 100) * barWidth)
     const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
-    push(narrow ? `[${bar}] ${completed}/${total} Tasks` : `[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`)
-    push("")
-    push(narrow ? "Tasks:" : "Active Subagents:")
-
-    const reservedRows = lines.length + 3
-    const maxTaskRows = Math.max(0, termRows - reservedRows)
-    let usedTaskRows = 0
-    let renderedTasks = 0
-
+    lines.push(`[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`)
+    lines.push("")
+    
+    // Tasks list
+    lines.push("Active Subagents:")
+    
     for (const task of this.state.tasks) {
-      const rowCost = narrow ? 1 : (task.output || task.summary ? 2 : 1)
-      if (usedTaskRows + rowCost > maxTaskRows) break
-
       let icon = "⏳"
       if (task.status === "running") icon = "🔄"
       else if (task.status === "PASS") icon = "✅"
       else if (task.status === "ISSUES_FOUND") icon = "⚠️ "
       else if (task.status === "FAIL") icon = "❌"
 
-      let taskLine = narrow ? `${icon} ${task.id}: ${task.title}` : `${icon} Task ${task.id}: ${task.title}`
+      let taskLine = `${icon} Task ${task.id}: ${task.title}`
       if (task.status === "running" && task.effort) {
         taskLine += ` [thinking: ${task.effort}]`
       } else if (task.status !== "pending" && task.status !== "running") {
         taskLine += ` [${task.status}]`
       }
-      push(taskLine)
-      usedTaskRows++
-      renderedTasks++
-
-      if (!narrow && task.output && usedTaskRows < maxTaskRows) {
-        push(`   └─ ${task.output}`)
-        usedTaskRows++
-      } else if (!narrow && task.summary && usedTaskRows < maxTaskRows) {
-        push(`   └─ ${task.summary}`)
-        usedTaskRows++
+      
+      lines.push(truncateToWidth(taskLine, width))
+      
+      if (task.output) {
+        lines.push(truncateToWidth(`   └─ ${task.output}`, width))
+      } else if (task.summary) {
+        lines.push(truncateToWidth(`   └─ ${task.summary}`, width))
       }
     }
-
-    const hiddenTasks = total - renderedTasks
-    if (hiddenTasks > 0 && lines.length < termRows - 2) {
-      push(`... ${hiddenTasks} more tasks`)
-    }
-
-    push("")
-    push("[Ctrl+C / Esc] Cancel")
-
-    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
+    
+    lines.push("")
+    lines.push("[Ctrl+C / Esc] Cancel")
+    
+    return lines
   }
 }

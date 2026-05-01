@@ -110,11 +110,10 @@ test("runParallelReview uses TUI dashboard when UI context is available", async 
     ui: {
       custom: (factory: any, options: any) => {
         customCalled = true
-        expect(options).toEqual({ overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } })
+        expect(options).toEqual({ overlay: true })
         expect(typeof factory).toBe("function")
-        const component = factory({ terminal: { columns: 100, rows: 30 }, requestRender: () => {} }, {}, {}, () => {})
-        expect(typeof component.render).toBe("function")
-        expect(typeof component.handleInput).toBe("function")
+        const component = factory({}, {}, {}, () => {})
+        expect(typeof component.updateTask).toBe("function")
         return { 
           close: () => { handleClosed = true },
           requestRender: () => {}

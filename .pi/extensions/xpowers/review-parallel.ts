@@ -108,18 +108,8 @@ export async function runParallelReview(
     })
     // Launch dashboard and save handle
     handle = ctx.uiCtx.ui.custom(
-      (tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => {
-        dashboard.tui = tui
-        return {
-          render: (width: number) => dashboard.render(width),
-          invalidate: () => dashboard.invalidate(),
-          handleInput: (data: string) => {
-            dashboard.handleInput(data)
-            tui.requestRender?.()
-          },
-        }
-      },
-      { overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } }
+      (_tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => dashboard,
+      { overlay: true }
     )
   }
 
