@@ -460,7 +460,7 @@ echo '{"text": "Write a test for the API endpoint"}' | \
     node ~/.claude/hooks/user-prompt-submit/skill-activator.js
 ```
 
-**Expected:** Should activate hyperpowers:test-driven-development and backend-dev-guidelines
+**Expected:** Should activate xpowers:test-driven-development and backend-dev-guidelines
 
 ### Test 4: Debug Mode
 

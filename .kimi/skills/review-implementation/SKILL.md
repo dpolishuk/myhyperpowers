@@ -1,6 +1,6 @@
 ---
 name: review-implementation
-description: Use after hyperpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided
+description: Use after xpowers:executing-plans completes all tasks - verifies implementation against bd spec, all success criteria met, anti-patterns avoided
 ---
 
 <codex_compat>
@@ -66,13 +66,13 @@ Rate each finding 0.0-1.0:
 </quick_reference>
 
 <when_to_use>
-- hyperpowers:executing-plans completed all tasks
+- xpowers:executing-plans completed all tasks
 - Before claiming work is complete
-- Before hyperpowers:finishing-a-development-branch
+- Before xpowers:finishing-a-development-branch
 - Want to verify implementation matches spec
 
 **Don't use for:**
-- Mid-implementation (use hyperpowers:executing-plans)
+- Mid-implementation (use xpowers:executing-plans)
 - Before all tasks done
 - Code reviews of external PRs (this is self-review)
 </when_to_use>
@@ -80,7 +80,7 @@ Rate each finding 0.0-1.0:
 <the_process>
 ## Step 1: Load Epic Specification
 
-**Announce:** "I'm using hyperpowers:review-implementation to verify implementation matches spec. Reviewing with Google Fellow-level scrutiny."
+**Announce:** "I'm using xpowers:review-implementation to verify implementation matches spec. Reviewing with Google Fellow-level scrutiny."
 
 **Get epic and tasks:**
 
@@ -214,13 +214,13 @@ rg -i "backward.*compat|legacy.*support|shim|polyfill" src/ || echo "✅ None"
 
 ### C. Run Quality Gates (via test-runner agent)
 
-**IMPORTANT:** Use hyperpowers:test-runner agent to avoid context pollution.
+**IMPORTANT:** Use xpowers:test-runner agent to avoid context pollution.
 
 ```
-Dispatch hyperpowers:test-runner: "Run: cargo test"
-Dispatch hyperpowers:test-runner: "Run: cargo fmt --check"
-Dispatch hyperpowers:test-runner: "Run: cargo clippy -- -D warnings"
-Dispatch hyperpowers:test-runner: "Run: .git/hooks/pre-commit"
+Dispatch xpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo fmt --check"
+Dispatch xpowers:test-runner: "Run: cargo clippy -- -D warnings"
+Dispatch xpowers:test-runner: "Run: .git/hooks/pre-commit"
 ```
 
 ---
@@ -407,7 +407,7 @@ For EACH criterion in bd task:
 - Run verification command
 - Check actual output
 - Don't assume - verify with evidence
-- Use hyperpowers:test-runner for tests/lints
+- Use xpowers:test-runner for tests/lints
 
 **Example:**
 
@@ -552,7 +552,7 @@ Reviewed bd-1 (OAuth Authentication) against implementation.
 - Pre-commit: Pass
 - Code review: Production-ready
 
-Ready to proceed to hyperpowers:finishing-a-development-branch.
+Ready to proceed to xpowers:finishing-a-development-branch.
 ```
 
 **If gaps found:**
@@ -587,9 +587,9 @@ Implementation does not match spec. Fix gaps before completing.
 
 **If APPROVED:**
 ```
-Announce: "I'm using hyperpowers:finishing-a-development-branch to complete this work."
+Announce: "I'm using xpowers:finishing-a-development-branch to complete this work."
 
-Use Skill tool: hyperpowers:finishing-a-development-branch
+Use Skill tool: xpowers:finishing-a-development-branch
 ```
 
 **If GAPS FOUND:**
@@ -1048,18 +1048,18 @@ Before approving implementation:
 
 <integration>
 **This skill is called by:**
-- hyperpowers:executing-plans (Step 5, after all tasks executed)
+- xpowers:executing-plans (Step 5, after all tasks executed)
 
 **This skill calls:**
-- hyperpowers:finishing-a-development-branch (if approved)
-- hyperpowers:test-runner agent (for quality gates)
+- xpowers:finishing-a-development-branch (if approved)
+- xpowers:test-runner agent (for quality gates)
 
 **This skill uses:**
-- hyperpowers:verification-before-completion principles (evidence before claims)
+- xpowers:verification-before-completion principles (evidence before claims)
 
 **Call chain:**
 ```
-hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpowers:finishing-a-development-branch
+xpowers:executing-plans → xpowers:review-implementation → xpowers:finishing-a-development-branch
                          ↓
                    (if gaps: STOP)
 ```

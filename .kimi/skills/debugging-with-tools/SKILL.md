@@ -481,9 +481,9 @@ Before committing fix:
 - Any skill when encountering unexpected behavior
 
 **Agents used:**
-- hyperpowers:internet-researcher (search for error solutions)
-- hyperpowers:codebase-investigator (understand codebase context)
-- hyperpowers:test-runner (run tests, return summary only)
+- xpowers:internet-researcher (search for error solutions)
+- xpowers:codebase-investigator (understand codebase context)
+- xpowers:test-runner (run tests, return summary only)
 
 </integration>
 

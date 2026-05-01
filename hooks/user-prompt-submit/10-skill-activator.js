@@ -154,7 +154,7 @@ function generateContext(skills) {
             const emoji = agent.priority === 'critical' ? '🔴' :
                          agent.priority === 'high' ? '⭐' :
                          agent.priority === 'medium' ? '💾' : '🤖';
-            lines.push(`${emoji} **hyperpowers:${agent.skill}** (${agent.priority} priority)`);
+            lines.push(`${emoji} **xpowers:${agent.skill}** (${agent.priority} priority)`);
 
             if (CONFIG.debugMode) {
                 lines.push(`   Matched: ${agent.reason}`);
@@ -165,11 +165,11 @@ function generateContext(skills) {
 
     // Activation instructions
     if (hasSkills) {
-        lines.push('Use the Skill tool for skills: `Skill command="hyperpowers:<skill-name>"`');
+        lines.push('Use the Skill tool for skills: `Skill command="xpowers:<skill-name>"`');
     }
     if (hasAgents) {
-        lines.push('Use the Task tool for agents: `Task(subagent_type="hyperpowers:<agent-name>", ...)`');
-        lines.push('Example: `Task(subagent_type="hyperpowers:test-runner", prompt="Run: git commit...", ...)`');
+        lines.push('Use the Task tool for agents: `Task(subagent_type="xpowers:<agent-name>", ...)`');
+        lines.push('Example: `Task(subagent_type="xpowers:test-runner", prompt="Run: git commit...", ...)`');
     }
     lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     lines.push('');

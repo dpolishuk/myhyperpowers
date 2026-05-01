@@ -33,7 +33,7 @@ Adapt implementation details to actual codebase state. Every task MUST be an SCI
 </quick_reference>
 
 <when_to_use>
-**Use after hyperpowers:sre-task-refinement or anytime tasks need more detail.**
+**Use after xpowers:sre-task-refinement or anytime tasks need more detail.**
 
 Symptoms:
 - bd tasks have implementation checklists but need expansion
@@ -144,7 +144,7 @@ Every expanded task design MUST include a copy of the **Immutable Epic Requireme
 ## 3. After ALL Tasks Done
 
 Offer execution choice:
-"Ready to execute? I can use hyperpowers:executing-plans to implement iteratively."
+"Ready to execute? I can use xpowers:executing-plans to implement iteratively."
 
 </the_process>
 

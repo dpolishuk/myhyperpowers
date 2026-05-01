@@ -167,7 +167,7 @@ class AgentsMCPServer {
           tools: {}
         },
         serverInfo: {
-          name: 'hyperpowers-agents',
+          name: 'xpowers-agents',
           version: '1.0.0'
         }
       }

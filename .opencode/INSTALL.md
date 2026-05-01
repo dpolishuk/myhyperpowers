@@ -1,6 +1,6 @@
-# Installing Hyperpowers for OpenCode
+# Installing XPowers for OpenCode
 
-This is the OpenCode install path for the multi-host Hyperpowers project.
+This is the OpenCode install path for the multi-host XPowers project.
 For Gemini CLI, install from `.gemini-extension/`, and for Claude Code, use the Claude marketplace plugin.
 
 ## Prerequisites
@@ -16,12 +16,12 @@ For Gemini CLI, install from `.gemini-extension/`, and for Claude Code, use the 
 
 This is the preferred path for this branch. The unified installer sets up both the OpenCode plugin surface **and** the shared `tm` runtime used by `tm sync`.
 
-From the hyperpowers repository:
+From the xpowers repository:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dpolishuk/myhyperpowers.git ~/myhyperpowers
-cd ~/myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git ~/xpowers
+cd ~/xpowers
 
 # Install to OpenCode only
 ./scripts/install.sh --opencode
@@ -50,14 +50,14 @@ tm sync
 
 OpenCode project configuration still belongs in your project-root `opencode.json`. Use `.opencode/` for project-local commands, plugins, agents, and skills.
 
-For Hyperpowers-specific direct agent→model routing on OpenCode, use `opencode.json` as the canonical config surface and treat any plugin/options UX as editing the same underlying map, not a separate plugin-only state store.
+For XPowers-specific direct agent→model routing on OpenCode, use `opencode.json` as the canonical config surface and treat any plugin/options UX as editing the same underlying map, not a separate plugin-only state store.
 
 To start from the documented contract example:
 
 ```bash
 cp docs/opencode.example.agent-routing.json opencode.json
 mkdir -p .opencode
-cp docs/opencode.example.hyperpowers-routing.json .opencode/hyperpowers-routing.json
+cp docs/opencode.example.xpowers-routing.json .opencode/xpowers-routing.json
 ```
 
 Or bootstrap the same canonical split-file routing config from live `opencode models` discovery:
@@ -66,32 +66,32 @@ Or bootstrap the same canonical split-file routing config from live `opencode mo
 bun scripts/opencode-routing-wizard.ts --yes
 ```
 
-Note: workflow overrides live in `.opencode/hyperpowers-routing.json` (not in `opencode.json`) because OpenCode strictly validates its config schema and rejects unknown keys. The `workflowOverrides` block is active for Hyperpowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
+Note: workflow overrides live in `.opencode/xpowers-routing.json` (not in `opencode.json`) because OpenCode strictly validates its config schema and rejects unknown keys. The `workflowOverrides` block is active for XPowers task-tool dispatch paths and resolves ahead of the global `agent.<name>.model` map.
 
-The first plugin/options editing surface for that map is the `hyperpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads agent mappings from `opencode.json` and workflow overrides from `.opencode/hyperpowers-routing.json` instead of maintaining plugin-only routing state.
+The first plugin/options editing surface for that map is the `xpowers_agent_routing_config` tool from `agent-routing-config.ts`. It reads agent mappings from `opencode.json` and workflow overrides from `.opencode/xpowers-routing.json` instead of maintaining plugin-only routing state.
 
-The primary settings-like entry point is `/routing-settings`, a plugin-owned slash-command wizard that uses `hyperpowers_agent_routing_config` as its backend.
+The primary settings-like entry point is `/routing-settings`, a plugin-owned slash-command wizard that uses `xpowers_agent_routing_config` as its backend.
 
 ### Option 2: Manual Install
 
 ```bash
 # 1. Clone to config directory
 mkdir -p ~/.config/opencode
-git clone https://github.com/dpolishuk/myhyperpowers.git ~/.config/opencode/hyperpowers
+git clone https://github.com/dpolishuk/xpowers.git ~/.config/opencode/xpowers
 
 # 2. Register plugin
 mkdir -p ~/.config/opencode/plugins
-ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-skills.ts ~/.config/opencode/plugins/
-ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
-ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/agent-routing-config.ts ~/.config/opencode/plugins/
-ln -sf ~/.config/opencode/hyperpowers/.opencode/plugins/hyperpowers-safety.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/xpowers/.opencode/plugins/xpowers-skills.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/xpowers/.opencode/plugins/task-context-orchestrator.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/xpowers/.opencode/plugins/agent-routing-config.ts ~/.config/opencode/plugins/
+ln -sf ~/.config/opencode/xpowers/.opencode/plugins/xpowers-safety.ts ~/.config/opencode/plugins/
 
 # 3. Install plugin dependencies
-cd ~/.config/opencode/hyperpowers/.opencode
+cd ~/.config/opencode/xpowers/.opencode
 bun install
 
 # 4. Provision the shared tm runtime used by this branch
-cd ~/.config/opencode/hyperpowers
+cd ~/.config/opencode/xpowers
 ./scripts/install.sh --opencode
 
 # 5. Restart OpenCode
@@ -112,12 +112,12 @@ Manual plugin setup alone does **not** provision the shared tm runtime for this 
 
 ## How It Works
 
-The Hyperpowers OpenCode plugin does the following:
+The XPowers OpenCode plugin does the following:
 
 1. **Discovers skills** from XDG/config directories
 2. **Exposes tools** for each skill discovered
 3. **Loads skill content** when invoked via tool calls
-4. **Exposes `hyperpowers_agent_routing_config`** for shared routing-map reads/writes in `opencode.json`
+4. **Exposes `xpowers_agent_routing_config`** for shared routing-map reads/writes in `opencode.json`
 5. **Integrates with agents** for specialized tasks
 
 ### Active Task Context Workflow
@@ -143,10 +143,10 @@ Skills are loaded in this order (later overrides earlier):
 ```
 .opencode/
 ├── plugins/
-│   ├── hyperpowers-skills.ts    # Main skill discovery plugin
+│   ├── xpowers-skills.ts    # Main skill discovery plugin
 │   ├── agent-routing-config.ts  # Shared opencode.json routing-map tool
 │   ├── task-context-orchestrator.ts # Serena+Supermemory task context orchestration
-│   └── hyperpowers-safety.ts    # Safety checks
+│   └── xpowers-safety.ts    # Safety checks
 ├── skills/                       # Skill definitions (SKILL.md)
 ├── agents/                       # Agent prompts
 ├── commands/                     # Slash command definitions
@@ -213,7 +213,7 @@ allowed-tools:
 **Skill Priority:**
 - Project skills (`.opencode/skills/`) highest priority
 - Personal skills (`~/.config/opencode/skills/`) medium priority
-- Hyperpowers skills lowest priority
+- XPowers skills lowest priority
 
 ## Project Skills
 
@@ -239,7 +239,7 @@ description: Use when [condition] - [what it does]
 
 ## Commands
 
-All hyperpowers commands are auto-discovered from the cloned repository:
+All xpowers commands are auto-discovered from the cloned repository:
 
 - `/brainstorm` - Interactive design refinement
 - `/write-plan` - Create implementation plan
@@ -250,7 +250,7 @@ All hyperpowers commands are auto-discovered from the cloned repository:
 - `/analyze-tests` - Audit test quality
 - `/review-implementation` - Verify implementation fidelity
 - `/beads-triage` - Run `bv --robot-triage` and return raw JSON
-- `/hyperpowers-version` - Show hyperpowers plugin version and installation status
+- `/xpowers-version` - Show xpowers plugin version and installation status
 - `/tm-linear-setup` - Show the supported OpenCode tm/Linear setup path for this branch
 
 ## Beads Triage
@@ -278,7 +278,7 @@ Changes to `.opencode/` files will be reflected immediately upon OpenCode reload
 
 ### Plugin Development
 
-The main plugin is in `.opencode/plugins/hyperpowers-skills.ts`:
+The main plugin is in `.opencode/plugins/xpowers-skills.ts`:
 
 - Discovers `SKILL.md` files using `Bun.glob()`
 - Parses frontmatter with `gray-matter`
@@ -288,7 +288,7 @@ The main plugin is in `.opencode/plugins/hyperpowers-skills.ts`:
 ## Updating
 
 ```bash
-cd ~/.config/opencode/hyperpowers
+cd ~/.config/opencode/xpowers
 git pull
 ```
 
@@ -305,7 +305,7 @@ If using copy mode, rerun the install script.
 
 ### Skills not found
 
-1. Verify skills directory exists: `ls ~/.config/opencode/hyperpowers/.opencode/skills/`
+1. Verify skills directory exists: `ls ~/.config/opencode/xpowers/.opencode/skills/`
 2. Check each skill has `SKILL.md` file
 3. Verify frontmatter is valid (use `--log-level=debug`)
 
@@ -340,6 +340,6 @@ Complete removal (including backups):
 
 ## Getting Help
 
-- Report issues: https://github.com/dpolishuk/myhyperpowers/issues
-- Documentation: https://github.com/dpolishuk/myhyperpowers
+- Report issues: https://github.com/dpolishuk/xpowers/issues
+- Documentation: https://github.com/dpolishuk/xpowers
 - OpenCode Docs: https://opencode.ai/docs/

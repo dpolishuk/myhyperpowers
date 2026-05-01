@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Hyperpowers Pi Quick Installer
+# XPowers Pi Quick Installer
 # One-command setup for macOS & Linux:
-# curl -fsSL https://raw.githubusercontent.com/dpolishuk/myhyperpowers/main/scripts/setup-pi.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
 # ---------------------------------------------------------------------------
 
 # Colors and formatting
@@ -27,7 +27,7 @@ error()   { echo -e "${RED}✗${RESET} $*" >&2; }
 
 header() {
   echo -e "${BOLD}╭─────────────────────────────────────────╮${RESET}"
-  printf  "${BOLD}│${RESET}  Hyperpowers Pi Installer ${CYAN}v%-13s${RESET} ${BOLD}│${RESET}\n" "latest"
+  printf  "${BOLD}│${RESET}  XPowers Pi Installer ${CYAN}v%-13s${RESET} ${BOLD}│${RESET}\n" "latest"
   echo -e "${BOLD}╰─────────────────────────────────────────╯${RESET}"
   echo
 }
@@ -50,7 +50,7 @@ success "Pi is installed."
 
 # 2. Check for Git
 if ! command -v git >/dev/null 2>&1; then
-  error "Git is required to download Hyperpowers."
+  error "Git is required to download XPowers."
   exit 1
 fi
 success "Git is installed."
@@ -76,9 +76,9 @@ fi
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-info "Downloading latest Hyperpowers release..."
+info "Downloading latest XPowers release..."
 cd "$TMP_DIR"
-git clone --depth 1 https://github.com/dpolishuk/myhyperpowers.git . >/dev/null 2>&1
+git clone --depth 1 https://github.com/dpolishuk/xpowers.git . >/dev/null 2>&1
 
 if [[ "$PM" == "bun" ]]; then
   info "Running Bun interactive installer for Pi..."
@@ -86,20 +86,20 @@ if [[ "$PM" == "bun" ]]; then
   bun scripts/install.ts --yes --hosts pi
 else
   info "Running manual setup via npm..."
-  PI_EXT_DIR="$HOME/.pi/agent/extensions/hyperpowers"
+  PI_EXT_DIR="$HOME/.pi/agent/extensions/xpowers"
   
   # Clean old install
   rm -rf "$PI_EXT_DIR"
   mkdir -p "$PI_EXT_DIR"
   
   # Copy files
-  cp -r .pi/extensions/hyperpowers/* "$PI_EXT_DIR/"
+  cp -r .pi/extensions/xpowers/* "$PI_EXT_DIR/"
   cp -r skills "$PI_EXT_DIR/"
   cp -r commands "$PI_EXT_DIR/"
   
   # Inject AGENTS.md
   if [[ -f "$HOME/.pi/agent/AGENTS.md" ]]; then
-    if ! grep -q "<!-- BEGIN HYPERPOWERS PI -->" "$HOME/.pi/agent/AGENTS.md"; then
+    if ! grep -q "<!-- BEGIN XPOWERS PI -->" "$HOME/.pi/agent/AGENTS.md"; then
       echo "" >> "$HOME/.pi/agent/AGENTS.md"
       cat .pi/AGENTS.md >> "$HOME/.pi/agent/AGENTS.md"
     fi
@@ -136,11 +136,11 @@ fi
 echo
 echo -e "${GREEN}${BOLD}✨ Setup Complete!${RESET}"
 echo
-echo -e "You can now start ${CYAN}pi${RESET} and use your new hyperpowers:"
+echo -e "You can now start ${CYAN}pi${RESET} and use your new xpowers:"
 echo -e "  ${BOLD}/routing-settings${RESET}  — Configure models and effort levels"
 echo -e "  ${BOLD}/execute-ralph${RESET}     — Autonomous epic execution"
 echo -e "  ${BOLD}/brainstorm${RESET}        — Interactive design planning"
 echo -e "  ${BOLD}/review-parallel${RESET}   — Multi-agent parallel review"
 echo
-echo -e "For full documentation: ${CYAN}https://github.com/dpolishuk/myhyperpowers/blob/main/docs/pi.md${RESET}"
+echo -e "For full documentation: ${CYAN}https://github.com/dpolishuk/xpowers/blob/main/docs/pi.md${RESET}"
 echo

@@ -90,7 +90,7 @@ bv --robot-next                      # Automated triage
 
 **Refinement Step**:
 After task selection/creation, run SRE refinement to ensure the task design is robust:
-`Use Skill tool: hyperpowers:sre-task-refinement (prefer Opus 4.1 model)`
+`Use Skill tool: xpowers:sre-task-refinement (prefer Opus 4.1 model)`
 
 ### Auto-create next task from unmet criterion
 
@@ -196,7 +196,7 @@ Non-approval --> create remediation task, return to Phase 1 (max 50 overall no-p
 ## Phase 4: Branch Completion
 
 ```
-Use Skill tool: hyperpowers:finishing-a-development-branch
+Use Skill tool: xpowers:finishing-a-development-branch
 ```
 
 **Autonomous override:** When the skill presents integration options, auto-select **option 2 (Push and create Pull Request)** without waiting for user input. Ralph is autonomous — do not present options or wait.
@@ -252,9 +252,9 @@ NO. Every task requires refinement to catch edge cases before implementation.
 <integration>
 
 **Calls:**
-- `hyperpowers:sre-task-refinement` -- mandatory per-task refinement after task selection
+- `xpowers:sre-task-refinement` -- mandatory per-task refinement after task selection
 - `subagent-driven-development` -- canonical Dispatch Protocol for each task
-- `hyperpowers:finishing-a-development-branch` -- final branch completion
+- `xpowers:finishing-a-development-branch` -- final branch completion
 - Agent tool with specialized reviewers: review-quality, security-scanner, test-effectiveness-analyst, autonomous-reviewer, review-implementation
 
 **Called by:**

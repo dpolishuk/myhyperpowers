@@ -1,14 +1,14 @@
 # Pi Support
 
-Hyperpowers includes first-class support for the Pi coding agent through the extension in:
+XPowers includes first-class support for the Pi coding agent through the extension in:
 
-- `.pi/extensions/hyperpowers/`
+- `.pi/extensions/xpowers/`
 
 ## What Pi support includes
 
-- Slash commands for Hyperpowers workflows
-- `hyperpowers_subagent` for isolated Pi subprocess delegation
-- A shared internal Pi task runner used by Hyperpowers orchestration
+- Slash commands for XPowers workflows
+- `xpowers_subagent` for isolated Pi subprocess delegation
+- A shared internal Pi task runner used by XPowers orchestration
 - Model routing by subagent type and concrete agent
 - Routed effort mapped to Pi thinking controls when configured
 - True extension-side `/review-parallel` fan-out/fan-in
@@ -48,14 +48,14 @@ Compatibility alias:
 
 ## Internal orchestration core
 
-Hyperpowers now uses a shared internal task runner for Pi subprocess orchestration.
+XPowers now uses a shared internal task runner for Pi subprocess orchestration.
 
 Current wave-1 execution modes supported by the runner are:
-- `single` — used by `hyperpowers_subagent`
+- `single` — used by `xpowers_subagent`
 - `parallel` — used by `/review-parallel`
 - `chain` — available in the shared runner for future workflows
 
-The runner preserves the existing Hyperpowers Pi contracts while centralizing:
+The runner preserves the existing XPowers Pi contracts while centralizing:
 - subprocess launch semantics
 - fresh vs fork context handling
 - cancellation propagation
@@ -64,18 +64,18 @@ The runner preserves the existing Hyperpowers Pi contracts while centralizing:
 
 ## Subagent tool
 
-Use `hyperpowers_subagent` to delegate work to an isolated Pi subprocess.
+Use `xpowers_subagent` to delegate work to an isolated Pi subprocess.
 
 By default, subagent execution is ephemeral (`pi --print --no-session`) so child runs do not persist their own Pi session history.
 
 Examples:
 
 ```text
-hyperpowers_subagent(task: "Review src/auth.ts for race conditions", type: "review")
-hyperpowers_subagent(task: "Verify recent implementation matches requirements", agent: "review-implementation")
-hyperpowers_subagent(task: "Run tests and summarize failures", agent: "test-runner")
-hyperpowers_subagent(task: "Review this once with a stronger model", model: "anthropic/claude-opus-4-5", type: "validation")
-hyperpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
+xpowers_subagent(task: "Review src/auth.ts for race conditions", type: "review")
+xpowers_subagent(task: "Verify recent implementation matches requirements", agent: "review-implementation")
+xpowers_subagent(task: "Run tests and summarize failures", agent: "test-runner")
+xpowers_subagent(task: "Review this once with a stronger model", model: "anthropic/claude-opus-4-5", type: "validation")
+xpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
 ```
 
 Structured mode asks the subagent to return JSON only and parses that JSON before returning it to the caller. This improves machine readability, but it does not guarantee that the model's findings are semantically correct.
@@ -90,7 +90,7 @@ Failure-path findings may also include additive metadata such as `type` and `sou
 
 ## Skill metadata
 
-Hyperpowers also parses optional advisory Pi skill frontmatter under `metadata.pi`.
+XPowers also parses optional advisory Pi skill frontmatter under `metadata.pi`.
 
 Supported fields currently include:
 - `subProcess`
@@ -99,7 +99,7 @@ Supported fields currently include:
 - `thinkingLevel`
 
 Important: this metadata is currently **advisory**, not authoritative.
-It is parsed and normalized for Hyperpowers-native Pi behavior, but it does **not** override the routing decisions made through `/routing-settings`.
+It is parsed and normalized for XPowers-native Pi behavior, but it does **not** override the routing decisions made through `/routing-settings`.
 
 ## Supported concrete agents for routing
 
@@ -144,7 +144,7 @@ This opens the Pi-native TUI wizard for configuring:
 The config file lives at:
 
 ```text
-~/.pi/agent/extensions/hyperpowers/routing.json
+~/.pi/agent/extensions/xpowers/routing.json
 ```
 
 ## Custom models
@@ -177,7 +177,7 @@ If the reasoning intensity is wrong rather than the model itself, also inspect t
 Inspect:
 
 ```text
-~/.pi/agent/extensions/hyperpowers/routing.json
+~/.pi/agent/extensions/xpowers/routing.json
 ```
 
 ### No memories appear on session start
@@ -205,4 +205,4 @@ Currently, the `metadata.pi` frontmatter in `SKILL.md` is parsed but remains adv
 - **TUI Memory Manager**: A slash command like `/memory` to view what `memsearch` has recalled, and manually pin/unpin memories for the current Pi session.
 
 ### 4. Skill Browser TUI
-- **Action**: A TUI component to browse, search, and activate available Hyperpowers skills interactively via `/skills`.
+- **Action**: A TUI component to browse, search, and activate available XPowers skills interactively via `/skills`.

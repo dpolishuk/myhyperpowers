@@ -6,14 +6,14 @@ const path = require('node:path');
 const EXT_ROOT = path.join(__dirname, '..');
 const MANIFEST_PATH = path.join(EXT_ROOT, 'gemini-extension.json');
 const COMMANDS_ROOT = path.join(EXT_ROOT, 'commands');
-const COMMAND_NAMESPACE = 'hyperpowers';
+const COMMAND_NAMESPACE = 'xpowers';
 const REQUIRED_COMMANDS = ['brainstorm', 'write-plan', 'execute-plan', 'review-implementation', 'tm-linear-setup'];
 
 test('gemini extension manifest is parseable and canonical', async () => {
   const raw = await fs.readFile(MANIFEST_PATH, 'utf-8');
   const manifest = JSON.parse(raw);
 
-  assert.equal(manifest.name, 'hyperpowers');
+  assert.equal(manifest.name, 'xpowers');
   assert.equal(manifest.version, '1.0.0');
   assert.equal(manifest.contextFileName, 'GEMINI.md');
   assert.ok(manifest.mcpServers, 'manifest should include mcpServers');

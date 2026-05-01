@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with Hyperpowers
+about: Report a problem with XPowers
 title: "[BUG] "
 labels: bug
 assignees: ''

@@ -20,7 +20,7 @@ HIGH FREEDOM - Choose solution level based on project needs (Level 1 for simple,
 | 2 | CLAUDE.md references | Low | Moderate | Document patterns |
 | 3 | Custom hook system | High | Very High | Large projects, established patterns |
 
-**Hyperpowers includes:** Auto-activation hook at `hooks/user-prompt-submit/10-skill-activator.js`
+**XPowers includes:** Auto-activation hook at `hooks/user-prompt-submit/10-skill-activator.js`
 </quick_reference>
 
 <when_to_use>
@@ -371,16 +371,16 @@ Before building hook system:
 **This skill covers:** Skill activation strategies
 
 **Related skills:**
-- hyperpowers:building-hooks (how to build hook system)
-- hyperpowers:using-hyper (when to use skills generally)
-- hyperpowers:writing-skills (creating skills that activate well)
+- xpowers:building-hooks (how to build hook system)
+- xpowers:using-hyper (when to use skills generally)
+- xpowers:writing-skills (creating skills that activate well)
 
 **This skill enables:**
 - Consistent enforcement of patterns
 - Automatic guideline checking
 - Reliable skill usage across sessions
 
-**Hyperpowers includes:** Auto-activation hook at `hooks/user-prompt-submit/10-skill-activator.js`
+**XPowers includes:** Auto-activation hook at `hooks/user-prompt-submit/10-skill-activator.js`
 </integration>
 
 <resources>

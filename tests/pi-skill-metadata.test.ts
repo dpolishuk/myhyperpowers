@@ -3,7 +3,7 @@ import { test, expect } from "bun:test"
 import {
   parsePiSkillMetadata,
   parsePiSkillMetadataFromSkillContent,
-} from "../.pi/extensions/hyperpowers/skill-metadata"
+} from "../.pi/extensions/xpowers/skill-metadata"
 
 test("parsePiSkillMetadata returns safe defaults when metadata is omitted", () => {
   expect(parsePiSkillMetadata({})).toEqual({

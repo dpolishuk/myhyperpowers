@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test"
-import { TmDashboard, type TmDashboardState } from "../.pi/extensions/hyperpowers/tm-dashboard-tui"
+import { TmDashboard, type TmDashboardState } from "../.pi/extensions/xpowers/tm-dashboard-tui"
 
 function makeState(tasks: TmDashboardState["tasks"], error?: string): TmDashboardState {
   return { tasks, error }

@@ -327,7 +327,7 @@ Before marking work complete:
 - refactoring-safely (keep tests green while refactoring)
 
 **Agents used:**
-- hyperpowers:test-runner (run tests, return summary only)
+- xpowers:test-runner (run tests, return summary only)
 
 </integration>
 

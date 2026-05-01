@@ -25,7 +25,7 @@ Examples of missing capability:
 
 ## Supported repo-side workaround
 
-Hyperpowers can create a real pending question request indirectly via:
+XPowers can create a real pending question request indirectly via:
 
 1. discover the built-in `question` tool from `/experimental/tool`
 2. submit `prompt_async` to a session with only `question` enabled
@@ -41,16 +41,16 @@ Covered by:
 
 - `tests/opencode-question-runtime.test.ts`
 
-## Why this originally blocked Hyperpowers
+## Why this originally blocked XPowers
 
-Epic `myhyperpowers-9qh` requires `/routing-settings` to launch a **real runtime interactive question/panel flow**.
+Epic `xpowers-9qh` requires `/routing-settings` to launch a **real runtime interactive question/panel flow**.
 
 The current skill system can only inject text into the session; by itself it cannot originate the structured panel request needed for the real wizard UX. The repo-side workaround above provides a way forward without a direct upstream create API.
 
 ## Tracking
 
-- Blocking platform epic: `myhyperpowers-e22`
-- Blocked feature epic: `myhyperpowers-9qh`
+- Blocking platform epic: `xpowers-e22`
+- Blocked feature epic: `xpowers-9qh`
 
 ## Acceptable upstream/platform fixes
 
@@ -60,4 +60,4 @@ Any one of these would unblock implementation:
 - `client.session.ask(...)`
 - a documented plugin-safe way to publish `question.asked`
 
-Until one of those exists, Hyperpowers should prefer the indirect helper route when a real question-panel request is needed from plugin code.
+Until one of those exists, XPowers should prefer the indirect helper route when a real question-panel request is needed from plugin code.

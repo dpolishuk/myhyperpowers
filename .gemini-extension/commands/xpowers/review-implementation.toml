@@ -1,0 +1,7 @@
+description = "Review completed implementation against requirements"
+
+prompt = """
+Use your xpowers:review-implementation skill.
+
+{{args}}
+"""

@@ -19,7 +19,7 @@ test('Gemini README documents installer-first tm and Linear path', async () => {
   assert.equal(readme.includes('LINEAR_API_KEY'), true);
   assert.equal(readme.includes('LINEAR_TEAM_KEY'), true);
   assert.equal(readme.includes('Manual extension install alone does **not** provision the shared `tm` runtime'), true);
-  assert.equal(readme.includes('cd myhyperpowers'), true);
+  assert.equal(readme.includes('cd xpowers'), true);
 });
 
 test('Gemini context docs describe tm-oriented task surface', async () => {
@@ -34,7 +34,7 @@ test('Gemini context docs describe tm-oriented task surface', async () => {
 });
 
 test('Gemini command surface includes tm-linear setup entrypoint', async () => {
-  const commandPath = path.join(EXT_ROOT, 'commands', 'hyperpowers', 'tm-linear-setup.toml');
+  const commandPath = path.join(EXT_ROOT, 'commands', 'xpowers', 'tm-linear-setup.toml');
   const command = await fs.readFile(commandPath, 'utf8');
 
   assert.equal(command.includes('tm/Linear'), true);

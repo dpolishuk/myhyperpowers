@@ -2,14 +2,14 @@ import { test, expect, mock } from "bun:test"
 import { EventEmitter } from "node:events"
 
 import {
-  HYPERPOWERS_SUBAGENT_DEPTH_ENV,
+  XPOWERS_SUBAGENT_DEPTH_ENV,
   MAX_ASYNC_SUBAGENT_OUTPUT_BYTES,
   buildPiSubagentArgs,
   buildStructuredSubagentTask,
   executePiSubagent,
   executePiSubagentAsync,
   parseStructuredSubagentOutput,
-} from "../.pi/extensions/hyperpowers/subagent"
+} from "../.pi/extensions/xpowers/subagent"
 
 test("buildPiSubagentArgs includes no-session by default", () => {
   expect(buildPiSubagentArgs("Investigate auth flow", null)).toEqual([
@@ -268,8 +268,8 @@ test("executePiSubagent returns parsed structured content when format is structu
 })
 
 test("executePiSubagent treats missing or malformed depth env as safe default and increments child env", () => {
-  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "not-a-number"
+  const originalDepth = process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = "not-a-number"
 
   const run = mock(() => ({
     status: 0,
@@ -286,17 +286,17 @@ test("executePiSubagent treats missing or malformed depth env as safe default an
       run as any,
     )
   } finally {
-    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+    if (originalDepth === undefined) delete process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
   }
 
   const [, , options] = run.mock.calls[0]!
-  expect(options.env?.[HYPERPOWERS_SUBAGENT_DEPTH_ENV]).toBe("1")
+  expect(options.env?.[XPOWERS_SUBAGENT_DEPTH_ENV]).toBe("1")
 })
 
 test("executePiSubagent short-circuits on depth overflow", () => {
-  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "1"
+  const originalDepth = process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = "1"
   const run = mock(() => ({
     status: 0,
     stdout: "ok",
@@ -315,14 +315,14 @@ test("executePiSubagent short-circuits on depth overflow", () => {
     expect(run).toHaveBeenCalledTimes(0)
     expect(result.content[0].text).toContain("maximum subagent recursion depth")
   } finally {
-    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+    if (originalDepth === undefined) delete process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
   }
 })
 
 test("executePiSubagent returns structured FAIL payload on depth overflow", () => {
-  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-  process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = "1"
+  const originalDepth = process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+  process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = "1"
   const run = mock(() => ({
     status: 0,
     stdout: "ok",
@@ -350,8 +350,8 @@ test("executePiSubagent returns structured FAIL payload on depth overflow", () =
       source: "pi-subagent",
     })
   } finally {
-    if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-    else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+    if (originalDepth === undefined) delete process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+    else process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
   }
 })
 
@@ -369,8 +369,8 @@ function createMockAsyncChild() {
 }
 
 test("executePiSubagentAsync kills child and returns deterministic failure on abort", async () => {
-  const originalDepth = process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-  delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
+  const originalDepth = process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+  delete process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
   const controller = new AbortController()
   const child = createMockAsyncChild()
   const spawnAsync = mock(() => child)
@@ -391,8 +391,8 @@ test("executePiSubagentAsync kills child and returns deterministic failure on ab
   expect(child.kill).toHaveBeenCalledWith("SIGTERM")
   expect(result.content[0].text).toContain("cancelled")
 
-  if (originalDepth === undefined) delete process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV]
-  else process.env[HYPERPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
+  if (originalDepth === undefined) delete process.env[XPOWERS_SUBAGENT_DEPTH_ENV]
+  else process.env[XPOWERS_SUBAGENT_DEPTH_ENV] = originalDepth
 })
 
 test("executePiSubagentAsync short-circuits before spawn when already aborted", async () => {

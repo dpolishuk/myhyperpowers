@@ -4,7 +4,7 @@ description: Use to define the canonical 'Dispatch Protocol' for stateless orche
 ---
 
 <skill_overview>
-Stateless dispatch prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in Hyperpowers.
+Stateless dispatch prevents context drift and hallucination by isolating each task execution in a fresh subagent with zero history. This ensures that every task is implemented against the immutable requirements of the epic and the specific design of the task, rather than being influenced by the accumulation of previous turns or unrelated context. This protocol is the standard for autonomous execution in XPowers.
 </skill_overview>
 
 <rigidity_level>

@@ -26,16 +26,16 @@ test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules di
   fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
 
   fs.mkdirSync(codexHome, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
   fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
 
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-version"), "test\n", "utf8")
 
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
     cwd: repoRoot,
@@ -58,14 +58,14 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
   fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
   fs.mkdirSync(codexHome, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-version"), "test\n", "utf8")
   fs.mkdirSync(binDir, { recursive: true })
   fs.mkdirSync(libNodeModules, { recursive: true })
   fs.symlinkSync(libNodeModules, path.join(binDir, "node_modules"), "dir")
@@ -81,6 +81,31 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), false)
 })
 
+test("install.sh uninstall accepts legacy manifest name", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-manifest-test-"))
+  const codexHome = path.join(home, ".codex")
+  const oldNs = "hyper" + "powers"
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.mkdirSync(path.join(codexHome, "skills", "legacy-skill"), { recursive: true })
+  fs.writeFileSync(path.join(codexHome, `.${oldNs}-manifest`), "skills/legacy-skill/\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, `.${oldNs}-version`), "test\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--codex", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal(fs.existsSync(path.join(codexHome, "skills", "legacy-skill")), false)
+  assert.equal(fs.existsSync(path.join(codexHome, `.${oldNs}-manifest`)), false)
+  assert.equal(fs.existsSync(path.join(codexHome, `.${oldNs}-version`)), false)
+})
+
 test("install.sh partial uninstall preserves shared tm runtime", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
@@ -93,8 +118,8 @@ test("install.sh partial uninstall preserves shared tm runtime", { timeout: 1200
   fs.mkdirSync(codexHome, { recursive: true })
   fs.mkdirSync(binDir, { recursive: true })
   fs.mkdirSync(libDir, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm"), "#!/bin/sh\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync-config.js"), "config\n", "utf8")
@@ -139,9 +164,138 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   const stat = fs.lstatSync(nmPath)
   assert.equal(stat.isSymbolicLink(), true, "node_modules should be a symlink, not a directory")
   assert.equal(fs.readlinkSync(nmPath), path.join(libDir, "node_modules"))
-  const backupPath = path.join(binDir, "node_modules.hyperpowers-backup")
+  const backupPath = path.join(binDir, "node_modules.xpowers-backup")
   assert.equal(fs.existsSync(backupPath), true)
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
+})
+
+test("bun installer uninstall reads legacy manifest location", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-legacy-manifest-test-"))
+  const oldNs = "hyper" + "powers"
+  const claudeHome = path.join(home, ".claude")
+  const legacyManifestDir = path.join(home, `.${oldNs}`)
+  const legacyFile = path.join(claudeHome, "legacy-file.txt")
+
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.mkdirSync(legacyManifestDir, { recursive: true })
+  fs.writeFileSync(legacyFile, "installed by old manifest\n", "utf8")
+  fs.writeFileSync(
+    path.join(legacyManifestDir, "manifest.json"),
+    JSON.stringify({
+      version: "legacy",
+      installedAt: "2026-01-01T00:00:00Z",
+      hosts: { claude: { targetDir: claudeHome, files: ["legacy-file.txt"] } },
+      features: {},
+    }, null, 2) + "\n",
+    "utf8",
+  )
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal(fs.existsSync(legacyFile), false)
+  assert.equal(fs.existsSync(path.join(legacyManifestDir, "manifest.json")), false)
+})
+
+test("bun installer statusline uninstall removes legacy statusline path", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-legacy-statusline-test-"))
+  const oldNs = "hyper" + "powers"
+  const claudeHome = path.join(home, ".claude")
+  const manifestDir = path.join(home, ".xpowers")
+  const settingsPath = path.join(claudeHome, "settings.json")
+
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.mkdirSync(manifestDir, { recursive: true })
+  fs.writeFileSync(settingsPath, JSON.stringify({ statusline: path.join(claudeHome, `${oldNs}-statusline.sh`) }, null, 2) + "\n", "utf8")
+  fs.writeFileSync(
+    path.join(manifestDir, "manifest.json"),
+    JSON.stringify({
+      version: "test",
+      installedAt: "2026-01-01T00:00:00Z",
+      hosts: {},
+      features: { statusline: { installed: true } },
+    }, null, 2) + "\n",
+    "utf8",
+  )
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"))
+  assert.equal(Object.hasOwn(settings, "statusline"), false)
+})
+
+test("pi installer replaces and removes legacy Pi AGENTS section markers", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-legacy-agents-test-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const agentsPath = path.join(piHome, "AGENTS.md")
+  const oldDisplay = "Hyper" + "powers"
+  const trailingNotes = "User notes after legacy section"
+
+  fs.mkdirSync(piHome, { recursive: true })
+  fs.writeFileSync(
+    agentsPath,
+    [
+      "# Existing Pi Instructions",
+      "Keep this preface.",
+      "",
+      `<!-- BEGIN ${oldDisplay.toUpperCase()} PI -->`,
+      `# ${oldDisplay} for Pi`,
+      "Old installed content",
+      `<!-- END ${oldDisplay.toUpperCase()} PI -->`,
+      "",
+      trailingNotes,
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-legacy-bin-"))
+  const piShimPath = path.join(tmpBinDir, "pi")
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+
+  const env = installEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` })
+  const installResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(installResult.status, 0, installResult.stderr || installResult.stdout)
+  const installedAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.match(installedAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.match(installedAgents, /# XPowers for Pi/)
+  assert.doesNotMatch(installedAgents, new RegExp(`# ${oldDisplay} for Pi`))
+  assert.match(installedAgents, /Keep this preface\./)
+  assert.match(installedAgents, new RegExp(trailingNotes))
+
+  const uninstallResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(uninstallResult.status, 0, uninstallResult.stderr || uninstallResult.stdout)
+  const uninstalledAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.doesNotMatch(uninstalledAgents, /# XPowers for Pi/)
+  assert.match(uninstalledAgents, /Keep this preface\./)
+  assert.match(uninstalledAgents, new RegExp(trailingNotes))
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
 test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", { timeout: 60000 }, () => {
@@ -157,10 +311,10 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
       "# Existing Pi Instructions",
       "Keep the user's original preface.",
       "",
-      "<!-- BEGIN HYPERPOWERS PI -->",
-      "# Hyperpowers for Pi",
+      "<!-- BEGIN XPOWERS PI -->",
+      "# XPowers for Pi",
       "Old installed content",
-      "<!-- END HYPERPOWERS PI -->",
+      "<!-- END XPOWERS PI -->",
       "",
       trailingNotes,
       "",
@@ -184,8 +338,8 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
 
   assert.equal(installResult.status, 0)
   const installedAgents = fs.readFileSync(agentsPath, "utf8")
-  assert.match(installedAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
-  assert.match(installedAgents, /# Hyperpowers for Pi/)
+  assert.match(installedAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.match(installedAgents, /# XPowers for Pi/)
   assert.match(installedAgents, /User notes without heading/)
   assert.match(installedAgents, /plain trailing text/)
 
@@ -198,8 +352,8 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
 
   assert.equal(uninstallResult.status, 0)
   const uninstalledAgents = fs.readFileSync(agentsPath, "utf8")
-  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
-  assert.doesNotMatch(uninstalledAgents, /# Hyperpowers for Pi/)
+  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.doesNotMatch(uninstalledAgents, /# XPowers for Pi/)
   assert.match(uninstalledAgents, /Keep the user's original preface\./)
   assert.match(uninstalledAgents, /User notes without heading/)
   assert.match(uninstalledAgents, /plain trailing text/)
@@ -214,7 +368,7 @@ test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", {
   const piShimPath = path.join(tmpBinDir, "pi")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const agentsPath = path.join(piHome, "AGENTS.md")
-  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const extDir = path.join(piHome, "extensions", "xpowers")
   const skillsPath = path.join(extDir, "skills")
   const originalAgents = "# Existing Pi Instructions\nKeep this untouched if install fails after AGENTS update.\n"
 
@@ -246,7 +400,7 @@ test("pi installer fails when dependency install tooling is unavailable", { time
   const piHome = path.join(home, ".pi", "agent")
   const piShimPath = path.join(tmpBinDir, "pi")
   const agentsPath = path.join(piHome, "AGENTS.md")
-  const extensionPath = path.join(piHome, "extensions", "hyperpowers")
+  const extensionPath = path.join(piHome, "extensions", "xpowers")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const originalAgents = "# Existing Pi Instructions\nKeep this untouched when install fails.\n"
 
@@ -303,7 +457,7 @@ test("pi installer rollback preserves pre-existing extension files on failure", 
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-bin-"))
   const piHome = path.join(home, ".pi", "agent")
   const piShimPath = path.join(tmpBinDir, "pi")
-  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const extDir = path.join(piHome, "extensions", "xpowers")
   const routingPath = path.join(extDir, "routing.json")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const originalRouting = '{\n  "default": "existing-model"\n}\n'

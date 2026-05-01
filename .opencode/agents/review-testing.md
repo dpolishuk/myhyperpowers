@@ -16,7 +16,7 @@ disallowedTools:
 ---
 
 
-> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+> 📚 See the main xpowers documentation: [Global README](../README.md)
 
 # Testing Review Agent
 

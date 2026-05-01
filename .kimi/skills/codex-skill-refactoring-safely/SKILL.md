@@ -37,9 +37,9 @@ MEDIUM FREEDOM - Follow the change→test→commit cycle strictly, but adapt the
 
 **Don't use for:**
 - Changing functionality (use feature development)
-- Fixing bugs (use hyperpowers:fixing-bugs)
+- Fixing bugs (use xpowers:fixing-bugs)
 - Adding features while restructuring (do separately)
-- Code without tests (write tests first using hyperpowers:test-driven-development)
+- Code without tests (write tests first using xpowers:test-driven-development)
 </when_to_use>
 
 <the_process>
@@ -57,7 +57,7 @@ If either is missing, stop and complete them first.
 
 ```bash
 # Use test-runner agent to keep context clean
-Dispatch hyperpowers:test-runner agent: "Run: cargo test"
+Dispatch xpowers:test-runner agent: "Run: cargo test"
 ```
 
 **Verify:** ALL tests pass. If any fail, fix them FIRST, then refactor.
@@ -161,7 +161,7 @@ fn validate_email(email: &str) -> Result<()> {
 After EVERY small change:
 
 ```bash
-Dispatch hyperpowers:test-runner agent: "Run: cargo test"
+Dispatch xpowers:test-runner agent: "Run: cargo test"
 ```
 
 **Verify:** ALL tests still pass.
@@ -182,7 +182,7 @@ Dispatch hyperpowers:test-runner agent: "Run: cargo test"
 Commit each safe transformation:
 
 ```bash
-Dispatch hyperpowers:test-runner agent: "Run: git add src/user_service.rs && git commit -m 'refactor(bd-456): extract email validation to function
+Dispatch xpowers:test-runner agent: "Run: git add src/user_service.rs && git commit -m 'refactor(bd-456): extract email validation to function
 
 No behavior change. All tests pass.
 
@@ -222,10 +222,10 @@ After all transformations complete:
 
 ```bash
 # Full test suite
-Dispatch hyperpowers:test-runner agent: "Run: cargo test"
+Dispatch xpowers:test-runner agent: "Run: cargo test"
 
 # Linter
-Dispatch hyperpowers:test-runner agent: "Run: cargo clippy"
+Dispatch xpowers:test-runner agent: "Run: cargo clippy"
 ```
 
 **Review the changes:**
@@ -400,7 +400,7 @@ fn process_payment(amount: f64, user_id: i64) -> Result<PaymentId> {
 <correction>
 **Correct approach:**
 
-1. **Write tests FIRST** (using hyperpowers:test-driven-development)
+1. **Write tests FIRST** (using xpowers:test-driven-development)
    - Test happy path
    - Test all edge cases (amounts over $1000, etc.)
    - Test error conditions
@@ -513,7 +513,7 @@ All of these mean: **Stop and return to the change→test→commit cycle**
 <verification_checklist>
 Before marking refactoring complete:
 
-- [ ] All tests pass (verified with hyperpowers:test-runner agent)
+- [ ] All tests pass (verified with xpowers:test-runner agent)
 - [ ] No new linter warnings
 - [ ] No behavior changes introduced
 - [ ] Code is cleaner/simpler than before
@@ -526,9 +526,9 @@ Before marking refactoring complete:
 
 <integration>
 **This skill requires:**
-- hyperpowers:test-driven-development (for writing tests before refactoring if none exist)
-- hyperpowers:verification-before-completion (for final verification)
-- hyperpowers:test-runner agent (for running tests without context pollution)
+- xpowers:test-driven-development (for writing tests before refactoring if none exist)
+- xpowers:verification-before-completion (for final verification)
+- xpowers:test-runner agent (for running tests without context pollution)
 
 **This skill is called by:**
 - General development workflows when improving code structure
@@ -547,6 +547,6 @@ Before marking refactoring complete:
 **When stuck:**
 - Tests fail after change → Undo (git restore), make smaller change
 - 3+ failures → Question if refactoring is right approach, consider rewrite
-- No tests exist → Use hyperpowers:test-driven-development to write tests first
+- No tests exist → Use xpowers:test-driven-development to write tests first
 - Unsure how small → If it touches more than one function/file, it's too big
 </resources>

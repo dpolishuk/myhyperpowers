@@ -1,6 +1,6 @@
 import { test, expect, mock } from "bun:test"
 
-import { buildParallelReviewRequests, runParallelReview } from "../.pi/extensions/hyperpowers/review-parallel"
+import { buildParallelReviewRequests, runParallelReview } from "../.pi/extensions/xpowers/review-parallel"
 
 test("buildParallelReviewRequests creates the three expected review lanes", () => {
   const requests = buildParallelReviewRequests()
@@ -108,9 +108,11 @@ test("runParallelReview uses TUI dashboard when UI context is available", async 
 
   const mockUiCtx = {
     ui: {
-      custom: (component: any, options: any) => {
+      custom: (factory: any, options: any) => {
         customCalled = true
         expect(options).toEqual({ overlay: true })
+        expect(typeof factory).toBe("function")
+        const component = factory({}, {}, {}, () => {})
         expect(typeof component.updateTask).toBe("function")
         return { 
           close: () => { handleClosed = true },

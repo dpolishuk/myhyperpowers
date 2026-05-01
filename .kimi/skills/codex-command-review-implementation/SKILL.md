@@ -20,7 +20,7 @@ This skill wraps the source file `commands/review-implementation.md` for Codex S
 description: Review implementation was faithfully executed
 ---
 
-Use the hyperpowers:review-implementation skill exactly as written.
+Use the xpowers:review-implementation skill exactly as written.
 
 Scope: $ARGUMENTS
 

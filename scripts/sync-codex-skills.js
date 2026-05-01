@@ -183,9 +183,9 @@ const collectCanonicalEntries = (projectRoot) => {
   const entries = []
   const errors = []
 
-  // Load platform tool availability (e.g. from .kimi/hyperpowers.yaml)
+  // Load platform tool availability (e.g. from .kimi/xpowers.yaml)
   let availableTools = []
-  const platformManifestPath = path.join(projectRoot, ".kimi", "hyperpowers.yaml")
+  const platformManifestPath = path.join(projectRoot, ".kimi", "xpowers.yaml")
   if (fs.existsSync(platformManifestPath)) {
     const manifest = fs.readFileSync(platformManifestPath, "utf8")
     const toolsMatch = manifest.match(/tools:\n([\s\S]*?)(?:\n\w+:|$)/)

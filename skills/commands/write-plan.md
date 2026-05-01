@@ -1,1 +1,1 @@
-Use your hyperpowers:writing-plans skill.
+Use your xpowers:writing-plans skill.

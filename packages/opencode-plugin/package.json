@@ -1,5 +1,5 @@
 {
-  "name": "@dpolishuk/hyperpowers-opencode",
+  "name": "@dpolishuk/xpowers-opencode",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",

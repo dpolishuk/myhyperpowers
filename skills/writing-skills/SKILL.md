@@ -61,7 +61,7 @@ Skills use the exact same TDD cycle as code:
 | **Watch it pass** | Verify agent now complies |
 | **Refactor cycle** | Find new rationalizations → plug → re-verify |
 
-**REQUIRED BACKGROUND:** You MUST understand hyperpowers:test-driven-development before using this skill.
+**REQUIRED BACKGROUND:** You MUST understand xpowers:test-driven-development before using this skill.
 </tdd_mapping>
 
 <the_process>
@@ -382,7 +382,7 @@ description: Use when tests have race conditions, timing dependencies, or pass/f
 ## Technique
 Concrete method with steps to follow.
 
-**Examples:** condition-based-waiting, hyperpowers:root-cause-tracing
+**Examples:** condition-based-waiting, xpowers:root-cause-tracing
 
 **Test approach:** Pressure scenarios with combined pressures
 
@@ -486,8 +486,8 @@ wc -w skills/skill-name/SKILL.md
 
 **Use skill name only, with explicit markers:**
 ```markdown
-**REQUIRED BACKGROUND:** You MUST understand hyperpowers:test-driven-development
-**REQUIRED SUB-SKILL:** Use hyperpowers:debugging-with-tools first
+**REQUIRED BACKGROUND:** You MUST understand xpowers:test-driven-development
+**REQUIRED SUB-SKILL:** Use xpowers:debugging-with-tools first
 ```
 
 **Don't use @ links:** Force-loads files immediately, burns context unnecessarily.
@@ -573,7 +573,7 @@ Before deploying ANY skill:
 
 <integration>
 **This skill requires:**
-- hyperpowers:test-driven-development (understand TDD before applying to docs)
+- xpowers:test-driven-development (understand TDD before applying to docs)
 - Task tool (for running subagent tests)
 
 **This skill is called by:**

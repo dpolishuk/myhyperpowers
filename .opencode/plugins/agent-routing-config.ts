@@ -3,7 +3,7 @@ import { tool } from "@opencode-ai/plugin"
 
 import {
   AGENT_GROUPS,
-  HYPERPOWERS_AGENTS,
+  XPOWERS_AGENTS,
   PRESET_NAMES,
   executeRoutingAction,
   type RoutingToolArgs,
@@ -12,14 +12,14 @@ import {
 const agentRoutingConfigPlugin: Plugin = async (ctx) => {
   return {
     tool: {
-      hyperpowers_agent_routing_config: tool({
+      xpowers_agent_routing_config: tool({
         description:
-          "Read or update the shared Hyperpowers agent-model routing map. Agent mappings live in opencode.json; workflow overrides live in .opencode/hyperpowers-routing.json.",
+          "Read or update the shared XPowers agent-model routing map. Agent mappings live in opencode.json; workflow overrides live in .opencode/xpowers-routing.json.",
         args: {
           action: tool.schema
             .enum(["get", "set", "set-group", "apply-preset", "bootstrap"])
             .describe("Action: get (read), set (single agent), set-group (batch), apply-preset (profile), bootstrap (recommended setup)"),
-          agent: tool.schema.string().optional().describe("Concrete Hyperpowers agent name (for set)"),
+          agent: tool.schema.string().optional().describe("Concrete XPowers agent name (for set)"),
           workflow: tool.schema.string().optional().describe("Optional workflow override name (for set)"),
           model: tool.schema.string().optional().describe("Provider/model value (for set, set-group)"),
           effort: tool.schema.string().optional().describe("Reasoning effort level: low, medium, high (for set)"),
@@ -38,5 +38,5 @@ const agentRoutingConfigPlugin: Plugin = async (ctx) => {
   }
 }
 
-export { AGENT_GROUPS, HYPERPOWERS_AGENTS, PRESET_NAMES, executeRoutingAction }
+export { AGENT_GROUPS, XPOWERS_AGENTS, PRESET_NAMES, executeRoutingAction }
 export default agentRoutingConfigPlugin

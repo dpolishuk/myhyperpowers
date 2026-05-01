@@ -1,0 +1,16 @@
+{
+  "name": "xpowers-pi-extension",
+  "version": "2.13.0",
+  "type": "module",
+  "description": "XPowers skills, subagents, and workflows for Pi coding agent",
+  "main": "dist/index.js",
+  "keywords": ["pi-package"],
+  "author": "Dmitry Polishuk",
+  "license": "MIT",
+  "dependencies": {
+    "@mariozechner/pi-coding-agent": "^0.63.0",
+    "@mariozechner/pi-tui": "^0.63.0",
+    "@sinclair/typebox": "^0.34.0",
+    "pi-ask-user": "^0.5.1"
+  }
+}

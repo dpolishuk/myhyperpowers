@@ -80,7 +80,7 @@ test('tm-server responds to initialize with full MCP shape', async () => {
     assert.ok(response.result);
     assert.equal(response.result.protocolVersion, '2024-11-05');
     assert.deepEqual(response.result.capabilities, { tools: {} });
-    assert.equal(response.result.serverInfo.name, 'hyperpowers-tm');
+    assert.equal(response.result.serverInfo.name, 'xpowers-tm');
     assert.equal(response.result.serverInfo.version, '1.0.0');
   } finally {
     harness.close();

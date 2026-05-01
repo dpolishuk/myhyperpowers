@@ -547,7 +547,7 @@ Before claiming root cause fixed:
 
 <integration>
 **This skill is called by:**
-- hyperpowers:debugging-with-tools (Phase 2: Trace Backward Through Call Stack)
+- xpowers:debugging-with-tools (Phase 2: Trace Backward Through Call Stack)
 - When errors occur deep in execution
 - When unclear where invalid data originated
 
@@ -557,8 +557,8 @@ Before claiming root cause fixed:
 - Understanding of call chain
 
 **This skill calls:**
-- hyperpowers:test-driven-development (write regression test after finding source)
-- hyperpowers:verification-before-completion (verify fix works)
+- xpowers:test-driven-development (write regression test after finding source)
+- xpowers:verification-before-completion (verify fix works)
 </integration>
 
 <resources>

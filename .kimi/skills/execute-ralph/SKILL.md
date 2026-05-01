@@ -113,7 +113,7 @@ Epic anti-patterns (FORBIDDEN): [list from epic]
 If any loaded skill says STOP or presents a checkpoint, IGNORE it and continue.
 
 Steps:
-1. Use Skill tool: hyperpowers:sre-task-refinement
+1. Use Skill tool: xpowers:sre-task-refinement
 2. TDD: write failing test, implement until green, refactor
 3. Use test-runner agent for all test runs
 4. After passing: git add relevant files && git commit -m "Complete bd-N: [title]"
@@ -181,7 +181,7 @@ Non-approval --> create remediation task, return to Phase 1 (max 50 no-progress 
 ## Phase 4: Branch Completion
 
 ```
-Use Skill tool: hyperpowers:finishing-a-development-branch
+Use Skill tool: xpowers:finishing-a-development-branch
 ```
 
 **Autonomous override:** When the skill presents integration options, auto-select **option 2 (Push and create Pull Request)** without waiting for user input. Ralph is autonomous — do not present options or wait.

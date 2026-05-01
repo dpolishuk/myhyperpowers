@@ -7,7 +7,7 @@ Use the shell tool to print the following guidance exactly:
 ```text
 OpenCode tm + Linear setup for this branch:
 
-1. From a Hyperpowers checkout, run `./scripts/install.sh --opencode`
+1. From a XPowers checkout, run `./scripts/install.sh --opencode`
    - Installs OpenCode assets
    - Provisions the shared tm CLI used by this branch
 

@@ -29,7 +29,7 @@ disallowedTools:
   Write: false
   Bash: false
 ---
-> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+> 📚 See the main xpowers documentation: [Global README](../README.md)
 
 # Quality Review Agent
 

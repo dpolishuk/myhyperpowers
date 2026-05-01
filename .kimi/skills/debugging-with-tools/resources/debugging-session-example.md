@@ -7,7 +7,7 @@
 1. **Read error**: Symbol not found, linking issue
 2. **Internet research**:
    ```
-   Dispatch hyperpowers:internet-researcher:
+   Dispatch xpowers:internet-researcher:
    "Search for 'dyld Symbol not found _OBJC_CLASS_$_WKWebView'
    Focus on: Xcode linking, framework configuration, iOS deployment"
 
@@ -18,7 +18,7 @@
 
 4. **Codebase investigation**:
    ```
-   Dispatch hyperpowers:codebase-investigator:
+   Dispatch xpowers:codebase-investigator:
    "Find other code using WKWebView - how is WebKit linked?"
 
    Results: Main app target has WebKit in frameworks, test target doesn't
@@ -39,7 +39,7 @@ Minimal test:
 3. Run tests
 
 ```
-Dispatch hyperpowers:test-runner: "Run: swift test"
+Dispatch xpowers:test-runner: "Run: swift test"
 Result: ✓ All tests pass
 ```
 
@@ -58,10 +58,10 @@ Result: ✓ All tests pass
 ## Remember
 
 - **Tools make debugging faster**, not slower
-- **hyperpowers:internet-researcher** can find solutions in seconds
+- **xpowers:internet-researcher** can find solutions in seconds
 - **Automated debugging works** - lldb batch mode, strace, instrumentation
-- **hyperpowers:codebase-investigator** finds patterns you'd miss
-- **hyperpowers:test-runner agent** keeps context clean
+- **xpowers:codebase-investigator** finds patterns you'd miss
+- **xpowers:test-runner agent** keeps context clean
 - **Evidence before fixes**, always
 
 **Prefer automated tools:**

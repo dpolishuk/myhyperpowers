@@ -50,7 +50,7 @@ test('agents-server responds to initialize', async () => {
     assert.equal(response.jsonrpc, '2.0');
     assert.equal(response.id, 1);
     assert.ok(response.result);
-    assert.equal(response.result.serverInfo.name, 'hyperpowers-agents');
+    assert.equal(response.result.serverInfo.name, 'xpowers-agents');
   } finally {
     server.kill();
   }

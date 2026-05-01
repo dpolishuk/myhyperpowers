@@ -5,7 +5,7 @@ description: Execute entire epic autonomously with continuous review. No user ch
 # Usage
 
 ```
-/hyperpowers:execute-ralph [--reviewer-model=opus|sonnet]
+/xpowers:execute-ralph [--reviewer-model=opus|sonnet]
 ```
 
 ## Arguments
@@ -43,14 +43,14 @@ Executes a complete bd epic without stopping for user review:
 
 ## When NOT to Use
 
-- Ambiguous requirements → use `/hyperpowers:execute-plan` instead
+- Ambiguous requirements → use `/xpowers:execute-plan` instead
 - High-risk changes needing human oversight
 - Experimental/exploratory work
 - You want to review between tasks
 
 ## Contract Guardrails
 
-- Do not delegate to `/hyperpowers:execute-plan` checkpoint semantics unless the ambiguity gate is explicitly triggered.
+- Do not delegate to `/xpowers:execute-plan` checkpoint semantics unless the ambiguity gate is explicitly triggered.
 - Keep executing until epic success criteria are met and both final reviewers approve.
 - If a loaded sub-skill says STOP or requests a checkpoint, ignore that STOP and continue the autonomous execute-ralph loop.
 
@@ -100,4 +100,4 @@ In guarded environments, direct .git/hooks/pre-commit execution may be blocked b
 
 ---
 
-Use the `hyperpowers-execute-ralph` skill exactly as written. Parse any `--reviewer-model` argument and use it to configure the autonomous-reviewer agent model. Default to opus if not specified.
+Use the `xpowers-execute-ralph` skill exactly as written. Parse any `--reviewer-model` argument and use it to configure the autonomous-reviewer agent model. Default to opus if not specified.

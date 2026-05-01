@@ -1,7 +1,0 @@
-description = "Diagnose code/design smells and select refactor targets"
-
-prompt = """
-Use your hyperpowers:refactoring-diagnosis skill.
-
-{{args}}
-"""

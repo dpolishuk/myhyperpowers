@@ -1,4 +1,4 @@
-# OpenCode Support Design (Hyperpowers)
+# OpenCode Support Design (XPowers)
 
 Date: 2026-01-18
 
@@ -10,7 +10,7 @@ Date: 2026-01-18
   - OpenCode skills (via opencode-skills discovery)
   - OpenCode plugins/hooks (safety guardrails)
 - Also provide a publishable OpenCode plugin package:
-  - npm package: `@dpolishuk/hyperpowers-opencode`
+  - npm package: `@dpolishuk/xpowers-opencode`
   - ships the same safety guardrails as the project-local plugin
 
 Non-goals (initial):
@@ -21,11 +21,11 @@ Non-goals (initial):
 
 ### Commands
 
-- Source of truth in Hyperpowers: `commands/*.md`
+- Source of truth in XPowers: `commands/*.md`
 - Mirrored into OpenCode at: `.opencode/commands/*.md`
 - Command names are not prefixed (per decision) and are invoked as `/<filename>` in OpenCode.
 - Command templates call skill tools produced by opencode-skills (see Skills section), e.g.
-  - `Use the skills_hyperpowers_brainstorming skill exactly as written`
+  - `Use the skills_xpowers_brainstorming skill exactly as written`
 
 ### Agents
 
@@ -43,15 +43,15 @@ Non-goals (initial):
 ### Skills
 
 - OpenCode skill support is provided via the community `opencode-skills` plugin.
-- Hyperpowers skills are copied into `.opencode/skills/` with a prefix to avoid collisions:
-  - `.opencode/skills/hyperpowers-<skill>/SKILL.md`
-  - Frontmatter `name:` is rewritten to `hyperpowers-<skill>` to satisfy opencode-skills validation.
+- XPowers skills are copied into `.opencode/skills/` with a prefix to avoid collisions:
+  - `.opencode/skills/xpowers-<skill>/SKILL.md`
+  - Frontmatter `name:` is rewritten to `xpowers-<skill>` to satisfy opencode-skills validation.
 - Tool naming becomes:
-  - `skills_hyperpowers_<skill>`
+  - `skills_xpowers_<skill>`
 
 ### Safety Guardrails Plugin
 
-- Local plugin file: `.opencode/plugins/hyperpowers-safety.ts`
+- Local plugin file: `.opencode/plugins/xpowers-safety.ts`
 - Implemented using `@opencode-ai/plugin` hook:
   - `tool.execute.before`
 - Current guardrails:
@@ -70,9 +70,9 @@ Non-goals (initial):
 ## Publishable Plugin Package
 
 - Location: `packages/opencode-plugin/`
-- Package name: `@dpolishuk/hyperpowers-opencode`
+- Package name: `@dpolishuk/xpowers-opencode`
 - Exports a default OpenCode Plugin implementing the same `tool.execute.before` safety guardrails.
-- Project-level `.opencode/plugins/hyperpowers-safety.ts` imports this package source to avoid duplication.
+- Project-level `.opencode/plugins/xpowers-safety.ts` imports this package source to avoid duplication.
 
 ## Compatibility Notes
 

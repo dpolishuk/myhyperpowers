@@ -105,7 +105,7 @@ test("Docs index surfaces model configuration guide", () => {
 
 test("Kimi and Codex host docs stay tm-first", () => {
   const kimiInstall = read(".kimi/INSTALL.md")
-  const kimiSystem = read(".kimi/hyperpowers-system.md")
+  const kimiSystem = read(".kimi/xpowers-system.md")
   const codexInstall = read(".codex/INSTALL.md")
 
   assert.equal(kimiInstall.includes("bd ready"), false)

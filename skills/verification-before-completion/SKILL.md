@@ -57,7 +57,7 @@ What command proves this claim?
 ### 2. Run
 Execute the full command (fresh, complete).
 
-**For tests/hooks/commits:** Use `hyperpowers:test-runner` agent
+**For tests/hooks/commits:** Use `xpowers:test-runner` agent
 - Agent captures verbose output in its context
 - Returns only summary + failures
 - Prevents context pollution
@@ -342,7 +342,7 @@ Before closing bd epic:
 - ALL skills before completion claims
 
 **Agents used:**
-- hyperpowers:test-runner (run tests, hooks, commits without output pollution)
+- xpowers:test-runner (run tests, hooks, commits without output pollution)
 
 </integration>
 

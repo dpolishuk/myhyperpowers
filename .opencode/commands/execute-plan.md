@@ -2,7 +2,7 @@
 description: Execute plan in batches with review checkpoints
 ---
 
-Use the skills_hyperpowers_executing-plans skill exactly as written.
+Use the skills_xpowers_executing-plans skill exactly as written.
 
 **Resumption:** This command supports explicit resumption. Run it multiple times to continue execution:
 

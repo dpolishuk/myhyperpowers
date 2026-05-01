@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "myhyperpowers",
+      "name": "xpowers",
       "dependencies": {
         "@clack/prompts": "^1.1.0",
         "@linear/sdk": "^76.0.0",

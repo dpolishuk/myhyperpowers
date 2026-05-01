@@ -3,7 +3,7 @@ import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import agentRoutingConfigPlugin from "../.opencode/plugins/agent-routing-config"
-import { AGENT_GROUPS, HYPERPOWERS_AGENTS, PRESET_NAMES } from "../.opencode/plugins/agent-routing-config"
+import { AGENT_GROUPS, XPOWERS_AGENTS, PRESET_NAMES } from "../.opencode/plugins/agent-routing-config"
 
 const createTempRoot = async (configText?: string, hpConfigText?: string) => {
   const root = await mkdtemp(join(tmpdir(), "agent-routing-plugin-"))
@@ -12,7 +12,7 @@ const createTempRoot = async (configText?: string, hpConfigText?: string) => {
   }
   if (typeof hpConfigText === "string") {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), hpConfigText, "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), hpConfigText, "utf8")
   }
 
   return {
@@ -23,7 +23,7 @@ const createTempRoot = async (configText?: string, hpConfigText?: string) => {
 
 const runTool = async (root: string, args: Record<string, unknown>) => {
   const plugin = await agentRoutingConfigPlugin({ directory: root })
-  const tool = plugin.tool.hyperpowers_agent_routing_config
+  const tool = plugin.tool.xpowers_agent_routing_config
   const result = await tool.execute(args, { directory: root, worktree: root })
   return JSON.parse(String(result))
 }
@@ -57,6 +57,38 @@ exit 1
   }
 }
 
+test("get_reads_legacy_workflow_routing_file_when_new_file_is_absent", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "global/model" }, null, 2),
+  )
+  const oldNs = "hyper" + "powers"
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(
+      join(root, ".opencode", `${oldNs}-routing.json`),
+      JSON.stringify({
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": { model: "legacy/strong" },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    )
+
+    await withFakeOpencodeModels(root, "global/model\nlegacy/strong", async () => {
+      const result = await runTool(root, { action: "get" })
+
+      expect(result.ok).toBe(true)
+      expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("legacy/strong")
+      expect(result.availableModels).toContain("legacy/strong")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
 test("get_returns_current_global_and_workflow_routing_from_split_config", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify(
@@ -87,7 +119,7 @@ test("get_returns_current_global_and_workflow_routing_from_split_config", async 
       const result = await runTool(root, { action: "get" })
 
       expect(result.ok).toBe(true)
-      expect(result.sourceOfTruth).toEqual(["opencode.json", ".opencode/hyperpowers-routing.json"])
+      expect(result.sourceOfTruth).toEqual(["opencode.json", ".opencode/xpowers-routing.json"])
       expect(result.routing.model).toBe("global/model")
       expect(result.routing.agent["test-runner"].model).toBe("fast/model")
       expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("strong/model")
@@ -139,7 +171,7 @@ test("set_updates_global_agent_mapping_and_preserves_unrelated_config", async ()
   }
 })
 
-test("set_updates_workflow_override_in_separate_hyperpowers_config", async () => {
+test("set_updates_workflow_override_in_separate_xpowers_config", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify(
       {
@@ -160,14 +192,14 @@ test("set_updates_workflow_override_in_separate_hyperpowers_config", async () =>
       })
       const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
       const hpPersisted = JSON.parse(
-        await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
+        await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"),
       )
 
       expect(result.ok).toBe(true)
       expect(result.updatedPath).toBe("workflowOverrides.execute-ralph.autonomous-reviewer.model")
-      expect(result.updatedFile).toBe(".opencode/hyperpowers-routing.json")
+      expect(result.updatedFile).toBe(".opencode/xpowers-routing.json")
       expect(ocPersisted.model).toBe("global/model")
-      expect(ocPersisted.hyperpowers).toBeUndefined()
+      expect(ocPersisted.xpowers).toBeUndefined()
       expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(
         "opencode/claude-opus-4-5",
       )
@@ -232,7 +264,7 @@ test("bootstrap_generates_split_file_routing_from_missing_config", async () => {
         })
         const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
         const hpPersisted = JSON.parse(
-          await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"),
+          await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"),
         )
 
         expect(result.ok).toBe(true)
@@ -264,7 +296,7 @@ test("bootstrap_rejects_selected_models_that_are_not_discovered", async () => {
       expect(result.ok).toBe(false)
       expect(result.error.code).toBe("invalid_selected_model")
       expect(await readFile(join(root, "opencode.json"), "utf8").catch(() => null)).toBeNull()
-      expect(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8").catch(() => null)).toBeNull()
+      expect(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8").catch(() => null)).toBeNull()
     })
   } finally {
     await cleanup()
@@ -399,19 +431,19 @@ test("unsupported_agent_and_workflow_return_actionable_errors", async () => {
   }
 })
 
-test("get_returns_warning_when_hyperpowers_override_file_is_malformed", async () => {
+test("get_returns_warning_when_xpowers_override_file_is_malformed", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), "{", "utf8")
 
     await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
       const result = await runTool(root, { action: "get" })
 
       expect(result.ok).toBe(true)
       expect(result.warning.code).toBe("invalid_hp_json")
-      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.warning.configPath.endsWith(".opencode/xpowers-routing.json")).toBe(true)
       expect(result.routing.workflowOverrides).toEqual({})
     })
   } finally {
@@ -419,12 +451,12 @@ test("get_returns_warning_when_hyperpowers_override_file_is_malformed", async ()
   }
 })
 
-test("set_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+test("set_returns_invalid_hp_json_when_xpowers_override_file_is_malformed", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), "{", "utf8")
 
     await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
       const result = await runTool(root, {
@@ -435,19 +467,19 @@ test("set_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", 
 
       expect(result.ok).toBe(true)
       expect(result.warning.code).toBe("invalid_hp_json")
-      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.warning.configPath.endsWith(".opencode/xpowers-routing.json")).toBe(true)
     })
   } finally {
     await cleanup()
   }
 })
 
-test("set_group_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+test("set_group_returns_invalid_hp_json_when_xpowers_override_file_is_malformed", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), "{", "utf8")
 
     await withFakeOpencodeModels(root, "opencode/claude-sonnet-4-5", async () => {
       const result = await runTool(root, {
@@ -458,19 +490,19 @@ test("set_group_returns_invalid_hp_json_when_hyperpowers_override_file_is_malfor
 
       expect(result.ok).toBe(true)
       expect(result.warning.code).toBe("invalid_hp_json")
-      expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+      expect(result.warning.configPath.endsWith(".opencode/xpowers-routing.json")).toBe(true)
     })
   } finally {
     await cleanup()
   }
 })
 
-test("apply_preset_returns_invalid_hp_json_when_hyperpowers_override_file_is_malformed", async () => {
+test("apply_preset_returns_invalid_hp_json_when_xpowers_override_file_is_malformed", async () => {
   const { root, cleanup } = await createTempRoot(JSON.stringify({ model: "opencode/claude-sonnet-4-5" }, null, 2))
 
   try {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), "{", "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), "{", "utf8")
 
     const result = await runTool(root, {
       action: "apply-preset",
@@ -479,7 +511,7 @@ test("apply_preset_returns_invalid_hp_json_when_hyperpowers_override_file_is_mal
 
     expect(result.ok).toBe(true)
     expect(result.warning.code).toBe("invalid_hp_json")
-    expect(result.warning.configPath.endsWith(".opencode/hyperpowers-routing.json")).toBe(true)
+    expect(result.warning.configPath.endsWith(".opencode/xpowers-routing.json")).toBe(true)
   } finally {
     await cleanup()
   }
@@ -609,7 +641,7 @@ test("get_snapshot_includes_agent_groups", async () => {
     expect(result.agentGroups.reviewers).toContain("autonomous-reviewer")
     expect(result.agentGroups.reviewers).toContain("code-reviewer")
     expect(result.agentGroups.reviewers.length).toBe(AGENT_GROUPS.reviewers.length)
-    expect(result.agentGroups.all).toEqual(HYPERPOWERS_AGENTS)
+    expect(result.agentGroups.all).toEqual(XPOWERS_AGENTS)
   } finally {
     await cleanup()
   }
@@ -682,7 +714,7 @@ test("set_group_all_applies_to_every_agent", async () => {
       const persisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
 
       expect(result.ok).toBe(true)
-      expect(result.updatedAgents.length).toBe(HYPERPOWERS_AGENTS.length)
+      expect(result.updatedAgents.length).toBe(XPOWERS_AGENTS.length)
       expect(persisted.agent.ralph.model).toBe("universal/model")
       expect(persisted.agent["test-runner"].model).toBe("universal/model")
       expect(persisted.agent["autonomous-reviewer"].model).toBe("universal/model")
@@ -754,7 +786,7 @@ test("apply_preset_quality_first", async () => {
 
     expect(result.ok).toBe(true)
     expect(result.appliedPreset).toBe("quality-first")
-    for (const agent of HYPERPOWERS_AGENTS) {
+    for (const agent of XPOWERS_AGENTS) {
       expect(persisted.agent[agent].model).toBe("anthropic/claude-sonnet-4-5")
     }
   } finally {

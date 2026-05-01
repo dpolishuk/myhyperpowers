@@ -1,6 +1,6 @@
-# Hyperpowers Architecture
+# XPowers Architecture
 
-Hyperpowers is a multi-host framework that provides structured workflows, best practices, and specialized agents for AI-assisted software development. It supports five developer hosts simultaneously by sharing a common core of skills, agents, commands, and hooks through platform-specific adapters.
+XPowers is a multi-host framework that provides structured workflows, best practices, and specialized agents for AI-assisted software development. It supports five developer hosts simultaneously by sharing a common core of skills, agents, commands, and hooks through platform-specific adapters.
 
 ## Host Platforms
 
@@ -35,12 +35,12 @@ Each host has its own directory containing platform-specific metadata, configura
 - Tests in `.gemini-extension/tests/` validate the extension and MCP behavior.
 
 #### Kimi CLI (`.kimi/`)
-- Uses YAML (`hyperpowers.yaml`) and Markdown for configuration.
+- Uses YAML (`xpowers.yaml`) and Markdown for configuration.
 - Agents and skills are copied or referenced from the canonical locations.
 - Install guide in `.kimi/INSTALL.md` describes setup steps.
 
 #### Pi (`.pi/`)
-- Extension metadata in `.pi/extensions/hyperpowers/`.
+- Extension metadata in `.pi/extensions/xpowers/`.
 - Agent instructions in `.pi/AGENTS.md`.
 - Installable via Pi's extension system.
 

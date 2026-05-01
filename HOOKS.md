@@ -1,8 +1,8 @@
-# Hyperpowers Hooks Documentation
+# XPowers Hooks Documentation
 
 ## Overview
 
-Hyperpowers uses Claude Code's hooks system to provide intelligent, context-aware assistance throughout your development workflow. Hooks automatically enhance your experience without requiring manual intervention.
+XPowers uses Claude Code's hooks system to provide intelligent, context-aware assistance throughout your development workflow. Hooks automatically enhance your experience without requiring manual intervention.
 
 ## Hook Types
 
@@ -29,7 +29,7 @@ Relevant skills for this prompt:
 
 🔴 **test-driven-development** (critical priority, process)
 
-Use the Skill tool for skills: `Skill command="hyperpowers:<skill-name>"`
+Use the Skill tool for skills: `Skill command="xpowers:<skill-name>"`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -41,10 +41,10 @@ Use the Skill tool for skills: `Skill command="hyperpowers:<skill-name>"`
 
 Relevant agents for this prompt:
 
-💾 **hyperpowers:test-runner** (medium priority)
+💾 **xpowers:test-runner** (medium priority)
 
-Use the Task tool for agents: `Task(subagent_type="hyperpowers:<agent-name>", ...)`
-Example: `Task(subagent_type="hyperpowers:test-runner", prompt="Run: git commit...", ...)`
+Use the Task tool for agents: `Task(subagent_type="xpowers:<agent-name>", ...)`
+Example: `Task(subagent_type="xpowers:test-runner", prompt="Run: git commit...", ...)`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -256,13 +256,13 @@ These investigations are unnecessary when pre-commit hooks enforce quality stand
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💭 Remember: Write tests first (TDD)
 ✅ Before claiming complete: Run tests
-💾 Consider: 5 files edited - use hyperpowers:test-runner agent
+💾 Consider: 5 files edited - use xpowers:test-runner agent
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ## Installation
 
-Hooks are automatically activated when the Hyperpowers plugin is installed.
+Hooks are automatically activated when the XPowers plugin is installed.
 
 **Prerequisites:**
 - Node.js (for UserPromptSubmit hook)
@@ -502,10 +502,10 @@ A: Edit `hooks/skill-rules.json` to add your skill/agent with keywords and patte
 A: Yes, set `DEBUG_HOOKS=true` to see match reasons in hook output.
 
 **Q: Are hooks project-specific or global?**
-A: Hooks are part of the Hyperpowers plugin, so they work in all projects where the plugin is active.
+A: Hooks are part of the XPowers plugin, so they work in all projects where the plugin is active.
 
 ## See Also
 
 - [building-hooks skill](skills/building-hooks/SKILL.md) - Guide for creating custom hooks
 - [skills-auto-activation skill](skills/skills-auto-activation/SKILL.md) - Advanced skill activation patterns
-- [README.md](README.md) - Main Hyperpowers documentation
+- [README.md](README.md) - Main XPowers documentation

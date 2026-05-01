@@ -1,5 +1,5 @@
 import { test, expect, mock } from "bun:test"
-import { registerTmTools } from "../.pi/extensions/hyperpowers/tm-tools"
+import { registerTmTools } from "../.pi/extensions/xpowers/tm-tools"
 
 test("tm-tools registers expected task manager tools", () => {
   const piMock: any = {

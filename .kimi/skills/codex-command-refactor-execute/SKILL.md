@@ -20,5 +20,5 @@ This skill wraps the source file `commands/refactor-execute.md` for Codex Skills
 description: Execute a refactor safely with tests staying green
 ---
 
-Use the hyperpowers:refactoring-safely skill exactly as written
+Use the xpowers:refactoring-safely skill exactly as written
 ```

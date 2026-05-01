@@ -11,7 +11,7 @@ model: inherit
 ---
 
 
-> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+> 📚 See the main xpowers documentation: [Global README](../README.md)
 
 # Ralph - YOLO Mode Autonomous Executor
 

@@ -9,7 +9,7 @@ function buildOuterCatchResult(params: { format?: "text" | "structured" }, err: 
         findings: [{
           message: err?.message || String(err),
           type: "tool-error",
-          source: "hyperpowers-subagent-tool",
+          source: "xpowers-subagent-tool",
         }],
         nextAction: "Inspect routing resolution and subagent runtime state before retrying",
       }) }],
@@ -30,7 +30,7 @@ test("structured outer catch path preserves JSON contract", () => {
   expect(parsed.findings[0]).toMatchObject({
     message: "routing blew up",
     type: "tool-error",
-    source: "hyperpowers-subagent-tool",
+    source: "xpowers-subagent-tool",
   })
 })
 

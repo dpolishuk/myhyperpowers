@@ -285,7 +285,7 @@ Lines 695-725 contain `## EXECUTION LOOP REMINDER (Context Recovery)` which dupl
 
 **Template:**
 ```markdown
-Use Skill tool: hyperpowers:[sub-skill-name]
+Use Skill tool: xpowers:[sub-skill-name]
 
 ⚠️ **AFTER [SUB_SKILL_SHORT_NAME] RETURNS:** You are in [SKILL_NAME] Phase [N]. Proceed to Phase [N+1] ([NEXT_PHASE_NAME]). Do NOT stop. Do NOT present checkpoint.
 ```
@@ -294,7 +294,7 @@ Use Skill tool: hyperpowers:[sub-skill-name]
 
 **Example from execute-ralph:**
 ```
-Use Skill tool: hyperpowers:sre-task-refinement
+Use Skill tool: xpowers:sre-task-refinement
 
 ⚠️ **AFTER SRE REFINEMENT RETURNS:** You are in execute-ralph Phase 2.
 Proceed to Phase 3 (Execute Task). Do NOT stop. Do NOT present checkpoint.
@@ -371,7 +371,7 @@ This is the **entry point of the EXECUTION LOOP**.
 
 ## Phase 2: [Core Work]
 
-Use Skill tool: hyperpowers:[sub-skill]
+Use Skill tool: xpowers:[sub-skill]
 
 <!-- autonomous-loop: AFTER_RETURNING -->
 ⚠️ **AFTER [SUB_SKILL] RETURNS:** You are in [SKILL_NAME] Phase 2. Continue. Do NOT stop.

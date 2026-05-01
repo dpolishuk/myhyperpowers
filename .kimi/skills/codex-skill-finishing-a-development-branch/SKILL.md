@@ -30,19 +30,19 @@ LOW FREEDOM - Follow the 6-step process exactly. Present exactly 4 options. Neve
 - Implementation complete and reviewed
 - All bd tasks for epic are done
 - Ready to integrate work back to main branch
-- Called by hyperpowers:review-implementation (final step)
+- Called by xpowers:review-implementation (final step)
 
 **Don't use for:**
 - Work still in progress
 - Tests failing
 - Epic has open tasks
-- Mid-implementation (use hyperpowers:executing-plans)
+- Mid-implementation (use xpowers:executing-plans)
 </when_to_use>
 
 <the_process>
 ## Step 1: Close bd Epic
 
-**Announce:** "I'm using hyperpowers:finishing-a-development-branch to complete this work."
+**Announce:** "I'm using xpowers:finishing-a-development-branch to complete this work."
 
 **Verify all tasks closed:**
 
@@ -72,9 +72,9 @@ tm close bd-1
 
 ## Step 2: Verify Tests
 
-**IMPORTANT:** Use hyperpowers:test-runner agent to avoid context pollution.
+**IMPORTANT:** Use xpowers:test-runner agent to avoid context pollution.
 
-Dispatch hyperpowers:test-runner agent:
+Dispatch xpowers:test-runner agent:
 ```
 Run: cargo test
 (or: npm test / pytest / go test ./...)
@@ -136,7 +136,7 @@ git pull
 git merge <feature-branch>
 
 # Verify tests on merged result
-Dispatch hyperpowers:test-runner: "Run: <test command>"
+Dispatch xpowers:test-runner: "Run: <test command>"
 
 # If tests pass
 git branch -d <feature-branch>
@@ -271,7 +271,7 @@ git merge feature-branch
 tm close bd-1 ✓
 
 # MANDATORY: Verify tests BEFORE presenting options
-Dispatch hyperpowers:test-runner agent: "Run: cargo test"
+Dispatch xpowers:test-runner agent: "Run: cargo test"
 
 # Agent reports
 "Test suite passed (127 tests, 0 failures, 2.3s)"
@@ -453,18 +453,18 @@ Before completing:
 
 <integration>
 **This skill is called by:**
-- hyperpowers:review-implementation (final step after approval)
+- xpowers:review-implementation (final step after approval)
 
 **Call chain:**
 ```
-hyperpowers:executing-plans → hyperpowers:review-implementation → hyperpowers:finishing-a-development-branch
+xpowers:executing-plans → xpowers:review-implementation → xpowers:finishing-a-development-branch
                          ↓
                    (if gaps found: STOP)
 ```
 
 **This skill calls:**
-- hyperpowers:test-runner agent (for test verification)
-- hyperpowers:devops agent (for pre-PR pipeline health check)
+- xpowers:test-runner agent (for test verification)
+- xpowers:devops agent (for pre-PR pipeline health check)
 - bd commands (epic management)
 - gh commands (PR creation)
 

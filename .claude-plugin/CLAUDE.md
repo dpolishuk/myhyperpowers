@@ -13,5 +13,5 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #14767 | 9:20 AM | 🔵 | Myhyperpowers Plugin: Ryan's Development Skills Framework | ~248 |
+| #14767 | 9:20 AM | 🔵 | Xpowers Plugin: Ryan's Development Skills Framework | ~248 |
 </claude-mem-context>

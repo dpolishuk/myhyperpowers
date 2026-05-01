@@ -1,5 +1,5 @@
 ---
-description: Manage Hyperpowers OpenCode routing through a plugin-owned settings workflow
+description: Manage XPowers OpenCode routing through a plugin-owned settings workflow
 ---
 
-Use the skills_hyperpowers_routing_settings skill exactly as written
+Use the skills_xpowers_routing_settings skill exactly as written

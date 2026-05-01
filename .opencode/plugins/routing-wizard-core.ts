@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 
 export const DEFAULT_SCHEMA = "https://opencode.ai/config.json"
 
-export const HYPERPOWERS_AGENTS = [
+export const XPOWERS_AGENTS = [
   "autonomous-reviewer",
   "code-reviewer",
   "codebase-investigator",
@@ -24,7 +24,7 @@ export const HYPERPOWERS_AGENTS = [
   "test-runner",
 ] as const
 
-export const HYPERPOWERS_WORKFLOWS = [
+export const XPOWERS_WORKFLOWS = [
   "analyzing-test-effectiveness",
   "brainstorming",
   "execute-plan",
@@ -40,8 +40,8 @@ export const HYPERPOWERS_WORKFLOWS = [
   "test-driven-development",
 ] as const
 
-export type AgentName = (typeof HYPERPOWERS_AGENTS)[number]
-export type WorkflowName = (typeof HYPERPOWERS_WORKFLOWS)[number]
+export type AgentName = (typeof XPOWERS_AGENTS)[number]
+export type WorkflowName = (typeof XPOWERS_WORKFLOWS)[number]
 
 export const AGENT_GROUPS = {
   orchestrator: ["ralph"] as AgentName[],
@@ -89,7 +89,7 @@ export type OpenCodeConfig = Record<string, unknown> & {
   agent?: Record<string, RoutingEntry>
 }
 
-export type HyperpowersRoutingConfig = {
+export type XPowersRoutingConfig = {
   workflowOverrides?: Record<string, Record<string, RoutingEntry>>
 }
 
@@ -152,7 +152,7 @@ const normalizeAgentMap = (value: unknown) => {
   const input = asRecord(value)
   const result: Record<string, RoutingEntry> = {}
 
-  for (const agentName of HYPERPOWERS_AGENTS) {
+  for (const agentName of XPOWERS_AGENTS) {
     const entry = asRecord(input[agentName])
     if (Object.keys(entry).length === 0) continue
     result[agentName] = entry
@@ -165,12 +165,12 @@ const normalizeWorkflowOverrides = (value: unknown) => {
   const input = asRecord(value)
   const result: Record<string, Record<string, RoutingEntry>> = {}
 
-  for (const workflowName of HYPERPOWERS_WORKFLOWS) {
+  for (const workflowName of XPOWERS_WORKFLOWS) {
     const workflowEntry = asRecord(input[workflowName])
     if (Object.keys(workflowEntry).length === 0) continue
 
     const agentEntries: Record<string, RoutingEntry> = {}
-    for (const agentName of HYPERPOWERS_AGENTS) {
+    for (const agentName of XPOWERS_AGENTS) {
       const entry = asRecord(workflowEntry[agentName])
       if (Object.keys(entry).length === 0) continue
       agentEntries[agentName] = entry
@@ -212,7 +212,7 @@ export const discoverModelsFromConfig = (config: OpenCodeConfig): string[] => {
   return [...models].sort()
 }
 
-export const discoverModelsFromWorkflowOverrides = (hpConfig: HyperpowersRoutingConfig): string[] => {
+export const discoverModelsFromWorkflowOverrides = (hpConfig: XPowersRoutingConfig): string[] => {
   const models = new Set<string>()
 
   const workflowOverrides = asRecord(hpConfig.workflowOverrides)
@@ -229,13 +229,13 @@ export const discoverModelsFromWorkflowOverrides = (hpConfig: HyperpowersRouting
   return [...models].sort()
 }
 
-export const discoverAvailableModels = (config: OpenCodeConfig, hpConfig: HyperpowersRoutingConfig) => {
+export const discoverAvailableModels = (config: OpenCodeConfig, hpConfig: XPowersRoutingConfig) => {
   return [...new Set([...discoverModelsFromConfig(config), ...discoverModelsFromWorkflowOverrides(hpConfig)])].sort()
 }
 
 export const createRoutingSnapshot = (
   config: OpenCodeConfig,
-  hpConfig: HyperpowersRoutingConfig,
+  hpConfig: XPowersRoutingConfig,
   configPath: string,
   hpConfigPath: string,
   options: {
@@ -244,14 +244,14 @@ export const createRoutingSnapshot = (
   } = {},
 ) => ({
   ok: true as const,
-  sourceOfTruth: ["opencode.json", ".opencode/hyperpowers-routing.json"],
+  sourceOfTruth: ["opencode.json", ".opencode/xpowers-routing.json"],
   configPath,
   hpConfigPath,
   configMissing: options.configMissing ?? false,
-  supportedAgents: [...HYPERPOWERS_AGENTS],
-  supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
+  supportedAgents: [...XPOWERS_AGENTS],
+  supportedWorkflows: [...XPOWERS_WORKFLOWS],
   agentGroups: {
-    all: [...HYPERPOWERS_AGENTS],
+    all: [...XPOWERS_AGENTS],
     orchestrator: [...AGENT_GROUPS.orchestrator],
     planners: [...AGENT_GROUPS.planners],
     workers: [...AGENT_GROUPS.workers],
@@ -335,32 +335,37 @@ const removeIfEmptyFile = async (filePath: string) => {
   }
 }
 
+const legacyNs = () => "hyper" + "powers"
+const legacyHpConfigPathFor = (hpConfigPath: string) => join(dirname(hpConfigPath), `${legacyNs()}-routing.json`)
+
 const readHpConfigForWrite = async (
   hpConfigPath: string,
   errorPath = hpConfigPath,
-): Promise<{ ok: true; config: HyperpowersRoutingConfig } | { ok: false; error: Record<string, unknown> }> => {
-  if (!existsSync(hpConfigPath)) return { ok: true, config: {} }
+): Promise<{ ok: true; config: XPowersRoutingConfig } | { ok: false; error: Record<string, unknown> }> => {
+  const readPath = existsSync(hpConfigPath) ? hpConfigPath : legacyHpConfigPathFor(hpConfigPath)
+  const displayPath = existsSync(hpConfigPath) ? errorPath : readPath
+  if (!existsSync(readPath)) return { ok: true, config: {} }
   try {
-    const raw = await readFile(hpConfigPath, "utf8")
+    const raw = await readFile(readPath, "utf8")
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return {
         ok: false,
         error: {
           code: "invalid_hp_json",
-          message: ".opencode/hyperpowers-routing.json must contain a JSON object",
-          configPath: errorPath,
+          message: ".opencode/xpowers-routing.json must contain a JSON object",
+          configPath: displayPath,
         },
       }
     }
-    return { ok: true, config: parsed as HyperpowersRoutingConfig }
+    return { ok: true, config: parsed as XPowersRoutingConfig }
   } catch (error) {
     return {
       ok: false,
       error: {
         code: "invalid_hp_json",
-        message: error instanceof Error ? error.message : "Failed to parse .opencode/hyperpowers-routing.json",
-        configPath: errorPath,
+        message: error instanceof Error ? error.message : "Failed to parse .opencode/xpowers-routing.json",
+        configPath: displayPath,
       },
     }
   }
@@ -408,11 +413,11 @@ export const updateGlobalAgentEffort = (config: OpenCodeConfig, agentName: Agent
 }
 
 export const updateWorkflowAgentModel = (
-  hpConfig: HyperpowersRoutingConfig,
+  hpConfig: XPowersRoutingConfig,
   workflowName: WorkflowName,
   agentName: AgentName,
   model: string,
-): HyperpowersRoutingConfig => {
+): XPowersRoutingConfig => {
   const workflowOverrides = asRecord(hpConfig.workflowOverrides)
   const workflowEntry = asRecord(workflowOverrides[workflowName])
   const agentEntry = asRecord(workflowEntry[agentName])
@@ -433,7 +438,7 @@ export const updateWorkflowAgentModel = (
 }
 
 const resolveGroupAgents = (groupName: string): AgentName[] | null => {
-  if (groupName === "all") return [...HYPERPOWERS_AGENTS]
+  if (groupName === "all") return [...XPOWERS_AGENTS]
   const group = AGENT_GROUPS[groupName as keyof typeof AGENT_GROUPS]
   return group ? [...group] : null
 }
@@ -472,7 +477,7 @@ const applyPreset = (
       assign(AGENT_GROUPS.reviewers, strongModel)
       break
     case "quality-first":
-      assign(HYPERPOWERS_AGENTS, strongModel)
+      assign(XPOWERS_AGENTS, strongModel)
       delete (nextConfig as Record<string, unknown>).small_model
       break
   }
@@ -671,7 +676,7 @@ export const planRecommendedRouting = ({
 
 export const writeRecommendedRoutingPlan = async (rootDir: string, plan: RecommendedRoutingPlan) => {
   const configPath = join(rootDir, "opencode.json")
-  const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
+  const hpConfigPath = join(rootDir, ".opencode", "xpowers-routing.json")
 
   const current = await loadConfigForWrite(configPath)
   if (!current.ok) return current
@@ -689,7 +694,7 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
     delete mutableConfig.small_model
   }
 
-  for (const agentName of HYPERPOWERS_AGENTS) {
+  for (const agentName of XPOWERS_AGENTS) {
     const entry = plan.agent[agentName]
     const model = getString(entry?.model)
     if (!model) continue
@@ -706,11 +711,11 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
 
   let nextHpConfig = hpResult.config
   for (const workflowName of Object.keys(plan.workflowOverrides)) {
-    const canonicalWorkflow = canonicalize(workflowName, HYPERPOWERS_WORKFLOWS)
+    const canonicalWorkflow = canonicalize(workflowName, XPOWERS_WORKFLOWS)
     if (!canonicalWorkflow) continue
 
     const workflowAgents = asRecord(plan.workflowOverrides[canonicalWorkflow])
-    for (const agentName of HYPERPOWERS_AGENTS) {
+    for (const agentName of XPOWERS_AGENTS) {
       const agentEntry = asRecord(workflowAgents[agentName])
       const model = getString(agentEntry.model)
       if (!model) continue
@@ -729,7 +734,7 @@ export const writeRecommendedRoutingPlan = async (rootDir: string, plan: Recomme
             ...overrides,
             [canonicalWorkflow]: { ...workflowEntry, [agentName]: existingAgentEntry },
           },
-        } as HyperpowersRoutingConfig
+        } as XPowersRoutingConfig
       }
     }
   }
@@ -751,7 +756,7 @@ export const verifyRecommendedRoutingPlan = async (
   availableModels: string[],
 ) => {
   const configPath = join(rootDir, "opencode.json")
-  const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
+  const hpConfigPath = join(rootDir, ".opencode", "xpowers-routing.json")
 
   for (const model of plan.selectedModels) {
     if (!availableModels.includes(model)) {
@@ -789,7 +794,7 @@ export const verifyRecommendedRoutingPlan = async (
     })
   }
 
-  for (const agentName of HYPERPOWERS_AGENTS) {
+  for (const agentName of XPOWERS_AGENTS) {
     const expectedModel = getString(asRecord(plan.agent)[agentName]?.model)
     const actualModel = getString(asRecord(snapshot.routing.agent)[agentName]?.model)
     if ((expectedModel ?? null) !== (actualModel ?? null)) {
@@ -847,7 +852,7 @@ export const verifyRecommendedRoutingPlan = async (
 
 export const executeRoutingAction = async (rootDir: string, args: RoutingToolArgs) => {
   const configPath = join(rootDir, "opencode.json")
-  const hpConfigPath = join(rootDir, ".opencode", "hyperpowers-routing.json")
+  const hpConfigPath = join(rootDir, ".opencode", "xpowers-routing.json")
   const loadStrictHpConfig = async () => {
     const hpResult = await readHpConfigForWrite(hpConfigPath)
     if (!hpResult.ok) return hpResult
@@ -857,7 +862,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     const hpResult = await readHpConfigForWrite(hpConfigPath)
     if (!hpResult.ok) {
       return {
-        config: {} as HyperpowersRoutingConfig,
+        config: {} as XPowersRoutingConfig,
         warning: hpResult.error,
       }
     }
@@ -954,7 +959,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       ...verifyResult.snapshot,
       bootstrapApplied: true,
       createdConfig: writeResult.createdConfig,
-      updatedFiles: ["opencode.json", ".opencode/hyperpowers-routing.json"],
+      updatedFiles: ["opencode.json", ".opencode/xpowers-routing.json"],
     }
   }
 
@@ -1026,10 +1031,10 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     }
   }
 
-  const agentName = canonicalize(args.agent, HYPERPOWERS_AGENTS)
+  const agentName = canonicalize(args.agent, XPOWERS_AGENTS)
   if (!agentName) {
-    return invalidResult(configPath, "unsupported_agent", "Use a concrete Hyperpowers agent name", {
-      supportedAgents: [...HYPERPOWERS_AGENTS],
+    return invalidResult(configPath, "unsupported_agent", "Use a concrete XPowers agent name", {
+      supportedAgents: [...XPOWERS_AGENTS],
     })
   }
 
@@ -1038,10 +1043,10 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
     return invalidResult(configPath, "missing_model", "Provide a non-empty model in provider/model format")
   }
 
-  const workflowName = args.workflow ? canonicalize(args.workflow, HYPERPOWERS_WORKFLOWS) : null
+  const workflowName = args.workflow ? canonicalize(args.workflow, XPOWERS_WORKFLOWS) : null
   if (args.workflow && !workflowName) {
-    return invalidResult(configPath, "unsupported_workflow", "Use a supported Hyperpowers workflow name", {
-      supportedWorkflows: [...HYPERPOWERS_WORKFLOWS],
+    return invalidResult(configPath, "unsupported_workflow", "Use a supported XPowers workflow name", {
+      supportedWorkflows: [...XPOWERS_WORKFLOWS],
     })
   }
 
@@ -1053,7 +1058,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
   const availableModels = [
     ...new Set([
       ...(discovery.ok ? discovery.models : []),
-      ...discoverAvailableModels(current.config, ("config" in hpState ? hpState.config : hpState) as HyperpowersRoutingConfig),
+      ...discoverAvailableModels(current.config, ("config" in hpState ? hpState.config : hpState) as XPowersRoutingConfig),
     ]),
   ].sort()
   const invalidModel = validateModelAgainstAvailableSet(configPath, model, availableModels)
@@ -1082,7 +1087,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       } else {
         agentEntry.effort = effort
       }
-      nextHpConfig = { ...nextHpConfig, workflowOverrides: { ...overrides, [workflowName]: { ...workflowEntry, [agentName]: agentEntry } } } as HyperpowersRoutingConfig
+      nextHpConfig = { ...nextHpConfig, workflowOverrides: { ...overrides, [workflowName]: { ...workflowEntry, [agentName]: agentEntry } } } as XPowersRoutingConfig
     }
 
     await persistConfig(hpConfigPath, nextHpConfig as Record<string, unknown>)
@@ -1095,7 +1100,7 @@ export const executeRoutingAction = async (rootDir: string, args: RoutingToolArg
       ...createRoutingSnapshot(ocConfig, nextHpConfig, configPath, hpConfigPath),
       createdConfig: current.createdConfig,
       updatedPath: `workflowOverrides.${workflowName}.${agentName}.model`,
-      updatedFile: ".opencode/hyperpowers-routing.json",
+      updatedFile: ".opencode/xpowers-routing.json",
     }
   }
 

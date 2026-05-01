@@ -36,8 +36,8 @@ Use when:
 - Need to ensure junior engineer can execute without questions
 - Want to catch edge cases and failure modes upfront
 - Need to verify task granularity (4-8 hour subtasks)
-- After hyperpowers:writing-plans creates initial plan
-- Before hyperpowers:executing-plans starts implementation
+- After xpowers:writing-plans creates initial plan
+- Before xpowers:executing-plans starts implementation
 
 Don't use when:
 - Task already being implemented (too late)
@@ -49,7 +49,7 @@ Don't use when:
 <the_process>
 ## Announcement
 
-**Announce:** "I'm using hyperpowers:sre-task-refinement to review this plan with Google Fellow-level scrutiny."
+**Announce:** "I'm using xpowers:sre-task-refinement to review this plan with Google Fellow-level scrutiny."
 
 ---
 
@@ -413,7 +413,7 @@ After reviewing all tasks:
 [If NEEDS REVISION]:
 ⚠️ Plan needs improvements before implementation:
 - [List major items that need addressing]
-- After changes, re-run hyperpowers:sre-task-refinement
+- After changes, re-run xpowers:sre-task-refinement
 
 [If REJECT]:
 ❌ Plan has fundamental issues and needs redesign:
@@ -833,24 +833,24 @@ Before completing SRE review:
 
 <integration>
 **This skill is used after:**
-- hyperpowers:writing-plans (creates initial plan)
-- hyperpowers:brainstorming (establishes requirements)
+- xpowers:writing-plans (creates initial plan)
+- xpowers:brainstorming (establishes requirements)
 
 **This skill is used before:**
-- hyperpowers:executing-plans (implements tasks)
+- xpowers:executing-plans (implements tasks)
 
 **This skill is also called by:**
-- hyperpowers:executing-plans (REQUIRED for new tasks created during execution)
+- xpowers:executing-plans (REQUIRED for new tasks created during execution)
 
 **Call chains:**
 ```
 Initial planning:
-hyperpowers:brainstorming → hyperpowers:writing-plans → hyperpowers:sre-task-refinement → hyperpowers:executing-plans
+xpowers:brainstorming → xpowers:writing-plans → xpowers:sre-task-refinement → xpowers:executing-plans
                                                     ↓
                                             (if gaps: revise and re-review)
 
 During execution (for new tasks):
-hyperpowers:executing-plans → creates new task → hyperpowers:sre-task-refinement → STOP checkpoint
+xpowers:executing-plans → creates new task → xpowers:sre-task-refinement → STOP checkpoint
 ```
 
 **This skill uses:**
