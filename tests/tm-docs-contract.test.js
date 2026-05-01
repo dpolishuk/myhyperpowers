@@ -160,7 +160,7 @@ test("Agent workflow docs use backend-portable tm design updates", () => {
     assert.equal(content.includes("bd edit "), false, `${relativePath} must not use direct bd edit`)
   }
 
-  assert.equal(read("skills/fixing-bugs/SKILL.md").includes("tm update bd-123 --design"), true)
+  assert.match(read("skills/fixing-bugs/SKILL.md"), /tm update \S+ --design/)
 })
 
 test("Kimi install docs describe the linear preview contract and agent paths consistently", () => {

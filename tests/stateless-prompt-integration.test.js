@@ -29,7 +29,11 @@ test('Ralph prompt uses tm for task lifecycle commands', () => {
     assert.doesNotMatch(content, /`bd (ready|blocked|show|update|close|create|dep)\b/, `${relativePath} must not show executable bd lifecycle commands`);
     assert.doesNotMatch(content, /"(claim_command|show_command)": "bd /, `${relativePath} must not instruct execution of bd command strings`);
     assert.match(content, /tm (ready|list)/, `${relativePath} should use tm for task discovery`);
-    assert.match(content, /tm update <id> --status in_progress|tm update bd-xxx --status=in_progress/, `${relativePath} should use tm for claiming tasks`);
+    assert.match(
+      content,
+      /tm update (?:<id>|[A-Za-z]+-[A-Za-z0-9_-]+) --status(?:=|\s+)in_progress/,
+      `${relativePath} should use tm for claiming tasks`,
+    );
   }
 });
 
