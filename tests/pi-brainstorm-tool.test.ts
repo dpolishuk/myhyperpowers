@@ -107,7 +107,7 @@ test("update_ralph_state opens dashboard with Pi custom factory", async () => {
   expect(result.content).toEqual([])
 })
 
-test("update_ralph_state can explicitly close dashboard", async () => {
+test("update_ralph_state can explicitly close dashboard and keep it hidden", async () => {
   let ralphTool: any
   const piMock: any = {
     on: () => {},
@@ -119,10 +119,12 @@ test("update_ralph_state can explicitly close dashboard", async () => {
   initExtension(piMock)
 
   let closeCount = 0
+  let customCount = 0
   const ctx = {
     sessionManager: { getSessionFile: () => "ralph-close-test" },
     ui: {
       custom: (factory: any) => {
+        customCount++
         factory({ terminal: { rows: 30, columns: 100 }, requestRender: () => {} }, {}, {}, () => {})
         return { close: () => { closeCount++ }, requestRender: () => {} }
       }
@@ -131,9 +133,42 @@ test("update_ralph_state can explicitly close dashboard", async () => {
 
   await ralphTool.execute("call-id", { phase: "setup" }, undefined, undefined, ctx)
   const result = await ralphTool.execute("call-id", { close: true }, undefined, undefined, ctx)
+  await ralphTool.execute("call-id", { phase: "subagent", logMessage: "should stay hidden" }, undefined, undefined, ctx)
 
   expect(closeCount).toBe(1)
+  expect(customCount).toBe(1)
   expect(result.content[0].text).toBe("Ralph dashboard hidden.")
+})
+
+test("update_ralph_state can reopen dashboard after explicit close", async () => {
+  let ralphTool: any
+  const piMock: any = {
+    on: () => {},
+    registerCommand: () => {},
+    registerTool: (def: any) => {
+      if (def.name === "update_ralph_state") ralphTool = def
+    }
+  }
+  initExtension(piMock)
+
+  let customCount = 0
+  const ctx = {
+    sessionManager: { getSessionFile: () => "ralph-reopen-test" },
+    ui: {
+      custom: (factory: any) => {
+        customCount++
+        factory({ terminal: { rows: 30, columns: 100 }, requestRender: () => {} }, {}, {}, () => {})
+        return { close: () => {}, requestRender: () => {} }
+      }
+    }
+  }
+
+  await ralphTool.execute("call-id", { phase: "setup" }, undefined, undefined, ctx)
+  await ralphTool.execute("call-id", { close: true }, undefined, undefined, ctx)
+  await ralphTool.execute("call-id", { phase: "subagent" }, undefined, undefined, ctx)
+  await ralphTool.execute("call-id", { reopen: true, phase: "review" }, undefined, undefined, ctx)
+
+  expect(customCount).toBe(2)
 })
 
 test("Ralph dashboard hides on cancel hotkeys", async () => {

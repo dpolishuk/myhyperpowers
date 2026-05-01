@@ -736,6 +736,7 @@ export default function (pi: any) {
   const ralphSessions = new Map<string, {
     dashboard: any
     handle: any
+    hidden?: boolean
     closeTimer?: ReturnType<typeof setTimeout>
   }>()
 
@@ -745,6 +746,7 @@ export default function (pi: any) {
     description: "Update the non-blocking Ralph Execution Dashboard TUI with current phase, epic/task status, and logs. The dashboard can be hidden with q/Esc/Ctrl+C and should never block normal Pi input.",
     parameters: Type.Object({
       close: Type.Optional(Type.Boolean({ description: "Close/hide the Ralph dashboard for this session" })),
+      reopen: Type.Optional(Type.Boolean({ description: "Reopen the Ralph dashboard after it was hidden" })),
       phase: Type.Optional(Type.String({ description: "setup, get_task, subagent, review, completion, done" })),
       epicId: Type.Optional(Type.String()),
       epicTitle: Type.Optional(Type.String()),
@@ -774,8 +776,16 @@ export default function (pi: any) {
           session.closeTimer = undefined
         }
         session?.handle?.close?.()
-        ralphSessions.delete(sessionKey)
+        ralphSessions.set(sessionKey, { dashboard: session?.dashboard ?? null, handle: null, hidden: true })
         return { content: [{ type: "text", text: "Ralph dashboard hidden." }] }
+      }
+
+      if (params.reopen === true && session?.hidden) {
+        session.hidden = false
+      }
+
+      if (session?.hidden) {
+        return { content: [] }
       }
 
       if (session?.closeTimer) {
@@ -800,7 +810,8 @@ export default function (pi: any) {
               currSession.closeTimer = undefined
             }
             currSession.handle?.close?.()
-            ralphSessions.delete(sessionKey)
+            currSession.handle = null
+            currSession.hidden = true
           }
         })
         dashboard.tui = ctx.ui.tui // try to grab tui reference if available
