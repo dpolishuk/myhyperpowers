@@ -49,13 +49,15 @@ test("update_brainstorm_state resolves correctly when option selected", async ()
   let passedComponent: any
   const ctx = {
     ui: {
-      custom: (component: any) => {
-        passedComponent = component
-        // simulate selection asynchronously
-        setTimeout(() => {
-          passedComponent.onOptionSelect(1)
-        }, 10)
-        return { close: () => {} }
+      custom: (factory: any) => {
+        expect(typeof factory).toBe("function")
+        return new Promise((resolve) => {
+          passedComponent = factory({}, {}, {}, resolve)
+          // simulate selection asynchronously
+          setTimeout(() => {
+            passedComponent.onOptionSelect(1)
+          }, 10)
+        })
       }
     }
   }
@@ -68,4 +70,37 @@ test("update_brainstorm_state resolves correctly when option selected", async ()
   
   expect(passedComponent).toBeDefined()
   expect(result.content[0].text).toBe("opt2")
+})
+
+test("update_ralph_state opens dashboard with Pi custom factory", async () => {
+  let ralphTool: any
+  const piMock: any = {
+    on: () => {},
+    registerCommand: () => {},
+    registerTool: (def: any) => {
+      if (def.name === "update_ralph_state") ralphTool = def
+    }
+  }
+  initExtension(piMock)
+
+  let dashboard: any
+  let customCalled = false
+  const ctx = {
+    sessionManager: { getSessionFile: () => "ralph-factory-test" },
+    ui: {
+      custom: (factory: any, options: any) => {
+        customCalled = true
+        expect(typeof factory).toBe("function")
+        expect(options).toEqual({ overlay: true })
+        dashboard = factory({ terminal: { rows: 30 } }, {}, {}, () => {})
+        return { close: () => {}, requestRender: () => {} }
+      }
+    }
+  }
+
+  const result = await ralphTool.execute("call-id", { phase: "setup", logMessage: "starting" }, undefined, undefined, ctx)
+
+  expect(customCalled).toBe(true)
+  expect(typeof dashboard.render).toBe("function")
+  expect(result.content).toEqual([])
 })

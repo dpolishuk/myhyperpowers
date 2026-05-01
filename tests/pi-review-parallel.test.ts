@@ -108,9 +108,11 @@ test("runParallelReview uses TUI dashboard when UI context is available", async 
 
   const mockUiCtx = {
     ui: {
-      custom: (component: any, options: any) => {
+      custom: (factory: any, options: any) => {
         customCalled = true
         expect(options).toEqual({ overlay: true })
+        expect(typeof factory).toBe("function")
+        const component = factory({}, {}, {}, () => {})
         expect(typeof component.updateTask).toBe("function")
         return { 
           close: () => { handleClosed = true },

@@ -107,7 +107,10 @@ export async function runParallelReview(
       controller.abort()
     })
     // Launch dashboard and save handle
-    handle = ctx.uiCtx.ui.custom(dashboard, { overlay: true })
+    handle = ctx.uiCtx.ui.custom(
+      (_tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => dashboard,
+      { overlay: true }
+    )
   }
 
   let results: any[] = []

@@ -810,7 +810,13 @@ export default function (pi: any) {
       }
 
       if (!session.handle) {
-        session.handle = ctx.ui.custom(session.dashboard, { overlay: true })
+        session.handle = ctx.ui.custom(
+          (tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => {
+            session!.dashboard.tui = tui
+            return session!.dashboard
+          },
+          { overlay: true }
+        )
       } else {
         session.handle.requestRender?.()
       }
