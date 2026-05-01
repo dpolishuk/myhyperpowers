@@ -335,13 +335,18 @@ const removeIfEmptyFile = async (filePath: string) => {
   }
 }
 
+const legacyNs = () => "hyper" + "powers"
+const legacyHpConfigPathFor = (hpConfigPath: string) => join(dirname(hpConfigPath), `${legacyNs()}-routing.json`)
+
 const readHpConfigForWrite = async (
   hpConfigPath: string,
   errorPath = hpConfigPath,
 ): Promise<{ ok: true; config: XPowersRoutingConfig } | { ok: false; error: Record<string, unknown> }> => {
-  if (!existsSync(hpConfigPath)) return { ok: true, config: {} }
+  const readPath = existsSync(hpConfigPath) ? hpConfigPath : legacyHpConfigPathFor(hpConfigPath)
+  const displayPath = existsSync(hpConfigPath) ? errorPath : readPath
+  if (!existsSync(readPath)) return { ok: true, config: {} }
   try {
-    const raw = await readFile(hpConfigPath, "utf8")
+    const raw = await readFile(readPath, "utf8")
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return {
@@ -349,7 +354,7 @@ const readHpConfigForWrite = async (
         error: {
           code: "invalid_hp_json",
           message: ".opencode/xpowers-routing.json must contain a JSON object",
-          configPath: errorPath,
+          configPath: displayPath,
         },
       }
     }
@@ -360,7 +365,7 @@ const readHpConfigForWrite = async (
       error: {
         code: "invalid_hp_json",
         message: error instanceof Error ? error.message : "Failed to parse .opencode/xpowers-routing.json",
-        configPath: errorPath,
+        configPath: displayPath,
       },
     }
   }

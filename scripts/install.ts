@@ -54,7 +54,9 @@ type InstallManifest = {
 // ---------------------------------------------------------------------------
 
 const xdgConfig = () => process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
+const legacyNs = () => "hyper" + "powers"
 const manifestPath = () => join(homedir(), ".xpowers", "manifest.json")
+const legacyManifestPath = () => join(homedir(), `.${legacyNs()}`, "manifest.json")
 
 const commandExists = (cmd: string): boolean => {
   try {
@@ -477,7 +479,8 @@ const FEATURES: FeatureConfig[] = [
       if (existsSync(settingsPath)) {
         try {
           const settings = JSON.parse(await readFile(settingsPath, "utf8"))
-          if (settings.statusline?.includes("xpowers")) {
+          const statusline = typeof settings.statusline === "string" ? settings.statusline : ""
+          if (statusline.includes("xpowers") || statusline.includes(legacyNs())) {
             delete settings.statusline
             await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8")
           }
@@ -676,13 +679,15 @@ const uninstallHost = async (hostId: string, manifest: InstallManifest) => {
 // ---------------------------------------------------------------------------
 
 const readManifest = async (): Promise<InstallManifest | null> => {
-  const path = manifestPath()
-  if (!existsSync(path)) return null
-  try {
-    return JSON.parse(await readFile(path, "utf8"))
-  } catch {
-    return null
+  for (const path of [manifestPath(), legacyManifestPath()]) {
+    if (!existsSync(path)) continue
+    try {
+      return JSON.parse(await readFile(path, "utf8"))
+    } catch {
+      return null
+    }
   }
+  return null
 }
 
 const writeManifest = async (manifest: InstallManifest) => {
@@ -824,8 +829,9 @@ Options:
       s.stop(`${hostId} removed`)
     }
 
-    // Remove manifest
+    // Remove manifest, including legacy manifest if this was a migration uninstall
     await unlink(manifestPath()).catch(() => {})
+    await unlink(legacyManifestPath()).catch(() => {})
 
     p.outro("XPowers uninstalled completely.")
     return

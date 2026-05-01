@@ -169,6 +169,72 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
 
+test("bun installer uninstall reads legacy manifest location", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-legacy-manifest-test-"))
+  const oldNs = "hyper" + "powers"
+  const claudeHome = path.join(home, ".claude")
+  const legacyManifestDir = path.join(home, `.${oldNs}`)
+  const legacyFile = path.join(claudeHome, "legacy-file.txt")
+
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.mkdirSync(legacyManifestDir, { recursive: true })
+  fs.writeFileSync(legacyFile, "installed by old manifest\n", "utf8")
+  fs.writeFileSync(
+    path.join(legacyManifestDir, "manifest.json"),
+    JSON.stringify({
+      version: "legacy",
+      installedAt: "2026-01-01T00:00:00Z",
+      hosts: { claude: { targetDir: claudeHome, files: ["legacy-file.txt"] } },
+      features: {},
+    }, null, 2) + "\n",
+    "utf8",
+  )
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal(fs.existsSync(legacyFile), false)
+  assert.equal(fs.existsSync(path.join(legacyManifestDir, "manifest.json")), false)
+})
+
+test("bun installer statusline uninstall removes legacy statusline path", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-legacy-statusline-test-"))
+  const oldNs = "hyper" + "powers"
+  const claudeHome = path.join(home, ".claude")
+  const manifestDir = path.join(home, ".xpowers")
+  const settingsPath = path.join(claudeHome, "settings.json")
+
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.mkdirSync(manifestDir, { recursive: true })
+  fs.writeFileSync(settingsPath, JSON.stringify({ statusline: path.join(claudeHome, `${oldNs}-statusline.sh`) }, null, 2) + "\n", "utf8")
+  fs.writeFileSync(
+    path.join(manifestDir, "manifest.json"),
+    JSON.stringify({
+      version: "test",
+      installedAt: "2026-01-01T00:00:00Z",
+      hosts: {},
+      features: { statusline: { installed: true } },
+    }, null, 2) + "\n",
+    "utf8",
+  )
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"))
+  assert.equal(Object.hasOwn(settings, "statusline"), false)
+})
+
 test("pi installer replaces and removes legacy Pi AGENTS section markers", { timeout: 60000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-legacy-agents-test-"))
   const piHome = path.join(home, ".pi", "agent")

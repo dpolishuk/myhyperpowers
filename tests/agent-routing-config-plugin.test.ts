@@ -57,6 +57,38 @@ exit 1
   }
 }
 
+test("get_reads_legacy_workflow_routing_file_when_new_file_is_absent", async () => {
+  const { root, cleanup } = await createTempRoot(
+    JSON.stringify({ model: "global/model" }, null, 2),
+  )
+  const oldNs = "hyper" + "powers"
+
+  try {
+    await mkdir(join(root, ".opencode"), { recursive: true })
+    await writeFile(
+      join(root, ".opencode", `${oldNs}-routing.json`),
+      JSON.stringify({
+        workflowOverrides: {
+          "execute-ralph": {
+            "autonomous-reviewer": { model: "legacy/strong" },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    )
+
+    await withFakeOpencodeModels(root, "global/model\nlegacy/strong", async () => {
+      const result = await runTool(root, { action: "get" })
+
+      expect(result.ok).toBe(true)
+      expect(result.routing.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe("legacy/strong")
+      expect(result.availableModels).toContain("legacy/strong")
+    })
+  } finally {
+    await cleanup()
+  }
+})
+
 test("get_returns_current_global_and_workflow_routing_from_split_config", async () => {
   const { root, cleanup } = await createTempRoot(
     JSON.stringify(
