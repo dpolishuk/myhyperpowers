@@ -4,6 +4,7 @@ import {
   Key,
   truncateToWidth,
   visibleWidth,
+  type Focusable,
 } from "@mariozechner/pi-tui"
 
 export type RalphPhase = 
@@ -29,11 +30,20 @@ export interface RalphState {
   logs: string[]
 }
 
-export class RalphDashboard extends Container {
+export class RalphDashboard extends Container implements Focusable {
   private state: RalphState
   private onCancel?: () => void
+  private _focused = true
 
   public tui?: any
+
+  get focused(): boolean {
+    return this._focused
+  }
+
+  set focused(value: boolean) {
+    this._focused = value
+  }
 
   constructor(initialState: RalphState, onCancel?: () => void) {
     super()
@@ -67,7 +77,7 @@ export class RalphDashboard extends Container {
   }
 
   handleInput(data: string): boolean {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")) || data === "q") {
+    if (matchesKey(data, Key.escape) || data === "\x1b" || matchesKey(data, Key.ctrl("c")) || data === "\x03" || data === "q" || data === "Q") {
       this.onCancel?.()
       return true
     }

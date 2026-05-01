@@ -102,5 +102,28 @@ test("update_ralph_state opens dashboard with Pi custom factory", async () => {
 
   expect(customCalled).toBe(true)
   expect(typeof dashboard.render).toBe("function")
+  expect(dashboard.focused).toBe(true)
   expect(result.content).toEqual([])
+})
+
+test("Ralph dashboard consumes cancel hotkeys", async () => {
+  const { RalphDashboard } = await import("../.pi/extensions/xpowers/ralph-dashboard-tui")
+  let cancelCount = 0
+  const dashboard = new RalphDashboard({
+    phase: "setup",
+    unmetCriteria: 0,
+    totalCriteria: 0,
+    logs: [],
+  }, () => { cancelCount++ })
+
+  expect(dashboard.focused).toBe(true)
+  dashboard.focused = false
+  expect(dashboard.focused).toBe(false)
+  dashboard.focused = true
+
+  expect(dashboard.handleInput("q")).toBe(true)
+  expect(dashboard.handleInput("Q")).toBe(true)
+  expect(dashboard.handleInput("\x1b")).toBe(true)
+  expect(dashboard.handleInput("\x03")).toBe(true)
+  expect(cancelCount).toBe(4)
 })
