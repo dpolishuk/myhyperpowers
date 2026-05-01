@@ -356,6 +356,50 @@ printf '%s\n' "$*"
   }
 })
 
+test("tm sync no-ops when bd lacks a sync command", () => {
+  const os = require("node:os")
+  const fs = require("node:fs")
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "tm-bd-sync-missing-"))
+  const bashPath = findCommandPath("bash") || "/bin/bash"
+
+  try {
+    for (const commandName of ["awk", "dirname", "grep"]) {
+      const commandPath = findCommandPath(commandName)
+      assert.ok(commandPath, `Could not find ${commandName} on PATH`)
+      fs.symlinkSync(commandPath, path.join(tmpBinDir, commandName))
+    }
+
+    const fakeBdPath = path.join(tmpBinDir, "bd")
+    fs.writeFileSync(fakeBdPath, `#!${bashPath}
+if [[ "$1" == "sync" ]]; then
+  echo 'Error: unknown command "sync" for "bd"' >&2
+  echo "Run 'bd --help' for usage." >&2
+  exit 1
+fi
+exit 0
+`, "utf8")
+    fs.chmodSync(fakeBdPath, 0o755)
+
+    const result = spawnSync(bashPath, [tmPath, "sync"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TM_BACKEND: "bd",
+        PATH: tmpBinDir,
+        LINEAR_API_KEY: "",
+        LINEAR_TEAM_KEY: "",
+      },
+      timeout: 10000,
+    })
+
+    assert.equal(result.status, 0)
+    assert.match(result.stderr, /bd backend does not support sync; local sync skipped/)
+  } finally {
+    fs.rmSync(tmpBinDir, { recursive: true, force: true })
+  }
+})
+
 test("tm sync fails when Linear is configured but node is unavailable", () => {
   const os = require("node:os")
   const fs = require("node:fs")

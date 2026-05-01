@@ -215,6 +215,14 @@ validate_backend() {
   fi
 }
 
+is_unsupported_backend_sync_error() {
+  local backend="$1"
+  local output="$2"
+
+  [[ "$backend" == "bd" ]] || return 1
+  [[ "$output" == *"unknown command \"sync\""* || "$output" == *"unknown command 'sync'"* ]]
+}
+
 # ── Help / Version ───────────────────────────────────────────────────────────
 
 show_help() {
@@ -336,6 +344,9 @@ main() {
           exec "$backend_cmd" "${args[@]}"
         fi
         local sync_exit=0
+        local sync_stderr_file
+        local sync_stderr
+        sync_stderr_file="${TMPDIR:-/tmp}/tm-sync-stderr-$$-${RANDOM:-0}"
         if [[ "$(tm_backend_sync_mode "$backend_cmd")" == "flush-only" ]]; then
           local sync_args=("${@:2}")
           local has_flush_only=0
@@ -347,15 +358,26 @@ main() {
             fi
           done
           if [[ "$has_flush_only" -eq 1 ]]; then
-            "$backend_cmd" sync "${sync_args[@]}" || sync_exit=$?
+            "$backend_cmd" sync "${sync_args[@]}" 2>"$sync_stderr_file" || sync_exit=$?
           else
-            "$backend_cmd" sync --flush-only "${sync_args[@]}" || sync_exit=$?
+            "$backend_cmd" sync --flush-only "${sync_args[@]}" 2>"$sync_stderr_file" || sync_exit=$?
           fi
         else
-          "$backend_cmd" sync "${@:2}" || sync_exit=$?
+          "$backend_cmd" sync "${@:2}" 2>"$sync_stderr_file" || sync_exit=$?
+        fi
+        sync_stderr="$(<"$sync_stderr_file")"
+        if command -v rm >/dev/null 2>&1; then
+          rm -f "$sync_stderr_file"
         fi
 
-        # Only run follow-on sync if local sync succeeded
+        if [[ "$sync_exit" -ne 0 ]] && is_unsupported_backend_sync_error "$backend_cmd" "$sync_stderr"; then
+          echo "tm: ${backend_cmd} backend does not support sync; local sync skipped" >&2
+          sync_exit=0
+        elif [[ -n "$sync_stderr" ]]; then
+          printf '%s\n' "$sync_stderr" >&2
+        fi
+
+        # Only run follow-on sync if local sync succeeded or was unsupported and skipped.
         if [[ "$sync_exit" -ne 0 ]]; then
           echo "tm: ${backend_cmd} sync failed (exit $sync_exit), skipping follow-on sync" >&2
           exit "$sync_exit"
