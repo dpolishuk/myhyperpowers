@@ -103,10 +103,40 @@ test("update_ralph_state opens dashboard with Pi custom factory", async () => {
   expect(customCalled).toBe(true)
   expect(typeof dashboard.render).toBe("function")
   expect(dashboard.handleInput("q")).toBe(true)
+  expect(dashboard.handleInput("a")).toBe(false)
   expect(result.content).toEqual([])
 })
 
-test("Ralph dashboard consumes cancel hotkeys", async () => {
+test("update_ralph_state can explicitly close dashboard", async () => {
+  let ralphTool: any
+  const piMock: any = {
+    on: () => {},
+    registerCommand: () => {},
+    registerTool: (def: any) => {
+      if (def.name === "update_ralph_state") ralphTool = def
+    }
+  }
+  initExtension(piMock)
+
+  let closeCount = 0
+  const ctx = {
+    sessionManager: { getSessionFile: () => "ralph-close-test" },
+    ui: {
+      custom: (factory: any) => {
+        factory({ terminal: { rows: 30, columns: 100 }, requestRender: () => {} }, {}, {}, () => {})
+        return { close: () => { closeCount++ }, requestRender: () => {} }
+      }
+    }
+  }
+
+  await ralphTool.execute("call-id", { phase: "setup" }, undefined, undefined, ctx)
+  const result = await ralphTool.execute("call-id", { close: true }, undefined, undefined, ctx)
+
+  expect(closeCount).toBe(1)
+  expect(result.content[0].text).toBe("Ralph dashboard hidden.")
+})
+
+test("Ralph dashboard hides on cancel hotkeys", async () => {
   const { RalphDashboard } = await import("../.pi/extensions/xpowers/ralph-dashboard-tui")
   let cancelCount = 0
   const dashboard = new RalphDashboard({

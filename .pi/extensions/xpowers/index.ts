@@ -742,8 +742,9 @@ export default function (pi: any) {
   pi.registerTool({
     name: "update_ralph_state",
     label: "Ralph Dashboard",
-    description: "Update the interactive Ralph Execution Dashboard TUI with current phase, epic/task status, and logs. Always use this during execute-ralph to show progress.",
+    description: "Update the non-blocking Ralph Execution Dashboard TUI with current phase, epic/task status, and logs. The dashboard can be hidden with q/Esc/Ctrl+C and should never block normal Pi input.",
     parameters: Type.Object({
+      close: Type.Optional(Type.Boolean({ description: "Close/hide the Ralph dashboard for this session" })),
       phase: Type.Optional(Type.String({ description: "setup, get_task, subagent, review, completion, done" })),
       epicId: Type.Optional(Type.String()),
       epicTitle: Type.Optional(Type.String()),
@@ -766,6 +767,16 @@ export default function (pi: any) {
 
       const sessionKey = ctx?.sessionManager?.getSessionFile?.() || "default"
       let session = ralphSessions.get(sessionKey)
+
+      if (params.close === true) {
+        if (session?.closeTimer) {
+          clearTimeout(session.closeTimer)
+          session.closeTimer = undefined
+        }
+        session?.handle?.close?.()
+        ralphSessions.delete(sessionKey)
+        return { content: [{ type: "text", text: "Ralph dashboard hidden." }] }
+      }
 
       if (session?.closeTimer) {
         clearTimeout(session.closeTimer)
@@ -790,13 +801,6 @@ export default function (pi: any) {
             }
             currSession.handle?.close?.()
             ralphSessions.delete(sessionKey)
-
-            // Abort the pi host execution so the LLM workflow halts
-            if (typeof ctx?.abort === "function") {
-              ctx.abort()
-            } else if (typeof ctx?.ui?.cancel === "function") {
-              ctx.ui.cancel()
-            }
           }
         })
         dashboard.tui = ctx.ui.tui // try to grab tui reference if available
@@ -818,9 +822,9 @@ export default function (pi: any) {
               render: (width: number) => session!.dashboard.render(width),
               invalidate: () => session!.dashboard.invalidate(),
               handleInput: (data: string) => {
-                session!.dashboard.handleInput(data)
-                tui.requestRender?.()
-                return true
+                const handled = session!.dashboard.handleInput(data)
+                if (handled) tui.requestRender?.()
+                return handled
               },
             }
           },

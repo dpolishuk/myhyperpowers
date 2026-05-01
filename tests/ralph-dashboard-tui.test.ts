@@ -30,16 +30,25 @@ function expectAllLinesFit(lines: string[], width: number) {
   }
 }
 
-test("q, escape, and ctrl-c hotkeys cancel Ralph dashboard", () => {
+test("q, escape, and ctrl-c hotkeys hide Ralph dashboard", () => {
   for (const key of ["q", "\x1b", "\x03"]) {
-    let cancelled = false
-    const dashboard = new RalphDashboard(makeState(), () => { cancelled = true })
+    let hidden = false
+    const dashboard = new RalphDashboard(makeState(), () => { hidden = true })
 
     const handled = dashboard.handleInput(key)
 
     expect(handled).toBe(true)
-    expect(cancelled).toBe(true)
+    expect(hidden).toBe(true)
   }
+})
+
+test("Ralph dashboard does not consume normal Pi input", () => {
+  let hidden = false
+  const dashboard = new RalphDashboard(makeState(), () => { hidden = true })
+
+  expect(dashboard.handleInput("a")).toBe(false)
+  expect(dashboard.handleInput("/")).toBe(false)
+  expect(hidden).toBe(false)
 })
 
 test("Ralph dashboard renders as stacked single-column layout on narrow terminals", () => {
