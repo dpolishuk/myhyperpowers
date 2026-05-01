@@ -9,11 +9,13 @@ const scannedRoots = [
   "agents",
   "commands",
   "skills",
+  ".agents/skills",
   ".kimi/skills",
   ".kimi/agents",
   ".opencode/agents",
   ".opencode/skills",
   ".gemini-extension/agents",
+  ".gemini-extension/mcp",
   "README.md",
   "AGENTS.md",
 ]
