@@ -1,10 +1,10 @@
 # Agent Instructions
 
-This document provides essential information for AI coding agents working with the Hyperpowers project.
+This document provides essential information for AI coding agents working with the XPowers project.
 
 ## Project Overview
 
-**Hyperpowers** supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI), providing structured workflows, best practices, and specialized agents for software development. Think of it as a pair programming partner that ensures proven development patterns are followed.
+**XPowers** supports multiple developer hosts (Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI), providing structured workflows, best practices, and specialized agents for software development. Think of it as a pair programming partner that ensures proven development patterns are followed.
 
 ### Key Components
 

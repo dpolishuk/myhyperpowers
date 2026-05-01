@@ -1,6 +1,6 @@
 import { test, expect, mock } from "bun:test"
 
-import { buildParallelReviewRequests, runParallelReview } from "../.pi/extensions/hyperpowers/review-parallel"
+import { buildParallelReviewRequests, runParallelReview } from "../.pi/extensions/xpowers/review-parallel"
 
 test("buildParallelReviewRequests creates the three expected review lanes", () => {
   const requests = buildParallelReviewRequests()

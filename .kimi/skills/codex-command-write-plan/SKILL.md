@@ -20,7 +20,7 @@ This skill wraps the source file `commands/write-plan.md` for Codex Skills compa
 description: Create detailed implementation plan with bite-sized tasks
 ---
 
-Use the hyperpowers:writing-plans skill exactly as written.
+Use the xpowers:writing-plans skill exactly as written.
 
 Planning topic: $ARGUMENTS
 

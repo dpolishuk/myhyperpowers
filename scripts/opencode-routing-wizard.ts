@@ -7,7 +7,7 @@ import * as p from "@clack/prompts"
 
 import {
   AGENT_GROUPS,
-  HYPERPOWERS_AGENTS,
+  XPOWERS_AGENTS,
   discoverAvailableModels,
   discoverOpencodeModels,
   isValidEffort,
@@ -45,15 +45,15 @@ const usage = `Usage:
 
 What it does:
   - shells out to \`opencode models\` to discover live available provider/model ids
-  - writes the canonical Hyperpowers routing split:
+  - writes the canonical XPowers routing split:
     - global agent mappings in opencode.json
-    - workflow overrides in .opencode/hyperpowers-routing.json
+    - workflow overrides in .opencode/xpowers-routing.json
   - verifies generated routing by reading it back through the shared routing backend
 `
 
 export const resolveSuggestedModels = async (rootDir: string, discoveredModels: string[]) => {
   const configPath = `${rootDir}/opencode.json`
-  const hpConfigPath = `${rootDir}/.opencode/hyperpowers-routing.json`
+  const hpConfigPath = `${rootDir}/.opencode/xpowers-routing.json`
 
   try {
     const parsed = existsSync(configPath) ? JSON.parse(await readFile(configPath, "utf8")) : { $schema: "https://opencode.ai/config.json" }
@@ -67,7 +67,7 @@ export const resolveSuggestedModels = async (rootDir: string, discoveredModels: 
 
 const resolveDefaultSelections = async (rootDir: string, suggestedModels: string[]) => {
   const configPath = `${rootDir}/opencode.json`
-  const hpConfigPath = `${rootDir}/.opencode/hyperpowers-routing.json`
+  const hpConfigPath = `${rootDir}/.opencode/xpowers-routing.json`
 
   try {
     const parsed = existsSync(configPath)
@@ -159,7 +159,7 @@ const getCurrentRouting = async (rootDir: string) => {
     const parsed = existsSync(configPath) ? JSON.parse(await readFile(configPath, "utf8")) : {}
     const agentMap = asRecord(asRecord(parsed).agent)
     const result: Record<string, { model: string; effort?: string }> = {}
-    for (const agent of HYPERPOWERS_AGENTS) {
+    for (const agent of XPOWERS_AGENTS) {
       const entry = asRecord(agentMap[agent])
       result[agent] = {
         model: getString(entry.model) ?? getString(asRecord(parsed).model) ?? "(inherit)",
@@ -287,7 +287,7 @@ const runSingleAgentFlow = async (models: string[], routing: Record<string, { mo
   const agent = ensureNotCancelled(
     await p.select({
       message: "Which agent?",
-      options: HYPERPOWERS_AGENTS.map((a) => ({
+      options: XPOWERS_AGENTS.map((a) => ({
         value: a,
         label: a,
         hint: `${getAgentGroup(a)} — ${routing[a]?.model ?? "(not set)"}`,
@@ -386,7 +386,7 @@ const main = async () => {
   }
 
   // --- Interactive TUI mode ---
-  p.intro("Hyperpowers Routing Wizard")
+  p.intro("XPowers Routing Wizard")
 
   const s = p.spinner()
   s.start("Discovering available models...")

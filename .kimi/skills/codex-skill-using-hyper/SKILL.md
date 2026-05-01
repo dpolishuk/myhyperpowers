@@ -70,7 +70,7 @@ Before responding to ANY user message, complete this checklist:
 **Always use the Skill tool to load skills.** Never rely on memory.
 
 ```
-Skill tool: "hyperpowers:test-driven-development"
+Skill tool: "xpowers:test-driven-development"
 ```
 
 **Why:**
@@ -87,9 +87,9 @@ Before using a skill, announce it:
 **Format:** "I'm using [Skill Name] to [what you're doing]."
 
 **Examples:**
-- "I'm using hyperpowers:brainstorming to refine your idea into a design."
-- "I'm using hyperpowers:test-driven-development to implement this feature."
-- "I'm using hyperpowers:debugging-with-tools to investigate this error."
+- "I'm using xpowers:brainstorming to refine your idea into a design."
+- "I'm using xpowers:test-driven-development to implement this feature."
+- "I'm using xpowers:debugging-with-tools to investigate this error."
 
 **Why:** Transparency helps user understand your process and catch errors early. Confirms you actually read the skill.
 
@@ -98,17 +98,17 @@ Before using a skill, announce it:
 ## 4. Follow Mandatory Workflows
 
 **Before writing ANY code:**
-- Use hyperpowers:brainstorming to refine requirements
-- Use hyperpowers:writing-plans to create detailed plan
-- Use hyperpowers:executing-plans to implement iteratively
+- Use xpowers:brainstorming to refine requirements
+- Use xpowers:writing-plans to create detailed plan
+- Use xpowers:executing-plans to implement iteratively
 
 **When implementing:**
-- Use hyperpowers:test-driven-development (RED-GREEN-REFACTOR cycle)
-- Use hyperpowers:verification-before-completion before claiming done
+- Use xpowers:test-driven-development (RED-GREEN-REFACTOR cycle)
+- Use xpowers:verification-before-completion before claiming done
 
 **When debugging:**
-- Use hyperpowers:debugging-with-tools (tools first, fixes second)
-- Use hyperpowers:fixing-bugs (complete workflow from discovery to closure)
+- Use xpowers:debugging-with-tools (tools first, fixes second)
+- Use xpowers:fixing-bugs (complete workflow from discovery to closure)
 
 **User instructions describe WHAT to do, not HOW.** "Add X" means use brainstorming, TDD, verification. Not permission to skip workflows.
 
@@ -164,18 +164,18 @@ Claude (without using-hyper):
 <correction>
 **Correct approach:**
 
-Claude: "I'm using hyperpowers:brainstorming to refine your requirements into a complete design."
+Claude: "I'm using xpowers:brainstorming to refine your requirements into a complete design."
 
 [Skill tool loads brainstorming]
 [Asks Socratic questions about avatar size limits, formats, storage, etc.]
 [Creates refined requirements]
 
-Claude: "Now I'm using hyperpowers:writing-plans to create a detailed implementation plan."
+Claude: "Now I'm using xpowers:writing-plans to create a detailed implementation plan."
 
 [Skill tool loads writing-plans]
 [Creates bd epic with tasks]
 
-Claude: "Now I'm using hyperpowers:executing-plans to implement the tasks iteratively."
+Claude: "Now I'm using xpowers:executing-plans to implement the tasks iteratively."
 
 [Skill tool loads executing-plans]
 [Implements with TDD, commits incrementally]
@@ -211,13 +211,13 @@ Claude (without using-hyper):
 <correction>
 **Correct approach:**
 
-Claude: "I'm using hyperpowers:debugging-with-tools to investigate this systematically."
+Claude: "I'm using xpowers:debugging-with-tools to investigate this systematically."
 
 [Skill tool loads debugging-with-tools]
 [Uses debugger, checks logs, searches internet for known issues]
 [Identifies root cause: token invalidation timing issue]
 
-Claude: "Now I'm using hyperpowers:fixing-bugs to implement a complete fix."
+Claude: "Now I'm using xpowers:fixing-bugs to implement a complete fix."
 
 [Skill tool loads fixing-bugs]
 [Creates bd bug issue]
@@ -259,7 +259,7 @@ Claude (without using-hyper):
 <correction>
 **Correct approach:**
 
-Claude: "I'm using hyperpowers:refactoring-safely to extract this validation logic incrementally."
+Claude: "I'm using xpowers:refactoring-safely to extract this validation logic incrementally."
 
 [Skill tool loads refactoring-safely]
 
@@ -309,17 +309,17 @@ All of these mean: **STOP. Check for and use the relevant skill.**
 
 These have LOW FREEDOM - follow the exact process:
 
-- hyperpowers:test-driven-development (RED-GREEN-REFACTOR cycle)
-- hyperpowers:verification-before-completion (evidence before claims)
-- hyperpowers:executing-plans (continuous execution, substep tracking)
+- xpowers:test-driven-development (RED-GREEN-REFACTOR cycle)
+- xpowers:verification-before-completion (evidence before claims)
+- xpowers:executing-plans (continuous execution, substep tracking)
 
 ## Flexible Skills (Adapt Principles)
 
 These have HIGH FREEDOM - adapt core principles to context:
 
-- hyperpowers:brainstorming (Socratic method, but questions vary)
-- hyperpowers:managing-bd-tasks (operations adapt to project)
-- hyperpowers:sre-task-refinement (corner case analysis, but depth varies)
+- xpowers:brainstorming (Socratic method, but questions vary)
+- xpowers:managing-bd-tasks (operations adapt to project)
+- xpowers:sre-task-refinement (corner case analysis, but depth varies)
 
 **The skill itself tells you its rigidity level.** Check `<rigidity_level>` section.
 </understanding_rigidity>
@@ -371,9 +371,9 @@ Before completing ANY task:
 - User requests (check before every task)
 
 **Critical workflows this establishes:**
-- hyperpowers:brainstorming (before writing code)
-- hyperpowers:test-driven-development (during implementation)
-- hyperpowers:verification-before-completion (before claiming done)
+- xpowers:brainstorming (before writing code)
+- xpowers:test-driven-development (during implementation)
+- xpowers:verification-before-completion (before claiming done)
 </integration>
 
 <resources>

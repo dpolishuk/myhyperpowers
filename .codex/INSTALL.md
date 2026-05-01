@@ -46,7 +46,7 @@ Useful commands:
 
 ```bash
 ./scripts/install.sh --status     # Show install state for all agents
-./scripts/install.sh --version    # Show hyperpowers version
+./scripts/install.sh --version    # Show xpowers version
 ./scripts/install.sh --codex --force  # Force reinstall Codex wrappers
 ```
 

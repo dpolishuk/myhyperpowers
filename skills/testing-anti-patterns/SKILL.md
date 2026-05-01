@@ -510,7 +510,7 @@ BEFORE creating mock responses:
 
 **If you're testing mock behavior, you violated TDD** - you added mocks without watching test fail against real code first.
 
-**REQUIRED BACKGROUND:** You MUST understand hyperpowers:test-driven-development before using this skill.
+**REQUIRED BACKGROUND:** You MUST understand xpowers:test-driven-development before using this skill.
 </tdd_prevention>
 
 <critical_rules>
@@ -550,14 +550,14 @@ Before claiming tests are correct:
 
 <integration>
 **This skill requires:**
-- hyperpowers:test-driven-development (prevents these anti-patterns)
+- xpowers:test-driven-development (prevents these anti-patterns)
 - Understanding of mocking vs. faking vs. stubbing
 
 **This skill is called by:**
 - When writing tests
 - When adding mocks
 - When test setup becoming complex
-- hyperpowers:test-driven-development (use gate functions during RED phase)
+- xpowers:test-driven-development (use gate functions during RED phase)
 
 **Red flags triggering this skill:**
 - Assertion checks for `*-mock` test IDs

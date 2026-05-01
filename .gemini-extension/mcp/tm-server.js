@@ -142,7 +142,7 @@ class TmMCPServer {
           tools: {}
         },
         serverInfo: {
-          name: 'hyperpowers-tm',
+          name: 'xpowers-tm',
           version: '1.0.0'
         }
       }

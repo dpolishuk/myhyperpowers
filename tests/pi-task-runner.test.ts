@@ -12,7 +12,7 @@ import {
   executePiTasksChain,
   executePiTasksParallel,
   type SpawnAsyncLike,
-} from "../.pi/extensions/hyperpowers/task-runner"
+} from "../.pi/extensions/xpowers/task-runner"
 
 test("buildPiTaskArgs uses no-session for fresh context", () => {
   expect(buildPiTaskArgs("Investigate auth", null, undefined, "fresh")).toEqual([

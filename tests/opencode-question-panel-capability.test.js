@@ -35,5 +35,5 @@ test("repo documents the OpenCode question-panel creation gap", () => {
   assert.equal(doc.includes("no direct plugin API to create a question-panel request"), true)
   assert.equal(doc.includes("opencode-question-runtime.ts"), true)
   assert.equal(doc.includes("tests/opencode-question-runtime.test.ts"), true)
-  assert.equal(doc.includes("myhyperpowers-e22"), true)
+  assert.equal(doc.includes("xpowers-e22"), true)
 })

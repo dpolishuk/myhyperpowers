@@ -95,7 +95,7 @@ tm edit bd-123 --design "
 **REQUIRED: Use debugging-with-tools skill**
 
 ```
-Use Skill tool: hyperpowers:debugging-with-tools
+Use Skill tool: xpowers:debugging-with-tools
 ```
 
 **debugging-with-tools will:**
@@ -540,9 +540,9 @@ Before claiming bug fixed:
 - When user reports bugs
 
 **Agents used:**
-- hyperpowers:internet-researcher (via debugging-with-tools)
-- hyperpowers:codebase-investigator (via debugging-with-tools)
-- hyperpowers:test-runner (run tests without output pollution)
+- xpowers:internet-researcher (via debugging-with-tools)
+- xpowers:codebase-investigator (via debugging-with-tools)
+- xpowers:test-runner (run tests without output pollution)
 
 </integration>
 

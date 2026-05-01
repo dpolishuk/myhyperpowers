@@ -21,7 +21,7 @@ test("test_execute_ralph_auto_creates_and_refines_next_task", () => {
   const skill = read("skills/execute-ralph/SKILL.md")
 
   assert.equal(skill.includes("Auto-create next task from unmet criterion"), true)
-  assert.equal(skill.includes("Use Skill tool: hyperpowers:sre-task-refinement"), true)
+  assert.equal(skill.includes("Use Skill tool: xpowers:sre-task-refinement"), true)
 })
 
 test("test_execute_plan_still_stops_after_single_task", () => {
@@ -73,7 +73,7 @@ test("test_verdict_matrix_contains_all_supported_tokens", () => {
     "commands/execute-ralph.md",
     "skills/execute-ralph/SKILL.md",
     ".opencode/commands/execute-ralph.md",
-    ".opencode/skills/hyperpowers-execute-ralph/SKILL.md",
+    ".opencode/skills/xpowers-execute-ralph/SKILL.md",
   ]
 
   for (const file of files) {
@@ -148,7 +148,7 @@ test("test_pre_commit_equivalent_path_documents_guardrail_constraint", () => {
     "commands/execute-ralph.md",
     ".opencode/commands/execute-ralph.md",
     "skills/execute-ralph/SKILL.md",
-    ".opencode/skills/hyperpowers-execute-ralph/SKILL.md",
+    ".opencode/skills/xpowers-execute-ralph/SKILL.md",
     "docs/execute-ralph-criteria-evidence.md",
   ]
 

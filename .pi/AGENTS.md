@@ -1,6 +1,6 @@
-# Hyperpowers for Pi
+# XPowers for Pi
 
-You have hyperpowers — structured workflows for software development.
+You have xpowers — structured workflows for software development.
 
 ## Available Commands
 
@@ -26,20 +26,20 @@ You have hyperpowers — structured workflows for software development.
 
 ## Subagent Tool
 
-The `hyperpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
+The `xpowers_subagent` tool delegates tasks to isolated Pi subprocesses:
 
 ```
-Use the hyperpowers_subagent tool with task: "Review src/auth.ts for security issues"
+Use the xpowers_subagent tool with task: "Review src/auth.ts for security issues"
 ```
 
-The subagent runs with its own context, executes the task, and returns only the result. Child runs are launched as ephemeral Pi subprocesses (`--print --no-session`) so they do not persist separate session history. Under the hood, Hyperpowers now uses a shared internal Pi task runner that supports single, parallel, and chain execution modes while preserving the current public tool/command contracts. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
+The subagent runs with its own context, executes the task, and returns only the result. Child runs are launched as ephemeral Pi subprocesses (`--print --no-session`) so they do not persist separate session history. Under the hood, XPowers now uses a shared internal Pi task runner that supports single, parallel, and chain execution modes while preserving the current public tool/command contracts. Specify a `type` for abstract routing, add `agent` for a concrete override, set `model` for a one-off explicit override, or set `format: "structured"` to request JSON-only output parsed by the helper.
 
 ```
-hyperpowers_subagent(task: "Review code", type: "review")
-hyperpowers_subagent(task: "Review auth.ts", type: "review", agent: "code-reviewer")
-hyperpowers_subagent(task: "Analyze architecture", type: "validation", agent: "autonomous-reviewer")
-hyperpowers_subagent(task: "Use a specific model just once", model: "anthropic/claude-opus-4-5", type: "review")
-hyperpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
+xpowers_subagent(task: "Review code", type: "review")
+xpowers_subagent(task: "Review auth.ts", type: "review", agent: "code-reviewer")
+xpowers_subagent(task: "Analyze architecture", type: "validation", agent: "autonomous-reviewer")
+xpowers_subagent(task: "Use a specific model just once", model: "anthropic/claude-opus-4-5", type: "review")
+xpowers_subagent(task: "Return machine-readable findings", type: "review", format: "structured")
 ```
 
 Structured responses keep the same top-level shape (`status`, `summary`, `findings`, `nextAction`). Failure findings may also include additive metadata like `type` and `source`.
@@ -51,9 +51,9 @@ Routing precedence:
 4. Default route
 5. Inherit current session model
 
-If the resolved route also includes `effort`, Hyperpowers maps it to Pi's `--thinking` flag for the child subprocess.
+If the resolved route also includes `effort`, XPowers maps it to Pi's `--thinking` flag for the child subprocess.
 
-Hyperpowers also parses optional advisory skill frontmatter under `metadata.pi` with fields such as `subProcess`, `subProcessContext`, `model`, and `thinkingLevel`. These values are intentionally advisory only: `/routing-settings` remains the authoritative control plane for model/effort routing and metadata must not silently override it.
+XPowers also parses optional advisory skill frontmatter under `metadata.pi` with fields such as `subProcess`, `subProcessContext`, `model`, and `thinkingLevel`. These values are intentionally advisory only: `/routing-settings` remains the authoritative control plane for model/effort routing and metadata must not silently override it.
 
 Additional concrete agent names supported for routing overrides include:
 - `review-quality`

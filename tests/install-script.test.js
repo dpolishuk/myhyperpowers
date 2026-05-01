@@ -26,16 +26,16 @@ test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules di
   fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
 
   fs.mkdirSync(codexHome, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
   fs.mkdirSync(path.join(binDir, "node_modules"), { recursive: true })
 
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-version"), "test\n", "utf8")
 
   const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--all", "--yes"], {
     cwd: repoRoot,
@@ -58,14 +58,14 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
   fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
   fs.mkdirSync(codexHome, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".claude", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "opencode", ".hyperpowers-version"), "test\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(home, ".config", "agents", ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "opencode", ".xpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".config", "agents", ".xpowers-version"), "test\n", "utf8")
   fs.mkdirSync(binDir, { recursive: true })
   fs.mkdirSync(libNodeModules, { recursive: true })
   fs.symlinkSync(libNodeModules, path.join(binDir, "node_modules"), "dir")
@@ -93,8 +93,8 @@ test("install.sh partial uninstall preserves shared tm runtime", { timeout: 1200
   fs.mkdirSync(codexHome, { recursive: true })
   fs.mkdirSync(binDir, { recursive: true })
   fs.mkdirSync(libDir, { recursive: true })
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-manifest"), "# test manifest\n", "utf8")
-  fs.writeFileSync(path.join(codexHome, ".hyperpowers-version"), "test\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-manifest"), "# test manifest\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, ".xpowers-version"), "test\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm"), "#!/bin/sh\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync.js"), "sync\n", "utf8")
   fs.writeFileSync(path.join(binDir, "tm-linear-sync-config.js"), "config\n", "utf8")
@@ -139,7 +139,7 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   const stat = fs.lstatSync(nmPath)
   assert.equal(stat.isSymbolicLink(), true, "node_modules should be a symlink, not a directory")
   assert.equal(fs.readlinkSync(nmPath), path.join(libDir, "node_modules"))
-  const backupPath = path.join(binDir, "node_modules.hyperpowers-backup")
+  const backupPath = path.join(binDir, "node_modules.xpowers-backup")
   assert.equal(fs.existsSync(backupPath), true)
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
 })
@@ -157,10 +157,10 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
       "# Existing Pi Instructions",
       "Keep the user's original preface.",
       "",
-      "<!-- BEGIN HYPERPOWERS PI -->",
-      "# Hyperpowers for Pi",
+      "<!-- BEGIN XPOWERS PI -->",
+      "# XPowers for Pi",
       "Old installed content",
-      "<!-- END HYPERPOWERS PI -->",
+      "<!-- END XPOWERS PI -->",
       "",
       trailingNotes,
       "",
@@ -184,8 +184,8 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
 
   assert.equal(installResult.status, 0)
   const installedAgents = fs.readFileSync(agentsPath, "utf8")
-  assert.match(installedAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
-  assert.match(installedAgents, /# Hyperpowers for Pi/)
+  assert.match(installedAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.match(installedAgents, /# XPowers for Pi/)
   assert.match(installedAgents, /User notes without heading/)
   assert.match(installedAgents, /plain trailing text/)
 
@@ -198,8 +198,8 @@ test("pi installer preserves freeform trailing AGENTS.md content across reinstal
 
   assert.equal(uninstallResult.status, 0)
   const uninstalledAgents = fs.readFileSync(agentsPath, "utf8")
-  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN HYPERPOWERS PI -->/)
-  assert.doesNotMatch(uninstalledAgents, /# Hyperpowers for Pi/)
+  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.doesNotMatch(uninstalledAgents, /# XPowers for Pi/)
   assert.match(uninstalledAgents, /Keep the user's original preface\./)
   assert.match(uninstalledAgents, /User notes without heading/)
   assert.match(uninstalledAgents, /plain trailing text/)
@@ -214,7 +214,7 @@ test("pi installer rolls back AGENTS.md if a later Pi postInstall step fails", {
   const piShimPath = path.join(tmpBinDir, "pi")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const agentsPath = path.join(piHome, "AGENTS.md")
-  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const extDir = path.join(piHome, "extensions", "xpowers")
   const skillsPath = path.join(extDir, "skills")
   const originalAgents = "# Existing Pi Instructions\nKeep this untouched if install fails after AGENTS update.\n"
 
@@ -246,7 +246,7 @@ test("pi installer fails when dependency install tooling is unavailable", { time
   const piHome = path.join(home, ".pi", "agent")
   const piShimPath = path.join(tmpBinDir, "pi")
   const agentsPath = path.join(piHome, "AGENTS.md")
-  const extensionPath = path.join(piHome, "extensions", "hyperpowers")
+  const extensionPath = path.join(piHome, "extensions", "xpowers")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const originalAgents = "# Existing Pi Instructions\nKeep this untouched when install fails.\n"
 
@@ -303,7 +303,7 @@ test("pi installer rollback preserves pre-existing extension files on failure", 
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-existing-ext-bin-"))
   const piHome = path.join(home, ".pi", "agent")
   const piShimPath = path.join(tmpBinDir, "pi")
-  const extDir = path.join(piHome, "extensions", "hyperpowers")
+  const extDir = path.join(piHome, "extensions", "xpowers")
   const routingPath = path.join(extDir, "routing.json")
   const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
   const originalRouting = '{\n  "default": "existing-model"\n}\n'

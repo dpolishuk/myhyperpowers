@@ -57,7 +57,7 @@ Don't use when:
 <the_process>
 ## Step 1: Identify Independent Domains
 
-**Announce:** "I'm using hyperpowers:dispatching-parallel-agents to investigate these independent failures concurrently."
+**Announce:** "I'm using xpowers:dispatching-parallel-agents to investigate these independent failures concurrently."
 
 **Create checklist tracker:**
 ```
@@ -247,7 +247,7 @@ As agents work:
 **Run full test suite:**
 - Not just the fixed tests
 - Verify no regressions in other areas
-- Use hyperpowers:verification-before-completion skill
+- Use xpowers:verification-before-completion skill
 
 **Before completing:**
 ```bash
@@ -583,7 +583,7 @@ npm test
 2. Read the agent's summary - did they mention this change?
 3. Evaluate if change is correct but tests need updating
 4. Or if change broke something, need to refine the fix
-5. Use hyperpowers:verification-before-completion skill for final check
+5. Use xpowers:verification-before-completion skill for final check
 
 ---
 
@@ -643,10 +643,10 @@ Before completing parallel agent work:
 **This skill covers:** Parallel investigation of independent failures
 
 **Related skills:**
-- hyperpowers:debugging-with-tools (how to investigate individual failures)
-- hyperpowers:fixing-bugs (complete bug workflow)
-- hyperpowers:verification-before-completion (verify integration)
-- hyperpowers:test-runner (run tests without context pollution)
+- xpowers:debugging-with-tools (how to investigate individual failures)
+- xpowers:fixing-bugs (complete bug workflow)
+- xpowers:verification-before-completion (verify integration)
+- xpowers:test-runner (run tests without context pollution)
 
 **This skill uses:**
 - Task tool (dispatch parallel agents)
@@ -669,7 +669,7 @@ Review + check conflicts (Step 5)
     ↓
 Verify integration (Step 6)
     ↓
-hyperpowers:verification-before-completion
+xpowers:verification-before-completion
 ```
 
 **Real example from session (2025-10-03):**

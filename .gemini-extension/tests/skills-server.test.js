@@ -49,7 +49,7 @@ test('skills-server responds to initialize', async () => {
     assert.equal(response.id, 1);
     assert.ok(response.result);
     assert.equal(response.result.protocolVersion, '2024-11-05');
-    assert.equal(response.result.serverInfo.name, 'hyperpowers-skills');
+    assert.equal(response.result.serverInfo.name, 'xpowers-skills');
   } finally {
     server.kill();
   }

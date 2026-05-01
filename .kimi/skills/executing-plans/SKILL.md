@@ -42,7 +42,7 @@ Epic requirements are immutable. Tasks adapt to discoveries. Do not skip checkpo
 </quick_reference>
 
 <when_to_use>
-**Use after hyperpowers:writing-plans creates epic and first task.**
+**Use after xpowers:writing-plans creates epic and first task.**
 
 Symptoms you need this:
 - bd epic exists with tasks ready to execute
@@ -230,7 +230,7 @@ tm dep add bd-N bd-2 --type blocks
 
 **REQUIRED - Run SRE refinement on new task:**
 ```
-Use Skill tool: hyperpowers:sre-task-refinement
+Use Skill tool: xpowers:sre-task-refinement
 ```
 
 SRE refinement will:
@@ -270,7 +270,7 @@ tm show bd-1  # Check success criteria
 - [Remaining criteria]
 
 ### To Continue
-Run `/hyperpowers:execute-plan` to execute the next task.
+Run `/xpowers:execute-plan` to execute the next task.
 ```
 
 **Why STOP is mandatory:**
@@ -292,7 +292,7 @@ When all success criteria appear met:
 
 2. **REQUIRED - Use review-implementation skill:**
 ```
-Use Skill tool: hyperpowers:review-implementation
+Use Skill tool: xpowers:review-implementation
 ```
 
 Review-implementation will:
@@ -510,7 +510,7 @@ Continues directly to execute bd-3 without STOP checkpoint.
 - Remaining: password reset, rate limiting
 
 ### To Continue
-Run `/hyperpowers:execute-plan` to execute the next task.
+Run `/xpowers:execute-plan` to execute the next task.
 ```
 
 2. **STOP and wait for user**
@@ -609,18 +609,18 @@ Before closing epic:
 - finishing-a-development-branch (after review approves)
 
 **This skill is called by:**
-- User (via /hyperpowers:execute-plan command)
+- User (via /xpowers:execute-plan command)
 - After writing-plans creates epic
 - Explicitly to resume after checkpoint (user runs command again)
 
 **Agents used:**
-- hyperpowers:test-runner (run tests, return summary only)
+- xpowers:test-runner (run tests, return summary only)
 
 **Workflow pattern:**
 ```
-/hyperpowers:execute-plan → Execute task → STOP
+/xpowers:execute-plan → Execute task → STOP
 [User clears context, reviews]
-/hyperpowers:execute-plan → Execute next task → STOP
+/xpowers:execute-plan → Execute next task → STOP
 [Repeat until epic complete]
 ```
 

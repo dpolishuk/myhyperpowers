@@ -51,7 +51,7 @@ format_skill_reminder() {
   done
 
   echo ""
-  echo "📖 Use the Skill tool to activate: Skill command=\"hyperpowers:$skill\""
+  echo "📖 Use the Skill tool to activate: Skill command=\"xpowers:$skill\""
   echo ""
 }
 

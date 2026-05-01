@@ -97,7 +97,7 @@ const createTempRootWithConfig = async ({
 
   if (hpConfig) {
     await writeFile(
-      join(base.root, ".opencode", "hyperpowers-routing.json"),
+      join(base.root, ".opencode", "xpowers-routing.json"),
       JSON.stringify(hpConfig, null, 2),
       "utf8",
     )
@@ -517,7 +517,7 @@ test("task_model_routing_normalizes_prefixed_workflow_names", async () => {
     const output = {
       args: {
         prompt: "Run final validation",
-        workflow: "hyperpowers:execute-ralph",
+        workflow: "xpowers:execute-ralph",
         agent: "autonomous-reviewer",
       },
     }
@@ -582,7 +582,7 @@ test("task_model_routing_normalizes_prefixed_subagent_type_names", async () => {
     const output = {
       args: {
         prompt: "Run targeted verification",
-        subagent_type: "hyperpowers:test-runner",
+        subagent_type: "xpowers:test-runner",
       },
     }
 
@@ -967,7 +967,7 @@ test("first_dispatch_shows_routing_summary_toast_once", async () => {
       args: { prompt: "First task", agent: "ralph" },
     })
 
-    const summaryToasts = mock.toasts.filter((t) => t.title === "Hyperpowers Routing")
+    const summaryToasts = mock.toasts.filter((t) => t.title === "XPowers Routing")
     expect(summaryToasts.length).toBe(1)
     expect(summaryToasts[0].message).toContain("Agent Model Routing:")
 
@@ -976,7 +976,7 @@ test("first_dispatch_shows_routing_summary_toast_once", async () => {
       args: { prompt: "Second task", agent: "ralph" },
     })
 
-    const summaryToastsAfter = mock.toasts.filter((t) => t.title === "Hyperpowers Routing")
+    const summaryToastsAfter = mock.toasts.filter((t) => t.title === "XPowers Routing")
     expect(summaryToastsAfter.length).toBe(1) // Still just 1
   } finally {
     await cleanup()

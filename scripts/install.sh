@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Hyperpowers Unified Multi-Agent Installer
-# Detects installed AI coding agents and installs hyperpowers to all of them.
+# XPowers Unified Multi-Agent Installer
+# Detects installed AI coding agents and installs xpowers to all of them.
 # Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ error()   { echo -e "${RED}✗${RESET} $*" >&2; }
 
 header() {
   echo -e "${BOLD}╭─────────────────────────────────────────╮${RESET}"
-  printf  "${BOLD}│${RESET}  Hyperpowers Installer ${CYAN}v%-16s${RESET} ${BOLD}│${RESET}\n" "$VERSION"
+  printf  "${BOLD}│${RESET}  XPowers Installer ${CYAN}v%-16s${RESET} ${BOLD}│${RESET}\n" "$VERSION"
   echo -e "${BOLD}╰─────────────────────────────────────────╯${RESET}"
   echo
 }
@@ -181,10 +181,10 @@ copy_dirs() {
 }
 
 maybe_backup() {
-  # maybe_backup <target_dir> <backup_root>  — backup if .hyperpowers-version exists
+  # maybe_backup <target_dir> <backup_root>  — backup if .xpowers-version exists
   local target="$1" backup_root="$2"
-  if [[ -f "${target}/.hyperpowers-version" ]]; then
-    local old_ver; old_ver=$(cat "${target}/.hyperpowers-version")
+  if [[ -f "${target}/.xpowers-version" ]]; then
+    local old_ver; old_ver=$(cat "${target}/.xpowers-version")
     info "Upgrading ${old_ver} → ${VERSION}"
     backup_dir "$target" "$backup_root" >/dev/null
   fi
@@ -202,14 +202,14 @@ manifest_add() {
 }
 
 write_manifest() {
-  # write_manifest <agent_home>  — write .hyperpowers-manifest (overwrites)
+  # write_manifest <agent_home>  — write .xpowers-manifest (overwrites)
   local home="$1"
-  local manifest="${home}/.hyperpowers-manifest"
+  local manifest="${home}/.xpowers-manifest"
   if [[ "$DRY_RUN" == true ]]; then
     return 0
   fi
   {
-    echo "# .hyperpowers-manifest - installed by hyperpowers v${VERSION}"
+    echo "# .xpowers-manifest - installed by xpowers v${VERSION}"
     echo "# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '%s\n' "${MANIFEST_ENTRIES[@]}"
   } > "$manifest"
@@ -218,11 +218,11 @@ write_manifest() {
 uninstall_from_manifest() {
   # uninstall_from_manifest <agent_home>  — remove only manifest-listed entries
   local home="$1"
-  local manifest="${home}/.hyperpowers-manifest"
+  local manifest="${home}/.xpowers-manifest"
 
   if [[ ! -f "$manifest" ]]; then
     if [[ "$PURGE" == true ]]; then
-      # Legacy fallback: remove known hyperpowers directories without manifest
+      # Legacy fallback: remove known xpowers directories without manifest
       local count=0
       for dir in skills agents commands hooks plugins; do
         if [[ -d "${home}/${dir}" ]]; then
@@ -234,14 +234,14 @@ uninstall_from_manifest() {
           count=$((count + 1))
         fi
       done
-      for f in .hyperpowers-version .hyperpowers-manifest; do
+      for f in .xpowers-version .xpowers-manifest; do
         if [[ -f "${home}/${f}" ]]; then
           [[ "$DRY_RUN" != true ]] && rm -f "${home}/${f}"
           count=$((count + 1))
         fi
       done
       if [[ "$DRY_RUN" != true ]]; then
-        rm -rf "${home}/.hyperpowers-backups"
+        rm -rf "${home}/.xpowers-backups"
       fi
       if [[ "$DRY_RUN" == true ]]; then
         info "Dry run (legacy purge): would remove ${count} items from ${home}"
@@ -285,11 +285,11 @@ uninstall_from_manifest() {
 
   # Remove manifest and version
   rm -f "$manifest"
-  rm -f "${home}/.hyperpowers-version"
+  rm -f "${home}/.xpowers-version"
 
   # Purge: also remove backups
   if [[ "$PURGE" == true ]]; then
-    rm -rf "${home}/.hyperpowers-backups"
+    rm -rf "${home}/.xpowers-backups"
   fi
 
   info "Removed ${count} items from ${home}"
@@ -306,7 +306,7 @@ install_claude() {
   ensure_dir "${home}/agents"
   ensure_dir "${home}/commands"
   ensure_dir "${home}/hooks"
-  maybe_backup "$home" "${home}/.hyperpowers-backups"
+  maybe_backup "$home" "${home}/.xpowers-backups"
 
   # Skills (recursive copy of each skill dir)
   for d in "${REPO_ROOT}"/skills/*/; do
@@ -355,13 +355,13 @@ install_claude() {
   done
 
   # Status line script
-  copy_item "${REPO_ROOT}/scripts/hyperpowers-statusline.sh" "${home}/hyperpowers-statusline.sh"
-  chmod +x "${home}/hyperpowers-statusline.sh"
-  manifest_add "hyperpowers-statusline.sh"
+  copy_item "${REPO_ROOT}/scripts/xpowers-statusline.sh" "${home}/xpowers-statusline.sh"
+  chmod +x "${home}/xpowers-statusline.sh"
+  manifest_add "xpowers-statusline.sh"
 
   # Configure status line in settings.json if not already set
   local settings="${home}/settings.json"
-  local statusline_cmd="${home}/hyperpowers-statusline.sh"
+  local statusline_cmd="${home}/xpowers-statusline.sh"
   if [[ -f "$settings" ]]; then
     if ! python3 -c "import json; d=json.load(open('$settings')); assert d.get('statusline')" 2>/dev/null; then
       local tmp; tmp=$(mktemp)
@@ -388,8 +388,8 @@ with open('$tmp', 'w') as f:
     fi
   fi
 
-  manifest_add ".hyperpowers-version"
-  echo "${VERSION}" > "${home}/.hyperpowers-version"
+  manifest_add ".xpowers-version"
+  echo "${VERSION}" > "${home}/.xpowers-version"
   write_manifest "$home"
 
   # Offer to install memsearch for long-term memory
@@ -422,10 +422,10 @@ install_opencode() {
   ensure_dir "${home}/agents"
   ensure_dir "${home}/commands"
   ensure_dir "${home}/plugins"
-  maybe_backup "$home" "${home}/.hyperpowers-backups"
+  maybe_backup "$home" "${home}/.xpowers-backups"
 
-  # Skills (only hyperpowers-* prefixed — already curated in .opencode/skills/)
-  for d in "${REPO_ROOT}"/.opencode/skills/hyperpowers-*/; do
+  # Skills (only xpowers-* prefixed — already curated in .opencode/skills/)
+  for d in "${REPO_ROOT}"/.opencode/skills/xpowers-*/; do
     [[ -d "$d" ]] || continue
     local name; name="$(basename "$d")"
     copy_item "$d" "${home}/skills/${name}"
@@ -479,8 +479,8 @@ install_opencode() {
     fi
   done
 
-  manifest_add ".hyperpowers-version"
-  echo "${VERSION}" > "${home}/.hyperpowers-version"
+  manifest_add ".xpowers-version"
+  echo "${VERSION}" > "${home}/.xpowers-version"
   write_manifest "$home"
 
   # Offer to run routing wizard for agent model + effort setup
@@ -523,7 +523,7 @@ install_kimi() {
   local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
   MANIFEST_ENTRIES=()
   ensure_dir "${home}/skills"
-  maybe_backup "$home" "${home}/.hyperpowers-backups"
+  maybe_backup "$home" "${home}/.xpowers-backups"
 
   # Clean up old codex-* pollution from previous installs
   for old_codex in "${home}"/skills/codex-*/; do
@@ -549,7 +549,7 @@ install_kimi() {
   done
 
   # Main agent config
-  for f in hyperpowers.yaml hyperpowers-system.md; do
+  for f in xpowers.yaml xpowers-system.md; do
     if [[ -f "${REPO_ROOT}/.kimi/${f}" ]]; then
       copy_item "${REPO_ROOT}/.kimi/${f}" "${home}/${f}"
       manifest_add "${f}"
@@ -570,8 +570,8 @@ install_kimi() {
     warn "jq not found — MCP config not merged. Install jq and re-run."
   fi
 
-  manifest_add ".hyperpowers-version"
-  echo "${VERSION}" > "${home}/.hyperpowers-version"
+  manifest_add ".xpowers-version"
+  echo "${VERSION}" > "${home}/.xpowers-version"
   write_manifest "$home"
 }
 
@@ -596,7 +596,7 @@ install_codex() {
     home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
   fi
   ensure_dir "${home}/skills"
-  maybe_backup "$home" "${home}/.hyperpowers-backups"
+  maybe_backup "$home" "${home}/.xpowers-backups"
 
   # Source: read from canonical .kimi/skills/codex-* (NOT through .agents symlink)
   local source_base="${REPO_ROOT}/.kimi/skills"
@@ -623,8 +623,8 @@ install_codex() {
     return 1
   fi
 
-  manifest_add ".hyperpowers-version"
-  echo "${VERSION}" > "${home}/.hyperpowers-version"
+  manifest_add ".xpowers-version"
+  echo "${VERSION}" > "${home}/.xpowers-version"
   write_manifest "$home"
 }
 
@@ -666,7 +666,7 @@ validate_claude() {
   [[ -d "${home}/hooks/pre-tool-use" ]] || { warn "Claude: hooks/pre-tool-use/ missing"; ok=false; }
   local sk; sk=$(count_items "${home}/skills/*/")
   [[ "$sk" -ge 15 ]] || { warn "Claude: only ${sk} skills (expected 15+)"; ok=false; }
-  local vf="${home}/.hyperpowers-version"
+  local vf="${home}/.xpowers-version"
   [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Claude: version mismatch"; ok=false; }
   $ok
 }
@@ -679,7 +679,7 @@ validate_opencode() {
   # shellcheck disable=SC2012,SC2086
   local pl; pl=$(ls -1 ${home}/plugins/*.ts 2>/dev/null | wc -l)
   [[ "$pl" -ge 1 ]] || { warn "OpenCode: no plugins found"; ok=false; }
-  local vf="${home}/.hyperpowers-version"
+  local vf="${home}/.xpowers-version"
   [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "OpenCode: version mismatch"; ok=false; }
   $ok
 }
@@ -693,8 +693,8 @@ validate_kimi() {
   # shellcheck disable=SC2012,SC2086
   local codex_count; codex_count=$(ls -1d ${home}/skills/codex-*/ 2>/dev/null | wc -l)
   [[ "$codex_count" -eq 0 ]] || { warn "Kimi: found ${codex_count} codex-* dirs (should be 0)"; ok=false; }
-  [[ -f "${home}/hyperpowers.yaml" ]] || { warn "Kimi: hyperpowers.yaml missing"; ok=false; }
-  local vf="${home}/.hyperpowers-version"
+  [[ -f "${home}/xpowers.yaml" ]] || { warn "Kimi: xpowers.yaml missing"; ok=false; }
+  local vf="${home}/.xpowers-version"
   [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Kimi: version mismatch"; ok=false; }
   $ok
 }
@@ -709,14 +709,14 @@ validate_codex() {
   local ok=true
   local sk; sk=$(count_items "${home}/skills/codex-*/")
   [[ "$sk" -ge 5 ]] || { warn "Codex: only ${sk} codex skills (expected 5+)"; ok=false; }
-  local vf="${home}/.hyperpowers-version"
+  local vf="${home}/.xpowers-version"
   [[ -f "$vf" ]] && [[ "$(cat "$vf")" == "$VERSION" ]] || { warn "Codex: version mismatch"; ok=false; }
   $ok
 }
 
 validate_gemini() {
   if command -v gemini &>/dev/null; then
-    gemini extensions list 2>/dev/null | grep -q hyperpowers || {
+    gemini extensions list 2>/dev/null | grep -q xpowers || {
       warn "Gemini: extension not found in 'gemini extensions list'"
       return 1
     }
@@ -759,9 +759,9 @@ uninstall_codex() {
 uninstall_gemini() {
   if command -v gemini &>/dev/null; then
     if [[ "$DRY_RUN" == true ]]; then
-      info "Would run: gemini extensions uninstall hyperpowers"
+      info "Would run: gemini extensions uninstall xpowers"
     else
-      gemini extensions uninstall hyperpowers 2>/dev/null || true
+      gemini extensions uninstall xpowers 2>/dev/null || true
     fi
   fi
 }
@@ -771,7 +771,7 @@ uninstall_gemini() {
 # ---------------------------------------------------------------------------
 
 status_claude() {
-  local vf="${HOME}/.claude/.hyperpowers-version"
+  local vf="${HOME}/.claude/.xpowers-version"
   if [[ -f "$vf" ]]; then
     local iv; iv=$(cat "$vf")
     local sk; sk=$(count_items "${HOME}/.claude/skills/*/")
@@ -785,7 +785,7 @@ status_claude() {
 }
 
 status_opencode() {
-  local vf="${XDG_CFG}/opencode/.hyperpowers-version"
+  local vf="${XDG_CFG}/opencode/.xpowers-version"
   if [[ -f "$vf" ]]; then
     local iv; iv=$(cat "$vf")
     local sk; sk=$(count_items "${XDG_CFG}/opencode/skills/*/")
@@ -798,7 +798,7 @@ status_opencode() {
 
 status_kimi() {
   local home="${AGENT_PATHS[kimi]:-${XDG_CFG}/agents}"
-  local vf="${home}/.hyperpowers-version"
+  local vf="${home}/.xpowers-version"
   if [[ -f "$vf" ]]; then
     local iv; iv=$(cat "$vf")
     local sk; sk=$(count_items "${home}/skills/*/")
@@ -810,7 +810,7 @@ status_kimi() {
 
 status_codex() {
   local home="${AGENT_PATHS[codex]:-${HOME}/.codex}"
-  local vf="${home}/.hyperpowers-version"
+  local vf="${home}/.xpowers-version"
   if [[ -f "$vf" ]]; then
     local iv; iv=$(cat "$vf")
     local sk; sk=$(count_items "${home}/skills/codex-*/")
@@ -821,7 +821,7 @@ status_codex() {
 }
 
 status_gemini() {
-  if command -v gemini &>/dev/null && gemini extensions list 2>/dev/null | grep -q hyperpowers; then
+  if command -v gemini &>/dev/null && gemini extensions list 2>/dev/null | grep -q xpowers; then
     echo -e "  ${GREEN}✓${RESET} Gemini CLI     ${BOLD}installed${RESET}"
   else
     echo -e "  ${DIM}✗ Gemini CLI     not installed${RESET}"
@@ -868,7 +868,7 @@ install_tm_cli() {
     # Symlink node_modules so the sync script can find @linear/sdk
     # If a real directory already exists here, move it aside instead of deleting it.
     if [[ -d "${TM_BIN_DIR}/node_modules" ]] && [[ ! -L "${TM_BIN_DIR}/node_modules" ]]; then
-      local backup_path="${TM_BIN_DIR}/node_modules.hyperpowers-backup"
+      local backup_path="${TM_BIN_DIR}/node_modules.xpowers-backup"
       if [[ -e "$backup_path" ]]; then
         backup_path="${backup_path}-$(date +%s)"
       fi
@@ -921,7 +921,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Unified installer for Hyperpowers across all AI coding agents.
+Unified installer for XPowers across all AI coding agents.
 
 AGENTS:
     --claude            Install to Claude Code (~/.claude)
@@ -932,7 +932,7 @@ AGENTS:
     --all               Install to all detected agents
 
 MODES:
-    --uninstall         Remove hyperpowers from selected agents
+    --uninstall         Remove xpowers from selected agents
     --status            Show installation status for all agents
     --symlink           Use symlinks instead of copies (dev mode)
     --local             Install Codex skills to project (not global)
@@ -977,7 +977,7 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)    usage; exit 0 ;;
-      -v|--version) echo "hyperpowers $VERSION"; exit 0 ;;
+      -v|--version) echo "xpowers $VERSION"; exit 0 ;;
       --claude)     SELECTED_AGENTS+=(claude);   INTERACTIVE=false; shift ;;
       --opencode)   SELECTED_AGENTS+=(opencode); INTERACTIVE=false; shift ;;
       --kimi)       SELECTED_AGENTS+=(kimi);     INTERACTIVE=false; shift ;;

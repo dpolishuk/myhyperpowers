@@ -688,9 +688,9 @@ After advanced bd operations:
 - skills/common-patterns/bd-commands.md
 
 **Related skills:**
-- hyperpowers:writing-plans (creating epics and tasks)
-- hyperpowers:executing-plans (working through tasks)
-- hyperpowers:verification-before-completion (closing tasks properly)
+- xpowers:writing-plans (creating epics and tasks)
+- xpowers:executing-plans (working through tasks)
+- xpowers:verification-before-completion (closing tasks properly)
 
 **CRITICAL:** Use bd CLI commands, never read `.beads/issues.jsonl` directly.
 </integration>

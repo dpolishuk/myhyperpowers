@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Hyperpowers is a multi-host plugin for Claude Code, OpenCode, and Gemini CLI that provides structured workflows, best practices, and specialized agents for software development. It's a plugin system that adds skills (reusable workflows), slash commands (quick access to workflows), specialized agents (domain-specific task handlers), and hooks (automatic behaviors).
+XPowers is a multi-host plugin for Claude Code, OpenCode, and Gemini CLI that provides structured workflows, best practices, and specialized agents for software development. It's a plugin system that adds skills (reusable workflows), slash commands (quick access to workflows), specialized agents (domain-specific task handlers), and hooks (automatic behaviors).
 
 Inspired by [obra/superpowers](https://github.com/obra/superpowers).
 
@@ -115,7 +115,7 @@ Skills are detailed workflow instructions stored in `skills/*/SKILL.md`. Each sk
 
 Skills are invoked through slash commands that expand to prompts. The flow is:
 
-1. User types `/hyperpowers:write-plan`
+1. User types `/xpowers:write-plan`
 2. Command file (`commands/write-plan.md`) expands with instruction: "Use the writing-plans skill exactly as written"
 3. Claude uses the Skill tool to load `skills/writing-plans/SKILL.md`
 4. Claude follows the skill's detailed instructions
@@ -188,11 +188,11 @@ Skills reference these rather than duplicating content.
 
 Complete workflow from idea to PR:
 
-1. **Brainstorming** (`/hyperpowers:brainstorm`) - Socratic questioning to refine requirements
+1. **Brainstorming** (`/xpowers:brainstorm`) - Socratic questioning to refine requirements
 2. **SRE Task Refinement** (optional) - Uses Opus 4.1 to identify corner cases
-3. **Writing Plans** (`/hyperpowers:write-plan`) - Creates detailed bd epic with tasks
-4. **Executing Plans** (`/hyperpowers:execute-plan`) - Implements tasks continuously, updating bd
-5. **Review Implementation** (`/hyperpowers:review-implementation`) - Verifies against spec
+3. **Writing Plans** (`/xpowers:write-plan`) - Creates detailed bd epic with tasks
+4. **Executing Plans** (`/xpowers:execute-plan`) - Implements tasks continuously, updating bd
+5. **Review Implementation** (`/xpowers:review-implementation`) - Verifies against spec
 6. **Finishing Branch** - Creates PR, handles cleanup
 
 ### Test-Driven Development
@@ -267,16 +267,16 @@ When creating or modifying skills, use the `writing-skills` skill which applies 
 The plugin is published to the Claude Code marketplace:
 
 ```text
-/plugin marketplace add dpolishuk/myhyperpowers
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin marketplace add dpolishuk/xpowers
+/plugin install xpowers@xpowers --scope user
 ```
 
 If you have a legacy install, migrate to the current name:
 
 ```text
-/plugin uninstall withzombies-hyper@hyperpowers --scope user
-/plugin uninstall hyperpowers@hyperpowers --scope user
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin uninstall withzombies-hyper@xpowers --scope user
+/plugin uninstall xpowers@xpowers --scope user
+/plugin install xpowers@xpowers --scope user
 ```
 
 Version is tracked in `.claude-plugin/plugin.json`.

@@ -1,4 +1,4 @@
-# [myhyperpowers] recent context, 2026-04-21 3:54pm EDT
+# [xpowers] recent context, 2026-04-21 3:54pm EDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE

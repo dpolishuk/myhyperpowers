@@ -29,7 +29,7 @@ disallowedTools:
   Bash: false
   WebFetch: false
 ---
-> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+> 📚 See the main xpowers documentation: [Global README](../README.md)
 
 # Implementation Review Agent
 

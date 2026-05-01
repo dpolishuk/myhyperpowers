@@ -2,7 +2,7 @@
 
 > Back to [README](../README.md)
 
-Hyperpowers agents support per-agent model configuration using the `providerID/modelID` format. This allows you to:
+XPowers agents support per-agent model configuration using the `providerID/modelID` format. This allows you to:
 - Use different models for different agents (e.g., fast models for test-running, capable models for code review)
 - Configure multiple API providers simultaneously
 - Optimize costs by matching task complexity to model capability
@@ -48,7 +48,7 @@ This format eliminates ambiguity when multiple providers offer models with simil
 
 ## Configuration Methods
 
-This guide covers four common model-configuration patterns across Hyperpowers hosts and OpenCode usage.
+This guide covers four common model-configuration patterns across XPowers hosts and OpenCode usage.
 
 1. **Agent Frontmatter** - Set default model in the agent definition
 2. **OpenCode Config** - Override per-agent models in `opencode.json`
@@ -57,14 +57,14 @@ This guide covers four common model-configuration patterns across Hyperpowers ho
 
 ---
 
-## OpenCode Hyperpowers Direct Agent Routing Contract
+## OpenCode XPowers Direct Agent Routing Contract
 
-For Hyperpowers on OpenCode, **direct agent→model mapping** is the canonical routing model.
+For XPowers on OpenCode, **direct agent→model mapping** is the canonical routing model.
 
 - Global defaults use OpenCode’s native `agent.<agent>.model` shape.
-- Hyperpowers-specific workflow overrides are resolved at runtime for Hyperpowers task-tool dispatch paths.
+- XPowers-specific workflow overrides are resolved at runtime for XPowers task-tool dispatch paths.
 - Any plugin/options UX should edit the same underlying map, not a separate plugin-only state store.
-- The first plugin/options editing surface is the `hyperpowers_agent_routing_config` tool, which reads/writes project-root `opencode.json` directly.
+- The first plugin/options editing surface is the `xpowers_agent_routing_config` tool, which reads/writes project-root `opencode.json` directly.
 - The primary settings-like UX on top of that backend is the `/routing-settings` slash-command wizard.
 
 In short: plugin/options edit the same underlying map.
@@ -91,11 +91,11 @@ Examples of concrete agents you may route directly:
 - `autonomous-reviewer`
 - `code-reviewer`
 
-### Hyperpowers workflow overrides
+### XPowers workflow overrides
 
-Workflow-specific overrides are active for Hyperpowers task-tool dispatch paths in OpenCode.
+Workflow-specific overrides are active for XPowers task-tool dispatch paths in OpenCode.
 
-The active Hyperpowers-injected precedence is:
+The active XPowers-injected precedence is:
 
 1. Explicit workflow override for the concrete agent
 2. Global `agent.<agent>.model` mapping
@@ -106,7 +106,7 @@ Plugin/options edit the same underlying map as config.
 
 If a plugin exposes agent-routing controls, those controls should write back into the same routing model rather than maintaining separate hidden state.
 
-Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `hyperpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports five actions:
+Today, the practical plugin/options surface is `/routing-settings`, a plugin-owned settings-like UX layered over the `xpowers_agent_routing_config` tool from `.opencode/plugins/agent-routing-config.ts`. The tool supports five actions:
 
 - `get` — returns current routing state with `availableModels` (auto-detected from config), `agentGroups`, and available `presets`
 - `set` — update a single agent's model (global or workflow override)
@@ -134,7 +134,7 @@ Today, the practical plugin/options surface is `/routing-settings`, a plugin-own
 
 Presets read the user's top-level `model` and `small_model` values. If `small_model` is not set, all agents use `model`.
 
-See `docs/opencode.example.agent-routing.json` for the agent mapping example and `docs/opencode.example.hyperpowers-routing.json` for the workflow overrides example.
+See `docs/opencode.example.agent-routing.json` for the agent mapping example and `docs/opencode.example.xpowers-routing.json` for the workflow overrides example.
 
 For a terminal-first bootstrap flow that discovers live model names from `opencode models` and writes the same split-file routing contract, run:
 

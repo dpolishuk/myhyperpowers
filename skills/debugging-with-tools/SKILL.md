@@ -474,11 +474,11 @@ Before committing fix:
 - Any skill when encountering unexpected behavior
 
 **Agents used:**
-- hyperpowers:internet-researcher (search for error solutions)
-- hyperpowers:codebase-investigator (understand codebase context)
-- hyperpowers:knowledge-aggregator (find related issues, prior bugs, team discussions)
-- hyperpowers:devops (diagnose CI/CD failures, check pipeline health)
-- hyperpowers:test-runner (run tests, return summary only)
+- xpowers:internet-researcher (search for error solutions)
+- xpowers:codebase-investigator (understand codebase context)
+- xpowers:knowledge-aggregator (find related issues, prior bugs, team discussions)
+- xpowers:devops (diagnose CI/CD failures, check pipeline health)
+- xpowers:test-runner (run tests, return summary only)
 
 </integration>
 

@@ -1,21 +1,21 @@
-# Hyperpowers Gemini CLI Extension
+# XPowers Gemini CLI Extension
 
 A Gemini CLI extension that brings structured development workflows to Gemini CLI users.
 
-> 📚 **Looking for the main hyperpowers documentation?** See the [Global README](../README.md)
+> 📚 **Looking for the main xpowers documentation?** See the [Global README](../README.md)
 
 ## Features
 
-- **Skills**: Access 24+ hyperpowers skills (brainstorming, TDD, planning, etc.)
+- **Skills**: Access 24+ xpowers skills (brainstorming, TDD, planning, etc.)
 - **Agents**: Invoke specialized agents (test-runner, code-reviewer, etc.)
 - **Task Management**: Gemini-facing `tm` tools plus optional Linear sync
-- **Slash Commands**: Quick access to namespaced workflows (`/hyperpowers:brainstorm`, `/hyperpowers:write-plan`, `/hyperpowers:refactor-design`, etc.)
+- **Slash Commands**: Quick access to namespaced workflows (`/xpowers:brainstorm`, `/xpowers:write-plan`, `/xpowers:refactor-design`, etc.)
 
 ## Installation
 
 ### Prerequisites
 
-Before installing the hyperpowers extension, ensure you have:
+Before installing the xpowers extension, ensure you have:
 
 1. **Gemini CLI** installed
    ```bash
@@ -46,8 +46,8 @@ Before installing the hyperpowers extension, ensure you have:
 This is the preferred path for Gemini users on this branch because it installs the Gemini extension **and** provisions the shared `tm` runtime used by `tm sync`.
 
 ```bash
-git clone https://github.com/dpolishuk/myhyperpowers.git
-cd myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
 
 # Install Gemini support + shared tm runtime
 ./scripts/install.sh --gemini
@@ -59,8 +59,8 @@ cd myhyperpowers
 #### Option 2: Manual extension install (fallback)
 
 ```bash
-git clone https://github.com/dpolishuk/myhyperpowers.git
-cd myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
 
 # Install the extension manually
 gemini extensions install .gemini-extension
@@ -77,12 +77,12 @@ After installation, verify the extension is working:
 gemini extensions list
 
 # You should see:
-# hyperpowers 1.0.0
+# xpowers 1.0.0
 
 # Check available tools
 gemini tools
 
-# You should see hyperpowers tools like:
+# You should see xpowers tools like:
 # - skills_brainstorming
 # - skills_test_driven_development
 # - agent_test_runner
@@ -104,7 +104,7 @@ tm sync
 
 ```bash
 # Update to latest version
-gemini extensions update hyperpowers
+gemini extensions update xpowers
 
 # Or update all extensions
 gemini extensions update --all
@@ -113,7 +113,7 @@ gemini extensions update --all
 ### Uninstall
 
 ```bash
-gemini extensions uninstall hyperpowers
+gemini extensions uninstall xpowers
 ```
 
 ### Local Development
@@ -122,14 +122,14 @@ For contributing or customizing:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dpolishuk/myhyperpowers.git
-cd myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
 
 # Link for local development (changes reflect immediately)
 gemini extensions link .gemini-extension
 
 # To unlink:
-gemini extensions unlink hyperpowers
+gemini extensions unlink xpowers
 ```
 
 ## Usage
@@ -138,18 +138,18 @@ gemini extensions unlink hyperpowers
 
 Once installed, use these commands in Gemini CLI:
 
-- `/hyperpowers:brainstorm` - Start a brainstorming session
-- `/hyperpowers:write-plan` - Create implementation plans
-- `/hyperpowers:execute-plan` - Execute plans iteratively
-- `/hyperpowers:review-implementation` - Review code
-- `/hyperpowers:refactor-design` - Design safe refactors and test strategy
-- `/hyperpowers:refactor-diagnose` - Identify refactor targets and technical debt
-- `/hyperpowers:refactor-execute` - Execute refactors with controlled rollout
-- `/hyperpowers:tm-linear-setup` - Show the supported Gemini tm/Linear setup path for this branch
+- `/xpowers:brainstorm` - Start a brainstorming session
+- `/xpowers:write-plan` - Create implementation plans
+- `/xpowers:execute-plan` - Execute plans iteratively
+- `/xpowers:review-implementation` - Review code
+- `/xpowers:refactor-design` - Design safe refactors and test strategy
+- `/xpowers:refactor-diagnose` - Identify refactor targets and technical debt
+- `/xpowers:refactor-execute` - Execute refactors with controlled rollout
+- `/xpowers:tm-linear-setup` - Show the supported Gemini tm/Linear setup path for this branch
 
 ### Skills and Tools
 
-Skills are available through Gemini’s extension skill system, while MCP servers expose Gemini-callable tools. When you invoke hyperpowers, you can:
+Skills are available through Gemini’s extension skill system, while MCP servers expose Gemini-callable tools. When you invoke xpowers, you can:
 
 1. Use skills for structured guidance
 2. Invoke agents for specific tasks
@@ -226,4 +226,4 @@ MIT
 
 ## Contributing
 
-See the main hyperpowers repository for contribution guidelines.
+See the main xpowers repository for contribution guidelines.

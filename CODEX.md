@@ -1,4 +1,4 @@
-# Hyperpowers for Codex
+# XPowers for Codex
 
 This repo ships a Codex-adapted skill pack under `.agents/skills`.
 
@@ -8,7 +8,7 @@ This repo ships a Codex-adapted skill pack under `.agents/skills`.
 - Skills include a short Codex compatibility note explaining how to interpret
   Claude-specific terms (e.g., “Skill tool”, “TodoWrite”, “Task()”).
 - `dispatching-parallel-agents` now uses `spawn_agent` + `multi_tool_use.parallel`.
-- A new skill, `hyperpowers-agents`, maps the specialized agent prompts into Codex subagents.
+- A new skill, `xpowers-agents`, maps the specialized agent prompts into Codex subagents.
 
 ## Install locations (per Codex docs)
 
@@ -40,7 +40,7 @@ done
 
 - Ask for a skill by name in your prompt (e.g., “Use `test-driven-development`”).
 - Or rely on automatic skill matching using each SKILL’s description.
-- Use `hyperpowers-agents` when you want to spawn specialized subagents.
+- Use `xpowers-agents` when you want to spawn specialized subagents.
 
 ### Refactor Workflow Wrappers
 

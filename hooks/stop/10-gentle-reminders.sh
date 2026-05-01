@@ -85,11 +85,11 @@ if [ "$SHOW_TDD_REMINDER" = true ] || [ "$SHOW_VERIFY_REMINDER" = true ] || [ "$
     fi
 
     if [ "$SHOW_COMMIT_REMINDER" = true ]; then
-        echo "💾 Consider: $FILE_COUNT files edited - use hyperpowers:test-runner agent"
+        echo "💾 Consider: $FILE_COUNT files edited - use xpowers:test-runner agent"
     fi
 
     if [ "$SHOW_TEST_RUNNER_REMINDER" = true ]; then
-        echo "🚀 Tip: Use hyperpowers:test-runner agent for commits to keep verbose hook output out of context"
+        echo "🚀 Tip: Use xpowers:test-runner agent for commits to keep verbose hook output out of context"
     fi
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

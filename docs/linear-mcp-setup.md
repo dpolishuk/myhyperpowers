@@ -22,7 +22,7 @@ If you don't have a Linear account yet:
 
 ## Step 3: Configure tm sync
 
-If you are using OpenCode on this branch, from a Hyperpowers checkout run the unified installer first so the shared tm runtime is present:
+If you are using OpenCode on this branch, from a XPowers checkout run the unified installer first so the shared tm runtime is present:
 
 ```bash
 ./scripts/install.sh --opencode
@@ -109,7 +109,7 @@ Add to your project-root `opencode.json`:
 
 ### Gemini CLI
 
-For this branch, the preferred Gemini path is the unified installer from a Hyperpowers checkout:
+For this branch, the preferred Gemini path is the unified installer from a XPowers checkout:
 
 ```bash
 ./scripts/install.sh --gemini

@@ -53,7 +53,7 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
   })
 
   expect(result.status).toBe(0)
-  const extDir = path.join(home, ".pi", "agent", "extensions", "hyperpowers")
+  const extDir = path.join(home, ".pi", "agent", "extensions", "xpowers")
   const indexPath = path.join(extDir, "dist", "index.js")
 
   expect(existsSync(extDir)).toBe(true)
@@ -98,9 +98,9 @@ test("pi install writes extension and registers commands/tools at runtime", asyn
   expect(registeredCommands.has("routing-settings")).toBe(true)
   expect(registeredCommands.has("configure-routing")).toBe(true)
   expect(registeredCommands.has("tm")).toBe(true)
-  expect(registeredTools.has("hyperpowers_subagent")).toBe(true)
+  expect(registeredTools.has("xpowers_subagent")).toBe(true)
   expect(registeredTools.has("AskUserQuestion")).toBe(true)
-  expect(registeredTools.get("hyperpowers_subagent")?.parameters?.properties?.format).toBeTruthy()
+  expect(registeredTools.get("xpowers_subagent")?.parameters?.properties?.format).toBeTruthy()
   expect(observedEvents.has("session_start")).toBe(true)
 
   rmSync(home, { recursive: true, force: true })
@@ -135,8 +135,8 @@ test("pi AGENTS section is injected with install smoke run", () => {
   expect(result.status).toBe(0)
 
   const agents = readFileSync(path.join(piHome, "AGENTS.md"), "utf8")
-  expect(agents.includes("BEGIN HYPERPOWERS PI")).toBe(true)
-  expect(agents.includes("END HYPERPOWERS PI")).toBe(true)
+  expect(agents.includes("BEGIN XPOWERS PI")).toBe(true)
+  expect(agents.includes("END XPOWERS PI")).toBe(true)
 
   rmSync(home, { recursive: true, force: true })
   rmSync(binDir, { recursive: true, force: true })

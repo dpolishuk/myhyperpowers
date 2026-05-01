@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { HYPERPOWERS_AGENTS } from "./agent-routing-config"
+import { XPOWERS_AGENTS } from "./agent-routing-config"
 import { type EffortLevel, isValidEffort } from "./routing-wizard-core"
 import matter from "gray-matter"
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
@@ -48,7 +48,7 @@ type OpenCodeRoutingConfig = {
   agent?: Record<string, AgentModelSettings>
 }
 
-type HyperpowersRoutingConfig = {
+type XPowersRoutingConfig = {
   workflowOverrides?: WorkflowOverrideMap
 }
 
@@ -288,10 +288,10 @@ const formatContextPack = (entries: TaskMemoryEntry[], maxChars: number) => {
 
 const detectCommandIntent = (prompt: string): CommandIntent => {
   const normalized = prompt.toLowerCase()
-  if (/(?:\/hyperpowers:)?execute-ralph\b/.test(normalized) || /\bexecute-ralph\b/.test(normalized)) {
+  if (/(?:\/xpowers:)?execute-ralph\b/.test(normalized) || /\bexecute-ralph\b/.test(normalized)) {
     return "execute-ralph"
   }
-  if (/(?:\/hyperpowers:)?execute-plan\b/.test(normalized) || /\bexecute-plan\b/.test(normalized)) {
+  if (/(?:\/xpowers:)?execute-plan\b/.test(normalized) || /\bexecute-plan\b/.test(normalized)) {
     return "execute-plan"
   }
   return null
@@ -327,24 +327,24 @@ const loadOpenCodeRoutingConfig = async (
   }
 }
 
-const loadHyperpowersRoutingConfig = async (
+const loadXPowersRoutingConfig = async (
   configPath: string,
   errorLogPath: string,
   logLevel: "silent" | "warn",
-): Promise<HyperpowersRoutingConfig> => {
+): Promise<XPowersRoutingConfig> => {
   if (!existsSync(configPath)) return {}
   try {
     const raw = await readFile(configPath, "utf8")
     const parsed = JSON.parse(raw)
-    return asRecord(parsed) as HyperpowersRoutingConfig
+    return asRecord(parsed) as XPowersRoutingConfig
   } catch (error) {
     try {
       await appendStructuredLog(
         errorLogPath,
         {
           level: "warn",
-          source: "task-context-orchestrator.loadHyperpowersRoutingConfig",
-          message: "Failed to read or parse Hyperpowers routing configuration",
+          source: "task-context-orchestrator.loadXPowersRoutingConfig",
+          message: "Failed to read or parse XPowers routing configuration",
           configPath,
           error: error instanceof Error ? error.message : String(error),
         },
@@ -378,9 +378,9 @@ const detectWorkflowOverride = (
 
   const explicitWorkflow = normalizePrefixedLookupName(
     getString(args.workflow) ??
-      getString(args.hyperpowersWorkflow) ??
+      getString(args.xpowersWorkflow) ??
       getNestedString(args.metadata, "workflow") ??
-      getNestedString(args.metadata, "hyperpowersWorkflow"),
+      getNestedString(args.metadata, "xpowersWorkflow"),
   )
   if (explicitWorkflow) {
     const explicitMatch = findConfigEntry(workflowOverrides, explicitWorkflow)
@@ -452,8 +452,8 @@ const resolveTaskModel = async (
   if (!agentName) return null
 
   const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
-  const hpConfig = await loadHyperpowersRoutingConfig(
-    join(rootDir, ".opencode", "hyperpowers-routing.json"),
+  const hpConfig = await loadXPowersRoutingConfig(
+    join(rootDir, ".opencode", "xpowers-routing.json"),
     errorLogPath,
     logLevel,
   )
@@ -479,8 +479,8 @@ const resolveTaskEffort = async (
   if (!agentName) return null
 
   const config = await loadOpenCodeRoutingConfig(join(rootDir, "opencode.json"), errorLogPath, logLevel)
-  const hpConfig = await loadHyperpowersRoutingConfig(
-    join(rootDir, ".opencode", "hyperpowers-routing.json"),
+  const hpConfig = await loadXPowersRoutingConfig(
+    join(rootDir, ".opencode", "xpowers-routing.json"),
     errorLogPath,
     logLevel,
   )
@@ -587,7 +587,7 @@ const buildRoutingSummary = async (rootDir: string, errorLogPath: string, logLev
   const agentMap = asRecord(ocConfig.agent)
 
   const lines: string[] = ["Agent Model Routing:"]
-  for (const agent of HYPERPOWERS_AGENTS) {
+  for (const agent of XPOWERS_AGENTS) {
     const entry = asRecord(agentMap[agent])
     const model = getString(entry.model) ?? defaultModel
     const effort = getString(entry.effort)
@@ -734,7 +734,7 @@ const taskContextOrchestratorPlugin: Plugin = async (ctx) => {
         if (!shownRoutingSummary) {
           shownRoutingSummary = true
           const summary = await buildRoutingSummary(ctx.directory, errorLogPath, config.logLevel)
-          showToastSafe(ctx.client, "Hyperpowers Routing", summary)
+          showToastSafe(ctx.client, "XPowers Routing", summary)
         }
         showToastSafe(ctx.client, "Agent Dispatch", `${agentName} → ${displayModel}${effortLabel}`)
       }

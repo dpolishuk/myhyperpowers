@@ -39,7 +39,7 @@ Adapt implementation details to actual codebase state. Never use placeholders or
 </quick_reference>
 
 <when_to_use>
-**Use after hyperpowers:sre-task-refinement or anytime tasks need more detail.**
+**Use after xpowers:sre-task-refinement or anytime tasks need more detail.**
 
 Symptoms:
 - bd tasks have implementation checklists but need expansion
@@ -204,7 +204,7 @@ Epic ready for execution.
 ```
 
 **Offer execution choice:**
-"Ready to execute? I can use hyperpowers:executing-plans to implement iteratively."
+"Ready to execute? I can use xpowers:executing-plans to implement iteratively."
 
 </the_process>
 
@@ -463,11 +463,11 @@ Before finishing all tasks:
 - executing-plans (offered after all tasks expanded)
 
 **This skill is called by:**
-- User (via /hyperpowers:write-plan command)
+- User (via /xpowers:write-plan command)
 - After brainstorming creates epic
 
 **Agents used:**
-- hyperpowers:codebase-investigator (verify assumptions, report discrepancies)
+- xpowers:codebase-investigator (verify assumptions, report discrepancies)
 
 </integration>
 

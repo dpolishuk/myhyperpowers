@@ -54,7 +54,7 @@ test("test_opencode_install_docs_describe_installer_first_tm_path", () => {
   assert.equal(installDoc.includes("LINEAR_API_KEY"), true)
   assert.equal(installDoc.includes("LINEAR_TEAM_KEY"), true)
   assert.equal(installDoc.includes("Manual plugin setup alone does **not** provision the shared tm runtime"), true)
-  assert.equal(installDoc.includes("cd ~/.config/opencode/hyperpowers/.opencode"), true)
+  assert.equal(installDoc.includes("cd ~/.config/opencode/xpowers/.opencode"), true)
 })
 
 test("test_opencode_manual_fallback_does_not_claim_dot_opencode_is_canonical_config", () => {
@@ -70,7 +70,7 @@ test("test_opencode_linear_guide_mentions_installer_prerequisite", () => {
   const guide = read("docs/linear-mcp-setup.md")
 
   assert.equal(guide.includes("./scripts/install.sh --opencode"), true)
-  assert.equal(guide.includes("from a Hyperpowers checkout"), true)
+  assert.equal(guide.includes("from a XPowers checkout"), true)
   assert.equal(guide.includes("~/.local/bin/tm --help"), true)
 })
 
@@ -81,7 +81,7 @@ test("test_opencode_tm_linear_command_exists", () => {
   const command = fs.readFileSync(commandPath, "utf8")
   const textBlock = extractTextBlock(command)
 
-  assert.match(textBlock, /1\. From a Hyperpowers checkout, run `\.\/scripts\/install\.sh --opencode`/)
+  assert.match(textBlock, /1\. From a XPowers checkout, run `\.\/scripts\/install\.sh --opencode`/)
   assert.match(textBlock, /2\. Configure Linear credentials:/)
   assert.match(textBlock, /LINEAR_API_KEY/)
   assert.match(textBlock, /LINEAR_TEAM_KEY/)

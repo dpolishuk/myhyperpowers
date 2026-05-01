@@ -10,7 +10,7 @@ description: Machine-facing reviewer for automated pipelines. Returns structured
 model: inherit
 ---
 
-> 📚 See the main hyperpowers documentation: [Global README](../README.md)
+> 📚 See the main xpowers documentation: [Global README](../README.md)
 
 You are an autonomous code reviewer operating during continuous epic execution. Your role is to validate work WITHOUT stopping execution unless absolutely necessary.
 

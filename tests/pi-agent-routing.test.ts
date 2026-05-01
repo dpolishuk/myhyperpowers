@@ -2,7 +2,7 @@ import { test, expect } from "bun:test"
 
 import {
   DEFAULT_ROUTING_COMMENT,
-  HYPERPOWERS_AGENTS,
+  XPOWERS_AGENTS,
   normalizeRoutingConfig,
   resetAllAgentOverrides,
   resolveRoutingEntry,
@@ -11,7 +11,7 @@ import {
   withSubagentModel,
   withoutAgentOverride,
   type RoutingConfig,
-} from "../.pi/extensions/hyperpowers/routing"
+} from "../.pi/extensions/xpowers/routing"
 
 test("normalizeRoutingConfig preserves legacy subagent-only configs and adds defaults", () => {
   const config = normalizeRoutingConfig({
@@ -163,7 +163,7 @@ test("resolveRoutingEntry prefers agent effort over type effort", () => {
 })
 
 test("agent catalog exposes worker and reviewer routing targets", () => {
-  expect(HYPERPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
+  expect(XPOWERS_AGENTS.map((agent) => agent.name)).toEqual([
     "ralph",
     "planner",
     "code-reviewer",

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path"
 
 import {
   AGENT_GROUPS,
-  HYPERPOWERS_AGENTS,
+  XPOWERS_AGENTS,
   discoverOpencodeModels,
   executeRoutingAction,
   parseOpencodeModelsOutput,
@@ -25,7 +25,7 @@ const createTempRoot = async (config?: Record<string, unknown>, hpConfig?: Recor
 
   if (hpConfig) {
     await mkdir(join(root, ".opencode"), { recursive: true })
-    await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpConfig, null, 2), "utf8")
+    await writeFile(join(root, ".opencode", "xpowers-routing.json"), JSON.stringify(hpConfig, null, 2), "utf8")
   }
 
   return {
@@ -112,7 +112,7 @@ test("planRecommendedRouting with no effort params leaves effort undefined", () 
   })
 
   // When effort is not specified, agents should not have an effort field
-  for (const agentName of HYPERPOWERS_AGENTS) {
+  for (const agentName of XPOWERS_AGENTS) {
     expect(plan.agent[agentName].effort).toBeUndefined()
   }
 
@@ -167,7 +167,7 @@ test("writeRecommendedRoutingPlan writes effort to opencode.json when specified"
     await writeRecommendedRoutingPlan(root, plan)
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
 
     // Agents with explicit effort should have it persisted
     expect(ocPersisted.agent.ralph.effort).toBe("high")
@@ -310,7 +310,7 @@ test("writeRecommendedRoutingPlan preserves unrelated config and verifyRecommend
     await writeRecommendedRoutingPlan(root, plan)
     const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
 
     expect(verify.ok).toBe(true)
     expect(ocPersisted.provider.openrouter.apiKey).toBe("{env:OPENROUTER_API_KEY}")
@@ -418,9 +418,9 @@ test("verifyRecommendedRoutingPlan detects effort drift in workflow overrides", 
       await writeRecommendedRoutingPlan(root, plan)
 
       // Tamper with persisted workflow override effort
-      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
       hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].effort = "low"
-      await writeFile(join(root, ".opencode", "hyperpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
+      await writeFile(join(root, ".opencode", "xpowers-routing.json"), JSON.stringify(hpPersisted, null, 2), "utf8")
 
       const verify = await verifyRecommendedRoutingPlan(root, plan, discoveredModels)
 
@@ -488,7 +488,7 @@ test("CLI bootstrap script generates canonical routing files from discovered mod
 
       const snapshot = await executeRoutingAction(root, { action: "get" })
       const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+      const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
 
       expect(snapshot.ok).toBe(true)
       if (!snapshot.ok) throw new Error("expected routing snapshot")
@@ -633,7 +633,7 @@ test("CLI --yes with effort flags writes effort to config", async () => {
     expect(result.status).toBe(0)
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
 
     // Orchestrator gets strongEffort
     expect(ocPersisted.agent.ralph.effort).toBe("high")
@@ -743,7 +743,7 @@ test.skip("CLI interactive flow writes config after explicit confirmation (skipp
     expect(result.stdout.includes("Verified routing state:")).toBe(true)
 
     const ocPersisted = JSON.parse(await readFile(join(root, "opencode.json"), "utf8"))
-    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "hyperpowers-routing.json"), "utf8"))
+    const hpPersisted = JSON.parse(await readFile(join(root, ".opencode", "xpowers-routing.json"), "utf8"))
 
     expect(ocPersisted.agent["test-runner"].model).toBe("anthropic/claude-haiku-4-5")
     expect(hpPersisted.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model).toBe(

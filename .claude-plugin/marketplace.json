@@ -1,6 +1,6 @@
 {
-  "name": "myhyperpowers",
-  "description": "Development marketplace for MyHyperpowers core skills library",
+  "name": "xpowers",
+  "description": "Development marketplace for XPowers core skills library",
   "metadata": {
     "description": "A curated collection of skills, agents, hooks, and commands that provide structured workflows and best practices for Claude Code as a software development assistant. Inspired by obra/superpowers, this plugin enforces TDD, systematic debugging, verification-before-completion, and integrates with beads_viewer for task management."
   },
@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "myhyperpowers",
+      "name": "xpowers",
       "description": "Ryan's riff on obra/superpowers: strong guidance for Claude Code as a software development assistant",
       "version": "2.12.1",
       "source": "./",

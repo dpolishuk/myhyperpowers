@@ -107,7 +107,7 @@ class BdMCPServer {
           tools: {}
         },
         serverInfo: {
-          name: 'hyperpowers-bd',
+          name: 'xpowers-bd',
           version: '1.0.0'
         }
       }

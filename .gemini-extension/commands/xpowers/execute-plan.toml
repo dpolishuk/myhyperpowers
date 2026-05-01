@@ -1,0 +1,7 @@
+description = "Execute planned work iteratively"
+
+prompt = """
+Use your xpowers:executing-plans skill.
+
+{{args}}
+"""

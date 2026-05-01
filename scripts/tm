@@ -3,7 +3,7 @@ set -euo pipefail
 
 # tm - Abstract Task Manager CLI
 # Routes commands to the configured backend (bd by default).
-# Part of the Hyperpowers plugin system.
+# Part of the XPowers plugin system.
 
 TM_VERSION="0.1.0"
 

@@ -116,11 +116,11 @@ tm dep tree bd-1
 
 ## Commit Message Format
 
-Reference bd task IDs in commits (use hyperpowers:test-runner agent):
+Reference bd task IDs in commits (use xpowers:test-runner agent):
 
 ```bash
 # Use test-runner agent to avoid pre-commit hook pollution
-Dispatch hyperpowers:test-runner agent: "Run: git add <files> && git commit -m 'feat(bd-3): implement feature
+Dispatch xpowers:test-runner agent: "Run: git add <files> && git commit -m 'feat(bd-3): implement feature
 
 Implements step 1 of bd-3: Task Name
 '"

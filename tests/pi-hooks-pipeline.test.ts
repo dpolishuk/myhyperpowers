@@ -1,5 +1,5 @@
 import { test, expect, mock } from "bun:test"
-import { registerHooksPipeline } from "../.pi/extensions/hyperpowers/hooks-pipeline"
+import { registerHooksPipeline } from "../.pi/extensions/xpowers/hooks-pipeline"
 
 test("hooks pipeline registers session_start event", () => {
   const piMock: any = {

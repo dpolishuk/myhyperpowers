@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document covers how to run tests across the different components of Hyperpowers.
+This document covers how to run tests across the different components of XPowers.
 
 ## Node.js Built-in Test Runner
 

@@ -45,7 +45,7 @@ MEDIUM FREEDOM - Follow the 5-phase analysis process exactly. Categorization cri
 **bd Integration (MANDATORY):**
 - Create bd epic for test quality improvement
 - Create bd tasks for: remove RED, strengthen YELLOW, add corner cases
-- Run hyperpowers:sre-task-refinement on all tasks
+- Run xpowers:sre-task-refinement on all tasks
 - Link tasks to epic with dependencies
 
 **Mutation Testing Validation:**
@@ -60,19 +60,19 @@ MEDIUM FREEDOM - Follow the 5-phase analysis process exactly. Categorization cri
 - Suspecting coverage gaming or tautological tests
 - Before major refactoring (ensure tests catch regressions)
 - Onboarding to unfamiliar codebase (assess test quality)
-- After hyperpowers:review-implementation flags test quality issues
+- After xpowers:review-implementation flags test quality issues
 - Planning test improvement initiatives
 
 **Don't use when:**
-- Writing new tests (use hyperpowers:test-driven-development)
-- Debugging test failures (use hyperpowers:debugging-with-tools)
-- Just need to run tests (use hyperpowers:test-runner agent)
+- Writing new tests (use xpowers:test-driven-development)
+- Debugging test failures (use xpowers:debugging-with-tools)
+- Just need to run tests (use xpowers:test-runner agent)
 </when_to_use>
 
 <the_process>
 ## Announcement
 
-**Announce:** "I'm using hyperpowers:analyzing-test-effectiveness to audit test quality with Google Fellow SRE-level scrutiny."
+**Announce:** "I'm using xpowers:analyzing-test-effectiveness to audit test quality with Google Fellow SRE-level scrutiny."
 
 ---
 
@@ -664,9 +664,9 @@ EOF
 **MANDATORY:** After creating bd tasks, run SRE task refinement:
 
 ```
-Announce: "I'm using hyperpowers:sre-task-refinement to review these test improvement tasks."
+Announce: "I'm using xpowers:sre-task-refinement to review these test improvement tasks."
 
-Use Skill tool: hyperpowers:sre-task-refinement
+Use Skill tool: xpowers:sre-task-refinement
 ```
 
 Apply all 8 categories to each task, especially:
@@ -810,7 +810,7 @@ bd-1 (Epic: Test Quality Improvement)
 
 ## SRE Task Refinement Status
 
-- [ ] All tasks reviewed with hyperpowers:sre-task-refinement
+- [ ] All tasks reviewed with xpowers:sre-task-refinement
 - [ ] Category 8 (Test Meaningfulness) applied to each task
 - [ ] Success criteria are measurable
 - [ ] Anti-patterns specified
@@ -818,7 +818,7 @@ bd-1 (Epic: Test Quality Improvement)
 ## Next Steps
 
 1. Run `tm ready` to see tasks ready for implementation
-2. Implement tasks using hyperpowers:executing-plans
+2. Implement tasks using xpowers:executing-plans
 3. Run validation task to verify improvements
 ```
 </the_process>
@@ -978,7 +978,7 @@ test('service accepts valid data', () => {
 7. **Self-review before finalizing** → Challenge every GREEN classification
 8. **Mutation testing validates improvements** → Coverage alone is vanity metric
 9. **All findings tracked in bd** → Create epic + tasks for every issue found
-10. **SRE refinement on all tasks** → Run hyperpowers:sre-task-refinement before execution
+10. **SRE refinement on all tasks** → Run xpowers:sre-task-refinement before execution
 
 ## Common Analysis Failures
 
@@ -1039,7 +1039,7 @@ Before completing analysis:
 - [ ] Created bd tasks for each category (remove, strengthen, add)
 - [ ] Linked tasks to epic with parent-child relationships
 - [ ] Set task dependencies (remove → strengthen → add → validate)
-- [ ] Ran hyperpowers:sre-task-refinement on ALL tasks
+- [ ] Ran xpowers:sre-task-refinement on ALL tasks
 - [ ] Created validation task with mutation testing
 
 **SRE Refinement Verification:**
@@ -1056,14 +1056,14 @@ Before completing analysis:
 
 <integration>
 **This skill is called by:**
-- hyperpowers:review-implementation (when test quality issues flagged)
+- xpowers:review-implementation (when test quality issues flagged)
 - User request to audit test quality
 - Before major refactoring efforts
 
 **This skill calls (MANDATORY):**
-- hyperpowers:sre-task-refinement (for ALL bd tasks created)
-- hyperpowers:test-runner agent (to run tests during analysis)
-- hyperpowers:test-effectiveness-analyst agent (for detailed analysis)
+- xpowers:sre-task-refinement (for ALL bd tasks created)
+- xpowers:test-runner agent (to run tests during analysis)
+- xpowers:test-effectiveness-analyst agent (for detailed analysis)
 
 **This skill creates:**
 - bd epic for test quality improvement
@@ -1082,8 +1082,8 @@ review-implementation (verifies quality)
 ```
 
 **This skill informs:**
-- hyperpowers:sre-task-refinement (test specifications in plans)
-- hyperpowers:test-driven-development (what makes a good test)
+- xpowers:sre-task-refinement (test specifications in plans)
+- xpowers:test-driven-development (what makes a good test)
 
 **Mutation testing tools:**
 - Java: [Pitest](https://pitest.org/) (`mvn org.pitest:pitest-maven:mutationCoverage`)

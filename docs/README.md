@@ -1,8 +1,8 @@
 # Documentation Index
 
-This directory contains deeper guides and example configuration for Hyperpowers.
+This directory contains deeper guides and example configuration for XPowers.
 
-Hyperpowers is **tm-first** on this branch: use `tm` as the day-to-day task-management interface, then consult the docs below for setup, backend detail, and integrations.
+XPowers is **tm-first** on this branch: use `tm` as the day-to-day task-management interface, then consult the docs below for setup, backend detail, and integrations.
 
 ## Core Setup & Workflow Guides
 
@@ -77,13 +77,13 @@ GLM models with optimized agent assignments:
 - Assign different providers to different agents
 - Mix official and third-party providers
 
-#### `opencode.example.agent-routing.json` + `opencode.example.hyperpowers-routing.json`
-**Hyperpowers direct-routing contract example.** Shows how to:
+#### `opencode.example.agent-routing.json` + `opencode.example.xpowers-routing.json`
+**XPowers direct-routing contract example.** Shows how to:
 
-- Map models directly to concrete Hyperpowers agents with the canonical `agent` key in `opencode.json`
+- Map models directly to concrete XPowers agents with the canonical `agent` key in `opencode.json`
 - Keep plugin/options editing aligned to the same underlying routing map
-- Store workflow overrides in `.opencode/hyperpowers-routing.json` (see the active `workflowOverrides` shape for Hyperpowers task-tool dispatch paths)
-- Use the `hyperpowers_agent_routing_config` plugin tool to read/write the routing map
+- Store workflow overrides in `.opencode/xpowers-routing.json` (see the active `workflowOverrides` shape for XPowers task-tool dispatch paths)
+- Use the `xpowers_agent_routing_config` plugin tool to read/write the routing map
 - Use `/routing-settings` as the primary settings-like UX for managing those routing values
 
 ### How to Use (OpenCode)
@@ -98,7 +98,7 @@ cp docs/opencode.example.anthropic.json opencode.json
 cp docs/opencode.example.glm.json opencode.json
 # or for multi-provider
 cp docs/opencode.example.multi-provider.json opencode.json
-# or for the direct Hyperpowers routing contract example
+# or for the direct XPowers routing contract example
 cp docs/opencode.example.agent-routing.json opencode.json
 ```
 
@@ -106,7 +106,7 @@ cp docs/opencode.example.agent-routing.json opencode.json
 
 3. **Restart** OpenCode to apply changes
 
-For plugin/options-driven edits, use `/routing-settings` as the primary settings-like UX. It is a plugin-owned workflow over the shared routing backend. That command uses the `hyperpowers_agent_routing_config` tool under the hood, so it reads/updates the same routing map (`opencode.json` for agent mappings, `.opencode/hyperpowers-routing.json` for workflow overrides) instead of storing separate plugin state.
+For plugin/options-driven edits, use `/routing-settings` as the primary settings-like UX. It is a plugin-owned workflow over the shared routing backend. That command uses the `xpowers_agent_routing_config` tool under the hood, so it reads/updates the same routing map (`opencode.json` for agent mappings, `.opencode/xpowers-routing.json` for workflow overrides) instead of storing separate plugin state.
 
 ### Agent Frontmatter Configuration
 
@@ -134,9 +134,9 @@ model: anthropic/claude-haiku-4-5  # Full providerID/modelID
 
 **Precedence order:**
 
-For Hyperpowers task-tool dispatch paths:
+For XPowers task-tool dispatch paths:
 
-1. `.opencode/hyperpowers-routing.json` → `workflowOverrides.<workflow>.<name>.model` (highest)
+1. `.opencode/xpowers-routing.json` → `workflowOverrides.<workflow>.<name>.model` (highest)
 2. `opencode.json` → `agent.<name>.model`
 3. Agent frontmatter → `model` field
 4. Otherwise leave `model` unset so native OpenCode inheritance, top-level `model`, and provider defaults can apply
@@ -244,7 +244,7 @@ Agents in Claude Code inherit models through environment variable mappings:
 | `model: opus` | `ANTHROPIC_DEFAULT_OPUS_MODEL` | `glm-4.7` |
 | `model: inherit` | User's current model selection | Your choice |
 
-**Important:** Hyperpowers agents use `model: inherit`, so they follow your current model selection. To customize, either:
+**Important:** XPowers agents use `model: inherit`, so they follow your current model selection. To customize, either:
 - Change your current model in Claude Code settings
 - Set env mappings to redirect haiku/sonnet/opus to your preferred models
 

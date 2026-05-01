@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Hyperpowers
+about: Suggest an idea for XPowers
 title: "[FEATURE] "
 labels: feature
 assignees: ''

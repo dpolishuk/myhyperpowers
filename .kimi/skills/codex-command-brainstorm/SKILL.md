@@ -20,7 +20,7 @@ This skill wraps the source file `commands/brainstorm.md` for Codex Skills compa
 description: Interactive design refinement using Socratic method
 ---
 
-Use the hyperpowers:brainstorming skill exactly as written.
+Use the xpowers:brainstorming skill exactly as written.
 
 Topic: $ARGUMENTS
 

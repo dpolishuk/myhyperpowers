@@ -14,8 +14,8 @@ test("model configuration docs define direct agent routing as the canonical Open
   assert.equal(docs.includes("`agent.<agent>.model`"), true)
   assert.equal(hasLegacyAgentsKey(docs), false)
   assert.equal(docs.includes("plugin/options edit the same underlying map"), true)
-  assert.equal(docs.includes("resolved at runtime for Hyperpowers task-tool dispatch paths"), true)
-  assert.equal(docs.includes("The active Hyperpowers-injected precedence is:"), true)
+  assert.equal(docs.includes("resolved at runtime for XPowers task-tool dispatch paths"), true)
+  assert.equal(docs.includes("The active XPowers-injected precedence is:"), true)
   assert.equal(docs.includes("1. Explicit workflow override for the concrete agent"), true)
   assert.equal(docs.includes("2. Global `agent.<agent>.model` mapping"), true)
   assert.equal(docs.includes("3. Agent frontmatter `model`"), true)
@@ -29,8 +29,8 @@ test("OpenCode install docs describe config and plugin options as peers over one
   assert.equal(installDoc.includes("plugin/options"), true)
   assert.equal(installDoc.includes("same underlying map"), true)
   assert.equal(installDoc.includes("cp docs/opencode.example.agent-routing.json opencode.json"), true)
-  assert.equal(installDoc.includes("active for Hyperpowers task-tool dispatch paths"), true)
-  assert.equal(installDoc.includes("hyperpowers_agent_routing_config"), true)
+  assert.equal(installDoc.includes("active for XPowers task-tool dispatch paths"), true)
+  assert.equal(installDoc.includes("xpowers_agent_routing_config"), true)
   assert.equal(installDoc.includes("agent-routing-config.ts"), true)
 })
 
@@ -41,7 +41,7 @@ test("dedicated OpenCode agent-routing example exists with global defaults", () 
   const example = JSON.parse(fs.readFileSync(examplePath, "utf8"))
   assert.ok(example.agent)
   assert.equal(example.agents, undefined)
-  assert.equal(example.hyperpowers, undefined, "hyperpowers key must not appear in opencode.json examples")
+  assert.equal(example.xpowers, undefined, "xpowers key must not appear in opencode.json examples")
   assert.equal(typeof example.agent.ralph.model, "string")
   assert.equal(typeof example.agent["test-runner"].model, "string")
   assert.equal(typeof example.agent["code-reviewer"].model, "string")
@@ -50,13 +50,13 @@ test("dedicated OpenCode agent-routing example exists with global defaults", () 
   assert.equal(typeof example.agent["autonomous-reviewer"].model, "string")
 })
 
-test("separate hyperpowers routing example exists with workflow overrides", () => {
-  const hpExamplePath = path.join(repoRoot, "docs", "opencode.example.hyperpowers-routing.json")
+test("separate xpowers routing example exists with workflow overrides", () => {
+  const hpExamplePath = path.join(repoRoot, "docs", "opencode.example.xpowers-routing.json")
   assert.equal(fs.existsSync(hpExamplePath), true)
 
   const hpExample = JSON.parse(fs.readFileSync(hpExamplePath, "utf8"))
   assert.ok(hpExample.workflowOverrides)
-  assert.equal(hpExample.comment.includes("active for Hyperpowers task-tool dispatch paths"), true)
+  assert.equal(hpExample.comment.includes("active for XPowers task-tool dispatch paths"), true)
   assert.equal(typeof hpExample.workflowOverrides["execute-ralph"]["autonomous-reviewer"].model, "string")
 })
 
@@ -90,7 +90,7 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   const modelConfig = read("docs/model-configuration.md")
 
   assert.equal(
-    docsReadme.includes("1. `.opencode/hyperpowers-routing.json` → `workflowOverrides.<workflow>.<name>.model` (highest)"),
+    docsReadme.includes("1. `.opencode/xpowers-routing.json` → `workflowOverrides.<workflow>.<name>.model` (highest)"),
     true,
   )
   assert.equal(docsReadme.includes("2. `opencode.json` → `agent.<name>.model`"), true)
@@ -104,7 +104,7 @@ test("OpenCode docs README matches the canonical precedence and examples list", 
   assert.equal(docsReadme.includes("canonical `agent` key"), true)
   assert.equal(docsReadme.includes("same underlying routing map") || docsReadme.includes("same routing map"), true)
   assert.equal(docsReadme.includes("active `workflowOverrides` shape"), true)
-  assert.equal(docsReadme.includes("hyperpowers_agent_routing_config"), true)
+  assert.equal(docsReadme.includes("xpowers_agent_routing_config"), true)
   assert.equal(docsReadme.includes("/models"), true)
   assert.equal(modelConfig.includes("/models"), true)
 })
@@ -117,7 +117,7 @@ test("OpenCode plugin source registers the routing config tool and writes openco
 
   const pluginSource = fs.readFileSync(pluginPath, "utf8")
   const coreSource = fs.readFileSync(corePath, "utf8")
-  assert.equal(/hyperpowers_agent_routing_config/.test(pluginSource), true)
+  assert.equal(/xpowers_agent_routing_config/.test(pluginSource), true)
   assert.equal(/enum\(\["get",\s*"set",\s*"set-group",\s*"apply-preset",\s*"bootstrap"\]\)/.test(pluginSource), true)
   assert.equal(/executeRoutingAction/.test(pluginSource), true)
   assert.equal(/action\s*===\s*"get"/.test(coreSource), true)
@@ -129,15 +129,15 @@ test("OpenCode routing settings command delegates to skill and skill contains ro
   assert.equal(fs.existsSync(commandPath), true)
 
   const commandSource = fs.readFileSync(commandPath, "utf8")
-  assert.equal(commandSource.includes("skills_hyperpowers_routing_settings"), true)
+  assert.equal(commandSource.includes("skills_xpowers_routing_settings"), true)
 
-  const skillPath = path.join(repoRoot, ".opencode", "skills", "hyperpowers-routing-settings", "SKILL.md")
+  const skillPath = path.join(repoRoot, ".opencode", "skills", "xpowers-routing-settings", "SKILL.md")
   assert.equal(fs.existsSync(skillPath), true)
 
   const skillSource = fs.readFileSync(skillPath, "utf8")
-  assert.equal(skillSource.includes("name: hyperpowers-routing-settings"), true)
+  assert.equal(skillSource.includes("name: xpowers-routing-settings"), true)
   assert.equal(skillSource.includes("plugin-owned settings workflow"), true)
-  assert.equal(skillSource.includes("hyperpowers_agent_routing_config"), true)
+  assert.equal(skillSource.includes("xpowers_agent_routing_config"), true)
   assert.equal(skillSource.includes("action=get"), true)
   assert.equal(skillSource.includes("action=set"), true)
   assert.equal(skillSource.includes("action=set-group"), true)
@@ -157,7 +157,7 @@ test("OpenCode routing settings command delegates to skill and skill contains ro
 })
 
 test("routing settings skill documents all action flows", () => {
-  const skillSource = read(".opencode/skills/hyperpowers-routing-settings/SKILL.md")
+  const skillSource = read(".opencode/skills/xpowers-routing-settings/SKILL.md")
 
   assert.equal(skillSource.includes("Bootstrap"), true)
   assert.equal(skillSource.includes("Set a single agent"), true)
@@ -180,7 +180,7 @@ test("OpenCode CLI routing wizard script exists and uses the canonical split-fil
   const scriptSource = fs.readFileSync(scriptPath, "utf8")
   assert.equal(scriptSource.includes("opencode models"), true)
   assert.equal(scriptSource.includes("opencode.json"), true)
-  assert.equal(scriptSource.includes(".opencode/hyperpowers-routing.json"), true)
+  assert.equal(scriptSource.includes(".opencode/xpowers-routing.json"), true)
   assert.equal(scriptSource.includes("routing-wizard-core"), true)
 })
 

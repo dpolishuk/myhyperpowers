@@ -2,7 +2,7 @@
 /**
  * MCP Server: Skills
  * 
- * Exposes hyperpowers skills as Gemini CLI tools via Model Context Protocol.
+ * Exposes xpowers skills as Gemini CLI tools via Model Context Protocol.
  * This server scans the skills/ directory and provides tools for each SKILL.md file.
  */
 
@@ -148,7 +148,7 @@ class SkillsMCPServer {
           tools: {}
         },
         serverInfo: {
-          name: 'hyperpowers-skills',
+          name: 'xpowers-skills',
           version: '1.0.0'
         }
       }

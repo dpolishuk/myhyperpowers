@@ -1,5 +1,5 @@
 import { test, expect, mock } from "bun:test"
-import initExtension from "../.pi/extensions/hyperpowers/index.js"
+import initExtension from "../.pi/extensions/xpowers/index.js"
 
 test("update_brainstorm_state is registered with optional schema parameters", () => {
   let brainstormTool: any

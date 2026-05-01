@@ -35,10 +35,10 @@ const shouldBlockBash = (command: string) => {
 }
 
 const deny = (reason: string) => {
-  throw new Error(`Hyperpowers safety guardrail: ${reason}`)
+  throw new Error(`XPowers safety guardrail: ${reason}`)
 }
 
-const hyperpowersOpencodePlugin: Plugin = async () => {
+const xpowersOpencodePlugin: Plugin = async () => {
   return {
     "tool.execute.before": async (input, output) => {
       const tool = input.tool
@@ -66,4 +66,4 @@ const hyperpowersOpencodePlugin: Plugin = async () => {
   }
 }
 
-export default hyperpowersOpencodePlugin
+export default xpowersOpencodePlugin

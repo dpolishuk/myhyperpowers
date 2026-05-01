@@ -20,7 +20,7 @@ This skill wraps the source file `commands/execute-plan.md` for Codex Skills com
 description: Execute plan in batches with review checkpoints
 ---
 
-Use the hyperpowers:executing-plans skill exactly as written.
+Use the xpowers:executing-plans skill exactly as written.
 
 Execution context: $ARGUMENTS
 

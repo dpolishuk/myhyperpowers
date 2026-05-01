@@ -48,7 +48,7 @@ test('bd-server responds to initialize', async () => {
     assert.equal(response.jsonrpc, '2.0');
     assert.equal(response.id, 1);
     assert.ok(response.result);
-    assert.equal(response.result.serverInfo.name, 'hyperpowers-bd');
+    assert.equal(response.result.serverInfo.name, 'xpowers-bd');
   } finally {
     server.kill();
   }

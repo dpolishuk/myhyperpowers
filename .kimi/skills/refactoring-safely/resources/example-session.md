@@ -6,7 +6,7 @@
 
 ### Minutes 0-5: Verify Tests Pass
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 ```
 
@@ -22,7 +22,7 @@ tm update bd-456 --status in_progress
 // Extract validate_email()
 ```
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 git commit -m "refactor(bd-456): extract email validation"
 ```
@@ -32,7 +32,7 @@ git commit -m "refactor(bd-456): extract email validation"
 // Extract validate_name()
 ```
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 git commit -m "refactor(bd-456): extract name validation"
 ```
@@ -43,7 +43,7 @@ struct UserValidator { /* empty */ }
 impl UserValidator { /* empty */ }
 ```
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 git commit -m "refactor(bd-456): create UserValidator struct"
 ```
@@ -56,7 +56,7 @@ Each step: move one method, test, commit
 // Use UserValidator instead of inline validation
 ```
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 git commit -m "refactor(bd-456): use UserValidator in UserService"
 ```
@@ -66,10 +66,10 @@ Each service: one change, test, commit
 
 ### Minutes 55-60: Final verification and close
 ```bash
-Dispatch hyperpowers:test-runner: "Run: cargo test"
+Dispatch xpowers:test-runner: "Run: cargo test"
 Result: ✓ 234 tests pass
 
-Dispatch hyperpowers:test-runner: "Run: cargo clippy"
+Dispatch xpowers:test-runner: "Run: cargo clippy"
 Result: ✓ No warnings
 
 tm close bd-456

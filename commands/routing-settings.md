@@ -1,5 +1,5 @@
 ---
-description: Configure which AI model each Hyperpowers agent uses
+description: Configure which AI model each XPowers agent uses
 ---
 
-Use the hyperpowers:routing-settings skill exactly as written
+Use the xpowers:routing-settings skill exactly as written

@@ -1,10 +1,10 @@
-# Hyperpowers for Gemini CLI
+# XPowers for Gemini CLI
 
-Welcome to hyperpowers - a structured development workflow system for Gemini CLI. This extension brings the proven development patterns from hyperpowers to your Gemini CLI sessions.
+Welcome to xpowers - a structured development workflow system for Gemini CLI. This extension brings the proven development patterns from xpowers to your Gemini CLI sessions.
 
-## What is Hyperpowers?
+## What is XPowers?
 
-Hyperpowers is a workflow system that provides:
+XPowers is a workflow system that provides:
 - **Skills**: Reusable workflow definitions (TDD, brainstorming, planning, etc.)
 - **Agents**: Specialized sub-agents for specific tasks (test-runner, code-reviewer, etc.)
 - **Task Management**: `tm` for local task management with optional Linear sync
@@ -13,13 +13,13 @@ Hyperpowers is a workflow system that provides:
 
 ### Slash Commands
 
-Use these commands to quickly access hyperpowers workflows:
+Use these commands to quickly access xpowers workflows:
 
-- `/hyperpowers:brainstorm` - Start refining an idea into a design
-- `/hyperpowers:write-plan` - Create detailed implementation plans
-- `/hyperpowers:execute-plan` - Execute plans iteratively
-- `/hyperpowers:review-implementation` - Review code against requirements
-- `/hyperpowers:tm-linear-setup` - Show the Gemini tm/Linear setup path for this branch
+- `/xpowers:brainstorm` - Start refining an idea into a design
+- `/xpowers:write-plan` - Create detailed implementation plans
+- `/xpowers:execute-plan` - Execute plans iteratively
+- `/xpowers:review-implementation` - Review code against requirements
+- `/xpowers:tm-linear-setup` - Show the Gemini tm/Linear setup path for this branch
 
 ### Using Skills
 
@@ -59,8 +59,8 @@ The installed Gemini extension provides a tm-oriented task-management surface fo
 Preferred setup path on this branch:
 
 ```bash
-git clone https://github.com/dpolishuk/myhyperpowers.git
-cd myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
 ./scripts/install.sh --gemini
 
 export LINEAR_API_KEY="lin_api_your_key_here"
@@ -72,13 +72,13 @@ tm sync
 
 ## Workflow Pattern
 
-The typical hyperpowers workflow:
+The typical xpowers workflow:
 
-1. **Brainstorm** - Use `/hyperpowers:brainstorm` or the brainstorming skill to refine ideas
-2. **Plan** - Use `/hyperpowers:write-plan` to create detailed implementation plans
+1. **Brainstorm** - Use `/xpowers:brainstorm` or the brainstorming skill to refine ideas
+2. **Plan** - Use `/xpowers:write-plan` to create detailed implementation plans
 3. **Refine** - Run SRE refinement on tasks before execution
-4. **Execute** - Use `/hyperpowers:execute-plan` or TDD skill to implement
-5. **Review** - Use `/hyperpowers:review-implementation` for validation
+4. **Execute** - Use `/xpowers:execute-plan` or TDD skill to implement
+5. **Review** - Use `/xpowers:review-implementation` for validation
 6. **Verify** - Run verification-before-completion gates
 7. **Complete** - Close tasks and epic
 

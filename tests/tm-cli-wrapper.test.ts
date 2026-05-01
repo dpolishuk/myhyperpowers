@@ -10,7 +10,7 @@ import {
   claimTask,
   closeTask,
   type TmTask,
-} from "../.pi/extensions/hyperpowers/tm-cli-wrapper"
+} from "../.pi/extensions/xpowers/tm-cli-wrapper"
 
 const mockSpawnSync = mock(() => ({
   status: 0,

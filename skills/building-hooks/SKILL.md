@@ -206,7 +206,7 @@ fi
 
 ## Pattern 4: Skills Auto-Activation
 
-**See:** hyperpowers:skills-auto-activation for complete implementation
+**See:** xpowers:skills-auto-activation for complete implementation
 
 **Summary:** Analyzes prompt keywords, injects skill activation reminder before Claude processes.
 </common_hook_patterns>
@@ -580,9 +580,9 @@ Before deploying hook:
 **This skill covers:** Hook creation and patterns
 
 **Related skills:**
-- hyperpowers:skills-auto-activation (complete skill activation hook)
-- hyperpowers:verification-before-completion (quality hooks automate this)
-- hyperpowers:testing-anti-patterns (avoid in hooks)
+- xpowers:skills-auto-activation (complete skill activation hook)
+- xpowers:verification-before-completion (quality hooks automate this)
+- xpowers:testing-anti-patterns (avoid in hooks)
 
 **Hook patterns support:**
 - Automatic skill activation

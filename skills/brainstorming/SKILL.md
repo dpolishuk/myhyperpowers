@@ -44,9 +44,9 @@ HIGH FREEDOM - Adapt Socratic questioning to context, but always create immutabl
 - Requirements exist but architecture unclear
 
 **Don't use for:**
-- Executing existing plans (use hyperpowers:executing-plans)
-- Fixing bugs (use hyperpowers:fixing-bugs)
-- Refactoring (use hyperpowers:refactoring-safely)
+- Executing existing plans (use xpowers:executing-plans)
+- Fixing bugs (use xpowers:fixing-bugs)
+- Refactoring (use xpowers:refactoring-safely)
 - Requirements already crystal clear and epic exists
 </when_to_use>
 
@@ -70,9 +70,9 @@ HIGH FREEDOM - Adapt Socratic questioning to context, but always create immutabl
 
 **Check current state:**
 - Recent commits, existing docs, codebase structure
-- Dispatch `hyperpowers:codebase-investigator` for existing patterns
-- Dispatch `hyperpowers:internet-researcher` for external APIs/libraries
-- Dispatch `hyperpowers:knowledge-aggregator` for team decisions, related issues, prior discussions
+- Dispatch `xpowers:codebase-investigator` for existing patterns
+- Dispatch `xpowers:internet-researcher` for external APIs/libraries
+- Dispatch `xpowers:knowledge-aggregator` for team decisions, related issues, prior discussions
 
 **REQUIRED: Use update_brainstorm_state tool with scannable format**
 
@@ -420,7 +420,7 @@ After epic and first task created:
 **REQUIRED: Run SRE refinement before handoff**
 
 ```
-Use Skill tool: hyperpowers:sre-task-refinement
+Use Skill tool: xpowers:sre-task-refinement
 ```
 
 SRE refinement will:
@@ -881,7 +881,7 @@ Before handing off to executing-plans:
 - [ ] Design Rationale complete: problem, research findings, approaches considered, scope boundaries, open questions
 - [ ] Created ONLY first task (not full tree)
 - [ ] First task has detailed implementation checklist
-- [ ] Ran SRE refinement on first task (hyperpowers:sre-task-refinement)
+- [ ] Ran SRE refinement on first task (xpowers:sre-task-refinement)
 - [ ] Announced handoff to executing-plans after refinement approved
 
 **Can't check all boxes?** Return to process and complete missing steps.
@@ -889,11 +889,11 @@ Before handing off to executing-plans:
 
 <integration>
 **This skill calls:**
-- hyperpowers:codebase-investigator (for finding existing patterns)
-- hyperpowers:internet-researcher (for external documentation)
-- hyperpowers:knowledge-aggregator (for team decisions and related issues)
-- hyperpowers:sre-task-refinement (REQUIRED before handoff to executing-plans)
-- hyperpowers:executing-plans (handoff after refinement approved)
+- xpowers:codebase-investigator (for finding existing patterns)
+- xpowers:internet-researcher (for external documentation)
+- xpowers:knowledge-aggregator (for team decisions and related issues)
+- xpowers:sre-task-refinement (REQUIRED before handoff to executing-plans)
+- xpowers:executing-plans (handoff after refinement approved)
 
 **Call chain:**
 ```
@@ -901,7 +901,7 @@ brainstorming → sre-task-refinement → executing-plans
 ```
 
 **This skill is called by:**
-- hyperpowers:using-hyper (mandatory before writing code)
+- xpowers:using-hyper (mandatory before writing code)
 - User requests for new features
 - Beginning of greenfield development
 

@@ -1,15 +1,15 @@
 ---
 name: routing-settings
-description: Interactive wizard to configure which AI model runs for each Hyperpowers agent in Claude Code
+description: Interactive wizard to configure which AI model runs for each XPowers agent in Claude Code
 ---
 
 # Routing Settings Wizard (Claude Code)
 
-Configure which model each Hyperpowers agent uses. Changes are written to agent frontmatter files.
+Configure which model each XPowers agent uses. Changes are written to agent frontmatter files.
 
 ## Step 1: Read current agent model configs
 
-Read the YAML frontmatter `model:` field from each agent file. The agent files are in the `agents/` directory of the hyperpowers plugin (typically `~/.claude/agents/`).
+Read the YAML frontmatter `model:` field from each agent file. The agent files are in the `agents/` directory of the xpowers plugin (typically `~/.claude/agents/`).
 
 Read these files NOW and build a table:
 

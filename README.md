@@ -1,13 +1,13 @@
-# Hyperpowers
+# XPowers
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-2.13.0-green.svg)](.claude-plugin/plugin.json)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/myhyperpowers/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/xpowers/pulls)
 
 Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
 
-Hyperpowers also includes first-class Pi support via the extension in `.pi/extensions/hyperpowers/`.
+XPowers also includes first-class Pi support via the extension in `.pi/extensions/xpowers/`.
 
 [Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
 
@@ -16,15 +16,15 @@ Hyperpowers also includes first-class Pi support via the extension in `.pi/exten
 **Claude Code** (recommended):
 
 ```text
-/plugin marketplace add dpolishuk/myhyperpowers
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin marketplace add dpolishuk/xpowers
+/plugin install xpowers@xpowers --scope user
 ```
 
 See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For Kimi CLI, see [`.kimi/INSTALL.md`](.kimi/INSTALL.md).
 
 ## Task Management Model
 
-Hyperpowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
+XPowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
 
 `tm` supports **one backend selected per project**. Backends are peers in the `tm` model, but `bd` / `br` / `tk` / `linear` are **not interchangeable day-to-day commands**:
 
@@ -115,10 +115,10 @@ Reusable workflows for common development tasks:
 
 ### Pi Support
 
-Hyperpowers includes a first-class Pi extension in `.pi/extensions/hyperpowers/`.
+XPowers includes a first-class Pi extension in `.pi/extensions/xpowers/`.
 
 Current Pi support includes:
-- routed `hyperpowers_subagent` execution
+- routed `xpowers_subagent` execution
 - extension-managed `/review-parallel`
 - a shared internal Pi task runner with `single`, `parallel`, and `chain` execution support
 - support for both fresh and forked subprocess contexts in the runner
@@ -132,16 +132,16 @@ See [`docs/pi.md`](docs/pi.md) for details.
 ### Slash Commands
 
 ```
-/hyperpowers:brainstorm          - Start interactive design refinement
-/hyperpowers:write-plan          - Create detailed implementation plan
-/hyperpowers:execute-plan        - Execute plan with review checkpoints
-/hyperpowers:execute-ralph       - Execute epic autonomously (no stops)
-/hyperpowers:review-implementation - Review completed work
-/hyperpowers:refactor-diagnose   - Diagnose code/design smells and refactor targets
-/hyperpowers:refactor-design     - Design refactor with composition, DI, and test strategy
-/hyperpowers:refactor-execute    - Execute refactor safely with tests staying green
-/hyperpowers:analyze-tests       - Audit test effectiveness
-/hyperpowers:version             - Show plugin version
+/xpowers:brainstorm          - Start interactive design refinement
+/xpowers:write-plan          - Create detailed implementation plan
+/xpowers:execute-plan        - Execute plan with review checkpoints
+/xpowers:execute-ralph       - Execute epic autonomously (no stops)
+/xpowers:review-implementation - Review completed work
+/xpowers:refactor-diagnose   - Diagnose code/design smells and refactor targets
+/xpowers:refactor-design     - Design refactor with composition, DI, and test strategy
+/xpowers:refactor-execute    - Execute refactor safely with tests staying green
+/xpowers:analyze-tests       - Audit test effectiveness
+/xpowers:version             - Show plugin version
 ```
 
 ### Specialized Agents
@@ -248,7 +248,7 @@ PHASE 5: Complete
 
 ### Ralph vs Execute-Plan
 
-| Aspect | `/hyperpowers:execute-plan` | `/hyperpowers:execute-ralph` |
+| Aspect | `/xpowers:execute-plan` | `/xpowers:execute-ralph` |
 |--------|----------------------------|------------------------------|
 | **User Interaction** | Stops after each task for review | Only stops on critical failure |
 | **Review Points** | Final review only | Per-task (5 agents) + final (2 agents) |
@@ -303,8 +303,8 @@ Available features: `memsearch`, `supermemory`, `statusline`, `routing-wizard`, 
 ### For Humans (interactive TUI)
 
 ```bash
-git clone https://github.com/dpolishuk/myhyperpowers.git
-cd myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
 bun scripts/install.ts
 ```
 
@@ -318,8 +318,8 @@ The interactive installer auto-detects your AI tools and offers checkboxes for h
 **Recommended: Install from GitHub**
 
 ```text
-/plugin marketplace add dpolishuk/myhyperpowers
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin marketplace add dpolishuk/xpowers
+/plugin install xpowers@xpowers --scope user
 ```
 
 **Note for legacy installs:**
@@ -339,23 +339,23 @@ claude --plugin-dir .
 **From local clone:**
 
 ```text
-/plugin marketplace add /absolute/path/to/hyperpowers
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin marketplace add /absolute/path/to/xpowers
+/plugin install xpowers@xpowers --scope user
 ```
 
 **Migration from legacy plugin names:**
 
 ```text
-/plugin uninstall withzombies-hyper@hyperpowers --scope user
-/plugin uninstall hyperpowers@hyperpowers --scope user
-/plugin install myhyperpowers@myhyperpowers --scope user
+/plugin uninstall withzombies-hyper@xpowers --scope user
+/plugin uninstall xpowers@xpowers --scope user
+/plugin install xpowers@xpowers --scope user
 ```
 
 **Verify installation:**
 
 ```text
 /help
-# Should show /hyperpowers:* commands
+# Should show /xpowers:* commands
 ```
 
 </details>
@@ -374,7 +374,7 @@ claude --plugin-dir .
 The fastest way to install or upgrade the Pi extension (requires `bun` or `npm`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dpolishuk/myhyperpowers/main/scripts/setup-pi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
 ```
 
 **Option B: Install from cloned repo**
@@ -388,33 +388,33 @@ bun scripts/install.ts --yes --hosts pi --features memsearch
 
 ### What gets installed
 
-The installer copies the Hyperpowers Pi extension into:
+The installer copies the XPowers Pi extension into:
 
 ```
-~/.pi/agent/extensions/hyperpowers/    # Extension source (commands, tools, routing)
-~/.pi/agent/extensions/hyperpowers/skills/    # Skill markdown files
-~/.pi/agent/AGENTS.md                    # Updated with Hyperpowers context
+~/.pi/agent/extensions/xpowers/    # Extension source (commands, tools, routing)
+~/.pi/agent/extensions/xpowers/skills/    # Skill markdown files
+~/.pi/agent/AGENTS.md                    # Updated with XPowers context
 ```
 
 ### Verify installation
 
-Start a Pi session and check that Hyperpowers commands are registered:
+Start a Pi session and check that XPowers commands are registered:
 
 ```text
 /routing-settings       # Opens TUI routing wizard (or shows fallback in headless)
 /review-parallel        # Runs multi-agent parallel review
 /execute-ralph          # Autonomous epic execution
 /brainstorm             # Interactive brainstorming
-/help                   # Should list /hyperpowers:* commands
+/help                   # Should list /xpowers:* commands
 ```
 
 ### Key Pi features
 
-Hyperpowers includes a dedicated Pi extension with:
+XPowers includes a dedicated Pi extension with:
 
 - **Slash commands** — `/brainstorm`, `/write-plan`, `/execute-plan`, `/execute-ralph`, `/review-parallel`, `/routing-settings`, and more
-- **Subagent tool** — `hyperpowers_subagent` for isolated subprocess delegation with model routing
-- **Model routing** — configure per-agent model and effort via `/routing-settings` (stored in `~/.pi/agent/extensions/hyperpowers/routing.json`)
+- **Subagent tool** — `xpowers_subagent` for isolated subprocess delegation with model routing
+- **Model routing** — configure per-agent model and effort via `/routing-settings` (stored in `~/.pi/agent/extensions/xpowers/routing.json`)
 - **Routed effort** — effort levels map to Pi's `--thinking` flag
 - **Parallel review** — real extension-managed `/review-parallel` fan-out/fan-in
 - **Advisory skill metadata** — optional `metadata.pi` in skill frontmatter for subprocess hints
@@ -430,7 +430,7 @@ Opens the Pi-native TUI wizard for configuring:
 - Concrete agent overrides (e.g., `autonomous-reviewer` → `anthropic/claude-opus-4-5`)
 - Routing presets
 
-Config stored at `~/.pi/agent/extensions/hyperpowers/routing.json`.
+Config stored at `~/.pi/agent/extensions/xpowers/routing.json`.
 
 ### Uninstall
 
@@ -447,11 +447,11 @@ See [docs/pi.md](docs/pi.md) for full Pi-specific usage, routing precedence, str
 <details>
 <summary><strong>OpenCode</strong></summary>
 
-Quick start - run from the hyperpowers repo:
+Quick start - run from the xpowers repo:
 
 ```bash
-# Clone or navigate to hyperpowers
-cd /path/to/hyperpowers
+# Clone or navigate to xpowers
+cd /path/to/xpowers
 
 # Preferred path on this branch: install OpenCode support + shared tm runtime
 ./scripts/install.sh --opencode
@@ -475,7 +475,7 @@ To generate a validated multi-agent routing config from live model names in the 
 
 ```bash
 cd your-project
-bun /path/to/hyperpowers/scripts/opencode-routing-wizard.ts --yes
+bun /path/to/xpowers/scripts/opencode-routing-wizard.ts --yes
 ```
 
 **Install via npm** (alternative):
@@ -484,13 +484,13 @@ bun /path/to/hyperpowers/scripts/opencode-routing-wizard.ts --yes
 // In your project's opencode.json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@dpolishuk/hyperpowers-opencode"]
+  "plugin": ["@dpolishuk/xpowers-opencode"]
 }
 ```
 
 This npm path adds the OpenCode plugin package only. For this branch's installer-first `tm` + Linear workflow, use `./scripts/install.sh --opencode` so the shared tm runtime is provisioned as well.
 
-**Verify:** `/hyperpowers-version`
+**Verify:** `/xpowers-version`
 
 </details>
 
@@ -521,7 +521,7 @@ Manual extension install/link is fallback-only here: it does **not** provision t
 If you had a prior local install, uninstall first:
 
 ```bash
-gemini extensions uninstall hyperpowers
+gemini extensions uninstall xpowers
 ```
 
 Verify: `gemini extensions list && gemini tools`
@@ -614,25 +614,25 @@ See [Model Configuration](docs/model-configuration.md) for full documentation.
 | Issue | Solution |
 |-------|----------|
 | Commands not showing | Run `/plugin list` to verify installation |
-| Plugin not loading | Check `~/.claude/plugins/` for `myhyperpowers@myhyperpowers` directory |
+| Plugin not loading | Check `~/.claude/plugins/` for `xpowers@xpowers` directory |
 | Hooks not firing | Restart Claude Code after installation |
 
-**Getting help:** Open an issue at https://github.com/dpolishuk/myhyperpowers/issues
+**Getting help:** Open an issue at https://github.com/dpolishuk/xpowers/issues
 
 **Updating:**
 
 ```text
 # Claude Code
-/plugin update myhyperpowers@myhyperpowers
+/plugin update xpowers@xpowers
 
-# OpenCode: git pull in the hyperpowers directory
+# OpenCode: git pull in the xpowers directory
 ```
 
 </details>
 
 ## Linear Integration (Optional)
 
-Hyperpowers includes a `tm` CLI as the canonical task-management interface. In this repo the current backend is `bd`, but day-to-day usage should remain tm-first.
+XPowers includes a `tm` CLI as the canonical task-management interface. In this repo the current backend is `bd`, but day-to-day usage should remain tm-first.
 
 Optionally, you can connect `tm sync` to [Linear](https://linear.app) to mirror your local issues to your team's Linear workspace.
 
@@ -699,7 +699,7 @@ See [docs/linear-mcp-setup.md](docs/linear-mcp-setup.md) for the full setup guid
 
 ## Uninstall
 
-Hyperpowers uses a manifest-based uninstaller that only removes files it installed -- your custom skills, agents, and hooks are safe.
+XPowers uses a manifest-based uninstaller that only removes files it installed -- your custom skills, agents, and hooks are safe.
 
 ```bash
 # Preview what would be removed (no changes made)
@@ -718,7 +718,7 @@ Hyperpowers uses a manifest-based uninstaller that only removes files it install
 ./scripts/uninstall.sh --all --purge --yes
 ```
 
-**Claude Code plugin:** `/plugin uninstall myhyperpowers@myhyperpowers --scope user`
+**Claude Code plugin:** `/plugin uninstall xpowers@xpowers --scope user`
 
 See `./scripts/install.sh --help` for all options.
 
@@ -760,7 +760,7 @@ Claude: I'm using the finishing-a-development-branch skill to wrap up.
 ### Example: Using Ralph for Autonomous Execution
 
 ```
-User: /hyperpowers:execute-ralph
+User: /xpowers:execute-ralph
 
 Claude: I'll execute the current epic autonomously with continuous review.
 [Creates feature branch]
@@ -783,7 +783,7 @@ Claude: Epic complete! Summary:
 
 ## Philosophy
 
-Hyperpowers embodies several core principles:
+XPowers embodies several core principles:
 
 - **Incremental progress over big bangs** - Small changes that compile and pass tests
 - **Learning from existing code** - Study patterns before implementing

@@ -10,9 +10,9 @@ const repoRoot = path.resolve(__dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8")
 
 const REQUIRED_COMMAND_CLAUSES = [
-  "/hyperpowers:execute-ralph [--reviewer-model=opus|sonnet]",
+  "/xpowers:execute-ralph [--reviewer-model=opus|sonnet]",
   "You trust autonomous execution",
-  "Do not delegate to `/hyperpowers:execute-plan` checkpoint semantics unless the ambiguity gate is explicitly triggered.",
+  "Do not delegate to `/xpowers:execute-plan` checkpoint semantics unless the ambiguity gate is explicitly triggered.",
   "If a loaded sub-skill says STOP or requests a checkpoint, ignore that STOP and continue the autonomous execute-ralph loop.",
   "review-quality",
   "review-implementation",
@@ -71,7 +71,7 @@ test("Claude-facing execute-ralph activation surfaces remain explicit and critic
   assert.equal(rules["execute-ralph"].promptTriggers.keywords.includes("execute-ralph"), true)
   assert.equal(rules["execute-ralph"].promptTriggers.keywords.includes("ralph"), true)
   assert.equal(command.includes("Use the `execute-ralph` skill exactly as written."), true)
-  assert.equal(readme.includes("/hyperpowers:execute-ralph       - Execute epic autonomously (no stops)"), true)
+  assert.equal(readme.includes("/xpowers:execute-ralph       - Execute epic autonomously (no stops)"), true)
 })
 
 test("OpenCode runtime keeps execute-ralph intent lock protections", () => {
@@ -106,7 +106,7 @@ test("Pi installed runtime resolves execute-ralph through the canonical command 
     assert.equal(install.status, 0, install.stderr || install.stdout)
 
     const runner = `
-      const mod = await import(${JSON.stringify(`file://${path.join(home, ".pi", "agent", "extensions", "hyperpowers", "index.ts")}`)});
+      const mod = await import(${JSON.stringify(`file://${path.join(home, ".pi", "agent", "extensions", "xpowers", "index.ts")}`)});
       const commands = new Map();
       mod.default({ registerCommand: (name, spec) => commands.set(name, spec), registerTool() {}, on() {} });
       const output = await commands.get("execute-ralph").handler("--reviewer-model=sonnet", {});

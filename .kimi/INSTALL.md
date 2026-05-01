@@ -1,4 +1,4 @@
-# Installing Hyperpowers for Kimi CLI
+# Installing XPowers for Kimi CLI
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/dpolishuk/myhyperpowers.git ~/myhyperpowers
-cd ~/myhyperpowers
+git clone https://github.com/dpolishuk/xpowers.git ~/xpowers
+cd ~/xpowers
 
 # Run the unified installer
 ./scripts/install.sh --kimi
@@ -46,8 +46,8 @@ cp .kimi/agents/*.yaml ~/.config/agents/agents/
 cp .kimi/agents/*-system.md ~/.config/agents/agents/
 
 # 4. Copy main agent
-cp .kimi/hyperpowers.yaml ~/.config/agents/
-cp .kimi/hyperpowers-system.md ~/.config/agents/
+cp .kimi/xpowers.yaml ~/.config/agents/
+cp .kimi/xpowers-system.md ~/.config/agents/
 
 # 5. Copy MCP config (or merge with existing)
 cp .kimi/mcp.json ~/.config/kimi/mcp.json
@@ -96,8 +96,8 @@ Located in `~/.config/agents/agents/`:
 
 ### Main Agent
 
-- `hyperpowers.yaml` - Main agent with all subagents and tools
-- `hyperpowers-system.md` - System prompt with skill references
+- `xpowers.yaml` - Main agent with all subagents and tools
+- `xpowers-system.md` - System prompt with skill references
 
 ### MCP Configuration
 
@@ -105,14 +105,14 @@ Located in `~/.config/agents/agents/`:
 
 ## Usage
 
-### Starting Kimi with Hyperpowers
+### Starting Kimi with XPowers
 
 ```bash
-# Use the hyperpowers agent
-kimi --agent-file ~/.config/agents/hyperpowers.yaml
+# Use the xpowers agent
+kimi --agent-file ~/.config/agents/xpowers.yaml
 
 # Or create an alias
-alias kimi-hyper='kimi --agent-file ~/.config/agents/hyperpowers.yaml'
+alias kimi-hyper='kimi --agent-file ~/.config/agents/xpowers.yaml'
 ```
 
 ### Invoking Skills
@@ -161,7 +161,7 @@ Kimi will automatically dispatch to the appropriate subagent based on the task.
 
 ### Task Management
 
-Hyperpowers is tm-first on this branch. Use `tm` for day-to-day task management, with backend-specific tools only when a backend guide explicitly requires them:
+XPowers is tm-first on this branch. Use `tm` for day-to-day task management, with backend-specific tools only when a backend guide explicitly requires them:
 
 ```bash
 tm ready              # Show issues ready to work
@@ -211,7 +211,7 @@ description: My custom workflow
 ### Skill Priority
 
 Skills are loaded in this order (later overrides earlier):
-1. `~/.config/agents/skills/` (global - hyperpowers)
+1. `~/.config/agents/skills/` (global - xpowers)
 2. `.kimi/skills/` (project-local)
 
 ### Add Your Own Agents
@@ -234,7 +234,7 @@ agent:
 
 ### Symlink Mode
 
-For active development on hyperpowers:
+For active development on xpowers:
 
 ```bash
 ./scripts/install.sh --kimi --symlink
@@ -271,7 +271,7 @@ Changes to `.kimi/` files are reflected immediately.
 
 1. Check agent YAML syntax:
    ```bash
-   python3 -c "import yaml; yaml.safe_load(open('$HOME/.config/agents/hyperpowers.yaml'))"
+   python3 -c "import yaml; yaml.safe_load(open('$HOME/.config/agents/xpowers.yaml'))"
    ```
 
 2. Verify system prompt exists:
@@ -310,7 +310,7 @@ Changes to `.kimi/` files are reflected immediately.
 
 3. Check backups:
    ```bash
-   ls ~/.config/agents/.hyperpowers-backup/
+   ls ~/.config/agents/.xpowers-backup/
    ```
 
 ### Kimi CLI Not Found
@@ -352,6 +352,6 @@ Complete removal (including backups):
 
 ## Getting Help
 
-- Report issues: https://github.com/dpolishuk/myhyperpowers/issues
-- Documentation: https://github.com/dpolishuk/myhyperpowers
+- Report issues: https://github.com/dpolishuk/xpowers/issues
+- Documentation: https://github.com/dpolishuk/xpowers
 - Kimi CLI Docs: https://github.com/MoonshotAI/kimi-cli
