@@ -14,11 +14,6 @@
       "args": ["${extensionPath}${/}mcp${/}agents-server.js"],
       "cwd": "${extensionPath}"
     },
-    "bd": {
-      "command": "node",
-      "args": ["${extensionPath}${/}mcp${/}bd-server.js"],
-      "cwd": "${extensionPath}"
-    },
     "tm": {
       "command": "node",
       "args": ["${extensionPath}${/}mcp${/}tm-server.js"],
