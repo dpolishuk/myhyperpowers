@@ -16,6 +16,23 @@ test('agents/ralph.md should define itself as a Stateless Orchestrator', () => {
   assert.ok(/status[\s\S]*closed|closed[\s\S]*status/i.test(content), 'Ralph should require task status to be closed');
 });
 
+test('Ralph prompt uses tm for task lifecycle commands', () => {
+  const promptPaths = [
+    'agents/ralph.md',
+    '.opencode/agents/ralph.md',
+    '.gemini-extension/agents/ralph.md',
+    '.kimi/agents/ralph-system.md',
+  ];
+
+  for (const relativePath of promptPaths) {
+    const content = fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
+    assert.doesNotMatch(content, /`bd (ready|blocked|show|update|close|create|dep)\b/, `${relativePath} must not show executable bd lifecycle commands`);
+    assert.doesNotMatch(content, /"(claim_command|show_command)": "bd /, `${relativePath} must not instruct execution of bd command strings`);
+    assert.match(content, /tm (ready|list)/, `${relativePath} should use tm for task discovery`);
+    assert.match(content, /tm update <id> --status in_progress|tm update bd-xxx --status=in_progress/, `${relativePath} should use tm for claiming tasks`);
+  }
+});
+
 test('agents/planner.md should mandate Immutable Epic Requirements', () => {
   const content = fs.readFileSync(PLANNER_PATH, 'utf8');
   assert.ok(content.includes('Immutable Epic Requirements'), 'Planner should mention "Immutable Epic Requirements"');
