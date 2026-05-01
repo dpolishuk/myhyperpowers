@@ -70,6 +70,18 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })
 
+test("docs distinguish tm-first project work from explicit ralph-tui beads-rust workflows", () => {
+  const readme = read("README.md")
+  const agentsGuide = read("AGENTS.md")
+
+  for (const content of [readme, agentsGuide]) {
+    assert.equal(content.includes("ralph-tui"), true)
+    assert.equal(content.includes("beads-rust"), true)
+    assert.equal(content.includes("use `tm`"), true)
+    assert.equal(content.includes("unless the user explicitly asks"), true)
+  }
+})
+
 test("README and AGENTS agree on Codex wrapper location and host support", () => {
   const readme = read("README.md")
   const agentsGuide = read("AGENTS.md")
