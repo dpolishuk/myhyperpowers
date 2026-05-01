@@ -26,7 +26,7 @@
 
 ---
 
-XPowers turns AI coding assistants into disciplined pair-programming partners. It adds reusable skills, specialized agents, safety hooks, and task-management workflows so your assistant plans before coding, verifies before claiming success, and keeps complex work moving without losing engineering rigor.
+XPowers turns Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI into disciplined pair-programming partners. It adds reusable skills, specialized agents, safety hooks, and task-management workflows so your assistant plans before coding, verifies before claiming success, and keeps complex work moving without losing engineering rigor.
 
 ## Quick Start
 
@@ -78,13 +78,13 @@ XPowers is **tm-first**. `tm` is the canonical user-facing task-management inter
 
 `tm` supports **one backend selected per project**. Backends are peers in the `tm` model, but `bd` / `br` / `tk` / `linear` are **not interchangeable day-to-day commands**:
 
-| Name | Role |
-|------|------|
-| `tm` | Canonical user-facing task-management interface |
-| `bd` | Current local tracker backend in this repository |
-| `br` | Beads Rust, a SQLite + JSONL beads-compatible backend / migration option |
-| `tk` | Ticket, a git-backed markdown ticket workflow alternative |
-| `linear` | Linear-native backend preview for core commands |
+- `tm` = canonical user-facing task-management interface
+- `bd` = current local tracker backend in this repo
+- `br` = Beads Rust, a classic SQLite+JSONL beads-compatible backend / migration option
+- `tk` = Ticket, a git-backed markdown ticket workflow alternative
+- `linear` = Linear-native backend preview (core commands only on this repo branch)
+
+On this repo today, `bd` remains the active backend.
 
 ### tm Backend Interoperability
 
@@ -117,7 +117,7 @@ Reusable workflows that make AI coding sessions repeatable and reviewable.
 /xpowers:brainstorm              Refine an idea before coding
 /xpowers:write-plan              Create detailed implementation tasks
 /xpowers:execute-plan            Execute tasks with review checkpoints
-/xpowers:execute-ralph           Execute a full epic autonomously
+/xpowers:execute-ralph       - Execute epic autonomously (no stops)
 /xpowers:review-implementation   Verify work against requirements
 /xpowers:refactor-diagnose       Identify refactor targets
 /xpowers:refactor-design         Design a safe refactor
