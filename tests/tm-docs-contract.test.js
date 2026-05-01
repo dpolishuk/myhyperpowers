@@ -137,6 +137,9 @@ test("Agent workflow docs use backend-portable tm design updates", () => {
     ".opencode/skills/xpowers-fixing-bugs/SKILL.md",
     ".opencode/skills/xpowers-refactoring-safely/SKILL.md",
     ".opencode/skills/xpowers-managing-bd-tasks/SKILL.md",
+    ".agents/skills/fixing-bugs/SKILL.md",
+    ".agents/skills/refactoring-safely/SKILL.md",
+    ".agents/skills/managing-bd-tasks/SKILL.md",
   ]
 
   for (const relativePath of checkedPaths) {
