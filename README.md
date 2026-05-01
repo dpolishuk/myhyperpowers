@@ -1,30 +1,80 @@
-# XPowers
+<p align="center">
+  <img src="assets/xpowers-banner.jpg" alt="XPowers banner — programming powered by AI agents" width="100%" />
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.13.0-green.svg)](.claude-plugin/plugin.json)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg)](https://claude.ai/code)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dpolishuk/xpowers/pulls)
+<h1 align="center">XPowers</h1>
 
-Strong guidance for Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI as software development assistants. Think of it as a pair programming partner that ensures you follow proven development patterns.
+<p align="center">
+  <strong>Structured engineering workflows for Claude Code, OpenCode, Gemini CLI, Kimi CLI, Codex CLI, and Pi.</strong>
+</p>
 
-XPowers also includes first-class Pi support via the extension in `.pi/extensions/xpowers/`.
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href=".claude-plugin/plugin.json"><img alt="Version" src="https://img.shields.io/badge/version-2.13.0-green.svg"></a>
+  <a href="https://claude.ai/code"><img alt="Claude Code Plugin" src="https://img.shields.io/badge/Claude_Code-Plugin-blueviolet.svg"></a>
+  <a href="https://github.com/dpolishuk/xpowers/pulls"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
+</p>
 
-[Features](#features) · [Installation](#installation) · [Linear Integration](#linear-integration-optional) · [Uninstall](#uninstall) · [Usage](#usage) · [Philosophy](#philosophy) · [Contributing](#contributing)
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#why-xpowers">Why XPowers</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+XPowers turns Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI into disciplined pair-programming partners. It adds reusable skills, specialized agents, safety hooks, and task-management workflows so your assistant plans before coding, verifies before claiming success, and keeps complex work moving without losing engineering rigor.
 
 ## Quick Start
 
-**Claude Code** (recommended):
+### Claude Code
 
 ```text
 /plugin marketplace add dpolishuk/xpowers
 /plugin install xpowers@xpowers --scope user
 ```
 
-See [Installation](#installation) for OpenCode, Gemini CLI, and Codex CLI. For Kimi CLI, see [`.kimi/INSTALL.md`](.kimi/INSTALL.md).
+### Local installer
+
+```bash
+git clone https://github.com/dpolishuk/xpowers.git
+cd xpowers
+bun scripts/install.ts
+```
+
+Install docs for other hosts are in [Host-Specific Instructions](#host-specific-instructions), with standalone guides for [Kimi CLI](.kimi/INSTALL.md) and [Pi](docs/pi.md).
+
+## Why XPowers
+
+<table>
+<tr>
+<td width="33%">
+
+### 🧭 Workflow guardrails
+Skills encode proven development loops: brainstorm, plan, implement with TDD, review, and verify.
+
+</td>
+<td width="33%">
+
+### 🤖 Specialist agents
+Delegate research, testing, security scanning, code review, documentation review, and autonomous execution.
+
+</td>
+<td width="33%">
+
+### 🛡️ Safer automation
+Hooks block dangerous operations, protect secrets, track edits, and nudge verification before completion.
+
+</td>
+</tr>
+</table>
 
 ## Task Management Model
 
-XPowers is **tm-first** on this branch. `tm` is the **canonical user-facing task-management interface** for everyday setup, task work, and sync workflows.
+XPowers is **tm-first**. `tm` is the canonical user-facing task-management interface for setup, task work, and sync workflows.
 
 `tm` supports **one backend selected per project**. Backends are peers in the `tm` model, but `bd` / `br` / `tk` / `linear` are **not interchangeable day-to-day commands**:
 
@@ -34,239 +84,105 @@ XPowers is **tm-first** on this branch. `tm` is the **canonical user-facing task
 - `tk` = Ticket, a git-backed markdown ticket workflow alternative
 - `linear` = Linear-native backend preview (core commands only on this repo branch)
 
-## tm Backend Interoperability
+On this repo today, `bd` remains the active backend.
 
-While `tm` provides a unified interface, some backends use different flag names or behaviors. `tm` automatically translates these for you when possible.
+### tm Backend Interoperability
 
-### Flag Mapping
+While `tm` provides a unified interface, some backends use different flag names or behaviors. `tm` translates these when possible.
 
 | tm Flag | br Backend | bd Backend |
 |---------|------------|------------|
 | `--design` | `--description` | `--design` |
 | `--design-file <file>` | `$(cat <file>)` passed to `--description` | `--design-file` |
 
-This mapping currently only applies to the `create` command when using the `br` backend.
-
-On this repo today, `bd` remains the active backend and the existing Linear support is still integration-oriented. The long-term architecture supports `linear` as a peer backend rather than a hidden `bd` sync mode, and this branch now exposes a minimal preview command surface for `TM_BACKEND=linear`.
-
-If you only want the main working model:
-
-1. install the host support you need
-2. use `tm` for day-to-day work
-3. use deeper guides for backend or integration details
-
-Start here:
-- [Installation](#installation)
-- [Linear Integration](#linear-integration-optional)
-- [docs/README.md](docs/README.md)
+This mapping currently applies to `tm create` with the `br` backend.
 
 ## Features
 
 ### Skills
 
-Reusable workflows for common development tasks:
+Reusable workflows that make AI coding sessions repeatable and reviewable.
 
-#### Feature Development
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **brainstorming** | Interactive design refinement using Socratic questioning | Before writing any code |
-| **writing-plans** | Create detailed implementation plans with specific tasks | After brainstorming, before coding |
-| **executing-plans** | Execute tasks iteratively with user checkpoint reviews | When you want review between tasks |
-| **execute-ralph** | Execute entire epics autonomously without stopping | For well-defined epics you trust |
-| **review-implementation** | Verify implementation matches requirements | After completing tasks |
-| **finishing-a-development-branch** | Complete workflow for PR creation and cleanup | When feature is complete |
-| **sre-task-refinement** | Review plans with Google Fellow SRE scrutiny | Before starting implementation |
-
-#### Bug Fixing & Debugging
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **debugging-with-tools** | Systematic investigation using debuggers and agents | When tests fail or bugs appear |
-| **root-cause-tracing** | Trace backward through call stack to find original trigger | When errors occur deep in execution |
-| **fixing-bugs** | Complete workflow from discovery to closure | For any bug fix |
-
-#### Quality & Testing
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **test-driven-development** | RED-GREEN-REFACTOR cycle enforcement | Writing new features or fixes |
-| **testing-anti-patterns** | Prevent common testing mistakes | When writing tests with mocks |
-| **analyzing-test-effectiveness** | Audit tests with SRE scrutiny (finds tautologies, coverage gaming) | When coverage is high but bugs still slip through |
-| **verification-before-completion** | Always verify before claiming success | Before saying "done" |
-
-#### Refactoring & Maintenance
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **refactoring-diagnosis** | Identify code/design smells and refactor targets | When code quality risk is increasing |
-| **refactoring-design** | Plan safe refactors with composition and test strategy | Before large structural code changes |
-| **refactoring-safely** | Test-preserving transformations | When refactoring existing code |
-| **managing-bd-tasks** | Advanced operations: splitting, merging, dependencies, metrics | Complex project management |
-
-#### Collaboration & Process
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **dispatching-parallel-agents** | Investigate 3+ independent failures concurrently | Multiple unrelated failures |
-| **writing-skills** | TDD for process documentation | Creating new skills |
-| **building-hooks** | Create custom automation hooks | Extending IDE behavior |
-| **skills-auto-activation** | Fix skills not activating reliably | Troubleshooting skill discovery |
-
-### Pi Support
-
-XPowers includes a first-class Pi extension in `.pi/extensions/xpowers/`.
-
-Current Pi support includes:
-- routed `xpowers_subagent` execution
-- extension-managed `/review-parallel`
-- a shared internal Pi task runner with `single`, `parallel`, and `chain` execution support
-- support for both fresh and forked subprocess contexts in the runner
-- advisory `metadata.pi` skill frontmatter parsing (`subProcess`, `subProcessContext`, `model`, `thinkingLevel`)
-- authoritative routing via `/routing-settings`
-
-Important: Pi skill metadata is currently **advisory**. It does not override the existing routing precedence configured through `/routing-settings`.
-
-See [`docs/pi.md`](docs/pi.md) for details.
+| Category | Skills |
+|----------|--------|
+| **Feature development** | `brainstorming`, `writing-plans`, `executing-plans`, `execute-ralph`, `review-implementation`, `finishing-a-development-branch`, `sre-task-refinement` |
+| **Debugging** | `debugging-with-tools`, `root-cause-tracing`, `fixing-bugs` |
+| **Quality & testing** | `test-driven-development`, `testing-anti-patterns`, `analyzing-test-effectiveness`, `verification-before-completion` |
+| **Refactoring** | `refactoring-diagnosis`, `refactoring-design`, `refactoring-safely`, `managing-bd-tasks` |
+| **Collaboration** | `dispatching-parallel-agents`, `writing-skills`, `building-hooks`, `skills-auto-activation` |
 
 ### Slash Commands
 
-```
-/xpowers:brainstorm          - Start interactive design refinement
-/xpowers:write-plan          - Create detailed implementation plan
-/xpowers:execute-plan        - Execute plan with review checkpoints
+```text
+/xpowers:brainstorm              Refine an idea before coding
+/xpowers:write-plan              Create detailed implementation tasks
+/xpowers:execute-plan            Execute tasks with review checkpoints
 /xpowers:execute-ralph       - Execute epic autonomously (no stops)
-/xpowers:review-implementation - Review completed work
-/xpowers:refactor-diagnose   - Diagnose code/design smells and refactor targets
-/xpowers:refactor-design     - Design refactor with composition, DI, and test strategy
-/xpowers:refactor-execute    - Execute refactor safely with tests staying green
-/xpowers:analyze-tests       - Audit test effectiveness
-/xpowers:version             - Show plugin version
+/xpowers:review-implementation   Verify work against requirements
+/xpowers:refactor-diagnose       Identify refactor targets
+/xpowers:refactor-design         Design a safe refactor
+/xpowers:refactor-execute        Execute a test-preserving refactor
+/xpowers:analyze-tests           Audit test effectiveness
+/xpowers:version                 Show plugin version
 ```
 
 ### Specialized Agents
 
-Domain-specific agents dispatched via the `Task` tool:
+| Agent family | Agents | Purpose |
+|--------------|--------|---------|
+| **Research & planning** | `codebase-investigator`, `internet-researcher`, `knowledge-aggregator`, `planner` | Understand code, docs, APIs, and architecture options |
+| **Execution** | `test-runner`, `ralph`, `code-reviewer` | Run tests cleanly, execute autonomously, and review implementations |
+| **Parallel review** | `review-quality`, `review-implementation`, `review-testing`, `review-simplification`, `review-documentation`, `security-scanner`, `devops` | Catch defects, requirement gaps, missing tests, over-engineering, docs gaps, security issues, and CI problems |
+| **Advanced analysis** | `test-effectiveness-analyst`, `autonomous-reviewer` | Audit tests and produce machine-facing final validation |
 
-#### Research & Planning Agents
+See [Model Configuration](docs/model-configuration.md) to route providers and models per agent.
 
-| Agent | Purpose | Model | Use Case |
-|-------|---------|-------|----------|
-| **codebase-investigator** | Understand codebase state and patterns | Fast (haiku) | Finding existing patterns, locating code |
-| **internet-researcher** | Research APIs, libraries, best practices | Fast (haiku) | External documentation lookup |
-| **knowledge-aggregator** | Aggregate context from docs, issues, team comms | Capable (sonnet) | Gathering decisions and context from MCP sources |
-| **planner** | Decompose goals into architecture + task graphs | Most capable (opus) | Architecture design, file change maps, dependency ordering |
+### Pi Support
 
-#### Core Execution Agents
+XPowers includes first-class Pi support via `.pi/extensions/xpowers/`:
 
-| Agent | Purpose | Model | Use Case |
-|-------|---------|-------|----------|
-| **test-runner** | Run tests/commits without polluting context | Fast (haiku) | High-volume, low-complexity verification |
-| **ralph** | YOLO mode autonomous executor | Inherit | Hands-off execution with smart triage |
-| **code-reviewer** | Human-facing review with detailed explanations | Capable (sonnet) | Implementation quality review at milestones |
+- routed `xpowers_subagent` execution
+- extension-managed `/review-parallel`
+- shared Pi task runner with `single`, `parallel`, and `chain` execution modes
+- fresh and forked subprocess contexts
+- advisory `metadata.pi` skill frontmatter parsing
+- authoritative model routing via `/routing-settings`
 
-#### Multi-Agent Review Suite (Used by Ralph)
+See [`docs/pi.md`](docs/pi.md) for details.
 
-These 7 agents run in parallel after each task during autonomous execution:
+### Hooks
 
-| Agent | Focus Area | What They Find |
-|-------|------------|----------------|
-| **review-quality** | Bugs, race conditions, error handling, resource leaks | Logic errors, deadlocks, missing error handling |
-| **review-implementation** | Requirements match, completeness, correctness | Missing features, partial implementations |
-| **review-testing** | Coverage, test quality, edge cases | Untested code paths, weak assertions |
-| **review-simplification** | Over-engineering, premature abstraction | Unnecessary complexity, dead code |
-| **review-documentation** | Docs for API changes, config updates | Missing README updates, undocumented features |
-| **security-scanner** | OWASP Top 10, secrets, dependency CVEs | Injection, XSS, hardcoded secrets, vulnerable deps |
-| **devops** | CI/CD pipelines, pre-commit hooks, build configs | Missing CI steps, pipeline failures, config issues |
+- **Automatic skill activation** suggests relevant workflows from user prompts.
+- **Safety hooks** block destructive commands, secret-file writes, and sensitive direct reads.
+- **Context tracking** records edits during a session.
+- **Stop reminders** encourage TDD, verification, and clean commits.
 
-#### Advanced Analysis Agents
-
-| Agent | Purpose | Model | Specialization |
-|-------|---------|-------|----------------|
-| **test-effectiveness-analyst** | Audit test quality with SRE scrutiny | Capable (sonnet) | Identifies tautological tests, coverage gaming, weak assertions |
-| **autonomous-reviewer** | Machine-facing final validation | Most capable (opus) | Verdict-only review for automated pipelines |
-
-See [Model Configuration](docs/model-configuration.md) for details on configuring AI providers and models per agent.
-
-### Hooks System
-
-Intelligent hooks that provide context-aware assistance and safety guardrails:
-
-- **Automatic Skill Activation** - The UserPromptSubmit hook analyzes prompts and suggests relevant skills.
-- **Safety & Blocking Hooks** - PreToolUse hooks block dangerous operations (destructive Bash commands, writes to secret files, direct reads of sensitive data) before they execute.
-- **Context Tracking** - The PostToolUse hook tracks file edits during your session.
-- **Gentle Reminders** - The Stop hook provides TDD, verification, and commit reminders.
-
-See [HOOKS.md](HOOKS.md) for configuration, troubleshooting, and customization details.
+See [HOOKS.md](HOOKS.md) for configuration and troubleshooting.
 
 ## How Ralph Works
 
-**Ralph** (`execute-ralph`) is the autonomous execution mode that completes entire epics without user intervention.
+**Ralph** (`execute-ralph`) is XPowers' autonomous epic executor.
 
+```text
+Setup → Execute Task (TDD) → Multi-Agent Review → Auto-Fix → Next Task → Final Review → Done
 ```
-Setup → Execute Task (TDD) → 5-Agent Review → Auto-Fix (max 2 tries) → Next Task → Final Review → Done
-```
-
-<details>
-<summary><strong>Ralph's Execution Flow (detailed)</strong></summary>
-
-```
-PHASE 0: Setup
-  ├── Smart triage (bv -robot-triage)
-  ├── Create feature branch from epic name
-  └── Load epic requirements and tasks
-
-PHASE 1: Execute Task
-  ├── Claim next ready task (bv -robot-next)
-  ├── Implement using TDD skill
-  └── Run tests via test-runner agent
-
-PHASE 2: Multi-Agent Parallel Review
-  ├── review-quality       → Bugs, security, race conditions
-  ├── review-implementation → Requirements match
-  ├── review-testing       → Coverage, test quality
-  ├── review-simplification → Over-engineering detection
-  └── review-documentation → Doc update needs
-
-PHASE 3: Autonomous Fix (max 2 iterations)
-  ├── If issues found: fix autonomously
-  ├── Re-run affected reviewers only
-  └── Still issues after 2 tries? Flag for user review
-
-PHASE 4: Final Critical Review
-  ├── review-quality (critical issues only)
-  ├── review-implementation (critical gaps only)
-  └── If issues: create remediation tasks and fix
-
-PHASE 5: Complete
-  ├── Close epic
-  ├── Final commit
-  └── Present comprehensive summary
-```
-
-</details>
-
-### Ralph vs Execute-Plan
 
 | Aspect | `/xpowers:execute-plan` | `/xpowers:execute-ralph` |
-|--------|----------------------------|------------------------------|
-| **User Interaction** | Stops after each task for review | Only stops on critical failure |
-| **Review Points** | Final review only | Per-task (5 agents) + final (2 agents) |
-| **Auto-Commit** | Manual | After every task |
-| **Git Branch** | Manual | Auto-created from epic name |
-| **Best For** | Uncertain requirements, high-risk changes | Well-defined epics, trusted execution |
+|--------|--------------------------|---------------------------|
+| User interaction | Stops after each task | Stops only on critical failure |
+| Review points | Final review | Per-task review + final review |
+| Auto-commit | Manual | After every task |
+| Git branch | Manual | Auto-created from epic name |
+| Best for | Uncertain or high-risk work | Well-defined epics you trust |
 
-**Use Ralph when** epics have clear success criteria and you trust autonomous execution.
-**Don't use Ralph when** requirements are ambiguous or you want to review between tasks.
-
-**Safety limits:** Max 2 fix iterations per task, max 3 remediation rounds, max 10 tasks per execution, auto-branch creation (never works on main), immutable epic requirements.
+Safety limits include capped fix iterations, capped remediation rounds, a task execution ceiling, auto-branch creation, and immutable epic requirements.
 
 ## Key Benefits
 
-- **Context efficiency** - The test-runner agent keeps verbose output (test results, formatting diffs) in its own context, returning only summaries and failures to yours.
-- **Structured workflows** - Skills enforce proven patterns: TDD, verification-before-completion, brainstorming-before-coding.
-- **Multi-agent review** - Ralph's 5 specialized reviewers catch bugs, security issues, missing tests, and over-engineering in parallel.
-- **Safe autonomous execution** - Ralph has hard limits on iterations, always creates feature branches, and never waters down epic requirements.
+- **Context efficiency** — noisy test output stays in worker-agent context.
+- **Structured workflows** — skills enforce planning, TDD, review, and verification.
+- **Multi-agent review** — specialized reviewers find issues in parallel.
+- **Safe autonomy** — Ralph operates with hard limits and branch isolation.
 
 ## Installation
 
