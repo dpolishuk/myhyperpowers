@@ -104,7 +104,7 @@ tm dep tree bd-5
 ### Step 3: Update original task and close
 
 ```bash
-tm edit bd-5 --design "
+tm update bd-5 --design "
 Implement user authentication.
 
 ## Status
@@ -163,7 +163,7 @@ tm show bd-7
 tm show bd-9
 
 # Combine into bd-7
-tm edit bd-7 --design "
+tm update bd-7 --design "
 Add email validation to user creation and update.
 
 ## Background
@@ -195,7 +195,7 @@ tm dep add bd-10 bd-7
 ### Step 4: Close duplicate with reference
 
 ```bash
-tm edit bd-9 --design "DUPLICATE: Merged into bd-7
+tm update bd-9 --design "DUPLICATE: Merged into bd-7
 
 This task was duplicate of bd-7. All work tracked there."
 
@@ -388,7 +388,7 @@ tm dep add bd-10 bd-9     # Add correct
 git log -p -- .beads/issues.jsonl | grep -A 50 "bd-10"
 # Find previous version, copy
 
-tm edit bd-10 --design "[paste previous]"
+tm update bd-10 --design "[paste previous]"
 ```
 
 ### Epic structure wrong
@@ -435,7 +435,7 @@ tm show bd-7  # Only mentions validation on creation
 tm show bd-9  # Mentions validation on update too
 
 # Merge information
-tm edit bd-7 --design "
+tm update bd-7 --design "
 Email validation for user creation and update.
 
 ## Background
@@ -448,7 +448,7 @@ Merged from bd-9.
 "
 
 # Then close duplicate with reference
-tm edit bd-9 --design "DUPLICATE: Merged into bd-7"
+tm update bd-9 --design "DUPLICATE: Merged into bd-7"
 tm close bd-9
 ```
 
@@ -496,7 +496,7 @@ bd-15: "Implement payment processing" (started)
 ```bash
 # 3 hours in, stop and split
 
-tm edit bd-15 --design "
+tm update bd-15 --design "
 Implement payment processing.
 
 ## Status
@@ -587,7 +587,7 @@ tm create "Analytics API endpoints" ...  # bd-20
 tm dep add bd-15 bd-20
 
 # UPDATE bd-15 to document new requirement
-tm edit bd-15 --design "
+tm update bd-15 --design "
 Add analytics to dashboard.
 
 ## Dependencies

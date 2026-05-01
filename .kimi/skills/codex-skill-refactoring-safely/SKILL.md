@@ -75,7 +75,7 @@ tm create "Refactor: Extract user validation logic" \
   --type task \
   --priority P2
 
-tm edit bd-456 --design "
+tm update bd-456 --design "
 ## Goal
 Extract user validation logic from UserService into separate Validator class.
 
@@ -248,7 +248,7 @@ git diff main...HEAD
 **Close bd task:**
 
 ```bash
-tm edit bd-456 --design "
+tm update bd-456 --design "
 ... (append to existing design)
 
 ## Completed

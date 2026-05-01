@@ -126,6 +126,28 @@ test("Kimi and Codex host docs stay tm-first", () => {
   assert.equal(codexInstall.includes("tm ready"), true)
 })
 
+test("Agent workflow docs use backend-portable tm design updates", () => {
+  const checkedPaths = [
+    "skills/fixing-bugs/SKILL.md",
+    "skills/refactoring-safely/SKILL.md",
+    "skills/managing-bd-tasks/SKILL.md",
+    ".kimi/skills/fixing-bugs/SKILL.md",
+    ".kimi/skills/refactoring-safely/SKILL.md",
+    ".kimi/skills/managing-bd-tasks/SKILL.md",
+    ".opencode/skills/xpowers-fixing-bugs/SKILL.md",
+    ".opencode/skills/xpowers-refactoring-safely/SKILL.md",
+    ".opencode/skills/xpowers-managing-bd-tasks/SKILL.md",
+  ]
+
+  for (const relativePath of checkedPaths) {
+    const content = read(relativePath)
+    assert.equal(content.includes("tm edit "), false, `${relativePath} must not use backend-specific tm edit`)
+    assert.equal(content.includes("bd edit "), false, `${relativePath} must not use direct bd edit`)
+  }
+
+  assert.equal(read("skills/fixing-bugs/SKILL.md").includes("tm update bd-123 --design"), true)
+})
+
 test("Kimi install docs describe the linear preview contract and agent paths consistently", () => {
   const readme = read("README.md")
   const kimiInstall = read(".kimi/INSTALL.md")
