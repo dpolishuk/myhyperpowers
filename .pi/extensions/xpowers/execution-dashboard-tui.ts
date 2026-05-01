@@ -1,13 +1,15 @@
 import {
   Container,
-  Box,
-  Text,
   matchesKey,
   Key,
   truncateToWidth,
-  visibleWidth,
 } from "@mariozechner/pi-tui"
 import type { StructuredTaskStatus } from "./task-runner"
+
+interface DashboardTui {
+  terminal?: { columns?: number; rows?: number }
+  requestRender?: () => void
+}
 
 export interface LiveTaskState {
   id: string
@@ -26,6 +28,7 @@ export interface LiveExecutionState {
 export class LiveExecutionDashboard extends Container {
   private state: LiveExecutionState
   private onCancel?: () => void
+  public tui?: DashboardTui
 
   constructor(initialState: LiveExecutionState, onCancel?: () => void) {
     super()
@@ -41,60 +44,79 @@ export class LiveExecutionDashboard extends Container {
     }
   }
 
-  handleInput(data: string): void {
+  handleInput(data: string): boolean {
     if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
       this.onCancel?.()
+      this.tui?.requestRender?.()
+      return true
     }
+    return true
   }
 
   render(width: number): string[] {
+    const terminalColumns = this.tui?.terminal?.columns ?? width
+    const renderWidth = Math.max(1, Math.min(width, terminalColumns))
+    const termRows = Math.max(1, this.tui?.terminal?.rows || 24)
+    const narrow = renderWidth < 80
     const lines: string[] = []
-    
-    // Header
+    const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
+
     const titleText = ` 🚀 ${this.state.title} `
-    lines.push(truncateToWidth(titleText, width))
-    lines.push("─".repeat(Math.min(width, titleText.length)))
-    
-    // Progress
+    push(titleText)
+    push("─".repeat(renderWidth))
+
     const total = this.state.tasks.length
     const completed = this.state.tasks.filter(t => t.status !== "pending" && t.status !== "running").length
     const percent = total > 0 ? Math.floor((completed / total) * 100) : 0
-    
-    const barWidth = 20
+    const barWidth = Math.max(1, Math.min(20, renderWidth - (narrow ? 19 : 28)))
     const filled = Math.floor((percent / 100) * barWidth)
     const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
-    lines.push(`[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`)
-    lines.push("")
-    
-    // Tasks list
-    lines.push("Active Subagents:")
-    
+    push(narrow ? `[${bar}] ${completed}/${total} Tasks` : `[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`)
+    push("")
+    push(narrow ? "Tasks:" : "Active Subagents:")
+
+    const reservedRows = lines.length + 3
+    const maxTaskRows = Math.max(0, termRows - reservedRows)
+    let usedTaskRows = 0
+    let renderedTasks = 0
+
     for (const task of this.state.tasks) {
+      const rowCost = narrow ? 1 : (task.output || task.summary ? 2 : 1)
+      if (usedTaskRows + rowCost > maxTaskRows) break
+
       let icon = "⏳"
       if (task.status === "running") icon = "🔄"
       else if (task.status === "PASS") icon = "✅"
       else if (task.status === "ISSUES_FOUND") icon = "⚠️ "
       else if (task.status === "FAIL") icon = "❌"
 
-      let taskLine = `${icon} Task ${task.id}: ${task.title}`
+      let taskLine = narrow ? `${icon} ${task.id}: ${task.title}` : `${icon} Task ${task.id}: ${task.title}`
       if (task.status === "running" && task.effort) {
         taskLine += ` [thinking: ${task.effort}]`
       } else if (task.status !== "pending" && task.status !== "running") {
         taskLine += ` [${task.status}]`
       }
-      
-      lines.push(truncateToWidth(taskLine, width))
-      
-      if (task.output) {
-        lines.push(truncateToWidth(`   └─ ${task.output}`, width))
-      } else if (task.summary) {
-        lines.push(truncateToWidth(`   └─ ${task.summary}`, width))
+      push(taskLine)
+      usedTaskRows++
+      renderedTasks++
+
+      if (!narrow && task.output && usedTaskRows < maxTaskRows) {
+        push(`   └─ ${task.output}`)
+        usedTaskRows++
+      } else if (!narrow && task.summary && usedTaskRows < maxTaskRows) {
+        push(`   └─ ${task.summary}`)
+        usedTaskRows++
       }
     }
-    
-    lines.push("")
-    lines.push("[Ctrl+C / Esc] Cancel")
-    
-    return lines
+
+    const hiddenTasks = total - renderedTasks
+    if (hiddenTasks > 0 && lines.length < termRows - 2) {
+      push(`... ${hiddenTasks} more tasks`)
+    }
+
+    push("")
+    push("[Ctrl+C / Esc] Cancel")
+
+    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
   }
 }
