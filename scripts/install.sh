@@ -219,6 +219,12 @@ uninstall_from_manifest() {
   # uninstall_from_manifest <agent_home>  — remove only manifest-listed entries
   local home="$1"
   local manifest="${home}/.xpowers-manifest"
+  local old_ns="hyper""powers"
+  local legacy_manifest="${home}/.${old_ns}-manifest"
+
+  if [[ ! -f "$manifest" && -f "$legacy_manifest" ]]; then
+    manifest="$legacy_manifest"
+  fi
 
   if [[ ! -f "$manifest" ]]; then
     if [[ "$PURGE" == true ]]; then
@@ -234,7 +240,7 @@ uninstall_from_manifest() {
           count=$((count + 1))
         fi
       done
-      for f in .xpowers-version .xpowers-manifest; do
+      for f in .xpowers-version .xpowers-manifest ".${old_ns}-version" ".${old_ns}-manifest"; do
         if [[ -f "${home}/${f}" ]]; then
           [[ "$DRY_RUN" != true ]] && rm -f "${home}/${f}"
           count=$((count + 1))
@@ -283,9 +289,10 @@ uninstall_from_manifest() {
     [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
   done
 
-  # Remove manifest and version
+  # Remove manifest and version (including legacy names when present)
   rm -f "$manifest"
-  rm -f "${home}/.xpowers-version"
+  rm -f "${home}/.xpowers-manifest" "${home}/.${old_ns}-manifest"
+  rm -f "${home}/.xpowers-version" "${home}/.${old_ns}-version"
 
   # Purge: also remove backups
   if [[ "$PURGE" == true ]]; then

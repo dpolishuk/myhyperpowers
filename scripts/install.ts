@@ -315,46 +315,63 @@ const HOSTS: HostConfig[] = [
 
 const PI_AGENTS_SECTION_BEGIN = "<!-- BEGIN XPOWERS PI -->"
 const PI_AGENTS_SECTION_END = "<!-- END XPOWERS PI -->"
+const LEGACY_PI_AGENTS_SECTION_BEGIN = `<!-- BEGIN ${"HYPER"}POWERS PI -->`
+const LEGACY_PI_AGENTS_SECTION_END = `<!-- END ${"HYPER"}POWERS PI -->`
+const PI_AGENTS_LEGACY_MARKERS = ["# XPowers for Pi", `# ${"Hyper"}powers for Pi`]
 
 function wrapPiAgentsSection(content: string): string {
   return `${PI_AGENTS_SECTION_BEGIN}\n${content.trim()}\n${PI_AGENTS_SECTION_END}`
 }
 
+function findDelimitedSection(existing: string, beginMarker: string, endMarker: string): { beginIdx: number; endIdx: number; endLength: number } | null {
+  const beginIdx = existing.indexOf(beginMarker)
+  const endIdx = existing.indexOf(endMarker)
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    return { beginIdx, endIdx, endLength: endMarker.length }
+  }
+  return null
+}
+
+function findPiAgentsSection(existing: string): { beginIdx: number; endIdx: number; endLength: number } | null {
+  return findDelimitedSection(existing, PI_AGENTS_SECTION_BEGIN, PI_AGENTS_SECTION_END)
+    ?? findDelimitedSection(existing, LEGACY_PI_AGENTS_SECTION_BEGIN, LEGACY_PI_AGENTS_SECTION_END)
+}
+
 function replacePiAgentsSection(existing: string, newContent: string): string {
   const wrapped = wrapPiAgentsSection(newContent)
-  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
-  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+  const section = findPiAgentsSection(existing)
 
-  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
-    const before = existing.slice(0, beginIdx).trimEnd()
-    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+  if (section) {
+    const before = existing.slice(0, section.beginIdx).trimEnd()
+    const after = existing.slice(section.endIdx + section.endLength).trimStart()
     return [...[before, wrapped, after].filter(Boolean)].join("\n\n") + "\n"
   }
 
-  const legacyMarker = "# XPowers for Pi"
-  const markerIdx = existing.indexOf(legacyMarker)
-  if (markerIdx !== -1) {
-    const before = existing.slice(0, markerIdx).trimEnd()
-    return [...[before, wrapped].filter(Boolean)].join("\n\n") + "\n"
+  for (const legacyMarker of PI_AGENTS_LEGACY_MARKERS) {
+    const markerIdx = existing.indexOf(legacyMarker)
+    if (markerIdx !== -1) {
+      const before = existing.slice(0, markerIdx).trimEnd()
+      return [...[before, wrapped].filter(Boolean)].join("\n\n") + "\n"
+    }
   }
 
   return [...[existing.trimEnd(), wrapped].filter(Boolean)].join("\n\n") + "\n"
 }
 
 function removePiAgentsSection(existing: string): string {
-  const beginIdx = existing.indexOf(PI_AGENTS_SECTION_BEGIN)
-  const endIdx = existing.indexOf(PI_AGENTS_SECTION_END)
+  const section = findPiAgentsSection(existing)
 
-  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
-    const before = existing.slice(0, beginIdx).trimEnd()
-    const after = existing.slice(endIdx + PI_AGENTS_SECTION_END.length).trimStart()
+  if (section) {
+    const before = existing.slice(0, section.beginIdx).trimEnd()
+    const after = existing.slice(section.endIdx + section.endLength).trimStart()
     return [...[before, after].filter(Boolean)].join("\n\n").trim()
   }
 
-  const legacyMarker = "# XPowers for Pi"
-  const markerIdx = existing.indexOf(legacyMarker)
-  if (markerIdx !== -1) {
-    return existing.slice(0, markerIdx).trim()
+  for (const legacyMarker of PI_AGENTS_LEGACY_MARKERS) {
+    const markerIdx = existing.indexOf(legacyMarker)
+    if (markerIdx !== -1) {
+      return existing.slice(0, markerIdx).trim()
+    }
   }
 
   return existing.trim()

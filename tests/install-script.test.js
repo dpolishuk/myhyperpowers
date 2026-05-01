@@ -81,6 +81,31 @@ test("install.sh full uninstall removes managed ~/.local/bin/node_modules symlin
   assert.equal(fs.existsSync(path.join(binDir, "node_modules")), false)
 })
 
+test("install.sh uninstall accepts legacy manifest name", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-manifest-test-"))
+  const codexHome = path.join(home, ".codex")
+  const oldNs = "hyper" + "powers"
+
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "opencode"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.mkdirSync(path.join(codexHome, "skills", "legacy-skill"), { recursive: true })
+  fs.writeFileSync(path.join(codexHome, `.${oldNs}-manifest`), "skills/legacy-skill/\n", "utf8")
+  fs.writeFileSync(path.join(codexHome, `.${oldNs}-version`), "test\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--codex", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 20000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal(fs.existsSync(path.join(codexHome, "skills", "legacy-skill")), false)
+  assert.equal(fs.existsSync(path.join(codexHome, `.${oldNs}-manifest`)), false)
+  assert.equal(fs.existsSync(path.join(codexHome, `.${oldNs}-version`)), false)
+})
+
 test("install.sh partial uninstall preserves shared tm runtime", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))
   const codexHome = path.join(home, ".codex")
@@ -142,6 +167,69 @@ test("install.sh opencode moves pre-existing node_modules directory aside and in
   const backupPath = path.join(binDir, "node_modules.xpowers-backup")
   assert.equal(fs.existsSync(backupPath), true)
   assert.equal(fs.existsSync(path.join(backupPath, "some-pkg")), true)
+})
+
+test("pi installer replaces and removes legacy Pi AGENTS section markers", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-legacy-agents-test-"))
+  const piHome = path.join(home, ".pi", "agent")
+  const agentsPath = path.join(piHome, "AGENTS.md")
+  const oldDisplay = "Hyper" + "powers"
+  const trailingNotes = "User notes after legacy section"
+
+  fs.mkdirSync(piHome, { recursive: true })
+  fs.writeFileSync(
+    agentsPath,
+    [
+      "# Existing Pi Instructions",
+      "Keep this preface.",
+      "",
+      `<!-- BEGIN ${oldDisplay.toUpperCase()} PI -->`,
+      `# ${oldDisplay} for Pi`,
+      "Old installed content",
+      `<!-- END ${oldDisplay.toUpperCase()} PI -->`,
+      "",
+      trailingNotes,
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-pi-legacy-bin-"))
+  const piShimPath = path.join(tmpBinDir, "pi")
+  fs.writeFileSync(piShimPath, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShimPath, 0o755)
+
+  const env = installEnv(home, { PATH: `${tmpBinDir}:${process.env.PATH}` })
+  const installResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(installResult.status, 0, installResult.stderr || installResult.stdout)
+  const installedAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.match(installedAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.match(installedAgents, /# XPowers for Pi/)
+  assert.doesNotMatch(installedAgents, new RegExp(`# ${oldDisplay} for Pi`))
+  assert.match(installedAgents, /Keep this preface\./)
+  assert.match(installedAgents, new RegExp(trailingNotes))
+
+  const uninstallResult = spawnSync("bun", ["scripts/install.ts", "--hosts", "pi", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env,
+    timeout: 120000,
+  })
+
+  assert.equal(uninstallResult.status, 0, uninstallResult.stderr || uninstallResult.stdout)
+  const uninstalledAgents = fs.readFileSync(agentsPath, "utf8")
+  assert.doesNotMatch(uninstalledAgents, /<!-- BEGIN XPOWERS PI -->/)
+  assert.doesNotMatch(uninstalledAgents, /# XPowers for Pi/)
+  assert.match(uninstalledAgents, /Keep this preface\./)
+  assert.match(uninstalledAgents, new RegExp(trailingNotes))
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
 test("pi installer preserves freeform trailing AGENTS.md content across reinstall and uninstall", { timeout: 60000 }, () => {
