@@ -292,6 +292,8 @@ remove_legacy() {
               while IFS= read -r entry; do
                 [[ -z "$entry" ]] && continue
                 [[ "$entry" == \#* ]] && continue
+                [[ "$entry" == /* ]] && continue
+                [[ "$entry" == *..* ]] && continue
                 local entry_path="${agent_home}/${entry}"
                 if [[ -e "$entry_path" ]]; then
                   if ! quarantine_item "$entry_path" >/dev/null; then
@@ -491,35 +493,35 @@ uninstall_from_manifest() {
 
   if [[ ! -f "$manifest" ]]; then
     if [[ "$PURGE" == true ]]; then
-      # Legacy fallback: remove known xpowers directories without manifest
+      # Marker-driven purge: only remove exact files and backups; never delete
+      # broad directories without a manifest.
       local count=0
-      for dir in skills agents commands hooks plugins; do
-        if [[ -d "${home}/${dir}" ]]; then
+      for f in .xpowers-version .xpowers-manifest ".${old_ns}-version" ".${old_ns}-manifest"; do
+        if [[ -f "${home}/${f}" ]]; then
           if [[ "$DRY_RUN" == true ]]; then
-            echo "  Would remove (legacy): ${home}/${dir}/"
+            echo "  Would remove (marker-driven): ${home}/${f}" >&2
           else
-            rm -rf "${home:?}/${dir}"
+            rm -f "${home}/${f}"
           fi
           count=$((count + 1))
         fi
       done
-      for f in .xpowers-version .xpowers-manifest ".${old_ns}-version" ".${old_ns}-manifest"; do
-        if [[ -f "${home}/${f}" ]]; then
-          [[ "$DRY_RUN" != true ]] && rm -f "${home}/${f}"
-          count=$((count + 1))
+      if [[ -d "${home}/.xpowers-backups" ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+          echo "  Would remove (marker-driven): ${home}/.xpowers-backups/" >&2
+        else
+          rm -rf "${home}/.xpowers-backups"
         fi
-      done
-      if [[ "$DRY_RUN" != true ]]; then
-        rm -rf "${home}/.xpowers-backups"
+        count=$((count + 1))
       fi
       if [[ "$DRY_RUN" == true ]]; then
-        info "Dry run (legacy purge): would remove ${count} items from ${home}"
+        info "Dry run (marker-driven purge): would remove ${count} items from ${home}"
       else
-        info "Legacy purge: removed ${count} directories from ${home}"
+        info "Marker-driven purge: removed ${count} items from ${home}"
       fi
       return 0
     fi
-    warn "No manifest found for ${home}. Reinstall to generate manifest, or use --purge for legacy cleanup."
+    warn "No manifest found for ${home}. Reinstall to generate manifest, or use --purge for marker-driven cleanup."
     return 1
   fi
 
