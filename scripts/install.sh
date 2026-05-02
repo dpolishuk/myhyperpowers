@@ -222,6 +222,7 @@ remove_legacy_from_manifest() {
     [[ "$entry" == \#* ]] && continue
     [[ "$entry" == /* ]] && continue
     [[ "$entry" == *..* ]] && continue
+    [[ "$entry" == "." ]] && continue
     local target="${home}/${entry}"
     if [[ "$DRY_RUN" == true ]]; then
       echo "  Would remove (legacy manifest): ${target}" >&2
@@ -252,7 +253,7 @@ remove_legacy_from_manifest() {
 
 remove_legacy() {
   local total_removed=0
-  local processed_manifests=""
+  declare -A processed_manifests
 
   for name in "${CONFLICT_NAMES[@]}"; do
     while IFS= read -r candidate; do
@@ -270,44 +271,38 @@ remove_legacy() {
       esac
 
       # Manifest-driven removal for this agent home (once per home)
-      if [[ -n "$agent_home" ]]; then
-        local already_processed=false
-        for pm in $processed_manifests; do
-          [[ "$pm" == "$agent_home" ]] && already_processed=true && break
-        done
+      if [[ -n "$agent_home" && -z "${processed_manifests[$agent_home]:-}" ]]; then
+        local legacy_manifest="${agent_home}/.hyperpowers-manifest"
+        local xpowers_manifest="${agent_home}/.xpowers-manifest"
+        local manifest_to_use=""
 
-        if [[ "$already_processed" != true ]]; then
-          local legacy_manifest="${agent_home}/.hyperpowers-manifest"
-          local xpowers_manifest="${agent_home}/.xpowers-manifest"
-          local manifest_to_use=""
+        if [[ -f "$legacy_manifest" ]]; then
+          manifest_to_use="$legacy_manifest"
+        elif [[ -f "$xpowers_manifest" ]]; then
+          manifest_to_use="$xpowers_manifest"
+        fi
 
-          if [[ -f "$legacy_manifest" ]]; then
-            manifest_to_use="$legacy_manifest"
-          elif [[ -f "$xpowers_manifest" ]]; then
-            manifest_to_use="$xpowers_manifest"
-          fi
-
-          if [[ -n "$manifest_to_use" ]]; then
-            if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
-              while IFS= read -r entry; do
-                [[ -z "$entry" ]] && continue
-                [[ "$entry" == \#* ]] && continue
-                [[ "$entry" == /* ]] && continue
-                [[ "$entry" == *..* ]] && continue
-                local entry_path="${agent_home}/${entry}"
-                if [[ -e "$entry_path" ]]; then
-                  if ! quarantine_item "$entry_path" >/dev/null; then
-                    error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
-                    exit 1
-                  fi
+        if [[ -n "$manifest_to_use" ]]; then
+          if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
+            while IFS= read -r entry; do
+              [[ -z "$entry" ]] && continue
+              [[ "$entry" == \#* ]] && continue
+              [[ "$entry" == /* ]] && continue
+              [[ "$entry" == *..* ]] && continue
+              [[ "$entry" == "." ]] && continue
+              local entry_path="${agent_home}/${entry}"
+              if [[ -e "$entry_path" ]]; then
+                if ! quarantine_item "$entry_path" >/dev/null; then
+                  error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
+                  exit 1
                 fi
-              done < "$manifest_to_use"
-            fi
-            local count
-            count=$(remove_legacy_from_manifest "$agent_home" "$manifest_to_use")
-            total_removed=$((total_removed + count))
-            processed_manifests="${processed_manifests}${agent_home} "
+              fi
+            done < "$manifest_to_use"
           fi
+          local count
+          count=$(remove_legacy_from_manifest "$agent_home" "$manifest_to_use")
+          total_removed=$((total_removed + count))
+          processed_manifests[$agent_home]=1
         fi
       fi
 
@@ -531,6 +526,7 @@ uninstall_from_manifest() {
     [[ "$entry" == \#* ]] && continue
     [[ "$entry" == /* ]] && continue
     [[ "$entry" == *..* ]] && continue
+    [[ "$entry" == "." ]] && continue
     local target="${home}/${entry}"
     if [[ "$DRY_RUN" == true ]]; then
       echo "  Would remove: ${target}"
@@ -1338,6 +1334,18 @@ main() {
     fi
   fi
 
+  # --- Legacy removal (before any installation) ---
+  if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
+    if ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
+      error "No terminal detected. Use --yes to confirm legacy removal."
+      exit 1
+    fi
+    remove_legacy
+    if [[ "$REMOVE_LEGACY" == true ]]; then
+      exit 0
+    fi
+  fi
+
   local -a FAILED_AGENTS=()
 
   # Pi delegation: TypeScript installer handles Pi
@@ -1407,18 +1415,6 @@ main() {
       warn "No agents detected."
     fi
     exit 0
-  fi
-
-  # --- Legacy removal ---
-  if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
-    if ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
-      error "No terminal detected. Use --yes to confirm legacy removal."
-      exit 1
-    fi
-    remove_legacy
-    if [[ "$REMOVE_LEGACY" == true ]]; then
-      exit 0
-    fi
   fi
 
   # Build display list

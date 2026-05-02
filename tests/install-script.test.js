@@ -938,3 +938,98 @@ test("install.sh repeated legacy cleanup is idempotent", { timeout: 30000 }, () 
   const output = combinedOutput(second)
   assert.equal(second.status, 0, output)
 })
+
+
+test("install.sh quarantine ignores path-traversal manifest entries", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-traversal-test-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+
+  // Create a conflict candidate so manifest processing is triggered
+  fs.mkdirSync(path.join(claudeHome, "plugins"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "plugins", "hyperpowers"), "legacy", "utf8")
+
+  // Create a manifest with path-traversal entries
+  const manifest = path.join(claudeHome, ".hyperpowers-manifest")
+  fs.writeFileSync(
+    manifest,
+    [
+      "skills/test-skill/",
+      "../../../etc/passwd",
+      ".",
+      "agents/../",
+      "commands/test.md",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  fs.writeFileSync(path.join(claudeHome, ".hyperpowers-version"), "1.0.0", "utf8")
+  fs.mkdirSync(path.join(claudeHome, "skills", "test-skill"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "skills", "test-skill", "SKILL.md"), "test", "utf8")
+  fs.mkdirSync(path.join(claudeHome, "commands"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "commands", "test.md"), "test", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  // The safe entries should be removed
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "test-skill")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "commands", "test.md")), false)
+  // The traversal entries should NOT cause removal outside the agent home
+  assert.equal(fs.existsSync("/etc/passwd"), true)
+  // The candidate itself should also be removed
+  assert.equal(fs.existsSync(path.join(claudeHome, "plugins", "hyperpowers")), false)
+})
+
+test("install.sh marker-driven purge removes exact files without manifest", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-purge-test-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.mkdirSync(path.join(claudeHome, "skills", "unrelated-skill"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "skills", "unrelated-skill", "SKILL.md"), "keep me", "utf8")
+  fs.writeFileSync(path.join(claudeHome, ".xpowers-version"), "1.0.0", "utf8")
+  fs.writeFileSync(path.join(claudeHome, ".xpowers-manifest"), "# test\n", "utf8")
+  fs.mkdirSync(path.join(claudeHome, ".xpowers-backups"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, ".xpowers-backups", "backup.txt"), "backup", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--uninstall", "--claude", "--purge", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  // Marker files and backups should be removed
+  assert.equal(fs.existsSync(path.join(claudeHome, ".xpowers-version")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, ".xpowers-manifest")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, ".xpowers-backups")), false)
+  // Broad directories should be preserved
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "unrelated-skill", "SKILL.md")), true)
+})
+
+test("setup-pi.sh shim rejects piped execution with helpful error", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "setup-pi-pipe-test-"))
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "setup-pi-pipe-cwd-"))
+  const script = fs.readFileSync(path.join(repoRoot, "scripts", "setup-pi.sh"), "utf8")
+
+  const result = spawnSync("bash", ["-s"], {
+    cwd,
+    input: script,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.notEqual(result.status, 0, output)
+  assert.match(output, /cannot determine script location when piped/i)
+  assert.match(output, /universal installer instead/i)
+})
