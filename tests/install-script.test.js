@@ -64,6 +64,7 @@ test("bun installer fails fast on legacy package conflicts unless explicitly ove
   })
 
   const allowedOutput = combinedOutput(allowed)
+  assert.equal(allowed.status, 0, allowedOutput)
   assert.doesNotMatch(allowedOutput, /conflicting install/i)
 })
 
