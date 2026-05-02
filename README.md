@@ -97,6 +97,10 @@ While `tm` provides a unified interface, some backends use different flag names 
 
 This mapping currently applies to `tm create` with the `br` backend.
 
+### Boundary: ralph-tui / beads-rust Skills
+
+Some global skills outside this repo can generate task sources for `ralph-tui` using beads-rust (`br`). Those workflows are explicitly backend-specific. Inside XPowers project work, agents must use `tm` unless the user explicitly asks for `ralph-tui`, `beads-rust`, or `br` task-source generation.
+
 ## Features
 
 ### Skills

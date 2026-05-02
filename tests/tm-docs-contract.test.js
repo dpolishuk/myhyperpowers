@@ -70,6 +70,18 @@ test("README first-pass classifies bd br and tk with distinct roles", () => {
   assert.equal(readme.includes("`tm` = canonical user-facing task-management interface"), true)
 })
 
+test("docs distinguish tm-first project work from explicit ralph-tui beads-rust workflows", () => {
+  const readme = read("README.md")
+  const agentsGuide = read("AGENTS.md")
+
+  for (const content of [readme, agentsGuide]) {
+    assert.equal(content.includes("ralph-tui"), true)
+    assert.equal(content.includes("beads-rust"), true)
+    assert.equal(content.includes("use `tm`"), true)
+    assert.equal(content.includes("unless the user explicitly asks"), true)
+  }
+})
+
 test("README and AGENTS agree on Codex wrapper location and host support", () => {
   const readme = read("README.md")
   const agentsGuide = read("AGENTS.md")
@@ -124,6 +136,31 @@ test("Kimi and Codex host docs stay tm-first", () => {
 
   assert.equal(codexInstall.includes("bd ready"), false)
   assert.equal(codexInstall.includes("tm ready"), true)
+})
+
+test("Agent workflow docs use backend-portable tm design updates", () => {
+  const checkedPaths = [
+    "skills/fixing-bugs/SKILL.md",
+    "skills/refactoring-safely/SKILL.md",
+    "skills/managing-bd-tasks/SKILL.md",
+    ".kimi/skills/fixing-bugs/SKILL.md",
+    ".kimi/skills/refactoring-safely/SKILL.md",
+    ".kimi/skills/managing-bd-tasks/SKILL.md",
+    ".opencode/skills/xpowers-fixing-bugs/SKILL.md",
+    ".opencode/skills/xpowers-refactoring-safely/SKILL.md",
+    ".opencode/skills/xpowers-managing-bd-tasks/SKILL.md",
+    ".agents/skills/fixing-bugs/SKILL.md",
+    ".agents/skills/refactoring-safely/SKILL.md",
+    ".agents/skills/managing-bd-tasks/SKILL.md",
+  ]
+
+  for (const relativePath of checkedPaths) {
+    const content = read(relativePath)
+    assert.equal(content.includes("tm edit "), false, `${relativePath} must not use backend-specific tm edit`)
+    assert.equal(content.includes("bd edit "), false, `${relativePath} must not use direct bd edit`)
+  }
+
+  assert.match(read("skills/fixing-bugs/SKILL.md"), /tm update \S+ --design/)
 })
 
 test("Kimi install docs describe the linear preview contract and agent paths consistently", () => {

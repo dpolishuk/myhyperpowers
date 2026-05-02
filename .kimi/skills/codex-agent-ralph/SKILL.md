@@ -77,21 +77,21 @@ From `triage.project_health.graph`:
 bv --robot-next 2>/dev/null
 ```
 
-This returns the optimal next task with:
+This returns the optimal next task. Treat any backend command strings in the output as advisory only:
 ```json
 {
   "id": "bd-xxx",
   "title": "...",
   "score": 0.xx,
-  "claim_command": "bd update bd-xxx --status=in_progress",
-  "show_command": "bd show bd-xxx"
+  "claim_command": "<backend-specific command; do not run verbatim>",
+  "show_command": "<backend-specific command; do not run verbatim>"
 }
 ```
 
 ### Step 4: Claim and Execute
 
-1. Run the `claim_command` to mark in_progress
-2. Run the `show_command` to get full details
+1. Extract the issue `id` from the triage output and run `tm update <id> --status in_progress` to mark in_progress
+2. Run `tm show <id>` to get full details
 3. Check issue type:
    - **epic** → Use `execute-ralph` skill for full epic execution.
    - **task/bug/feature/chore** → Use **Stateless Dispatch** for SCIU implementation:
@@ -149,9 +149,9 @@ This returns tracks that can be executed in parallel. Consider spawning parallel
 | Smart next pick | `bv --robot-next` |
 | Full triage | `bv --robot-triage` |
 | Execution plan | `bv --robot-plan` |
-| Ready items | `bd ready --json` |
-| Blocked items | `bd blocked --json` |
-| Claim task | `bd update <id> --status in_progress` |
+| Ready items | `tm ready` |
+| Blocked items | `tm list --status blocked` |
+| Claim task | `tm update <id> --status in_progress` |
 | Verify task closure | `tm show <id> --json` |
 
 ## Integration

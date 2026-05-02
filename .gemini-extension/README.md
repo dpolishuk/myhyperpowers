@@ -168,7 +168,7 @@ tm close <id>                 # Complete work
 tm sync                       # Push local work to Linear (when configured)
 ```
 
-Legacy `bd_*` Gemini tools may remain for compatibility, but the branch direction is `tm` first.
+Legacy `bd_*` Gemini tools are not registered by default. Use the `tm_*` tools for normal task-management workflows.
 
 ## Extension Structure
 
@@ -179,7 +179,7 @@ Legacy `bd_*` Gemini tools may remain for compatibility, but the branch directio
 ├── mcp/
 │   ├── skills-server.js # MCP server for skills
 │   ├── agents-server.js # MCP server for agents
-│   ├── bd-server.js     # Legacy MCP server for bd integration
+│   ├── bd-server.js     # Legacy unregistered MCP server for bd compatibility testing
 │   └── tm-server.js     # MCP server for tm task management + sync
 ├── agents/              # Sub-agent definitions
 ├── commands/            # Slash command definitions
@@ -196,8 +196,9 @@ The extension uses Model Context Protocol (MCP) to expose capabilities:
 
 1. **skills-server**: Scans skills/ directory and exposes tools
 2. **agents-server**: Provides agent invocation
-3. **bd-server**: Wraps bd CLI commands (legacy compatibility)
-4. **tm-server**: Exposes shared tm task-management + sync commands
+3. **tm-server**: Exposes shared tm task-management + sync commands
+
+`bd-server.js` remains in the tree only for legacy compatibility tests and is not registered in the default manifest.
 
 ### Adding New Skills
 

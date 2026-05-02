@@ -81,7 +81,7 @@ tm create "Bug: [Clear description]" --type bug --priority P1
 
 **Document:**
 ```bash
-bd edit bd-123 --design "
+tm update bd-123 --design "
 ## Bug Description
 [What's wrong]
 
@@ -115,7 +115,7 @@ Use Skill tool: xpowers:debugging-with-tools
 
 **Update bd issue with findings:**
 ```bash
-bd edit bd-123 --design "[previous content]
+tm update bd-123 --design "[previous content]
 
 ## Investigation
 [Root cause found via debugging]
@@ -193,7 +193,7 @@ pytest tests/test_user.py::test_rejects_empty_email
 **REQUIRED: Classify fix status before closing:**
 
 ```bash
-bd edit bd-123 --design "[previous content]
+tm update bd-123 --design "[previous content]
 
 ## Fix Status: FIXED
 **Evidence:**

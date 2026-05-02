@@ -87,7 +87,11 @@ export class RalphDashboard extends Container implements Focusable {
       this.tui?.requestRender?.()
       return true
     }
-    return true
+
+    // Do not swallow normal keyboard input. The dashboard is informational;
+    // if it has focus unexpectedly, unhandled keys must be allowed to fall
+    // through so Pi's main input remains responsive.
+    return false
   }
 
   render(width: number): string[] {
@@ -151,7 +155,7 @@ export class RalphDashboard extends Container implements Focusable {
 
     push("── Execution Logs ──")
 
-    const helpLine = "[q / Esc / Ctrl+C] Cancel Execution"
+    const helpLine = "[q / Esc / Ctrl+C] Hide Dashboard"
     const reservedForHelp = 2
     const remainingRows = Math.max(0, termRows - lines.length - reservedForHelp)
     const maxLogLines = narrow ? Math.min(remainingRows, 3) : remainingRows

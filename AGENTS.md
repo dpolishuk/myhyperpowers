@@ -454,6 +454,8 @@ tm close bd-42
 
 These tools are related, but they are **not interchangeable day-to-day commands**. Use `tm` for canonical workflow guidance with **one backend selected per project** unless a backend-specific guide explicitly calls for `bd`, `br`, `tk`, or `linear`.
 
+Global ralph-tui skills may explicitly use beads-rust (`br`) to create `ralph-tui` task sources. That is a separate backend-specific workflow; inside this XPowers repo, use `tm` for project task tracking unless the user explicitly asks for `ralph-tui`, `beads-rust`, or `br` task-source generation.
+
 ### Workflow for AI Agents
 
 1. **Check ready work**: `tm ready` shows unblocked issues

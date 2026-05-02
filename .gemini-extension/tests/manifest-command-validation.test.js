@@ -20,7 +20,7 @@ test('gemini extension manifest is parseable and canonical', async () => {
   assert.equal(typeof manifest.mcpServers, 'object');
   assert.ok(manifest.mcpServers.skills, 'manifest should include skills server');
   assert.ok(manifest.mcpServers.agents, 'manifest should include agents server');
-  assert.ok(manifest.mcpServers.bd, 'manifest should include bd server');
+  assert.equal(Object.prototype.hasOwnProperty.call(manifest.mcpServers, 'bd'), false, 'manifest should not expose legacy bd server by default');
   assert.ok(manifest.mcpServers.tm, 'manifest should include tm server');
   assert.equal(manifest.mcpServers.tm.command, 'node');
   assert.deepEqual(manifest.mcpServers.tm.args, ['${extensionPath}${/}mcp${/}tm-server.js']);
