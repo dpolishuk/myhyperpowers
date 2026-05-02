@@ -1053,6 +1053,7 @@ AGENTS:
     --kimi              Install to Kimi CLI (~/.config/agents)
     --codex             Install to Codex CLI (~/.codex)
     --gemini            Install to Gemini CLI (native extension)
+    --hosts <list>      Comma-separated agents: claude,opencode,kimi,codex,gemini,pi,all
     --all               Install to all detected agents
 
 MODES:
@@ -1098,6 +1099,7 @@ main() {
   local INTERACTIVE=true
   local ALLOW_CONFLICTS=false
   local -a SELECTED_AGENTS=()
+  local -a ORIGINAL_ARGS=("$@")
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
@@ -1109,6 +1111,28 @@ main() {
       --kimi)       SELECTED_AGENTS+=(kimi);     INTERACTIVE=false; shift ;;
       --codex)      SELECTED_AGENTS+=(codex);    INTERACTIVE=false; shift ;;
       --gemini)     SELECTED_AGENTS+=(gemini);   INTERACTIVE=false; shift ;;
+      --hosts)
+        shift
+        if [[ $# -eq 0 ]]; then
+          error "--hosts requires a comma-separated list"
+          usage >&2
+          exit 1
+        fi
+        IFS=',' read -ra HOST_LIST <<< "$1"
+        for h in "${HOST_LIST[@]}"; do
+          case "$h" in
+            claude)   SELECTED_AGENTS+=(claude);   INTERACTIVE=false ;;
+            opencode) SELECTED_AGENTS+=(opencode); INTERACTIVE=false ;;
+            kimi)     SELECTED_AGENTS+=(kimi);     INTERACTIVE=false ;;
+            codex)    SELECTED_AGENTS+=(codex);    INTERACTIVE=false ;;
+            gemini)   SELECTED_AGENTS+=(gemini);   INTERACTIVE=false ;;
+            pi)       SELECTED_AGENTS+=(pi);       INTERACTIVE=false ;;
+            all)      INTERACTIVE=false ;;
+            *)        error "Unknown host: $h"; usage >&2; exit 1 ;;
+          esac
+        done
+        shift
+        ;;
       --all)        INTERACTIVE=false; shift ;;  # handled after detection
       --uninstall)  MODE="uninstall"; shift ;;
       --status)     MODE="status"; shift ;;
@@ -1132,6 +1156,17 @@ main() {
       :  # handled below after detection
     fi
   fi
+
+  # Pi delegation: TypeScript installer handles Pi
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    if [[ "$agent" == "pi" ]]; then
+      if ! command -v bun &>/dev/null; then
+        error "Pi installation requires Bun. Install Bun first: https://bun.sh"
+        exit 1
+      fi
+      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${ORIGINAL_ARGS[@]}"
+    fi
+  done
 
   # Detect agents
   detect_all
