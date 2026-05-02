@@ -3,6 +3,8 @@ import {
   matchesKey,
   Key,
   truncateToWidth,
+  visibleWidth,
+  type Focusable,
 } from "@mariozechner/pi-tui"
 import type { StructuredTaskStatus } from "./task-runner"
 
@@ -25,10 +27,18 @@ export interface LiveExecutionState {
   tasks: LiveTaskState[]
 }
 
-export class LiveExecutionDashboard extends Container {
+export class LiveExecutionDashboard extends Container implements Focusable {
   private state: LiveExecutionState
-  private onCancel?: () => void
+  public onCancel?: () => void
+  private _focused = true
   public tui?: DashboardTui
+
+  get focused(): boolean {
+    return this._focused
+  }
+  set focused(value: boolean) {
+    this._focused = value
+  }
 
   constructor(initialState: LiveExecutionState, onCancel?: () => void) {
     super()
@@ -45,12 +55,13 @@ export class LiveExecutionDashboard extends Container {
   }
 
   handleInput(data: string): boolean {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")) || data === "\x1b" || data === "q" || data === "Q") {
       this.onCancel?.()
       this.tui?.requestRender?.()
       return true
     }
-    return true
+    // Allow unhandled keys to fall through so Pi input stays responsive
+    return false
   }
 
   render(width: number): string[] {
@@ -58,31 +69,88 @@ export class LiveExecutionDashboard extends Container {
     const renderWidth = Math.max(1, Math.min(width, terminalColumns))
     const termRows = Math.max(1, this.tui?.terminal?.rows || 24)
     const narrow = renderWidth < 80
+    const innerWidth = renderWidth - 2
     const lines: string[] = []
     const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
 
-    const titleText = ` 🚀 ${this.state.title} `
-    push(titleText)
-    push("─".repeat(renderWidth))
+    // ===== OUTER FRAME: TOP =====
+    push(`╭${"─".repeat(innerWidth)}╮`)
 
+    // ===== TITLE =====
+    const titleText = ` 🚀 ${this.state.title} `
+    const titleFit = truncateToWidth(titleText, innerWidth)
+    const titlePad = "─".repeat(Math.max(0, innerWidth - visibleWidth(titleFit)))
+    push(`│${titleFit}${titlePad}│`)
+
+    push(`│${" ".repeat(innerWidth)}│`)
+
+    // ===== PROGRESS =====
     const total = this.state.tasks.length
     const completed = this.state.tasks.filter(t => t.status !== "pending" && t.status !== "running").length
     const percent = total > 0 ? Math.floor((completed / total) * 100) : 0
-    const barWidth = Math.max(1, Math.min(20, renderWidth - (narrow ? 19 : 28)))
+    const barWidth = Math.max(1, Math.min(20, innerWidth - (narrow ? 19 : 28)))
     const filled = Math.floor((percent / 100) * barWidth)
     const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
-    push(narrow ? `[${bar}] ${completed}/${total} Tasks` : `[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`)
-    push("")
-    push(narrow ? "Tasks:" : "Active Subagents:")
+    const progressText = narrow ? `[${bar}] ${completed}/${total} Tasks` : `[${bar}] ${percent}% Complete - ${completed}/${total} Tasks`
+    const progressFit = truncateToWidth(progressText, innerWidth)
+    const progressPad = " ".repeat(Math.max(0, innerWidth - visibleWidth(progressFit)))
+    push(`│${progressFit}${progressPad}│`)
 
-    const reservedRows = lines.length + 3
-    const maxTaskRows = Math.max(0, termRows - reservedRows)
-    let usedTaskRows = 0
+    push(`│${" ".repeat(innerWidth)}│`)
+
+    // ===== TASK PANEL =====
+    const panelWidth = innerWidth - 2
+    const header = narrow ? "Tasks" : "Active Subagents"
+    // Leave room for panel borders + help + bottom frame
+    const panelContentMax = Math.max(1, termRows - lines.length - 5)
+    const taskLines = this.buildTaskLines(narrow, panelWidth, panelContentMax)
+    const taskBox = this.buildPanel(header, taskLines, panelWidth)
+    for (const line of taskBox) push(`│ ${line} │`)
+
+    // ===== HELP / FOOTER =====
+    const helpLine = "[q / Esc / Ctrl+C] Cancel"
+    const helpFit = truncateToWidth(` ${helpLine} `, innerWidth)
+    const helpPad = " ".repeat(Math.max(0, innerWidth - visibleWidth(helpFit)))
+    push(`│${helpFit}${helpPad}│`)
+
+    // ===== OUTER FRAME: BOTTOM =====
+    push(`╰${"─".repeat(innerWidth)}╯`)
+
+    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
+  }
+
+  private buildPanel(title: string, content: string[], totalWidth: number): string[] {
+    const innerWidth = Math.max(1, totalWidth - 2)
+    const out: string[] = []
+
+    const titleText = `── ${title} `
+    const titleFit = truncateToWidth(titleText, innerWidth)
+    const titlePad = "─".repeat(Math.max(0, innerWidth - visibleWidth(titleFit)))
+    out.push(`╭${titleFit}${titlePad}╮`)
+
+    for (const line of content) {
+      const fit = truncateToWidth(line, innerWidth)
+      const pad = " ".repeat(Math.max(0, innerWidth - visibleWidth(fit)))
+      out.push(`│${fit}${pad}│`)
+    }
+
+    out.push(`╰${"─".repeat(innerWidth)}╯`)
+
+    return out
+  }
+
+  private buildTaskLines(narrow: boolean, width: number, maxLines: number): string[] {
+    const lines: string[] = []
+    const total = this.state.tasks.length
     let renderedTasks = 0
+
+    // Reserve 1 line for the "more tasks" indicator if needed
+    const showMoreIndicator = total > 0
+    const contentBudget = showMoreIndicator ? Math.max(1, maxLines - 1) : maxLines
 
     for (const task of this.state.tasks) {
       const rowCost = narrow ? 1 : (task.output || task.summary ? 2 : 1)
-      if (usedTaskRows + rowCost > maxTaskRows) break
+      if (lines.length + rowCost > contentBudget) break
 
       let icon = "⏳"
       if (task.status === "running") icon = "🔄"
@@ -90,33 +158,27 @@ export class LiveExecutionDashboard extends Container {
       else if (task.status === "ISSUES_FOUND") icon = "⚠️ "
       else if (task.status === "FAIL") icon = "❌"
 
-      let taskLine = narrow ? `${icon} ${task.id}: ${task.title}` : `${icon} Task ${task.id}: ${task.title}`
+      let taskLine = narrow ? `${icon} ${task.id}: ${truncateToWidth(task.title, width - 6)}` : `${icon} Task ${task.id}: ${truncateToWidth(task.title, width - 12)}`
       if (task.status === "running" && task.effort) {
         taskLine += ` [thinking: ${task.effort}]`
       } else if (task.status !== "pending" && task.status !== "running") {
         taskLine += ` [${task.status}]`
       }
-      push(taskLine)
-      usedTaskRows++
+      lines.push(truncateToWidth(taskLine, width))
       renderedTasks++
 
-      if (!narrow && task.output && usedTaskRows < maxTaskRows) {
-        push(`   └─ ${task.output}`)
-        usedTaskRows++
-      } else if (!narrow && task.summary && usedTaskRows < maxTaskRows) {
-        push(`   └─ ${task.summary}`)
-        usedTaskRows++
+      if (!narrow && task.output && lines.length < contentBudget) {
+        lines.push(truncateToWidth(`   └─ ${task.output}`, width))
+      } else if (!narrow && task.summary && lines.length < contentBudget) {
+        lines.push(truncateToWidth(`   └─ ${task.summary}`, width))
       }
     }
 
     const hiddenTasks = total - renderedTasks
-    if (hiddenTasks > 0 && lines.length < termRows - 2) {
-      push(`... ${hiddenTasks} more tasks`)
+    if (hiddenTasks > 0) {
+      lines.push(`... ${hiddenTasks} more tasks`)
     }
 
-    push("")
-    push("[Ctrl+C / Esc] Cancel")
-
-    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
+    return lines
   }
 }

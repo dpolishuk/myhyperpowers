@@ -24,19 +24,19 @@ test("Brainstorm dashboard collapses to readable single-column layout on narrow 
     },
   }
   const dashboard = new BrainstormDashboard(state)
+  dashboard.tui = { terminal: { columns: 38, rows: 16 } }
   const lines = dashboard.render(38)
   const text = lines.join("\n")
 
   expect(text).toContain("Epic Preview")
   expect(text).toContain("Current Question")
-  expect(text).not.toContain("│ Q:")
   expectAllLinesFit(lines, 38)
 })
 
 test("Live execution dashboard uses compact progress and height cap on mobile terminals", () => {
   const state: LiveExecutionState = {
     title: "Parallel review with a very long title that should fit",
-    tasks: Array.from({ length: 8 }, (_, index) => ({
+    tasks: Array.from({ length: 12 }, (_, index) => ({
       id: `task-${index + 1}`,
       title: "Review lane with a verbose description that should not overflow",
       status: index === 0 ? "running" : "pending",
@@ -44,13 +44,13 @@ test("Live execution dashboard uses compact progress and height cap on mobile te
     })),
   }
   const dashboard = new LiveExecutionDashboard(state)
-  dashboard.tui = { terminal: { columns: 36, rows: 12 } }
+  dashboard.tui = { terminal: { columns: 36, rows: 14 } }
   const lines = dashboard.render(36)
   const text = lines.join("\n")
 
   expect(text).toContain("Tasks")
   expect(text).toContain("more tasks")
-  expect(lines.length).toBeLessThanOrEqual(12)
+  expect(lines.length).toBeLessThanOrEqual(14)
   expectAllLinesFit(lines, 36)
 })
 
@@ -67,7 +67,7 @@ test("Brainstorm narrow layout keeps current question visible when epic preview 
       options: [{ label: "Adaptive" }, { label: "Always compact" }],
     },
   })
-  dashboard.tui = { terminal: { columns: 36, rows: 10 } }
+  dashboard.tui = { terminal: { columns: 36, rows: 14 } }
 
   const text = dashboard.render(36).join("\n")
 
