@@ -784,16 +784,28 @@ export default function (pi: any) {
         session.hidden = false
       }
 
-      if (session?.hidden) {
-        return { content: [] }
-      }
-
       if (session?.closeTimer) {
         clearTimeout(session.closeTimer)
         session.closeTimer = undefined
       }
 
       const { logMessage, ...stateUpdate } = params
+
+      if (session?.hidden) {
+        session.dashboard?.updateState(stateUpdate)
+        if (logMessage) {
+          session.dashboard?.addLog(logMessage)
+        }
+        if (params.phase === "done") {
+          session.closeTimer = setTimeout(() => {
+            const currSession = ralphSessions.get(sessionKey)
+            if (currSession === session) {
+              ralphSessions.delete(sessionKey)
+            }
+          }, 2000)
+        }
+        return { content: [] }
+      }
 
       if (!session || !session.dashboard) {
         const dashboard = new RalphDashboard({
