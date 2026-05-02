@@ -55,6 +55,7 @@ type InstallManifest = {
 
 const xdgConfig = () => process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
 const legacyNs = () => "hyper" + "powers"
+const conflictingNamespaces = ["hyperpowers", "myhyperpowers", "superpowers"]
 const manifestPath = () => join(homedir(), ".xpowers", "manifest.json")
 const legacyManifestPath = () => join(homedir(), `.${legacyNs()}`, "manifest.json")
 
@@ -96,6 +97,46 @@ const listItems = async (dir: string, pattern?: string, exclude?: string[]): Pro
     return true
   })
 }
+
+type ConflictInstall = { name: string, path: string, removalHint: string }
+
+const candidateConflictPaths = (name: string): string[] => [
+  join(homedir(), ".claude", "plugins", `${name}@${name}`),
+  join(homedir(), ".claude", "plugins", name),
+  join(xdgConfig(), "opencode", "plugins", name),
+  join(xdgConfig(), "opencode", "skills", name),
+  join(xdgConfig(), "agents", "skills", name),
+  join(homedir(), ".codex", "skills", name),
+  join(homedir(), ".agents", "skills", name),
+  join(homedir(), ".pi", "agent", "extensions", name),
+]
+
+const removalHintFor = (name: string, conflictPath: string): string => {
+  if (conflictPath.includes(`${name}@${name}`)) return `Claude Code: /plugin uninstall ${name}@${name} --scope user`
+  return `Remove or uninstall ${name} from this host before installing XPowers.`
+}
+
+const detectConflictingInstalls = (): ConflictInstall[] => {
+  const seen = new Set<string>()
+  const conflicts: ConflictInstall[] = []
+
+  for (const name of conflictingNamespaces) {
+    for (const conflictPath of candidateConflictPaths(name)) {
+      if (!existsSync(conflictPath)) continue
+      const key = `${name}\0${conflictPath}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      conflicts.push({ name, path: conflictPath, removalHint: removalHintFor(name, conflictPath) })
+    }
+  }
+
+  return conflicts
+}
+
+const formatConflictMessage = (conflicts: ConflictInstall[]): string => [
+  "Conflicting install(s) detected. Remove these before installing XPowers, or rerun with --allow-conflicts if you intentionally want both systems active:",
+  ...conflicts.map((conflict) => `- ${conflict.name}: ${conflict.path}\n  ${conflict.removalHint}`),
+].join("\n")
 
 // ---------------------------------------------------------------------------
 // Host Configurations (data-driven, not 5x functions)
@@ -707,10 +748,11 @@ type CliArgs = {
   hosts: string[]
   features: string[]
   help: boolean
+  allowConflicts: boolean
 }
 
 const parseArgs = (): CliArgs => {
-  const args: CliArgs = { yes: false, uninstall: false, json: false, hosts: [], features: [], help: false }
+  const args: CliArgs = { yes: false, uninstall: false, json: false, hosts: [], features: [], help: false, allowConflicts: false }
   const argv = process.argv.slice(2)
 
   for (let i = 0; i < argv.length; i++) {
@@ -733,6 +775,9 @@ const parseArgs = (): CliArgs => {
         break
       case "--features":
         args.features = (argv[++i] || "").split(",").filter(Boolean)
+        break
+      case "--allow-conflicts":
+        args.allowConflicts = true
         break
       case "--help":
       case "-h":
@@ -776,6 +821,7 @@ Options:
   --uninstall        Remove all installed files and features
   --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini,pi
   --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
+  --allow-conflicts  Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
   --help, -h         Show this help
 `)
     return
@@ -852,6 +898,35 @@ Options:
     p.log.info("You can still install host-independent features: bun scripts/install.ts --features tm-cli")
     p.outro("Nothing to install.")
     return
+  }
+
+  const conflicts = detectConflictingInstalls()
+  if (conflicts.length > 0 && !args.allowConflicts) {
+    const message = formatConflictMessage(conflicts)
+    const nonInteractive = args.yes || args.json || process.env.CI === "true" || !process.stdin.isTTY
+    if (args.json) {
+      console.log(JSON.stringify({
+        ok: false,
+        version: VERSION,
+        error: message,
+        conflicts: conflicts.map((conflict) => ({ name: conflict.name, path: conflict.path })),
+      }))
+      process.exit(1)
+    }
+    if (nonInteractive) {
+      p.log.error(message)
+      process.exit(1)
+    }
+
+    p.log.warn(message)
+    const continueAnyway = await p.confirm({
+      message: "Continue installing XPowers despite these conflicting installs?",
+      initialValue: false,
+    })
+    if (p.isCancel(continueAnyway) || continueAnyway !== true) {
+      p.cancel("Cancelled. Remove the conflicting installs and rerun the installer.")
+      return
+    }
   }
 
   // Phase 2: Select hosts

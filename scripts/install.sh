@@ -44,6 +44,7 @@ header() {
 # ---------------------------------------------------------------------------
 
 XDG_CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+CONFLICT_NAMES=(hyperpowers myhyperpowers superpowers)
 
 ensure_dir() { mkdir -p "$1" 2>/dev/null || { error "Cannot create $1"; return 1; }; }
 
@@ -53,6 +54,46 @@ count_items() {
   # shellcheck disable=SC2012,SC2086
   set +e; local n; n=$(ls -1d $pattern 2>/dev/null | wc -l); set -e
   echo "${n// /}"
+}
+
+conflict_candidates_for() {
+  local name="$1"
+  printf '%s\n' \
+    "${HOME}/.claude/plugins/${name}@${name}" \
+    "${HOME}/.claude/plugins/${name}" \
+    "${XDG_CFG}/opencode/plugins/${name}" \
+    "${XDG_CFG}/opencode/skills/${name}" \
+    "${XDG_CFG}/agents/skills/${name}" \
+    "${HOME}/.codex/skills/${name}" \
+    "${HOME}/.agents/skills/${name}" \
+    "${HOME}/.pi/agent/extensions/${name}"
+}
+
+detect_conflicts() {
+  local found=false
+  for name in "${CONFLICT_NAMES[@]}"; do
+    while IFS= read -r candidate; do
+      if [[ -e "$candidate" ]]; then
+        printf '%s|%s\n' "$name" "$candidate"
+        found=true
+      fi
+    done < <(conflict_candidates_for "$name")
+  done
+  [[ "$found" == true ]]
+}
+
+print_conflict_warning() {
+  local conflicts="$1"
+  error "Conflicting install(s) detected. Remove these before installing XPowers, or rerun with --allow-conflicts if you intentionally want both systems active:"
+  while IFS='|' read -r name candidate; do
+    [[ -n "$name" ]] || continue
+    warn "- ${name}: ${candidate}"
+    if [[ "$candidate" == *"${name}@${name}"* ]]; then
+      warn "  Claude Code: /plugin uninstall ${name}@${name} --scope user"
+    else
+      warn "  Remove or uninstall ${name} from this host before installing XPowers."
+    fi
+  done <<< "$conflicts"
 }
 
 backup_dir() {
@@ -946,6 +987,7 @@ MODES:
     --dry-run           Show what would be installed/removed without doing it
     --purge             With --uninstall: also remove backups and metadata
     --force, --yes      Skip confirmation prompt
+    --allow-conflicts   Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
 
 GENERAL:
     -h, --help          Show this help
@@ -978,6 +1020,7 @@ main() {
   local MODE="install"
   local FORCE=false
   local INTERACTIVE=true
+  local ALLOW_CONFLICTS=false
   local -a SELECTED_AGENTS=()
 
   # Parse arguments
@@ -998,6 +1041,7 @@ main() {
       --dry-run)    DRY_RUN=true; shift ;;
       --purge)      PURGE=true; shift ;;
       --force|--yes) FORCE=true; shift ;;
+      --allow-conflicts) ALLOW_CONFLICTS=true; shift ;;
       *)            error "Unknown option: $1"; echo; usage >&2; exit 1 ;;
     esac
   done
@@ -1050,6 +1094,28 @@ main() {
       warn "No agents detected."
     fi
     exit 0
+  fi
+
+  if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true ]]; then
+    local conflicts=""
+    if conflicts="$(detect_conflicts)"; then
+      if [[ -n "$conflicts" ]]; then
+        if [[ "$INTERACTIVE" == true && "$FORCE" != true ]]; then
+          header
+          print_conflict_warning "$conflicts"
+          local conflict_answer=""
+          read -r -p "  Continue installing XPowers despite these conflicting installs? [y/N] " conflict_answer </dev/tty
+          case "${conflict_answer:-N}" in
+            [Yy]) ;;
+            *) info "Cancelled. Remove the conflicting installs and rerun the installer."; exit 1 ;;
+          esac
+          echo
+        else
+          print_conflict_warning "$conflicts"
+          exit 1
+        fi
+      fi
+    fi
   fi
 
   # Build display list
