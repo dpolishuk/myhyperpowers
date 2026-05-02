@@ -1297,6 +1297,29 @@ main() {
     fi
   fi
 
+  # Conflict detection runs for all install paths, including Pi delegation
+  if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true && "$REMOVE_LEGACY" != true && "$REPLACE_LEGACY" != true ]]; then
+    local conflicts=""
+    if conflicts="$(detect_conflicts)"; then
+      if [[ -n "$conflicts" ]]; then
+        if [[ "$INTERACTIVE" == true && "$FORCE" != true ]]; then
+          header
+          print_conflict_warning "$conflicts"
+          local conflict_answer=""
+          read -r -p "  Continue installing XPowers despite these conflicting installs? [y/N] " conflict_answer </dev/tty
+          case "${conflict_answer:-N}" in
+            [Yy]) ;;
+            *) info "Cancelled. Remove the conflicting installs and rerun the installer."; exit 1 ;;
+          esac
+          echo
+        else
+          print_conflict_warning "$conflicts"
+          exit 1
+        fi
+      fi
+    fi
+  fi
+
   # Pi delegation: TypeScript installer handles Pi
   for agent in "${SELECTED_AGENTS[@]}"; do
     if [[ "$agent" == "pi" ]]; then
@@ -1356,28 +1379,6 @@ main() {
     remove_legacy
     if [[ "$REMOVE_LEGACY" == true ]]; then
       exit 0
-    fi
-  fi
-
-  if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true ]]; then
-    local conflicts=""
-    if conflicts="$(detect_conflicts)"; then
-      if [[ -n "$conflicts" ]]; then
-        if [[ "$INTERACTIVE" == true && "$FORCE" != true ]]; then
-          header
-          print_conflict_warning "$conflicts"
-          local conflict_answer=""
-          read -r -p "  Continue installing XPowers despite these conflicting installs? [y/N] " conflict_answer </dev/tty
-          case "${conflict_answer:-N}" in
-            [Yy]) ;;
-            *) info "Cancelled. Remove the conflicting installs and rerun the installer."; exit 1 ;;
-          esac
-          echo
-        else
-          print_conflict_warning "$conflicts"
-          exit 1
-        fi
-      fi
     fi
   fi
 
