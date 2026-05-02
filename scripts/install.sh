@@ -201,9 +201,13 @@ quarantine_item() {
   done
   ensure_dir "$LEGACY_QUARANTINE_DIR"
   if [[ -d "$target" ]]; then
-    cp -R "$target" "$dest" 2>/dev/null || true
+    if ! cp -R "$target" "$dest" 2>/dev/null; then
+      return 1
+    fi
   else
-    cp "$target" "$dest" 2>/dev/null || true
+    if ! cp "$target" "$dest" 2>/dev/null; then
+      return 1
+    fi
   fi
   echo "$dest"
 }
@@ -216,9 +220,11 @@ remove_legacy_from_manifest() {
   while IFS= read -r entry; do
     [[ -z "$entry" ]] && continue
     [[ "$entry" == \#* ]] && continue
+    [[ "$entry" == /* ]] && continue
+    [[ "$entry" == *..* ]] && continue
     local target="${home}/${entry}"
     if [[ "$DRY_RUN" == true ]]; then
-      echo "  Would remove (legacy manifest): ${target}"
+      echo "  Would remove (legacy manifest): ${target}" >&2
       count=$((count + 1))
       continue
     fi
@@ -287,7 +293,12 @@ remove_legacy() {
                 [[ -z "$entry" ]] && continue
                 [[ "$entry" == \#* ]] && continue
                 local entry_path="${agent_home}/${entry}"
-                [[ -e "$entry_path" ]] && quarantine_item "$entry_path" >/dev/null
+                if [[ -e "$entry_path" ]]; then
+                  if ! quarantine_item "$entry_path" >/dev/null; then
+                    error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
+                    exit 1
+                  fi
+                fi
               done < "$manifest_to_use"
             fi
             local count
@@ -304,7 +315,10 @@ remove_legacy() {
           echo "  Would remove (legacy): ${candidate}"
         else
           if [[ "$PURGE" != true ]]; then
-            quarantine_item "$candidate" >/dev/null
+            if ! quarantine_item "$candidate" >/dev/null; then
+              error "Failed to quarantine ${candidate}. Aborting to prevent data loss."
+              exit 1
+            fi
           fi
           rm -rf "$candidate"
         fi
@@ -513,6 +527,8 @@ uninstall_from_manifest() {
   while IFS= read -r entry; do
     [[ -z "$entry" ]] && continue
     [[ "$entry" == \#* ]] && continue
+    [[ "$entry" == /* ]] && continue
+    [[ "$entry" == *..* ]] && continue
     local target="${home}/${entry}"
     if [[ "$DRY_RUN" == true ]]; then
       echo "  Would remove: ${target}"
@@ -1320,16 +1336,37 @@ main() {
     fi
   fi
 
+  local -a FAILED_AGENTS=()
+
   # Pi delegation: TypeScript installer handles Pi
+  local has_pi=false
   for agent in "${SELECTED_AGENTS[@]}"; do
-    if [[ "$agent" == "pi" ]]; then
-      if ! command -v bun &>/dev/null; then
-        error "Pi installation requires Bun. Install Bun first: https://bun.sh"
-        exit 1
-      fi
-      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${ORIGINAL_ARGS[@]}"
-    fi
+    [[ "$agent" == "pi" ]] && has_pi=true
   done
+
+  if [[ "$has_pi" == true ]]; then
+    if ! command -v bun &>/dev/null; then
+      error "Pi installation requires Bun. Install Bun first: https://bun.sh"
+      exit 1
+    fi
+    if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+      # Pi is the only host — exec for efficiency
+      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${ORIGINAL_ARGS[@]}"
+    else
+      # Pi is one of multiple — run without exec, capture exit code, then continue
+      cd "${REPO_ROOT}"
+      if ! bun scripts/install.ts "${ORIGINAL_ARGS[@]}"; then
+        FAILED_AGENTS+=("pi")
+      fi
+      # Remove pi from SELECTED_AGENTS
+      local new_selected=()
+      for agent in "${SELECTED_AGENTS[@]}"; do
+        [[ "$agent" == "pi" ]] && continue
+        new_selected+=("$agent")
+      done
+      SELECTED_AGENTS=("${new_selected[@]}")
+    fi
+  fi
 
   # Detect agents
   detect_all
@@ -1465,7 +1502,7 @@ main() {
   fi
 
   # --- Execute ---
-  local -a FAILED_AGENTS=()
+  # FAILED_AGENTS declared earlier during Pi delegation
 
   for agent in "${SELECTED_AGENTS[@]}"; do
     local label="${AGENT_LABELS[$agent]}"

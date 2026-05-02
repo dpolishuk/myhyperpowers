@@ -57,6 +57,22 @@ bun scripts/install.ts
 curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --allow-conflicts
 ```
 
+**Legacy replacement:** If you have an older `hyperpowers`, `myhyperpowers`, or `superpowers` install, remove it safely and install XPowers in one step:
+
+```bash
+# Preview what would be changed (dry-run)
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --replace-legacy --all --dry-run
+
+# Replace legacy install with XPowers
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --replace-legacy --all --yes
+```
+
+**Remove legacy only:** Clean up old installs without installing XPowers:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --remove-legacy --yes
+```
+
 Install docs for other hosts are in [Host-Specific Instructions](#host-specific-instructions), with standalone guides for [Kimi CLI](.kimi/INSTALL.md) and [Pi](docs/pi.md).
 
 ## Why XPowers
