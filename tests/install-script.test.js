@@ -108,6 +108,7 @@ test("bun installer conflict guard stays before host selection and keeps --hosts
   assert.ok(conflictGuardIndex < phase2Index, "conflict guard should run before host selection UI")
 
   const nonInteractiveLine = source.match(/const nonInteractive = (?<expr>[^\n]+)/)?.groups?.expr || ""
+  assert.ok(nonInteractiveLine.length > 0, "nonInteractive expression should be present in install.ts")
   assert.doesNotMatch(nonInteractiveLine, /args\.hosts/, "--hosts alone must not suppress the conflict prompt")
 })
 
