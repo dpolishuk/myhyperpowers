@@ -285,7 +285,7 @@ test("setup-pi.sh fails fast on legacy package conflicts before download", { tim
 test("README documents safe curl installer and conflict override", () => {
   const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8")
 
-  assert.match(readme, /curl -fsSL https:\/\/raw\.githubusercontent\.com\/dpolishuk\/xpowers\/main\/scripts\/setup-pi\.sh \| bash/)
+  assert.match(readme, /curl -fsSL https:\/\/raw\.githubusercontent\.com\/dpolishuk\/xpowers\/main\/scripts\/install\.sh \| bash/)
   assert.match(readme, /--allow-conflicts/)
   assert.match(readme, /hyperpowers/i)
   assert.match(readme, /myhyperpowers/i)
@@ -777,4 +777,164 @@ test("install.sh opencode provisions tm runtime and OpenCode command surface", {
   assert.equal(fs.existsSync(path.join(home, ".local", "lib", "tm", "tm-linear-sync.js")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "commands", "tm-linear-setup.md")), true)
   assert.equal(fs.existsSync(path.join(opencodeHome, "package.json")), true)
+})
+
+function makeLegacyFixture(home) {
+  const legacyPaths = [
+    path.join(home, ".claude", "plugins", "hyperpowers@hyperpowers"),
+    path.join(home, ".claude", "plugins", "myhyperpowers"),
+    path.join(home, ".config", "opencode", "skills", "superpowers"),
+    path.join(home, ".codex", "skills", "hyperpowers"),
+    path.join(home, ".agents", "skills", "myhyperpowers"),
+    path.join(home, ".config", "agents", "skills", "superpowers"),
+    path.join(home, ".pi", "agent", "extensions", "hyperpowers"),
+  ]
+  for (const p of legacyPaths) {
+    fs.mkdirSync(p, { recursive: true })
+    fs.writeFileSync(path.join(p, "marker.txt"), "legacy\n", "utf8")
+  }
+  return legacyPaths
+}
+
+test("install.sh --remove-legacy --dry-run previews exact legacy paths to remove", { timeout: 30000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-dry-run-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  const legacyPaths = makeLegacyFixture(home)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--dry-run"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  for (const p of legacyPaths) {
+    assert.match(output, new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  }
+  for (const p of legacyPaths) {
+    assert.equal(fs.existsSync(p), true, `Expected ${p} to still exist after dry-run`)
+  }
+})
+
+test("install.sh --replace-legacy removes legacy then installs XPowers", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-replace-legacy-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  const legacyPaths = makeLegacyFixture(home)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--replace-legacy", "--claude", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  for (const p of legacyPaths) {
+    assert.equal(fs.existsSync(p), false, `Expected ${p} to be removed`)
+  }
+  assert.equal(fs.existsSync(path.join(home, ".claude", ".xpowers-version")), true)
+})
+
+test("install.sh non-interactive legacy deletion fails without explicit flag", { timeout: 30000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-blocked-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  makeLegacyFixture(home)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--claude", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+
+  const output = combinedOutput(result)
+  assert.notEqual(result.status, 0, output)
+  assert.match(output, /conflicting install/i)
+})
+
+test("install.sh legacy cleanup with manifest prefers manifest entries", { timeout: 30000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-manifest-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+
+  fs.mkdirSync(path.join(claudeHome, "skills", "legacy-skill"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, ".hyperpowers-manifest"), "skills/legacy-skill/\n", "utf8")
+  fs.writeFileSync(path.join(claudeHome, ".hyperpowers-version"), "legacy\n", "utf8")
+
+  fs.mkdirSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers", "marker.txt"), "legacy\n", "utf8")
+
+  fs.mkdirSync(path.join(claudeHome, "skills", "unrelated-skill"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "skills", "unrelated-skill", "keep.txt"), "keep\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "legacy-skill")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "unrelated-skill")), true)
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "unrelated-skill", "keep.txt")), true)
+  assert.equal(fs.existsSync(path.join(claudeHome, ".hyperpowers-manifest")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, ".hyperpowers-version")), false)
+})
+
+test("install.sh legacy cleanup without manifest removes exact namespace paths only", { timeout: 30000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-no-manifest-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+
+  fs.mkdirSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers", "marker.txt"), "legacy\n", "utf8")
+
+  fs.writeFileSync(path.join(claudeHome, "plugins", "unrelated.txt"), "keep\n", "utf8")
+
+  fs.mkdirSync(path.join(claudeHome, "skills", "other-skill"), { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, "skills", "other-skill", "keep.txt"), "keep\n", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+
+  assert.equal(fs.existsSync(path.join(claudeHome, "plugins", "hyperpowers@hyperpowers")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "plugins", "unrelated.txt")), true)
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills", "other-skill")), true)
+})
+
+test("install.sh repeated legacy cleanup is idempotent", { timeout: 30000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-legacy-idempotent-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  makeLegacyFixture(home)
+
+  const first = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+  assert.equal(first.status, 0, combinedOutput(first))
+
+  const second = spawnSync("bash", ["scripts/install.sh", "--remove-legacy", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 30000,
+  })
+  const output = combinedOutput(second)
+  assert.equal(second.status, 0, output)
 })

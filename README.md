@@ -37,10 +37,10 @@ XPowers turns Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI into di
 /plugin install xpowers@xpowers --scope user
 ```
 
-### Rapid Pi install from GitHub
+### Universal installer (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash
 ```
 
 ### Local installer
@@ -54,7 +54,7 @@ bun scripts/install.ts
 **Conflict safety:** Before installing, XPowers checks for legacy or overlapping `hyperpowers`, `myhyperpowers`, and `superpowers` installs so multiple agent instruction systems do not fight each other. Remove detected conflicts first. Advanced users who intentionally keep both systems can pass `--allow-conflicts`, for example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash -s -- --allow-conflicts
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --allow-conflicts
 ```
 
 Install docs for other hosts are in [Host-Specific Instructions](#host-specific-instructions), with standalone guides for [Kimi CLI](.kimi/INSTALL.md) and [Pi](docs/pi.md).
@@ -303,10 +303,10 @@ claude --plugin-dir .
 ### Install
 
 **Option A: One-command install (macOS / Linux)**
-The fastest way to install or upgrade the Pi extension (requires `bun` or `npm`):
+The fastest way to install or upgrade the Pi extension (requires `bun`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --hosts pi --yes
 ```
 
 **Option B: Install from cloned repo**

@@ -188,6 +188,138 @@ backup_dir() {
   echo "$dest"
 }
 
+LEGACY_QUARANTINE_DIR="${HOME}/.xpowers-quarantine"
+
+quarantine_item() {
+  local target="$1"
+  local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
+  local seq=0
+  local dest="${LEGACY_QUARANTINE_DIR}/${stamp}-$(basename "$target")"
+  while [[ -e "$dest" ]]; do
+    seq=$((seq + 1))
+    dest="${LEGACY_QUARANTINE_DIR}/${stamp}-${seq}-$(basename "$target")"
+  done
+  ensure_dir "$LEGACY_QUARANTINE_DIR"
+  if [[ -d "$target" ]]; then
+    cp -R "$target" "$dest" 2>/dev/null || true
+  else
+    cp "$target" "$dest" 2>/dev/null || true
+  fi
+  echo "$dest"
+}
+
+remove_legacy_from_manifest() {
+  local home="$1"
+  local manifest="$2"
+  local count=0
+
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    [[ "$entry" == \#* ]] && continue
+    local target="${home}/${entry}"
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would remove (legacy manifest): ${target}"
+      count=$((count + 1))
+      continue
+    fi
+    if [[ "$entry" == */ ]]; then
+      [[ -d "$target" ]] && rm -rf "$target" && count=$((count + 1))
+    else
+      [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
+    fi
+  done < "$manifest"
+
+  if [[ "$DRY_RUN" != true ]]; then
+    # Clean up empty parent dirs
+    for dir in "${home}/skills" "${home}/agents" "${home}/commands" "${home}/hooks" "${home}/plugins"; do
+      [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
+    done
+    # Remove manifest and version files
+    rm -f "$manifest"
+    rm -f "${home}/.xpowers-manifest" "${home}/.xpowers-version"
+    local old_ns="hyper""powers"
+    rm -f "${home}/.${old_ns}-manifest" "${home}/.${old_ns}-version"
+  fi
+
+  echo "$count"
+}
+
+remove_legacy() {
+  local total_removed=0
+  local processed_manifests=""
+
+  for name in "${CONFLICT_NAMES[@]}"; do
+    while IFS= read -r candidate; do
+      [[ -e "$candidate" ]] || continue
+
+      # Determine agent home for manifest lookup
+      local agent_home=""
+      case "$candidate" in
+        "${HOME}/.claude"*) agent_home="${HOME}/.claude" ;;
+        "${XDG_CFG}/opencode"*) agent_home="${XDG_CFG}/opencode" ;;
+        "${XDG_CFG}/agents"*) agent_home="${XDG_CFG}/agents" ;;
+        "${HOME}/.codex"*) agent_home="${HOME}/.codex" ;;
+        "${HOME}/.agents"*) agent_home="${HOME}/.agents" ;;
+        "${HOME}/.pi"*) agent_home="${HOME}/.pi/agent" ;;
+      esac
+
+      # Manifest-driven removal for this agent home (once per home)
+      if [[ -n "$agent_home" ]]; then
+        local already_processed=false
+        for pm in $processed_manifests; do
+          [[ "$pm" == "$agent_home" ]] && already_processed=true && break
+        done
+
+        if [[ "$already_processed" != true ]]; then
+          local legacy_manifest="${agent_home}/.hyperpowers-manifest"
+          local xpowers_manifest="${agent_home}/.xpowers-manifest"
+          local manifest_to_use=""
+
+          if [[ -f "$legacy_manifest" ]]; then
+            manifest_to_use="$legacy_manifest"
+          elif [[ -f "$xpowers_manifest" ]]; then
+            manifest_to_use="$xpowers_manifest"
+          fi
+
+          if [[ -n "$manifest_to_use" ]]; then
+            if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
+              while IFS= read -r entry; do
+                [[ -z "$entry" ]] && continue
+                [[ "$entry" == \#* ]] && continue
+                local entry_path="${agent_home}/${entry}"
+                [[ -e "$entry_path" ]] && quarantine_item "$entry_path" >/dev/null
+              done < "$manifest_to_use"
+            fi
+            local count
+            count=$(remove_legacy_from_manifest "$agent_home" "$manifest_to_use")
+            total_removed=$((total_removed + count))
+            processed_manifests="${processed_manifests}${agent_home} "
+          fi
+        fi
+      fi
+
+      # Exact-path removal for the candidate itself
+      if [[ -e "$candidate" ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+          echo "  Would remove (legacy): ${candidate}"
+        else
+          if [[ "$PURGE" != true ]]; then
+            quarantine_item "$candidate" >/dev/null
+          fi
+          rm -rf "$candidate"
+        fi
+        total_removed=$((total_removed + 1))
+      fi
+    done < <(conflict_candidates_for "$name")
+  done
+
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Dry run: would remove ${total_removed} legacy item(s)"
+  else
+    info "Removed ${total_removed} legacy item(s)"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Agent detection
 # ---------------------------------------------------------------------------
@@ -203,7 +335,7 @@ declare -A AGENT_LABELS=(
 AGENT_ORDER=(claude opencode kimi codex gemini)
 
 detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude"; }
-detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode"; }
+detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode" || true; }
 detect_kimi()    {
   if [[ -d "${XDG_CFG}/agents" ]]; then
     AGENT_PATHS[kimi]="${XDG_CFG}/agents"
@@ -1065,6 +1197,8 @@ MODES:
     --purge             With --uninstall: also remove backups and metadata
     --force, --yes      Skip confirmation prompt
     --allow-conflicts   Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
+    --remove-legacy     Detect and remove legacy installs (hyperpowers, myhyperpowers, superpowers)
+    --replace-legacy    Remove legacy installs, then proceed with XPowers install
 
 GENERAL:
     -h, --help          Show this help
@@ -1078,6 +1212,8 @@ EXAMPLES:
     $(basename "$0") --uninstall --all  # Remove from all agents
     $(basename "$0") --uninstall --claude --dry-run  # Preview removal
     $(basename "$0") --uninstall --all --purge --yes # Complete removal
+    $(basename "$0") --remove-legacy --yes            # Remove legacy installs only
+    $(basename "$0") --replace-legacy --all --yes     # Replace legacy with XPowers
 
 VERSION: $VERSION
 EOF
@@ -1098,6 +1234,8 @@ main() {
   local FORCE=false
   local INTERACTIVE=true
   local ALLOW_CONFLICTS=false
+  local REMOVE_LEGACY=false
+  local REPLACE_LEGACY=false
   local -a SELECTED_AGENTS=()
   local -a ORIGINAL_ARGS=("$@")
 
@@ -1142,6 +1280,8 @@ main() {
       --purge)      PURGE=true; shift ;;
       --force|--yes) FORCE=true; shift ;;
       --allow-conflicts) ALLOW_CONFLICTS=true; shift ;;
+      --remove-legacy) REMOVE_LEGACY=true; shift ;;
+      --replace-legacy) REPLACE_LEGACY=true; shift ;;
       *)            error "Unknown option: $1"; echo; usage >&2; exit 1 ;;
     esac
   done
@@ -1205,6 +1345,18 @@ main() {
       warn "No agents detected."
     fi
     exit 0
+  fi
+
+  # --- Legacy removal ---
+  if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
+    if ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
+      error "No terminal detected. Use --yes to confirm legacy removal."
+      exit 1
+    fi
+    remove_legacy
+    if [[ "$REMOVE_LEGACY" == true ]]; then
+      exit 0
+    fi
   fi
 
   if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true ]]; then
