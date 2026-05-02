@@ -37,7 +37,7 @@ export interface RalphState {
 
 export class RalphDashboard extends Container implements Focusable {
   private state: RalphState
-  private onCancel?: () => void
+  public onCancel?: () => void
   private _focused = true
 
   public tui?: DashboardTui
@@ -99,108 +99,151 @@ export class RalphDashboard extends Container implements Focusable {
     const renderWidth = Math.max(1, Math.min(width, terminalColumns))
     const termRows = Math.max(1, this.tui?.terminal?.rows || 24)
     const narrow = renderWidth < 80
+    const innerWidth = Math.max(0, renderWidth - 2)
     const lines: string[] = []
     const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
 
+    push(`╭${"─".repeat(innerWidth)}╮`)
+
     const epicStr = this.state.epicId ? `[${this.state.epicId}] ${this.state.epicTitle || ""}` : "Loading Epic..."
     const title = narrow ? ` 🤖 Ralph ── ${epicStr} ` : ` 🤖 Ralph Autonomous Execution ── ${epicStr} `
-    push(title)
-    push("─".repeat(renderWidth))
-    push()
+    const titleFit = truncateToWidth(title, innerWidth)
+    const titlePad = "─".repeat(Math.max(0, innerWidth - visibleWidth(titleFit)))
+    push(`│${titleFit}${titlePad}│`)
 
-    const phases = [
-      { id: "setup", label: narrow ? "Setup" : "Setup" },
-      { id: "get_task", label: narrow ? "Task" : "Get Task" },
-      { id: "subagent", label: narrow ? "Agent" : "Subagent" },
-      { id: "review", label: narrow ? "Review" : "Review" },
-      { id: "completion", label: narrow ? "Finish" : "Completion" },
-      { id: "done", label: narrow ? "Done" : "Done" },
-    ]
-
-    const currentPhase = phases.find(p => p.id === this.state.phase)?.label || this.state.phase
-    if (narrow) {
-      push(` 📍 Phase: ${currentPhase}`)
-    } else {
-      const phaseLabels = phases.map(p => {
-        if (this.state.phase === p.id) return `\x1b[7m ${p.label} \x1b[27m`
-        return ` ${p.label} `
-      })
-      push(` 📍 Phase:  ${phaseLabels.join(" ➞ ")}`)
-    }
-    push()
+    push(`│${" ".repeat(innerWidth)}│`)
+    const phaseStr = this.renderPhase(narrow)
+    const phaseFit = truncateToWidth(phaseStr, innerWidth - 2)
+    const phasePad = " ".repeat(Math.max(0, innerWidth - 2 - visibleWidth(phaseFit)))
+    push(`│ ${phaseFit}${phasePad} │`)
+    push(`│${" ".repeat(innerWidth)}│`)
 
     const statusIcon = this.statusIcon()
-    const focusLines = this.buildFocusLines(statusIcon, narrow)
-    const progressLines = this.buildProgressLines(narrow ? renderWidth : Math.max(1, Math.floor(renderWidth * 0.45)))
+    const focusContent = this.buildFocusContent(statusIcon, narrow)
+    const progressContent = this.buildProgressContent(narrow ? innerWidth - 2 : Math.max(1, Math.floor((innerWidth - 3) * 0.45)))
 
     if (narrow) {
-      for (const line of focusLines.slice(0, 5)) push(line)
-      push()
-      for (const line of progressLines) push(line)
+      const panelWidth = innerWidth - 2
+      const focusBox = this.buildPanel("Current Focus", focusContent, panelWidth)
+      for (const line of focusBox) push(`│ ${line} │`)
+      push(`│${" ".repeat(innerWidth)}│`)
+      const progressBox = this.buildPanel("Epic Progress", progressContent, panelWidth)
+      for (const line of progressBox) push(`│ ${line} │`)
     } else {
-      const leftWidth = Math.floor(renderWidth * 0.55)
-      const rightWidth = Math.max(1, renderWidth - leftWidth - 1)
-      const fit = (text: string, w: number) => {
-        const t = truncateToWidth(text, Math.max(1, w))
-        return `${t}${" ".repeat(Math.max(0, w - visibleWidth(t)))}`
-      }
-      const maxCols = Math.max(focusLines.length, progressLines.length)
-      for (let i = 0; i < maxCols; i++) {
-        const l = fit(focusLines[i] || "│", leftWidth)
-        const r = truncateToWidth(progressLines[i] || "│", Math.max(1, rightWidth))
-        push(`${l} ${r}`)
+      const gap = 1
+      const available = innerWidth - 2
+      const leftPanelWidth = Math.floor((available - gap) * 0.55)
+      const rightPanelWidth = available - gap - leftPanelWidth
+
+      const focusBox = this.buildPanel("Current Focus", focusContent, leftPanelWidth)
+      const progressBox = this.buildPanel("Epic Progress", progressContent, rightPanelWidth)
+
+      const maxRows = Math.max(focusBox.length, progressBox.length)
+      for (let i = 0; i < maxRows; i++) {
+        const l = focusBox[i] || " ".repeat(leftPanelWidth)
+        const r = progressBox[i] || " ".repeat(rightPanelWidth)
+        push(`│ ${l}${" ".repeat(gap)}${r} │`)
       }
     }
-    push()
 
-    push("── Execution Logs ──")
+    push(`│${" ".repeat(innerWidth)}│`)
 
     const helpLine = "[q / Esc / Ctrl+C] Hide Dashboard"
-    const reservedForHelp = 2
-    const remainingRows = Math.max(0, termRows - lines.length - reservedForHelp)
-    const maxLogLines = narrow ? Math.min(remainingRows, 3) : remainingRows
-    const displayLogs = maxLogLines > 0 ? this.state.logs.slice(-maxLogLines) : []
+    const reservedRows = 5
+    const usedRows = lines.length
+    const availableLogRows = Math.max(0, termRows - usedRows - reservedRows)
 
-    if (displayLogs.length === 0 && maxLogLines > 0) {
-      push(" Waiting for logs...")
-    } else {
-      for (const log of displayLogs) push(` > ${log}`)
+    const logPanelWidth = innerWidth - 2
+    const logContent: string[] = []
+    if (availableLogRows > 0) {
+      if (this.state.logs.length === 0) {
+        logContent.push(" Waiting for logs...")
+      } else {
+        const maxLogLines = Math.min(availableLogRows, this.state.logs.length)
+        for (const log of this.state.logs.slice(-maxLogLines)) {
+          logContent.push(`> ${log}`)
+        }
+      }
     }
 
-    push()
-    push(helpLine)
+    const logBox = this.buildPanel("Execution Logs", logContent, logPanelWidth)
+    for (const line of logBox) push(`│ ${line} │`)
+
+    push(`│${" ".repeat(innerWidth)}│`)
+
+    const helpFit = truncateToWidth(` ${helpLine} `, innerWidth)
+    const helpPad = " ".repeat(Math.max(0, innerWidth - visibleWidth(helpFit)))
+    push(`│${helpFit}${helpPad}│`)
+
+    push(`╰${"─".repeat(innerWidth)}╯`)
 
     return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
   }
 
-  private statusIcon(): string {
-    if (this.state.subagentStatus === "running") return "🔄"
-    if (this.state.subagentStatus === "pass") return "✅"
-    if (this.state.subagentStatus === "fail") return "❌"
-    if (this.state.subagentStatus === "issues_found") return "⚠️ "
-    return "⏳"
+  private renderPhase(narrow: boolean): string {
+    const phases = [
+      { id: "setup", label: "Setup" },
+      { id: "get_task", label: "Task" },
+      { id: "subagent", label: "Agent" },
+      { id: "review", label: "Review" },
+      { id: "completion", label: "Finish" },
+      { id: "done", label: "Done" },
+    ]
+
+    if (narrow) {
+      const current = phases.find(p => p.id === this.state.phase)?.label || this.state.phase
+      return `📍 Phase: ${current}`
+    }
+
+    const labels = phases.map(p => {
+      if (this.state.phase === p.id) return `\x1b[7m ${p.label} \x1b[27m`
+      return ` ${p.label} `
+    })
+    return `📍 Phase:  ${labels.join(" ➞ ")}`
   }
 
-  private buildFocusLines(statusIcon: string, compact: boolean): string[] {
-    const lines: string[] = [compact ? "╭─ Current Focus" : "╭── Current Focus ──────────────────────"]
+  private buildPanel(title: string, content: string[], totalWidth: number): string[] {
+    const innerWidth = Math.max(1, totalWidth - 2)
+    const out: string[] = []
+
+    const titleText = `── ${title} `
+    const titleFit = truncateToWidth(titleText, innerWidth)
+    const titlePad = "─".repeat(Math.max(0, innerWidth - visibleWidth(titleFit)))
+    out.push(`╭${titleFit}${titlePad}╮`)
+
+    for (const line of content) {
+      const fit = truncateToWidth(line, innerWidth)
+      const pad = " ".repeat(Math.max(0, innerWidth - visibleWidth(fit)))
+      out.push(`│${fit}${pad}│`)
+    }
+
+    out.push(`╰${"─".repeat(innerWidth)}╯`)
+
+    return out
+  }
+
+  private buildFocusContent(statusIcon: string, compact: boolean): string[] {
+    const lines: string[] = []
     if (this.state.currentTaskId) {
-      lines.push(`│ Task: ${this.state.currentTaskId} - ${this.state.currentTaskTitle || ""}`)
-      lines.push(`│ Agent: ${statusIcon} ${this.state.subagentStatus || "pending"}`)
+      lines.push(`Task: ${this.state.currentTaskId} - ${this.state.currentTaskTitle || ""}`)
+      lines.push(`Agent: ${statusIcon} ${this.state.subagentStatus || "pending"}`)
       if (this.state.subagentOutput && !compact) {
-        lines.push(`│ Output: ${this.state.subagentOutput}`)
+        lines.push(`Output: ${this.state.subagentOutput}`)
       }
     } else {
-      lines.push("│ Task: Identifying next work item...")
+      lines.push("Task: Identifying next work item...")
     }
 
     const branch = this.state.branchName ? `🌿 ${this.state.branchName}` : "pending..."
-    lines.push(`│ Branch: ${branch}`)
-    if (this.state.gitProgress && !compact) lines.push(`│ Commits: ${this.state.gitProgress}`)
+    lines.push(`Branch: ${branch}`)
+    if (this.state.gitProgress && !compact) {
+      lines.push(`Commits: ${this.state.gitProgress}`)
+    }
     return lines
   }
 
-  private buildProgressLines(width: number): string[] {
-    const lines: string[] = [width < 40 ? "╭─ Epic Progress" : "╭── Epic Progress ──────────────────────"]
+  private buildProgressContent(width: number): string[] {
+    const lines: string[] = []
     if (this.state.totalCriteria > 0) {
       const total = Math.max(0, this.state.totalCriteria)
       const unmet = Math.min(Math.max(0, this.state.unmetCriteria), total)
@@ -209,11 +252,19 @@ export class RalphDashboard extends Container implements Focusable {
       const barWidth = Math.max(1, Math.min(20, width - 22))
       const filled = Math.max(0, Math.min(barWidth, Math.floor((percent / 100) * barWidth)))
       const bar = "█".repeat(filled) + "░".repeat(barWidth - filled)
-      lines.push(`│ Criteria: [${bar}] ${percent}%`)
-      lines.push(`│ Completed: ${met}/${total}`)
+      lines.push(`Criteria: [${bar}] ${percent}%`)
+      lines.push(`Completed: ${met}/${total}`)
     } else {
-      lines.push("│ Criteria: Parsing...")
+      lines.push("Criteria: Parsing...")
     }
     return lines
+  }
+
+  private statusIcon(): string {
+    if (this.state.subagentStatus === "running") return "🔄"
+    if (this.state.subagentStatus === "pass") return "✅"
+    if (this.state.subagentStatus === "fail") return "❌"
+    if (this.state.subagentStatus === "issues_found") return "⚠️ "
+    return "⏳"
   }
 }

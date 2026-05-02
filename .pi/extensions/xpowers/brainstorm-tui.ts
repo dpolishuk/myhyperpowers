@@ -1,12 +1,9 @@
 import {
   Container,
-  Text,
-  Box,
   Markdown,
   matchesKey,
   Key,
   type Focusable,
-  type Component,
   truncateToWidth,
   visibleWidth,
 } from "@mariozechner/pi-tui"
@@ -32,8 +29,6 @@ export interface BrainstormState {
 
 export class BrainstormDashboard extends Container implements Focusable {
   private state: BrainstormState
-  private leftPane: Box
-  private rightPane: Box
   private selectedOption = 0
   private _focused = true
 
@@ -51,10 +46,6 @@ export class BrainstormDashboard extends Container implements Focusable {
   constructor(initialState: BrainstormState) {
     super()
     this.state = initialState
-
-    // We'll construct the two panes in render() because we need the width to split them
-    this.leftPane = new Box(1, 1, (s) => s) // Background functions applied in render based on theme
-    this.rightPane = new Box(1, 1, (s) => s)
   }
 
   public updateState(newState: Partial<BrainstormState>) {
@@ -67,12 +58,16 @@ export class BrainstormDashboard extends Container implements Focusable {
   }
 
   handleInput(data: string): boolean {
-    if (!this.state.currentQuestion) {
-      if (matchesKey(data, Key.escape) || data === "\x1b") {
-        this.onCancel?.()
-        this.tui?.requestRender?.()
-      }
+    // Cancel shortcuts always work
+    if (matchesKey(data, Key.escape) || data === "\x1b" || data === "q" || data === "Q") {
+      this.onCancel?.()
+      this.tui?.requestRender?.()
       return true
+    }
+
+    if (!this.state.currentQuestion) {
+      // No question active: don't swallow unrelated input
+      return false
     }
 
     const optionsCount = this.state.currentQuestion.options.length
@@ -87,9 +82,6 @@ export class BrainstormDashboard extends Container implements Focusable {
     } else if (matchesKey(data, Key.enter)) {
       this.onOptionSelect?.(this.selectedOption)
       this.tui?.requestRender?.()
-    } else if (matchesKey(data, Key.escape) || data === "\x1b") {
-      this.onCancel?.()
-      this.tui?.requestRender?.()
     }
     return true
   }
@@ -99,31 +91,80 @@ export class BrainstormDashboard extends Container implements Focusable {
     const renderWidth = Math.max(1, Math.min(width, terminalColumns))
     const termRows = Math.max(1, this.tui?.terminal?.rows || 24)
     const narrow = renderWidth < 80
+    const innerWidth = Math.max(0, renderWidth - 2)
 
-    const rightLines = this.renderQuestionPane(narrow ? renderWidth : Math.max(1, renderWidth - Math.floor(renderWidth * 0.5) - 1))
+    const lines: string[] = []
+    const push = (line = "") => lines.push(truncateToWidth(line, renderWidth))
 
-    if (narrow) {
-      const out = [...rightLines]
+    // ===== OUTER FRAME: TOP =====
+    push(`╭${"─".repeat(innerWidth)}╮`)
+
+    // ===== TITLE =====
+    const titleText = " 🧠 Brainstorming "
+    const titleFit = truncateToWidth(titleText, innerWidth)
+    const titlePad = "─".repeat(Math.max(0, innerWidth - visibleWidth(titleFit)))
+    push(`│${titleFit}${titlePad}│`)
+
+    // ===== BODY =====
+    const reservedForBottom = 2 // help + bottom border
+    const bodyMaxRows = Math.max(1, termRows - lines.length - reservedForBottom)
+    const bodyWidth = innerWidth - 2
+    const bodyLines = narrow
+      ? this.renderNarrowBody(bodyWidth, bodyMaxRows)
+      : this.renderWideBody(bodyWidth, bodyMaxRows)
+
+    for (const line of bodyLines) push(`│ ${line} │`)
+
+    // ===== HELP / FOOTER =====
+    const helpLine = this.state.currentQuestion
+      ? "[↑↓] Select  [Enter] Confirm  [q/Esc] Cancel"
+      : "[q / Esc] Close"
+    const helpFit = truncateToWidth(` ${helpLine} `, innerWidth)
+    const helpPad = " ".repeat(Math.max(0, innerWidth - visibleWidth(helpFit)))
+    push(`│${helpFit}${helpPad}│`)
+
+    // ===== OUTER FRAME: BOTTOM =====
+    push(`╰${"─".repeat(innerWidth)}╯`)
+
+    return lines.slice(0, termRows).map(line => truncateToWidth(line, renderWidth))
+  }
+
+  private renderNarrowBody(width: number, maxRows: number): string[] {
+    const out: string[] = []
+    const questionLines = this.renderQuestionPane(width)
+    const epicLines = this.renderPlainEpic(width)
+
+    // Show question first (priority), then epic preview
+    out.push(...questionLines)
+    if (out.length + epicLines.length + 1 <= maxRows) {
       out.push("")
-      out.push(...this.renderPlainEpic(renderWidth))
-      return out.map(line => truncateToWidth(line, renderWidth)).slice(0, termRows)
+      out.push(...epicLines)
+    } else if (out.length < maxRows) {
+      out.push("")
+      out.push(...epicLines.slice(0, maxRows - out.length))
     }
 
-    const leftWidth = Math.floor(renderWidth * 0.5)
-    const rightWidth = renderWidth - leftWidth - 1
+    return out.map(line => truncateToWidth(line, width)).slice(0, maxRows)
+  }
+
+  private renderWideBody(width: number, maxRows: number): string[] {
+    const leftWidth = Math.floor(width * 0.5)
+    const rightWidth = width - leftWidth - 1
+
     const leftLines = this.renderEpicMarkdown(leftWidth)
+    const rightLines = this.renderQuestionPane(rightWidth)
 
     const maxLines = Math.max(leftLines.length, rightLines.length)
     const out: string[] = []
     for (let i = 0; i < maxLines; i++) {
       const l = truncateToWidth(leftLines[i] || "", leftWidth)
-      const r = truncateToWidth(rightLines[i] || "", Math.max(1, rightWidth - 2))
+      const r = truncateToWidth(rightLines[i] || "", rightWidth)
       const lLen = visibleWidth(l)
       const lPad = " ".repeat(Math.max(0, leftWidth - lLen))
-      out.push(truncateToWidth(`${l}${lPad}│ ${r}`, renderWidth))
+      out.push(truncateToWidth(`${l}${lPad}│${r}`, width))
     }
 
-    return out.slice(0, termRows)
+    return out.slice(0, maxRows)
   }
 
   private renderEpicMarkdown(width: number): string[] {

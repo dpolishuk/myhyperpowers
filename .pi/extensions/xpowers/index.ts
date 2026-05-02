@@ -738,6 +738,7 @@ export default function (pi: any) {
     handle: any
     hidden?: boolean
     closeTimer?: ReturnType<typeof setTimeout>
+    doneCalled?: boolean
   }>()
 
   pi.registerTool({
@@ -775,13 +776,17 @@ export default function (pi: any) {
           clearTimeout(session.closeTimer)
           session.closeTimer = undefined
         }
-        session?.handle?.close?.()
-        ralphSessions.set(sessionKey, { dashboard: session?.dashboard ?? null, handle: null, hidden: true })
+        session?.dashboard?.onCancel?.()
+        if (session) {
+          session.handle = null
+          session.hidden = true
+        }
         return { content: [{ type: "text", text: "Ralph dashboard hidden." }] }
       }
 
       if (params.reopen === true && session?.hidden) {
         session.hidden = false
+        session.doneCalled = false
       }
 
       if (session?.closeTimer) {
@@ -814,19 +819,8 @@ export default function (pi: any) {
           totalCriteria: 0,
           logs: [],
           ...stateUpdate
-        }, () => {
-          const currSession = ralphSessions.get(sessionKey)
-          if (currSession) {
-            if (currSession.closeTimer) {
-              clearTimeout(currSession.closeTimer)
-              currSession.closeTimer = undefined
-            }
-            currSession.handle?.close?.()
-            currSession.handle = null
-            currSession.hidden = true
-          }
         })
-        dashboard.tui = ctx.ui.tui // try to grab tui reference if available
+        dashboard.tui = ctx.ui.tui
         session = { dashboard, handle: null }
         ralphSessions.set(sessionKey, session)
       } else {
@@ -838,21 +832,35 @@ export default function (pi: any) {
       }
 
       if (!session.handle) {
-        session.handle = ctx.ui.custom(
+        const createdHandle = ctx.ui.custom(
           (tui: any, _theme: any, _keybindings: any, _done: (v: unknown) => void) => {
             session!.dashboard.tui = tui
-            return {
-              render: (width: number) => session!.dashboard.render(width),
-              invalidate: () => session!.dashboard.invalidate(),
-              handleInput: (data: string) => {
-                const handled = session!.dashboard.handleInput(data)
-                if (handled) tui.requestRender?.()
-                return handled
-              },
+            session!.dashboard.onCancel = () => {
+              if (session!.doneCalled) return
+              session!.doneCalled = true
+              _done(null)
+              const currSession = ralphSessions.get(sessionKey)
+              if (currSession?.handle === createdHandle) {
+                currSession.handle = null
+                currSession.hidden = true
+              }
             }
+            return session!.dashboard
           },
           { overlay: true, overlayOptions: { width: "96%", maxHeight: "90%", margin: 1 } }
         )
+        session.handle = createdHandle
+
+        if (createdHandle && typeof createdHandle.then === 'function') {
+          createdHandle.then(() => {
+            const currSession = ralphSessions.get(sessionKey)
+            if (currSession?.handle === createdHandle) {
+              currSession.doneCalled = true
+              currSession.handle = null
+              currSession.hidden = true
+            }
+          }).catch(() => {})
+        }
       } else {
         session.handle.requestRender?.()
       }
@@ -860,9 +868,8 @@ export default function (pi: any) {
       if (params.phase === "done") {
         session.closeTimer = setTimeout(() => {
           const currSession = ralphSessions.get(sessionKey)
-          // only close if the timer hasn't been replaced or cleared
           if (currSession === session) {
-            currSession.handle?.close?.()
+            currSession.dashboard?.onCancel?.()
             ralphSessions.delete(sessionKey)
           }
         }, 2000)
