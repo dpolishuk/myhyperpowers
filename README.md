@@ -37,12 +37,24 @@ XPowers turns Claude Code, OpenCode, Gemini CLI, Kimi CLI, and Codex CLI into di
 /plugin install xpowers@xpowers --scope user
 ```
 
+### Rapid Pi install from GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
+```
+
 ### Local installer
 
 ```bash
 git clone https://github.com/dpolishuk/xpowers.git
 cd xpowers
 bun scripts/install.ts
+```
+
+**Conflict safety:** Before installing, XPowers checks for legacy or overlapping `hyperpowers`, `myhyperpowers`, and `superpowers` installs so multiple agent instruction systems do not fight each other. Remove detected conflicts first. Advanced users who intentionally keep both systems can pass `--allow-conflicts`, for example:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash -s -- --allow-conflicts
 ```
 
 Install docs for other hosts are in [Host-Specific Instructions](#host-specific-instructions), with standalone guides for [Kimi CLI](.kimi/INSTALL.md) and [Pi](docs/pi.md).

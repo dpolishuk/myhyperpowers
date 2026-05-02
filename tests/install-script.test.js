@@ -7,6 +7,26 @@ const { spawnSync } = require("node:child_process")
 
 const repoRoot = path.resolve(__dirname, "..")
 
+function makeConflictFixture(home) {
+  const conflicts = [
+    path.join(home, ".claude", "plugins", "hyperpowers@hyperpowers"),
+    path.join(home, ".claude", "plugins", "myhyperpowers@myhyperpowers"),
+    path.join(home, ".config", "opencode", "plugins", "superpowers"),
+    path.join(home, ".pi", "agent", "extensions", "hyperpowers"),
+  ]
+
+  for (const conflict of conflicts) {
+    fs.mkdirSync(conflict, { recursive: true })
+    fs.writeFileSync(path.join(conflict, "marker.txt"), "legacy conflict\n", "utf8")
+  }
+
+  return conflicts
+}
+
+function combinedOutput(result) {
+  return `${result.stdout || ""}\n${result.stderr || ""}`
+}
+
 function installEnv(home, extra = {}) {
   return {
     ...process.env,
@@ -16,6 +36,92 @@ function installEnv(home, extra = {}) {
     ...extra,
   }
 }
+
+test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  const conflicts = makeConflictFixture(home)
+
+  const blocked = spawnSync("bun", ["scripts/install.ts", "--yes", "--hosts", "claude"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const blockedOutput = combinedOutput(blocked)
+  assert.notEqual(blocked.status, 0)
+  assert.match(blockedOutput, /conflicting install/i)
+  assert.match(blockedOutput, /hyperpowers/i)
+  assert.match(blockedOutput, new RegExp(conflicts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(blockedOutput, /--allow-conflicts/)
+
+  const allowed = spawnSync("bun", ["scripts/install.ts", "--yes", "--hosts", "claude", "--features", "not-a-real-feature", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const allowedOutput = combinedOutput(allowed)
+  assert.doesNotMatch(allowedOutput, /conflicting install/i)
+})
+
+test("install.sh fails fast on legacy package conflicts in non-interactive mode", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-conflict-test-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  const conflicts = makeConflictFixture(home)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--claude", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.notEqual(result.status, 0)
+  assert.match(output, /conflicting install/i)
+  assert.match(output, /hyperpowers/i)
+  assert.match(output, new RegExp(conflicts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(output, /--allow-conflicts/)
+})
+
+test("setup-pi.sh fails fast on legacy package conflicts before download", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "setup-pi-conflict-test-"))
+  const binDir = path.join(home, "bin")
+  fs.mkdirSync(binDir, { recursive: true })
+  for (const cmd of ["pi", "git", "bun"]) {
+    const cmdPath = path.join(binDir, cmd)
+    fs.writeFileSync(cmdPath, "#!/usr/bin/env bash\nexit 0\n", "utf8")
+    fs.chmodSync(cmdPath, 0o755)
+  }
+  const conflicts = makeConflictFixture(home)
+
+  const result = spawnSync("bash", ["scripts/setup-pi.sh"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, { PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}` }),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.notEqual(result.status, 0)
+  assert.match(output, /conflicting install/i)
+  assert.match(output, /hyperpowers/i)
+  assert.match(output, new RegExp(conflicts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(output, /--allow-conflicts/)
+})
+
+test("README documents safe curl installer and conflict override", () => {
+  const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf8")
+
+  assert.match(readme, /curl -fsSL https:\/\/raw\.githubusercontent\.com\/dpolishuk\/xpowers\/main\/scripts\/setup-pi\.sh \| bash/)
+  assert.match(readme, /--allow-conflicts/)
+  assert.match(readme, /hyperpowers/i)
+  assert.match(readme, /myhyperpowers/i)
+  assert.match(readme, /superpowers/i)
+})
 
 test("install.sh full uninstall preserves unrelated ~/.local/bin/node_modules directory", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-test-"))

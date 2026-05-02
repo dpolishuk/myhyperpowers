@@ -32,6 +32,22 @@ header() {
   echo
 }
 
+ALLOW_CONFLICTS=false
+for arg in "$@"; do
+  case "$arg" in
+    --allow-conflicts) ALLOW_CONFLICTS=true ;;
+    -h|--help)
+      echo "Usage: setup-pi.sh [--allow-conflicts]"
+      echo "  --allow-conflicts  Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs"
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $arg"
+      exit 1
+      ;;
+  esac
+ done
+
 header
 
 # ---------------------------------------------------------------------------
@@ -70,6 +86,46 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Conflict Detection
+# ---------------------------------------------------------------------------
+
+conflict_candidates_for() {
+  local name="$1"
+  printf '%s\n' \
+    "$HOME/.claude/plugins/${name}@${name}" \
+    "$HOME/.claude/plugins/${name}" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/${name}" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/${name}" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/agents/skills/${name}" \
+    "$HOME/.codex/skills/${name}" \
+    "$HOME/.agents/skills/${name}" \
+    "$HOME/.pi/agent/extensions/${name}"
+}
+
+conflicts=""
+for name in hyperpowers myhyperpowers superpowers; do
+  while IFS= read -r candidate; do
+    if [[ -e "$candidate" ]]; then
+      conflicts+="${name}|${candidate}"$'\n'
+    fi
+  done < <(conflict_candidates_for "$name")
+done
+
+if [[ -n "$conflicts" && "$ALLOW_CONFLICTS" != true ]]; then
+  error "Conflicting install(s) detected. Remove these before installing XPowers, or rerun with --allow-conflicts if you intentionally want both systems active:"
+  while IFS='|' read -r name candidate; do
+    [[ -n "$name" ]] || continue
+    warn "- ${name}: ${candidate}"
+    if [[ "$candidate" == *"${name}@${name}"* ]]; then
+      warn "  Claude Code: /plugin uninstall ${name}@${name} --scope user"
+    else
+      warn "  Remove or uninstall ${name} from this host before installing XPowers."
+    fi
+  done <<< "$conflicts"
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
 # Download & Install
 # ---------------------------------------------------------------------------
 
@@ -83,7 +139,11 @@ git clone --depth 1 https://github.com/dpolishuk/xpowers.git . >/dev/null 2>&1
 if [[ "$PM" == "bun" ]]; then
   info "Running Bun interactive installer for Pi..."
   # Just run the native bun installer in Pi mode
-  bun scripts/install.ts --yes --hosts pi
+  if [[ "$ALLOW_CONFLICTS" == true ]]; then
+    bun scripts/install.ts --yes --hosts pi --allow-conflicts
+  else
+    bun scripts/install.ts --yes --hosts pi
+  fi
 else
   info "Running manual setup via npm..."
   PI_EXT_DIR="$HOME/.pi/agent/extensions/xpowers"
