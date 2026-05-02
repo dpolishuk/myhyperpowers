@@ -3,13 +3,89 @@ set -euo pipefail
 
 # XPowers Unified Multi-Agent Installer
 # Detects installed AI coding agents and installs xpowers to all of them.
-# Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI
+# Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI, Pi Agent
 
 # ---------------------------------------------------------------------------
 # Common infrastructure
 # ---------------------------------------------------------------------------
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+SCRIPT_DIR=""
+REPO_ROOT=""
+
+if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+  REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
+
+bootstrap_error() { printf 'xpowers installer: %s\n' "$*" >&2; }
+
+is_xpowers_checkout() {
+  [[ -n "$REPO_ROOT" ]] \
+    && [[ -f "${REPO_ROOT}/.claude-plugin/plugin.json" ]] \
+    && [[ -f "${REPO_ROOT}/scripts/install.sh" ]] \
+    && [[ -f "${REPO_ROOT}/scripts/install.ts" ]]
+}
+
+clone_xpowers_checkout() {
+  local repo_url="$1"
+  local ref="$2"
+  local clone_dir="$3"
+
+  if git clone --quiet --depth 1 --branch "$ref" "$repo_url" "$clone_dir" 2>/dev/null; then
+    return 0
+  fi
+
+  rm -rf "$clone_dir"
+  if ! git clone --quiet "$repo_url" "$clone_dir"; then
+    return 1
+  fi
+
+  git -C "$clone_dir" checkout --quiet "$ref"
+}
+
+bootstrap_from_checkout() {
+  if is_xpowers_checkout; then
+    return 0
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    bootstrap_error "git is required when running install.sh from curl/stdin."
+    exit 1
+  fi
+
+  local repo_url="${XPOWERS_REPO_URL:-https://github.com/dpolishuk/xpowers.git}"
+  local ref="${XPOWERS_REF:-main}"
+  local temp_root
+  temp_root="$(mktemp -d "${TMPDIR:-/tmp}/xpowers-install.XXXXXX")"
+  local clone_dir="${temp_root}/xpowers"
+
+  cleanup_bootstrap() {
+    local status=$?
+    rm -rf "$temp_root"
+    exit "$status"
+  }
+  trap cleanup_bootstrap EXIT INT TERM
+
+  if ! clone_xpowers_checkout "$repo_url" "$ref" "$clone_dir"; then
+    bootstrap_error "failed to clone XPowers from ${repo_url} at ref ${ref}."
+    exit 1
+  fi
+
+  if [[ ! -f "${clone_dir}/scripts/install.sh" ]]; then
+    bootstrap_error "cloned repository does not contain scripts/install.sh."
+    exit 1
+  fi
+
+  set +e
+  bash "${clone_dir}/scripts/install.sh" "$@"
+  local delegated_status=$?
+  set -e
+  exit "$delegated_status"
+}
+
+bootstrap_from_checkout "$@"
+
 VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' \
   "$REPO_ROOT/.claude-plugin/plugin.json" | grep -o '"[^"]*"$' | tr -d '"')
 

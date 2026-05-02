@@ -27,6 +27,15 @@ function combinedOutput(result) {
   return `${result.stdout || ""}\n${result.stderr || ""}`
 }
 
+function runGit(args, options = {}) {
+  const result = spawnSync("git", args, {
+    encoding: "utf8",
+    ...options,
+  })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  return result
+}
+
 function installEnv(home, extra = {}) {
   return {
     ...process.env,
@@ -36,6 +45,121 @@ function installEnv(home, extra = {}) {
     ...extra,
   }
 }
+
+function makeBootstrapRepo(installShContent = fs.readFileSync(path.join(repoRoot, "scripts", "install.sh"), "utf8")) {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-source-"))
+  fs.mkdirSync(path.join(repo, "scripts"), { recursive: true })
+  fs.mkdirSync(path.join(repo, ".claude-plugin"), { recursive: true })
+  fs.writeFileSync(path.join(repo, "scripts", "install.sh"), installShContent, "utf8")
+  fs.writeFileSync(path.join(repo, "scripts", "install.ts"), "#!/usr/bin/env bun\n", "utf8")
+  fs.writeFileSync(path.join(repo, ".claude-plugin", "plugin.json"), JSON.stringify({ version: "99.0.0" }) + "\n", "utf8")
+  runGit(["init"], { cwd: repo })
+  runGit(["config", "user.email", "test@example.invalid"], { cwd: repo })
+  runGit(["config", "user.name", "Install Test"], { cwd: repo })
+  runGit(["add", "."], { cwd: repo })
+  runGit(["commit", "-m", "fixture"], { cwd: repo })
+  const ref = runGit(["rev-parse", "HEAD"], { cwd: repo }).stdout.trim()
+  return { repo, ref }
+}
+
+test("install.sh bootstraps from stdin using an offline repository override", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-home-"))
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-cwd-"))
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-tmp-"))
+  const { repo, ref } = makeBootstrapRepo()
+  const script = fs.readFileSync(path.join(repoRoot, "scripts", "install.sh"), "utf8")
+
+  const result = spawnSync("bash", ["-s", "--", "--help"], {
+    cwd,
+    input: script,
+    encoding: "utf8",
+    env: installEnv(home, {
+      TMPDIR: tmpRoot,
+      XPOWERS_REPO_URL: repo,
+      XPOWERS_REF: ref,
+    }),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /Unified installer for XPowers/)
+  assert.match(output, /--hosts <list>/)
+  assert.deepEqual(fs.readdirSync(tmpRoot).filter((name) => name.startsWith("xpowers-install.")), [])
+})
+
+test("install.sh bootstrap preserves delegated arguments and exit code", { timeout: 60000 }, () => {
+  const delegatedScript = [
+    "#!/usr/bin/env bash",
+    "printf 'delegated argc=%s\\n' \"$#\"",
+    "printf 'delegated args=%s\\n' \"$*\"",
+    "exit 37",
+    "",
+  ].join("\n")
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-exit-home-"))
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-exit-cwd-"))
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-bootstrap-exit-tmp-"))
+  const { repo, ref } = makeBootstrapRepo(delegatedScript)
+  const script = fs.readFileSync(path.join(repoRoot, "scripts", "install.sh"), "utf8")
+
+  const result = spawnSync("bash", ["-s", "--", "--hosts", "claude,pi", "--dry-run", "--yes"], {
+    cwd,
+    input: script,
+    encoding: "utf8",
+    env: installEnv(home, {
+      TMPDIR: tmpRoot,
+      XPOWERS_REPO_URL: repo,
+      XPOWERS_REF: ref,
+    }),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 37, output)
+  assert.match(output, /delegated argc=4/)
+  assert.match(output, /delegated args=--hosts claude,pi --dry-run --yes/)
+  assert.deepEqual(fs.readdirSync(tmpRoot).filter((name) => name.startsWith("xpowers-install.")), [])
+})
+
+test("install.sh --hosts pi delegates through the Bun installer entrypoint", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-delegate-home-"))
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-delegate-bin-"))
+  const argsFile = path.join(home, "bun-args.txt")
+  const bunShim = path.join(binDir, "bun")
+  fs.writeFileSync(
+    bunShim,
+    [
+      "#!/usr/bin/env bash",
+      "printf '%s\\n' \"$@\" > \"$BUN_ARGS_FILE\"",
+      "exit 23",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  fs.chmodSync(bunShim, 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "pi", "--yes", "--uninstall", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      BUN_ARGS_FILE: argsFile,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+    }),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 23, output)
+  assert.deepEqual(fs.readFileSync(argsFile, "utf8").trim().split("\n"), [
+    "scripts/install.ts",
+    "--hosts",
+    "pi",
+    "--yes",
+    "--uninstall",
+    "--allow-conflicts",
+  ])
+  assert.doesNotMatch(output, /setup-pi\.sh/)
+})
 
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
