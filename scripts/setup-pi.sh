@@ -22,12 +22,13 @@ while [[ $# -gt 0 ]]; do
       shift
       [[ $# -gt 0 ]] && shift
       ;;
-    --yes|--dry-run|--force|--uninstall|--allow-conflicts|--purge)
+    --yes|--dry-run|--force|--uninstall|--allow-conflicts|--purge|--help|--version|--status|--remove-legacy|--replace-legacy)
       forward_args+=("$1")
       shift
       ;;
     *)
-      shift
+      printf 'setup-pi.sh: unknown option: %s\n' "$1" >&2
+      exit 1
       ;;
   esac
 done

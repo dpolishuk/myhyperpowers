@@ -138,7 +138,7 @@ test("install.sh --hosts pi delegates through the Bun installer entrypoint", { t
   )
   fs.chmodSync(bunShim, 0o755)
 
-  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "pi", "--yes", "--uninstall", "--allow-conflicts"], {
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "pi", "--yes", "--allow-conflicts"], {
     cwd: repoRoot,
     encoding: "utf8",
     env: installEnv(home, {
@@ -155,7 +155,6 @@ test("install.sh --hosts pi delegates through the Bun installer entrypoint", { t
     "--hosts",
     "pi",
     "--yes",
-    "--uninstall",
     "--allow-conflicts",
   ])
   assert.doesNotMatch(output, /setup-pi\.sh/)

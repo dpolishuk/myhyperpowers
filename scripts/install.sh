@@ -241,11 +241,11 @@ remove_legacy_from_manifest() {
     for dir in "${home}/skills" "${home}/agents" "${home}/commands" "${home}/hooks" "${home}/plugins"; do
       [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
     done
-    # Remove manifest and version files
+    # Remove the processed manifest and its corresponding version file
     rm -f "$manifest"
-    rm -f "${home}/.xpowers-manifest" "${home}/.xpowers-version"
-    local old_ns="hyper""powers"
-    rm -f "${home}/.${old_ns}-manifest" "${home}/.${old_ns}-version"
+    local manifest_basename; manifest_basename="$(basename "$manifest")"
+    local version_file="${home}/${manifest_basename//-manifest/-version}"
+    rm -f "$version_file"
   fi
 
   echo "$count"
@@ -272,15 +272,14 @@ remove_legacy() {
 
       # Manifest-driven removal for this agent home (once per home)
       if [[ -n "$agent_home" && -z "${processed_manifests[$agent_home]:-}" ]]; then
-        local legacy_manifest="${agent_home}/.hyperpowers-manifest"
-        local xpowers_manifest="${agent_home}/.xpowers-manifest"
         local manifest_to_use=""
-
-        if [[ -f "$legacy_manifest" ]]; then
-          manifest_to_use="$legacy_manifest"
-        elif [[ -f "$xpowers_manifest" ]]; then
-          manifest_to_use="$xpowers_manifest"
-        fi
+        for legacy_name in hyperpowers myhyperpowers superpowers; do
+          local legacy_manifest="${agent_home}/.${legacy_name}-manifest"
+          if [[ -f "$legacy_manifest" ]]; then
+            manifest_to_use="$legacy_manifest"
+            break
+          fi
+        done
 
         if [[ -n "$manifest_to_use" ]]; then
           if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
@@ -342,8 +341,9 @@ declare -A AGENT_LABELS=(
   [kimi]="Kimi CLI"
   [codex]="Codex CLI"
   [gemini]="Gemini CLI"
+  [pi]="Pi Agent"
 )
-AGENT_ORDER=(claude opencode kimi codex gemini)
+AGENT_ORDER=(claude opencode kimi codex gemini pi)
 
 detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude"; }
 detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode" || true; }
@@ -364,6 +364,7 @@ detect_codex()   {
   fi
 }
 detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)" || true; }
+detect_pi()      { [[ -d "${HOME}/.pi" ]] && AGENT_PATHS[pi]="${HOME}/.pi/agent" || true; }
 
 detect_all() {
   detect_claude
@@ -371,6 +372,7 @@ detect_all() {
   detect_kimi
   detect_codex
   detect_gemini
+  detect_pi
 }
 
 show_detection() {
@@ -1036,6 +1038,18 @@ uninstall_gemini() {
   fi
 }
 
+uninstall_pi() {
+  local home="${AGENT_PATHS[pi]:-${HOME}/.pi/agent}"
+  local ext_dir="${home}/extensions/xpowers"
+  if [[ -d "$ext_dir" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would remove: ${ext_dir}/"
+    else
+      rm -rf "$ext_dir"
+    fi
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Status functions
 # ---------------------------------------------------------------------------
@@ -1095,6 +1109,17 @@ status_gemini() {
     echo -e "  ${GREEN}✓${RESET} Gemini CLI     ${BOLD}installed${RESET}"
   else
     echo -e "  ${DIM}✗ Gemini CLI     not installed${RESET}"
+  fi
+}
+
+status_pi() {
+  local home="${AGENT_PATHS[pi]:-${HOME}/.pi/agent}"
+  local vf="${home}/.xpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    echo -e "  ${GREEN}✓${RESET} Pi Agent       ${BOLD}v${iv}${RESET}"
+  else
+    echo -e "  ${DIM}✗ Pi Agent       not installed${RESET}"
   fi
 }
 
@@ -1336,6 +1361,10 @@ main() {
 
   # --- Legacy removal (before any installation) ---
   if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
+    if [[ "$PURGE" == true ]]; then
+      error "--purge cannot be used with --remove-legacy or --replace-legacy"
+      exit 1
+    fi
     if ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
       error "No terminal detected. Use --yes to confirm legacy removal."
       exit 1
@@ -1348,33 +1377,30 @@ main() {
 
   local -a FAILED_AGENTS=()
 
-  # Pi delegation: TypeScript installer handles Pi
+  # Pi delegation: TypeScript installer handles Pi install only
   local has_pi=false
   for agent in "${SELECTED_AGENTS[@]}"; do
     [[ "$agent" == "pi" ]] && has_pi=true
   done
 
-  if [[ "$has_pi" == true ]]; then
+  if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
     if ! command -v bun &>/dev/null; then
       error "Pi installation requires Bun. Install Bun first: https://bun.sh"
       exit 1
     fi
+    # Build filtered args for install.ts (only flags it understands)
+    local -a PI_ARGS=("--hosts" "pi")
+    [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
+    [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
     if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
       # Pi is the only host — exec for efficiency
-      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${ORIGINAL_ARGS[@]}"
+      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
     else
       # Pi is one of multiple — run without exec, capture exit code, then continue
       cd "${REPO_ROOT}"
-      if ! bun scripts/install.ts "${ORIGINAL_ARGS[@]}"; then
+      if ! bun scripts/install.ts "${PI_ARGS[@]}"; then
         FAILED_AGENTS+=("pi")
       fi
-      # Remove pi from SELECTED_AGENTS
-      local new_selected=()
-      for agent in "${SELECTED_AGENTS[@]}"; do
-        [[ "$agent" == "pi" ]] && continue
-        new_selected+=("$agent")
-      done
-      SELECTED_AGENTS=("${new_selected[@]}")
     fi
   fi
 
@@ -1391,6 +1417,7 @@ main() {
     status_kimi
     status_codex
     status_gemini
+    status_pi
     echo
     exit 0
   fi
@@ -1503,6 +1530,10 @@ main() {
   # FAILED_AGENTS declared earlier during Pi delegation
 
   for agent in "${SELECTED_AGENTS[@]}"; do
+    # Pi install is handled by TypeScript delegation above
+    if [[ "$agent" == "pi" && "$MODE" == "install" ]]; then
+      continue
+    fi
     local label="${AGENT_LABELS[$agent]}"
     if [[ "$MODE" == "uninstall" ]]; then
       printf "  Uninstalling from ${BOLD}%-16s${RESET} " "$label..."
