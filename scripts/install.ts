@@ -900,26 +900,19 @@ Options:
     return
   }
 
-  // Phase 2: Select hosts
-  let selectedHostIds: string[]
-
-  if (args.yes || args.hosts.length > 0) {
-    selectedHostIds = args.hosts.length > 0 ? args.hosts : detected.map((h) => h.id)
-  } else {
-    const result = await p.multiselect({
-      message: "Install to which hosts?",
-      options: detected.map((h) => ({ value: h.id, label: h.name, hint: h.targetDir() })),
-      initialValues: detected.map((h) => h.id),
-      required: true,
-    })
-    if (p.isCancel(result)) { p.cancel("Cancelled."); return }
-    selectedHostIds = result as string[]
-  }
-
   const conflicts = detectConflictingInstalls()
   if (conflicts.length > 0 && !args.allowConflicts) {
     const message = formatConflictMessage(conflicts)
-    const nonInteractive = args.yes || args.json || args.hosts.length > 0 || !process.stdin.isTTY
+    const nonInteractive = args.yes || args.json || process.env.CI === "true" || !process.stdin.isTTY
+    if (args.json) {
+      console.log(JSON.stringify({
+        ok: false,
+        version: VERSION,
+        error: message,
+        conflicts: conflicts.map((conflict) => ({ name: conflict.name, path: conflict.path })),
+      }))
+      process.exit(1)
+    }
     if (nonInteractive) {
       p.log.error(message)
       process.exit(1)
@@ -934,6 +927,22 @@ Options:
       p.cancel("Cancelled. Remove the conflicting installs and rerun the installer.")
       return
     }
+  }
+
+  // Phase 2: Select hosts
+  let selectedHostIds: string[]
+
+  if (args.yes || args.hosts.length > 0) {
+    selectedHostIds = args.hosts.length > 0 ? args.hosts : detected.map((h) => h.id)
+  } else {
+    const result = await p.multiselect({
+      message: "Install to which hosts?",
+      options: detected.map((h) => ({ value: h.id, label: h.name, hint: h.targetDir() })),
+      initialValues: detected.map((h) => h.id),
+      required: true,
+    })
+    if (p.isCancel(result)) { p.cancel("Cancelled."); return }
+    selectedHostIds = result as string[]
   }
 
   // Phase 3: Select features

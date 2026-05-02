@@ -85,6 +85,49 @@ test("install.sh fails fast on legacy package conflicts in non-interactive mode"
   assert.match(output, /hyperpowers/i)
   assert.match(output, new RegExp(conflicts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
   assert.match(output, /--allow-conflicts/)
+
+  const allowed = spawnSync("bash", ["scripts/install.sh", "--claude", "--yes", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const allowedOutput = combinedOutput(allowed)
+  assert.equal(allowed.status, 0, allowedOutput)
+  assert.doesNotMatch(allowedOutput, /conflicting install/i)
+})
+
+test("bun installer conflict guard stays before host selection and keeps --hosts interactive", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "install.ts"), "utf8")
+  const conflictGuardIndex = source.indexOf("const conflicts = detectConflictingInstalls()")
+  const phase2Index = source.indexOf("// Phase 2: Select hosts")
+  assert.ok(conflictGuardIndex > -1, "conflict guard should exist")
+  assert.ok(phase2Index > -1, "Phase 2 host selection should exist")
+  assert.ok(conflictGuardIndex < phase2Index, "conflict guard should run before host selection UI")
+
+  const nonInteractiveLine = source.match(/const nonInteractive = (?<expr>[^\n]+)/)?.groups?.expr || ""
+  assert.doesNotMatch(nonInteractiveLine, /args\.hosts/, "--hosts alone must not suppress the conflict prompt")
+})
+
+test("bun installer json mode reports structured conflict failures", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-json-conflict-test-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  const conflicts = makeConflictFixture(home)
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--json", "--hosts", "claude"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  assert.notEqual(result.status, 0)
+  const payload = JSON.parse(result.stdout)
+  assert.equal(payload.ok, false)
+  assert.match(payload.error, /conflicting install/i)
+  assert.match(payload.error, new RegExp(conflicts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(payload.error, /--allow-conflicts/)
 })
 
 test("setup-pi.sh fails fast on legacy package conflicts before download", { timeout: 60000 }, () => {
