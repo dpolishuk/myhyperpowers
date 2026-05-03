@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled": true,
+  "pollIntervalMs": 60000,
+  "minPriority": 2,
+  "showTaskCount": true,
+  "trackSeenTasks": true,
+  "seenTasksTtlMs": 86400000,
+  "notifyOnNewTasks": true,
+  "notifyOnSessionIdle": true,
+  "notifyOnSessionStart": false,
+  "maxTasksInToast": 3,
+  "logDir": ".opencode/cache/task-monitor"
+}
