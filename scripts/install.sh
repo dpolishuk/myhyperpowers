@@ -1468,6 +1468,19 @@ main() {
     SELECTED_AGENTS=("${resolved_agents[@]}")
   fi
 
+  # Deduplicate SELECTED_AGENTS to prevent double execution
+  if [[ ${#SELECTED_AGENTS[@]} -gt 0 ]]; then
+    local -a deduped=()
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      local already=false
+      for d in "${deduped[@]}"; do
+        [[ "$d" == "$agent" ]] && already=true && break
+      done
+      [[ "$already" != true ]] && deduped+=("$agent")
+    done
+    SELECTED_AGENTS=("${deduped[@]}")
+  fi
+
   local -a FAILED_AGENTS=()
 
   # Pi delegation: TypeScript installer handles Pi install only

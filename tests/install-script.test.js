@@ -237,6 +237,24 @@ test("install.sh mixed claude+pi skips Pi when Bun is missing and continues with
   assert.match(output, /requires Bun/)
 })
 
+test("install.sh deduplicates duplicate --hosts entries", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-dedup-test-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude,claude", "--dry-run", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  // Should only mention one Claude Code install, not two
+  const matches = output.match(/Would install to Claude Code/g)
+  assert.equal(matches ? matches.length : 0, 1, `Expected exactly one Claude mention, got: ${output}`)
+})
+
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
