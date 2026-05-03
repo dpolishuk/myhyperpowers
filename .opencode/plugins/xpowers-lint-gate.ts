@@ -427,9 +427,12 @@ const runLinter = async (
       ? [...linter.args, ...linter.fixArgs, filePath]
       : [...linter.args, filePath]
 
-    const result = await $`${linter.command} ${args}`.quiet().nothrow()
+    // Build command as array for Bun shell to safely pass each arg
+    const cmdParts = [linter.command, ...args]
+    const result = await $`${cmdParts}`.quiet().nothrow()
     const stdout = await result.text()
-    const stderr = ""
+    // Bun shell returns stderr as a property on the result object
+    const stderr = typeof result.stderr === "string" ? result.stderr : ""
 
     const issues = linter.parseOutput(stdout, stderr)
 
@@ -524,6 +527,9 @@ const xpowersLintGatePlugin: Plugin = async (ctx) => {
     return {}
   }
 
+  // Cache linter detection results per extension to avoid repeated `which` calls
+  const linterCache = new Map<string, LinterConfig | null>()
+
   // Track recent toasts to avoid spam
   const lastToastTime = new Map<string, number>()
 
@@ -570,8 +576,14 @@ const xpowersLintGatePlugin: Plugin = async (ctx) => {
           },
         }
       } else {
-        // Auto-detect project linter
-        linter = await detectProjectLinter(ctx.$, ctx.directory, filePath)
+        // Auto-detect project linter (cached per extension)
+        const ext = extname(filePath).toLowerCase()
+        if (linterCache.has(ext)) {
+          linter = linterCache.get(ext) ?? null
+        } else {
+          linter = await detectProjectLinter(ctx.$, ctx.directory, filePath)
+          linterCache.set(ext, linter)
+        }
       }
 
       if (!linter) {

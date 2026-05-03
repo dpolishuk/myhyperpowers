@@ -102,8 +102,9 @@ const parseTasks = (output: string): ParsedTask[] => {
 
     // Match: [indicator] [id] [status] P[priority] [title]
     // ○ hyper-5ct ● P1 [epic] Project: Rename repository to xpowers
+    // Supports priorities P0-P99 (multi-digit)
     const match = trimmed.match(
-      /^[○◐●✓❄]\s+([a-z]+-[a-z0-9]+)\s+.*?P(\d)\s+(.+)/,
+      /^[○◐●✓❄]\s+([a-z]+-[a-z0-9]+)\s+.*?P(\d+)\s+(.+)/,
     )
     if (match) {
       tasks.push({
@@ -187,6 +188,7 @@ const xpowersTaskMonitorPlugin: Plugin = async (ctx) => {
   let lastTaskCount = 0
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let isPolling = false
+  let isShuttingDown = false
 
   const notifyNewTasks = async (tasks: ParsedTask[]) => {
     const newTasks = tasks.filter((t) => !seenTasks.has(t.id))
@@ -242,7 +244,7 @@ const xpowersTaskMonitorPlugin: Plugin = async (ctx) => {
   }
 
   const doPoll = async () => {
-    if (isPolling) return
+    if (isPolling || isShuttingDown) return
     isPolling = true
 
     try {
@@ -262,6 +264,14 @@ const xpowersTaskMonitorPlugin: Plugin = async (ctx) => {
       }
     } finally {
       isPolling = false
+    }
+  }
+
+  const stopPolling = () => {
+    isShuttingDown = true
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
     }
   }
 
@@ -323,9 +333,8 @@ const xpowersTaskMonitorPlugin: Plugin = async (ctx) => {
       }
 
       // Cleanup timer when session ends
-      if (event.type === "session.deleted" && pollTimer) {
-        clearInterval(pollTimer)
-        pollTimer = null
+      if (event.type === "session.deleted") {
+        stopPolling()
       }
     },
 

@@ -126,8 +126,19 @@ const getGitStatus = async ($: any, cwd: string): Promise<GitStatus> => {
     }
 
     // Status line: XY filename or XY "filename with spaces"
+    // Renames: XY "old" -> "new"  (R status in index or worktree)
     const statusCode = line.slice(0, 2)
-    const filePath = line.slice(3).replace(/^"(.*)"$/, "$1")
+    let filePath = line.slice(3)
+
+    // Handle rename entries: R  "old/path" -> "new/path"
+    if (statusCode[0] === "R" || statusCode[1] === "R") {
+      const renameMatch = line.match(/^\S{2}\s+(.+?)\s+->\s+(.+)$/)
+      if (renameMatch) {
+        filePath = renameMatch[2].replace(/^"(.*)"$/, "$1")
+      }
+    } else {
+      filePath = filePath.replace(/^"(.*)"$/, "$1")
+    }
 
     if (!filePath) continue
 
@@ -149,6 +160,12 @@ const getGitStatus = async ($: any, cwd: string): Promise<GitStatus> => {
     }
     if (worktreeStatus === "?") {
       status.untrackedFiles.push(filePath)
+    }
+    // Renames count as modified
+    if (indexStatus === "R" || worktreeStatus === "R") {
+      if (!status.modifiedFiles.includes(filePath)) {
+        status.modifiedFiles.push(filePath)
+      }
     }
   }
 
@@ -180,9 +197,19 @@ const hasUncommittedChanges = async ($: any, cwd: string): Promise<boolean> => {
   return status.hasChanges
 }
 
-const autoCommit = async ($: any, cwd: string, message: string): Promise<{ ok: boolean; error?: string }> => {
+const autoCommit = async (
+  $: any,
+  cwd: string,
+  message: string,
+  filesToCommit: string[],
+): Promise<{ ok: boolean; error?: string }> => {
+  if (filesToCommit.length === 0) {
+    return { ok: true }
+  }
+
   try {
-    const addResult = await $`git -C ${cwd} add -A`.quiet().nothrow()
+    // Only stage files that were modified during this session, not everything
+    const addResult = await $`git -C ${cwd} add ${filesToCommit}`.quiet().nothrow()
     if (addResult.exitCode !== 0) {
       return { ok: false, error: "git add failed" }
     }
@@ -317,8 +344,9 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
       if (event.type === "session.deleted" && sessionId) {
         const state = sessions.get(sessionId)
         if (state && config.autoCommitOnSessionEnd && state.filesModified.size > 0 && !state.commitMade) {
-          // Auto-commit on session end
-          const result = await autoCommit(ctx.$, ctx.directory, config.autoCommitMessage)
+          // Auto-commit on session end — only commit files modified during this session
+          const filesToCommit = Array.from(state.filesModified)
+          const result = await autoCommit(ctx.$, ctx.directory, config.autoCommitMessage, filesToCommit)
           if (result.ok) {
             await showToast(
               ctx.client,
@@ -338,6 +366,13 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
           }
         }
         sessions.delete(sessionId)
+        // Cleanup orphaned sessions older than 24 hours
+        const cutoff = Date.now() - 86400000
+        for (const [id, s] of sessions) {
+          if (!s) {
+            sessions.delete(id)
+          }
+        }
         return
       }
 

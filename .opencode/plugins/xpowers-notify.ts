@@ -96,7 +96,12 @@ const checkBackend = async ($: any, backend: Backend): Promise<boolean> => {
 
 // ── Notification Sending ────────────────────────────────────────────────────
 
-const escapeShell = (text: string) => text.replace(/"/g, '\\"')
+/**
+ * Escape OSC sequence content to prevent terminal injection.
+ * OSC 777/99 payloads must not contain BEL (\x07) or ESC (\x1b).
+ */
+const escapeOsc = (text: string): string =>
+  text.replace(/\x1b/g, "").replace(/\x07/g, "")
 
 const sendDesktopNotification = async (
   $: any,
@@ -106,24 +111,30 @@ const sendDesktopNotification = async (
 ): Promise<boolean> => {
   try {
     switch (backend) {
-      case "osascript":
-        await $`osascript -e ${
-          `display notification "${escapeShell(message)}" with title "${escapeShell(title)}"`
-        }`.quiet().nothrow()
+      case "osascript": {
+        // Use Bun shell template literal which safely escapes arguments
+        const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`
+        await $`osascript -e ${script}`.quiet().nothrow()
         return true
+      }
 
-      case "notify-send":
+      case "notify-send": {
+        // Bun template literal safely passes arguments to subprocess
         await $`notify-send ${title} ${message}`.quiet().nothrow()
         return true
+      }
 
-      case "growlnotify":
+      case "growlnotify": {
         await $`growlnotify -t ${title} -m ${message}`.quiet().nothrow()
         return true
+      }
 
       case "osc777": {
         // OSC 777: Ghostty, iTerm2, WezTerm, rxvt-unicode
         // Format: ESC ] 777 ; notify ; title ; body BEL
-        const osc = `\x1b]777;notify;${title};${message}\x07`
+        const safeTitle = escapeOsc(title)
+        const safeMessage = escapeOsc(message)
+        const osc = `\x1b]777;notify;${safeTitle};${safeMessage}\x07`
         process.stdout.write(osc)
         return true
       }
@@ -131,7 +142,8 @@ const sendDesktopNotification = async (
       case "osc99": {
         // OSC 99: Kitty
         // Format: ESC ] 99 ; i=1:d=0 ; body ESC \
-        const osc = `\x1b]99;i=1:d=0;${message}\x1b\\`
+        const safeMessage = escapeOsc(message)
+        const osc = `\x1b]99;i=1:d=0;${safeMessage}\x1b\\`
         process.stdout.write(osc)
         return true
       }
