@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled": true,
+  "autoApproveThreshold": 0,
+  "maxDiffLinesInToast": 8,
+  "logDir": ".opencode/cache/slow-mode",
+  "protectedPaths": [
+    ".env",
+    ".env.*",
+    "**/.git/hooks/*",
+    "**/.beads/issues.jsonl",
+    "id_rsa",
+    "*.pem",
+    "*.key"
+  ],
+  "showDiffInToast": true,
+  "notifyOnSmallChanges": true
+}
