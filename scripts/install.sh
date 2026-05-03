@@ -230,7 +230,12 @@ remove_legacy_from_manifest() {
       continue
     fi
     if [[ "$entry" == */ ]]; then
-      [[ -d "$target" ]] && rm -rf "$target" && count=$((count + 1))
+      local normalized_target="${target%/}"
+      if [[ -L "$normalized_target" ]]; then
+        rm -f "$normalized_target" && count=$((count + 1))
+      elif [[ -d "$normalized_target" ]]; then
+        rm -rf "$normalized_target" && count=$((count + 1))
+      fi
     else
       [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
     fi
@@ -530,8 +535,13 @@ uninstall_from_manifest() {
       continue
     fi
     if [[ "$entry" == */ ]]; then
-      # Directory entry
-      [[ -d "$target" ]] && rm -rf "$target" && count=$((count + 1))
+      # Directory entry — guard against symlink traversal
+      local normalized_target="${target%/}"
+      if [[ -L "$normalized_target" ]]; then
+        rm -f "$normalized_target" && count=$((count + 1))
+      elif [[ -d "$normalized_target" ]]; then
+        rm -rf "$normalized_target" && count=$((count + 1))
+      fi
     else
       # File entry
       [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
