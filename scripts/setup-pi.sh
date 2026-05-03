@@ -1,206 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# XPowers Pi Quick Installer
-# One-command setup for macOS & Linux:
-# curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/setup-pi.sh | bash
-# ---------------------------------------------------------------------------
+printf 'setup-pi.sh is deprecated. Use: curl -fsSL https://raw.githubusercontent.com/dpolishuk/xpowers/main/scripts/install.sh | bash -s -- --hosts pi --yes\n' >&2
 
-# Colors and formatting
-if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[1;33m'
-  BLUE='\033[0;34m'
-  BOLD='\033[1m'
-  CYAN='\033[0;36m'
-  RESET='\033[0m'
-else
-  RED='' GREEN='' YELLOW='' BLUE='' BOLD='' CYAN='' RESET=''
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+SCRIPT_DIR=""
+if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 fi
 
-info()    { echo -e "${BLUE}i${RESET} $*"; }
-success() { echo -e "${GREEN}✓${RESET} $*"; }
-warn()    { echo -e "${YELLOW}⚠${RESET} $*" >&2; }
-error()   { echo -e "${RED}✗${RESET} $*" >&2; }
+if [[ -z "$SCRIPT_DIR" ]]; then
+  printf 'setup-pi.sh: cannot determine script location when piped. Use the universal installer instead.\n' >&2
+  exit 1
+fi
 
-header() {
-  echo -e "${BOLD}╭─────────────────────────────────────────╮${RESET}"
-  printf  "${BOLD}│${RESET}  XPowers Pi Installer ${CYAN}v%-13s${RESET} ${BOLD}│${RESET}\n" "latest"
-  echo -e "${BOLD}╰─────────────────────────────────────────╯${RESET}"
-  echo
-}
-
-ALLOW_CONFLICTS=false
-for arg in "$@"; do
-  case "$arg" in
-    --allow-conflicts) ALLOW_CONFLICTS=true ;;
-    -h|--help)
-      echo "Usage: setup-pi.sh [--allow-conflicts]"
-      echo "  --allow-conflicts  Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs"
-      exit 0
+# Strip --hosts and its argument from forwarded args to avoid duplication/conflict
+forward_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --hosts)
+      shift
+      [[ $# -gt 0 ]] && shift
+      ;;
+    --yes|--dry-run|--force|--uninstall|--allow-conflicts|--purge|--help|--version|--status|--remove-legacy|--replace-legacy)
+      forward_args+=("$1")
+      shift
       ;;
     *)
-      error "Unknown option: $arg"
+      printf 'setup-pi.sh: unknown option: %s\n' "$1" >&2
       exit 1
       ;;
   esac
- done
-
-header
-
-# ---------------------------------------------------------------------------
-# Prerequisites Check
-# ---------------------------------------------------------------------------
-
-info "Checking system requirements..."
-
-# 1. Check for Pi
-if ! command -v pi >/dev/null 2>&1; then
-  error "Pi is not installed or not in PATH."
-  echo -e "Please install Pi first: ${CYAN}https://github.com/mariozechner/pi-coding-agent${RESET}"
-  exit 1
-fi
-success "Pi is installed."
-
-# 2. Check for Git
-if ! command -v git >/dev/null 2>&1; then
-  error "Git is required to download XPowers."
-  exit 1
-fi
-success "Git is installed."
-
-# 3. Check for Bun or npm
-PM=""
-if command -v bun >/dev/null 2>&1; then
-  PM="bun"
-  success "Bun is installed."
-elif command -v npm >/dev/null 2>&1; then
-  PM="npm"
-  success "npm is installed."
-else
-  error "Either 'bun' or 'npm' is required to install Pi extension dependencies."
-  echo -e "Install Bun: ${CYAN}curl -fsSL https://bun.sh/install | bash${RESET}"
-  exit 1
-fi
-
-# ---------------------------------------------------------------------------
-# Conflict Detection
-# ---------------------------------------------------------------------------
-
-conflict_candidates_for() {
-  local name="$1"
-  printf '%s\n' \
-    "$HOME/.claude/plugins/${name}@${name}" \
-    "$HOME/.claude/plugins/${name}" \
-    "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/${name}" \
-    "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/${name}" \
-    "${XDG_CONFIG_HOME:-$HOME/.config}/agents/skills/${name}" \
-    "$HOME/.codex/skills/${name}" \
-    "$HOME/.agents/skills/${name}" \
-    "$HOME/.pi/agent/extensions/${name}"
-}
-
-conflicts=""
-for name in hyperpowers myhyperpowers superpowers; do
-  while IFS= read -r candidate; do
-    if [[ -e "$candidate" ]]; then
-      conflicts+="${name}|${candidate}"$'\n'
-    fi
-  done < <(conflict_candidates_for "$name")
 done
 
-if [[ -n "$conflicts" && "$ALLOW_CONFLICTS" != true ]]; then
-  error "Conflicting install(s) detected. Remove these before installing XPowers, or rerun with --allow-conflicts if you intentionally want both systems active:"
-  while IFS='|' read -r name candidate; do
-    [[ -n "$name" ]] || continue
-    warn "- ${name}: ${candidate}"
-    if [[ "$candidate" == *"${name}@${name}"* ]]; then
-      warn "  Claude Code: /plugin uninstall ${name}@${name} --scope user"
-    else
-      warn "  Remove or uninstall ${name} from this host before installing XPowers."
-    fi
-  done <<< "$conflicts"
-  exit 1
-fi
-
-# ---------------------------------------------------------------------------
-# Download & Install
-# ---------------------------------------------------------------------------
-
-TMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TMP_DIR"' EXIT
-
-info "Downloading latest XPowers release..."
-cd "$TMP_DIR"
-git clone --depth 1 https://github.com/dpolishuk/xpowers.git . >/dev/null 2>&1
-
-if [[ "$PM" == "bun" ]]; then
-  info "Running Bun interactive installer for Pi..."
-  # Just run the native bun installer in Pi mode
-  if [[ "$ALLOW_CONFLICTS" == true ]]; then
-    bun scripts/install.ts --yes --hosts pi --allow-conflicts
-  else
-    bun scripts/install.ts --yes --hosts pi
-  fi
-else
-  info "Running manual setup via npm..."
-  PI_EXT_DIR="$HOME/.pi/agent/extensions/xpowers"
-  
-  # Clean old install
-  rm -rf "$PI_EXT_DIR"
-  mkdir -p "$PI_EXT_DIR"
-  
-  # Copy files
-  cp -r .pi/extensions/xpowers/* "$PI_EXT_DIR/"
-  cp -r skills "$PI_EXT_DIR/"
-  cp -r commands "$PI_EXT_DIR/"
-  
-  # Inject AGENTS.md
-  if [[ -f "$HOME/.pi/agent/AGENTS.md" ]]; then
-    if ! grep -q "<!-- BEGIN XPOWERS PI -->" "$HOME/.pi/agent/AGENTS.md"; then
-      echo "" >> "$HOME/.pi/agent/AGENTS.md"
-      cat .pi/AGENTS.md >> "$HOME/.pi/agent/AGENTS.md"
-    fi
-  else
-    mkdir -p "$HOME/.pi/agent"
-    cp .pi/AGENTS.md "$HOME/.pi/agent/AGENTS.md"
-  fi
-  
-  # Install dependencies
-  info "Installing extension dependencies..."
-  cd "$PI_EXT_DIR"
-  npm install --silent >/dev/null 2>&1
-  
-  # Build the extension (requires Bun)
-  if command -v bun >/dev/null 2>&1; then
-    info "Building Pi extension..."
-    bun build index.ts --target=node --format=esm --packages=external --outfile=dist/index.js >/dev/null 2>&1
-    if [[ ! -f "dist/index.js" ]]; then
-      error "Build failed: dist/index.js was not created."
-      exit 1
-    fi
-  else
-    error "Bun is required to build the Pi extension (npm install is sufficient for dependencies, but build requires Bun)."
-    exit 1
-  fi
-  
-  success "Pi extension installed via npm!"
-fi
-
-# ---------------------------------------------------------------------------
-# Completion
-# ---------------------------------------------------------------------------
-
-echo
-echo -e "${GREEN}${BOLD}✨ Setup Complete!${RESET}"
-echo
-echo -e "You can now start ${CYAN}pi${RESET} and use your new xpowers:"
-echo -e "  ${BOLD}/routing-settings${RESET}  — Configure models and effort levels"
-echo -e "  ${BOLD}/execute-ralph${RESET}     — Autonomous epic execution"
-echo -e "  ${BOLD}/brainstorm${RESET}        — Interactive design planning"
-echo -e "  ${BOLD}/review-parallel${RESET}   — Multi-agent parallel review"
-echo
-echo -e "For full documentation: ${CYAN}https://github.com/dpolishuk/xpowers/blob/main/docs/pi.md${RESET}"
-echo
+exec bash "${SCRIPT_DIR}/install.sh" --hosts pi "${forward_args[@]}"

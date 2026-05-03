@@ -3,13 +3,89 @@ set -euo pipefail
 
 # XPowers Unified Multi-Agent Installer
 # Detects installed AI coding agents and installs xpowers to all of them.
-# Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI
+# Supports: Claude Code, OpenCode, Kimi CLI, Codex CLI, Gemini CLI, Pi Agent
 
 # ---------------------------------------------------------------------------
 # Common infrastructure
 # ---------------------------------------------------------------------------
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+SCRIPT_DIR=""
+REPO_ROOT=""
+
+if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+  REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
+
+bootstrap_error() { printf 'xpowers installer: %s\n' "$*" >&2; }
+
+is_xpowers_checkout() {
+  [[ -n "$REPO_ROOT" ]] \
+    && [[ -f "${REPO_ROOT}/.claude-plugin/plugin.json" ]] \
+    && [[ -f "${REPO_ROOT}/scripts/install.sh" ]] \
+    && [[ -f "${REPO_ROOT}/scripts/install.ts" ]]
+}
+
+clone_xpowers_checkout() {
+  local repo_url="$1"
+  local ref="$2"
+  local clone_dir="$3"
+
+  if git clone --quiet --depth 1 --branch "$ref" "$repo_url" "$clone_dir" 2>/dev/null; then
+    return 0
+  fi
+
+  rm -rf "$clone_dir"
+  if ! git clone --quiet "$repo_url" "$clone_dir"; then
+    return 1
+  fi
+
+  git -C "$clone_dir" checkout --quiet "$ref"
+}
+
+bootstrap_from_checkout() {
+  if is_xpowers_checkout; then
+    return 0
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    bootstrap_error "git is required when running install.sh from curl/stdin."
+    exit 1
+  fi
+
+  local repo_url="${XPOWERS_REPO_URL:-https://github.com/dpolishuk/xpowers.git}"
+  local ref="${XPOWERS_REF:-main}"
+  local temp_root
+  temp_root="$(mktemp -d "${TMPDIR:-/tmp}/xpowers-install.XXXXXX")"
+  local clone_dir="${temp_root}/xpowers"
+
+  cleanup_bootstrap() {
+    local status=$?
+    rm -rf "$temp_root"
+    exit "$status"
+  }
+  trap cleanup_bootstrap EXIT INT TERM
+
+  if ! clone_xpowers_checkout "$repo_url" "$ref" "$clone_dir"; then
+    bootstrap_error "failed to clone XPowers from ${repo_url} at ref ${ref}."
+    exit 1
+  fi
+
+  if [[ ! -f "${clone_dir}/scripts/install.sh" ]]; then
+    bootstrap_error "cloned repository does not contain scripts/install.sh."
+    exit 1
+  fi
+
+  set +e
+  bash "${clone_dir}/scripts/install.sh" "$@"
+  local delegated_status=$?
+  set -e
+  exit "$delegated_status"
+}
+
+bootstrap_from_checkout "$@"
+
 VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' \
   "$REPO_ROOT/.claude-plugin/plugin.json" | grep -o '"[^"]*"$' | tr -d '"')
 
@@ -112,6 +188,145 @@ backup_dir() {
   echo "$dest"
 }
 
+LEGACY_QUARANTINE_DIR="${HOME}/.xpowers-quarantine"
+
+quarantine_item() {
+  local target="$1"
+  local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
+  local seq=0
+  local dest="${LEGACY_QUARANTINE_DIR}/${stamp}-$(basename "$target")"
+  while [[ -e "$dest" ]]; do
+    seq=$((seq + 1))
+    dest="${LEGACY_QUARANTINE_DIR}/${stamp}-${seq}-$(basename "$target")"
+  done
+  ensure_dir "$LEGACY_QUARANTINE_DIR"
+  if [[ -d "$target" ]]; then
+    if ! cp -R "$target" "$dest" 2>/dev/null; then
+      return 1
+    fi
+  else
+    if ! cp "$target" "$dest" 2>/dev/null; then
+      return 1
+    fi
+  fi
+  echo "$dest"
+}
+
+remove_legacy_from_manifest() {
+  local home="$1"
+  local manifest="$2"
+  local count=0
+
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    [[ "$entry" == \#* ]] && continue
+    [[ "$entry" == /* ]] && continue
+    [[ "$entry" == *..* ]] && continue
+    [[ "$entry" == "." ]] && continue
+    local target="${home}/${entry}"
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would remove (legacy manifest): ${target}" >&2
+      count=$((count + 1))
+      continue
+    fi
+    if [[ "$entry" == */ ]]; then
+      local normalized_target="${target%/}"
+      if [[ -L "$normalized_target" ]]; then
+        rm -f "$normalized_target" && count=$((count + 1))
+      elif [[ -d "$normalized_target" ]]; then
+        rm -rf "$normalized_target" && count=$((count + 1))
+      fi
+    else
+      [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
+    fi
+  done < "$manifest"
+
+  if [[ "$DRY_RUN" != true ]]; then
+    # Clean up empty parent dirs
+    for dir in "${home}/skills" "${home}/agents" "${home}/commands" "${home}/hooks" "${home}/plugins"; do
+      [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
+    done
+    # Remove the processed manifest and its corresponding version file
+    rm -f "$manifest"
+    local manifest_basename; manifest_basename="$(basename "$manifest")"
+    local version_file="${home}/${manifest_basename//-manifest/-version}"
+    rm -f "$version_file"
+  fi
+
+  echo "$count"
+}
+
+remove_legacy() {
+  local total_removed=0
+  declare -A processed_manifests
+
+  for name in "${CONFLICT_NAMES[@]}"; do
+    while IFS= read -r candidate; do
+      # Determine agent home for manifest lookup (regardless of candidate existence)
+      local agent_home=""
+      case "$candidate" in
+        "${HOME}/.claude"*) agent_home="${HOME}/.claude" ;;
+        "${XDG_CFG}/opencode"*) agent_home="${XDG_CFG}/opencode" ;;
+        "${XDG_CFG}/agents"*) agent_home="${XDG_CFG}/agents" ;;
+        "${HOME}/.codex"*) agent_home="${HOME}/.codex" ;;
+        "${HOME}/.agents"*) agent_home="${HOME}/.agents" ;;
+        "${HOME}/.pi"*) agent_home="${HOME}/.pi/agent" ;;
+      esac
+
+      # Manifest-driven removal for this agent home (process every manifest found)
+      if [[ -n "$agent_home" ]]; then
+        for legacy_name in hyperpowers myhyperpowers superpowers; do
+          local legacy_manifest="${agent_home}/.${legacy_name}-manifest"
+          if [[ -f "$legacy_manifest" && -z "${processed_manifests[$legacy_manifest]:-}" ]]; then
+            if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
+              while IFS= read -r entry; do
+                [[ -z "$entry" ]] && continue
+                [[ "$entry" == \#* ]] && continue
+                [[ "$entry" == /* ]] && continue
+                [[ "$entry" == *..* ]] && continue
+                [[ "$entry" == "." ]] && continue
+                local entry_path="${agent_home}/${entry}"
+                if [[ -e "$entry_path" ]]; then
+                  if ! quarantine_item "$entry_path" >/dev/null; then
+                    error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
+                    exit 1
+                  fi
+                fi
+              done < "$legacy_manifest"
+            fi
+            local count
+            count=$(remove_legacy_from_manifest "$agent_home" "$legacy_manifest")
+            total_removed=$((total_removed + count))
+            processed_manifests[$legacy_manifest]=1
+          fi
+        done
+      fi
+
+      # Exact-path removal for the candidate itself
+      if [[ -e "$candidate" ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+          echo "  Would remove (legacy): ${candidate}"
+        else
+          if [[ "$PURGE" != true ]]; then
+            if ! quarantine_item "$candidate" >/dev/null; then
+              error "Failed to quarantine ${candidate}. Aborting to prevent data loss."
+              exit 1
+            fi
+          fi
+          rm -rf "$candidate"
+        fi
+        total_removed=$((total_removed + 1))
+      fi
+    done < <(conflict_candidates_for "$name")
+  done
+
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Dry run: would remove ${total_removed} legacy item(s)"
+  else
+    info "Removed ${total_removed} legacy item(s)"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Agent detection
 # ---------------------------------------------------------------------------
@@ -123,11 +338,12 @@ declare -A AGENT_LABELS=(
   [kimi]="Kimi CLI"
   [codex]="Codex CLI"
   [gemini]="Gemini CLI"
+  [pi]="Pi Agent"
 )
-AGENT_ORDER=(claude opencode kimi codex gemini)
+AGENT_ORDER=(claude opencode kimi codex gemini pi)
 
-detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude"; }
-detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode"; }
+detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude" || true; }
+detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode" || true; }
 detect_kimi()    {
   if [[ -d "${XDG_CFG}/agents" ]]; then
     AGENT_PATHS[kimi]="${XDG_CFG}/agents"
@@ -145,6 +361,13 @@ detect_codex()   {
   fi
 }
 detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)" || true; }
+detect_pi()      {
+  if [[ -d "${HOME}/.pi" ]]; then
+    AGENT_PATHS[pi]="${HOME}/.pi/agent"
+  elif command -v pi &>/dev/null; then
+    AGENT_PATHS[pi]="${HOME}/.pi/agent"
+  fi
+}
 
 detect_all() {
   detect_claude
@@ -152,6 +375,7 @@ detect_all() {
   detect_kimi
   detect_codex
   detect_gemini
+  detect_pi
 }
 
 show_detection() {
@@ -269,35 +493,35 @@ uninstall_from_manifest() {
 
   if [[ ! -f "$manifest" ]]; then
     if [[ "$PURGE" == true ]]; then
-      # Legacy fallback: remove known xpowers directories without manifest
+      # Marker-driven purge: only remove exact files and backups; never delete
+      # broad directories without a manifest.
       local count=0
-      for dir in skills agents commands hooks plugins; do
-        if [[ -d "${home}/${dir}" ]]; then
+      for f in .xpowers-version .xpowers-manifest ".${old_ns}-version" ".${old_ns}-manifest"; do
+        if [[ -f "${home}/${f}" ]]; then
           if [[ "$DRY_RUN" == true ]]; then
-            echo "  Would remove (legacy): ${home}/${dir}/"
+            echo "  Would remove (marker-driven): ${home}/${f}" >&2
           else
-            rm -rf "${home:?}/${dir}"
+            rm -f "${home}/${f}"
           fi
           count=$((count + 1))
         fi
       done
-      for f in .xpowers-version .xpowers-manifest ".${old_ns}-version" ".${old_ns}-manifest"; do
-        if [[ -f "${home}/${f}" ]]; then
-          [[ "$DRY_RUN" != true ]] && rm -f "${home}/${f}"
-          count=$((count + 1))
+      if [[ -d "${home}/.xpowers-backups" ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+          echo "  Would remove (marker-driven): ${home}/.xpowers-backups/" >&2
+        else
+          rm -rf "${home}/.xpowers-backups"
         fi
-      done
-      if [[ "$DRY_RUN" != true ]]; then
-        rm -rf "${home}/.xpowers-backups"
+        count=$((count + 1))
       fi
       if [[ "$DRY_RUN" == true ]]; then
-        info "Dry run (legacy purge): would remove ${count} items from ${home}"
+        info "Dry run (marker-driven purge): would remove ${count} items from ${home}"
       else
-        info "Legacy purge: removed ${count} directories from ${home}"
+        info "Marker-driven purge: removed ${count} items from ${home}"
       fi
       return 0
     fi
-    warn "No manifest found for ${home}. Reinstall to generate manifest, or use --purge for legacy cleanup."
+    warn "No manifest found for ${home}. Reinstall to generate manifest, or use --purge for marker-driven cleanup."
     return 1
   fi
 
@@ -305,6 +529,9 @@ uninstall_from_manifest() {
   while IFS= read -r entry; do
     [[ -z "$entry" ]] && continue
     [[ "$entry" == \#* ]] && continue
+    [[ "$entry" == /* ]] && continue
+    [[ "$entry" == *..* ]] && continue
+    [[ "$entry" == "." ]] && continue
     local target="${home}/${entry}"
     if [[ "$DRY_RUN" == true ]]; then
       echo "  Would remove: ${target}"
@@ -312,8 +539,13 @@ uninstall_from_manifest() {
       continue
     fi
     if [[ "$entry" == */ ]]; then
-      # Directory entry
-      [[ -d "$target" ]] && rm -rf "$target" && count=$((count + 1))
+      # Directory entry — guard against symlink traversal
+      local normalized_target="${target%/}"
+      if [[ -L "$normalized_target" ]]; then
+        rm -f "$normalized_target" && count=$((count + 1))
+      elif [[ -d "$normalized_target" ]]; then
+        rm -rf "$normalized_target" && count=$((count + 1))
+      fi
     else
       # File entry
       [[ -f "$target" ]] && rm -f "$target" && count=$((count + 1))
@@ -814,6 +1046,56 @@ uninstall_gemini() {
   fi
 }
 
+uninstall_pi() {
+  local home="${AGENT_PATHS[pi]:-${HOME}/.pi/agent}"
+  local ext_dir="${home}/extensions/xpowers"
+
+  # Remove extension directory (includes skills, commands, node_modules, dist)
+  if [[ -d "$ext_dir" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would remove: ${ext_dir}/"
+    else
+      rm -rf "$ext_dir"
+    fi
+  fi
+
+  # Remove XPowers section from AGENTS.md (preserve user content)
+  local agents_md="${home}/AGENTS.md"
+  if [[ -f "$agents_md" ]]; then
+    local has_xpowers_section=false
+    grep -q "BEGIN XPOWERS PI" "$agents_md" && has_xpowers_section=true
+    grep -q "BEGIN HYPERPOWERS PI" "$agents_md" && has_xpowers_section=true
+    if [[ "$has_xpowers_section" == true ]]; then
+      if [[ "$DRY_RUN" == true ]]; then
+        echo "  Would clean XPowers section from: ${agents_md}"
+      else
+        local tmp_md="${agents_md}.tmp"
+        sed \
+          -e '/<!-- BEGIN XPOWERS PI -->/,/<!-- END XPOWERS PI -->/d' \
+          -e '/<!-- BEGIN HYPERPOWERS PI -->/,/<!-- END HYPERPOWERS PI -->/d' \
+          "$agents_md" > "$tmp_md"
+        # If file is now empty or only whitespace, remove it; otherwise replace
+        if [[ ! -s "$tmp_md" ]] || ! grep -q '[^[:space:]]' "$tmp_md"; then
+          rm -f "$agents_md" "$tmp_md"
+        else
+          mv "$tmp_md" "$agents_md"
+        fi
+      fi
+    fi
+  fi
+
+  # Remove version and manifest markers
+  for marker in .xpowers-version .xpowers-manifest; do
+    if [[ -f "${home}/${marker}" ]]; then
+      if [[ "$DRY_RUN" == true ]]; then
+        echo "  Would remove: ${home}/${marker}"
+      else
+        rm -f "${home}/${marker}"
+      fi
+    fi
+  done
+}
+
 # ---------------------------------------------------------------------------
 # Status functions
 # ---------------------------------------------------------------------------
@@ -873,6 +1155,17 @@ status_gemini() {
     echo -e "  ${GREEN}✓${RESET} Gemini CLI     ${BOLD}installed${RESET}"
   else
     echo -e "  ${DIM}✗ Gemini CLI     not installed${RESET}"
+  fi
+}
+
+status_pi() {
+  local home="${AGENT_PATHS[pi]:-${HOME}/.pi/agent}"
+  local vf="${home}/.xpowers-version"
+  if [[ -f "$vf" ]]; then
+    local iv; iv=$(cat "$vf")
+    echo -e "  ${GREEN}✓${RESET} Pi Agent       ${BOLD}v${iv}${RESET}"
+  else
+    echo -e "  ${DIM}✗ Pi Agent       not installed${RESET}"
   fi
 }
 
@@ -977,6 +1270,7 @@ AGENTS:
     --kimi              Install to Kimi CLI (~/.config/agents)
     --codex             Install to Codex CLI (~/.codex)
     --gemini            Install to Gemini CLI (native extension)
+    --hosts <list>      Comma-separated agents: claude,opencode,kimi,codex,gemini,pi,all
     --all               Install to all detected agents
 
 MODES:
@@ -988,6 +1282,8 @@ MODES:
     --purge             With --uninstall: also remove backups and metadata
     --force, --yes      Skip confirmation prompt
     --allow-conflicts   Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
+    --remove-legacy     Detect and remove legacy installs (hyperpowers, myhyperpowers, superpowers)
+    --replace-legacy    Remove legacy installs, then proceed with XPowers install
 
 GENERAL:
     -h, --help          Show this help
@@ -1001,6 +1297,8 @@ EXAMPLES:
     $(basename "$0") --uninstall --all  # Remove from all agents
     $(basename "$0") --uninstall --claude --dry-run  # Preview removal
     $(basename "$0") --uninstall --all --purge --yes # Complete removal
+    $(basename "$0") --remove-legacy --yes            # Remove legacy installs only
+    $(basename "$0") --replace-legacy --all --yes     # Replace legacy with XPowers
 
 VERSION: $VERSION
 EOF
@@ -1021,7 +1319,11 @@ main() {
   local FORCE=false
   local INTERACTIVE=true
   local ALLOW_CONFLICTS=false
+  local REMOVE_LEGACY=false
+  local REPLACE_LEGACY=false
+  local SELECT_ALL=false
   local -a SELECTED_AGENTS=()
+  local -a ORIGINAL_ARGS=("$@")
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
@@ -1033,7 +1335,29 @@ main() {
       --kimi)       SELECTED_AGENTS+=(kimi);     INTERACTIVE=false; shift ;;
       --codex)      SELECTED_AGENTS+=(codex);    INTERACTIVE=false; shift ;;
       --gemini)     SELECTED_AGENTS+=(gemini);   INTERACTIVE=false; shift ;;
-      --all)        INTERACTIVE=false; shift ;;  # handled after detection
+      --hosts)
+        shift
+        if [[ $# -eq 0 ]]; then
+          error "--hosts requires a comma-separated list"
+          usage >&2
+          exit 1
+        fi
+        IFS=',' read -ra HOST_LIST <<< "$1"
+        for h in "${HOST_LIST[@]}"; do
+          case "$h" in
+            claude)   SELECTED_AGENTS+=(claude);   INTERACTIVE=false ;;
+            opencode) SELECTED_AGENTS+=(opencode); INTERACTIVE=false ;;
+            kimi)     SELECTED_AGENTS+=(kimi);     INTERACTIVE=false ;;
+            codex)    SELECTED_AGENTS+=(codex);    INTERACTIVE=false ;;
+            gemini)   SELECTED_AGENTS+=(gemini);   INTERACTIVE=false ;;
+            pi)       SELECTED_AGENTS+=(pi);       INTERACTIVE=false ;;
+            all)      SELECT_ALL=true; INTERACTIVE=false ;;
+            *)        error "Unknown host: $h"; usage >&2; exit 1 ;;
+          esac
+        done
+        shift
+        ;;
+      --all)        SELECT_ALL=true; INTERACTIVE=false; shift ;;  # handled after detection
       --uninstall)  MODE="uninstall"; shift ;;
       --status)     MODE="status"; shift ;;
       --symlink)    USE_SYMLINKS=true; shift ;;
@@ -1042,6 +1366,8 @@ main() {
       --purge)      PURGE=true; shift ;;
       --force|--yes) FORCE=true; shift ;;
       --allow-conflicts) ALLOW_CONFLICTS=true; shift ;;
+      --remove-legacy) REMOVE_LEGACY=true; shift ;;
+      --replace-legacy) REPLACE_LEGACY=true; shift ;;
       *)            error "Unknown option: $1"; echo; usage >&2; exit 1 ;;
     esac
   done
@@ -1057,46 +1383,8 @@ main() {
     fi
   fi
 
-  # Detect agents
-  detect_all
-
-  # --- Status mode ---
-  if [[ "$MODE" == "status" ]]; then
-    header
-    echo -e "  ${BOLD}Installation Status${RESET}"
-    echo
-    status_claude
-    status_opencode
-    status_kimi
-    status_codex
-    status_gemini
-    echo
-    exit 0
-  fi
-
-  # --- Resolve selected agents ---
-  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
-    # --all or interactive: select all detected
-    for agent in "${AGENT_ORDER[@]}"; do
-      if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
-        SELECTED_AGENTS+=("$agent")
-      fi
-    done
-  fi
-
-  # No agents at all?
-  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
-    header
-    show_detection
-    if [[ "$INTERACTIVE" == true ]]; then
-      warn "No agents detected. Install an agent first, or specify one with --claude, --opencode, etc."
-    else
-      warn "No agents detected."
-    fi
-    exit 0
-  fi
-
-  if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true ]]; then
+  # Conflict detection runs for all install paths, including Pi delegation
+  if [[ "$MODE" == "install" && "$ALLOW_CONFLICTS" != true && "$REMOVE_LEGACY" != true && "$REPLACE_LEGACY" != true ]]; then
     local conflicts=""
     if conflicts="$(detect_conflicts)"; then
       if [[ -n "$conflicts" ]]; then
@@ -1116,6 +1404,135 @@ main() {
         fi
       fi
     fi
+  fi
+
+  # --- Legacy removal (before any installation) ---
+  if [[ "$MODE" != "install" ]] && { [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; }; then
+    error "--remove-legacy and --replace-legacy can only be used with install mode"
+    exit 1
+  fi
+  if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
+    if [[ "$PURGE" == true ]]; then
+      error "--purge cannot be used with --remove-legacy or --replace-legacy"
+      exit 1
+    fi
+    if ! [[ -t 0 ]] && [[ "$FORCE" != true ]] && [[ "$DRY_RUN" != true ]]; then
+      error "No terminal detected. Use --yes to confirm legacy removal."
+      exit 1
+    fi
+    remove_legacy
+    if [[ "$REMOVE_LEGACY" == true ]]; then
+      exit 0
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+      info "Dry run: legacy removal preview complete. Exiting before install."
+      exit 0
+    fi
+  fi
+
+  # Detect agents
+  detect_all
+
+  # --- Status mode ---
+  if [[ "$MODE" == "status" ]]; then
+    header
+    echo -e "  ${BOLD}Installation Status${RESET}"
+    echo
+    status_claude
+    status_opencode
+    status_kimi
+    status_codex
+    status_gemini
+    status_pi
+    echo
+    exit 0
+  fi
+
+  # --- Resolve selected agents ---
+  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]] || [[ "$SELECT_ALL" == true ]]; then
+    # --all or interactive: select all detected
+    local -a resolved_agents=()
+    for agent in "${AGENT_ORDER[@]}"; do
+      if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
+        resolved_agents+=("$agent")
+      fi
+    done
+    # Merge explicitly-selected agents (e.g. --hosts all,pi) without duplicates
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      local already_in=false
+      for r in "${resolved_agents[@]}"; do
+        [[ "$r" == "$agent" ]] && already_in=true && break
+      done
+      [[ "$already_in" != true ]] && resolved_agents+=("$agent")
+    done
+    SELECTED_AGENTS=("${resolved_agents[@]}")
+  fi
+
+  # Deduplicate SELECTED_AGENTS to prevent double execution
+  if [[ ${#SELECTED_AGENTS[@]} -gt 0 ]]; then
+    local -a deduped=()
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      local already=false
+      for d in "${deduped[@]}"; do
+        [[ "$d" == "$agent" ]] && already=true && break
+      done
+      [[ "$already" != true ]] && deduped+=("$agent")
+    done
+    SELECTED_AGENTS=("${deduped[@]}")
+  fi
+
+  local -a FAILED_AGENTS=()
+
+  # Pi delegation: TypeScript installer handles Pi install only
+  # (run AFTER resolution so --all auto-detected Pi is included)
+  local has_pi=false
+  local pi_delegated=false
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    [[ "$agent" == "pi" ]] && has_pi=true
+  done
+
+  if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
+    pi_delegated=true
+    local pi_skip_reason=""
+    if [[ "$DRY_RUN" == true ]]; then
+      pi_skip_reason="--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
+    elif ! command -v bun &>/dev/null; then
+      pi_skip_reason="Pi installation requires Bun. Install Bun first: https://bun.sh"
+    fi
+
+    if [[ -n "$pi_skip_reason" ]]; then
+      error "$pi_skip_reason"
+      if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+        exit 1
+      fi
+      FAILED_AGENTS+=("pi")
+    else
+      # Build filtered args for install.ts (only flags it understands)
+      local -a PI_ARGS=("--hosts" "pi")
+      [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
+      [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
+      if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+        # Pi is the only host — exec for efficiency
+        cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+      else
+        # Pi is one of multiple — run without exec, capture exit code, then continue
+        if ! (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
+          FAILED_AGENTS+=("pi")
+        fi
+      fi
+    fi
+  fi
+
+  # No agents at all?
+  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
+    header
+    show_detection
+    if [[ "$INTERACTIVE" == true ]]; then
+      warn "No agents detected. Install an agent first, or specify one with --claude, --opencode, etc."
+    else
+      warn "No agents detected."
+    fi
+    exit 0
   fi
 
   # Build display list
@@ -1201,9 +1618,13 @@ main() {
   fi
 
   # --- Execute ---
-  local -a FAILED_AGENTS=()
+  # FAILED_AGENTS declared earlier during Pi delegation
 
   for agent in "${SELECTED_AGENTS[@]}"; do
+    # Pi install is handled by TypeScript delegation above (only if it was actually delegated)
+    if [[ "$agent" == "pi" && "$MODE" == "install" && "$pi_delegated" == true ]]; then
+      continue
+    fi
     local label="${AGENT_LABELS[$agent]}"
     if [[ "$MODE" == "uninstall" ]]; then
       printf "  Uninstalling from ${BOLD}%-16s${RESET} " "$label..."
@@ -1213,6 +1634,8 @@ main() {
         echo -e "${RED}✗${RESET}"
         FAILED_AGENTS+=("$agent")
       fi
+    elif [[ "$DRY_RUN" == true ]]; then
+      echo -e "  ${DIM}Would install to ${BOLD}${label}${RESET}${DIM} (dry-run)${RESET}"
     else
       printf "  Installing to ${BOLD}%-16s${RESET} " "$label..."
       if "install_${agent}" 2>/dev/null; then
