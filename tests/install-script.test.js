@@ -192,6 +192,26 @@ test("install.sh mixed claude+pi install reports both agents in summary", { time
   assert.match(output, /Pi Agent/)
 })
 
+test("install.sh mixed claude+pi skips Pi when Bun is missing and continues with Claude", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-no-bun-home-"))
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude,pi", "--yes", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: "/usr/bin:/bin",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.notEqual(result.status, 0, output)
+  assert.match(output, /Claude Code/)
+  assert.match(output, /Pi Agent/)
+  assert.match(output, /requires Bun/)
+})
+
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })

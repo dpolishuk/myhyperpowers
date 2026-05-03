@@ -1469,26 +1469,33 @@ main() {
   done
 
   if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
-    if [[ "$DRY_RUN" == true ]]; then
-      error "--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
-      exit 1
-    fi
     pi_delegated=true
-    if ! command -v bun &>/dev/null; then
-      error "Pi installation requires Bun. Install Bun first: https://bun.sh"
-      exit 1
+    local pi_skip_reason=""
+    if [[ "$DRY_RUN" == true ]]; then
+      pi_skip_reason="--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
+    elif ! command -v bun &>/dev/null; then
+      pi_skip_reason="Pi installation requires Bun. Install Bun first: https://bun.sh"
     fi
-    # Build filtered args for install.ts (only flags it understands)
-    local -a PI_ARGS=("--hosts" "pi")
-    [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
-    [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
-    if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
-      # Pi is the only host — exec for efficiency
-      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+
+    if [[ -n "$pi_skip_reason" ]]; then
+      error "$pi_skip_reason"
+      if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+        exit 1
+      fi
+      FAILED_AGENTS+=("pi")
     else
-      # Pi is one of multiple — run without exec, capture exit code, then continue
-      if ! (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
-        FAILED_AGENTS+=("pi")
+      # Build filtered args for install.ts (only flags it understands)
+      local -a PI_ARGS=("--hosts" "pi")
+      [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
+      [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
+      if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+        # Pi is the only host — exec for efficiency
+        cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+      else
+        # Pi is one of multiple — run without exec, capture exit code, then continue
+        if ! (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
+          FAILED_AGENTS+=("pi")
+        fi
       fi
     fi
   fi
