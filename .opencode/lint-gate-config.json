@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled": true,
+  "autoFix": false,
+  "blockOnError": false,
+  "showWarnings": true,
+  "showStyleIssues": false,
+  "maxIssuesInToast": 5,
+  "quietDurationMs": 5000,
+  "linters": {},
+  "logDir": ".opencode/cache/lint-gate"
+}
