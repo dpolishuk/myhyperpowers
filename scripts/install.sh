@@ -270,39 +270,33 @@ remove_legacy() {
         "${HOME}/.pi"*) agent_home="${HOME}/.pi/agent" ;;
       esac
 
-      # Manifest-driven removal for this agent home (once per home)
-      if [[ -n "$agent_home" && -z "${processed_manifests[$agent_home]:-}" ]]; then
-        local manifest_to_use=""
+      # Manifest-driven removal for this agent home (process every manifest found)
+      if [[ -n "$agent_home" ]]; then
         for legacy_name in hyperpowers myhyperpowers superpowers; do
           local legacy_manifest="${agent_home}/.${legacy_name}-manifest"
-          if [[ -f "$legacy_manifest" ]]; then
-            manifest_to_use="$legacy_manifest"
-            break
+          if [[ -f "$legacy_manifest" && -z "${processed_manifests[$legacy_manifest]:-}" ]]; then
+            if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
+              while IFS= read -r entry; do
+                [[ -z "$entry" ]] && continue
+                [[ "$entry" == \#* ]] && continue
+                [[ "$entry" == /* ]] && continue
+                [[ "$entry" == *..* ]] && continue
+                [[ "$entry" == "." ]] && continue
+                local entry_path="${agent_home}/${entry}"
+                if [[ -e "$entry_path" ]]; then
+                  if ! quarantine_item "$entry_path" >/dev/null; then
+                    error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
+                    exit 1
+                  fi
+                fi
+              done < "$legacy_manifest"
+            fi
+            local count
+            count=$(remove_legacy_from_manifest "$agent_home" "$legacy_manifest")
+            total_removed=$((total_removed + count))
+            processed_manifests[$legacy_manifest]=1
           fi
         done
-
-        if [[ -n "$manifest_to_use" ]]; then
-          if [[ "$DRY_RUN" != true ]] && [[ "$PURGE" != true ]]; then
-            while IFS= read -r entry; do
-              [[ -z "$entry" ]] && continue
-              [[ "$entry" == \#* ]] && continue
-              [[ "$entry" == /* ]] && continue
-              [[ "$entry" == *..* ]] && continue
-              [[ "$entry" == "." ]] && continue
-              local entry_path="${agent_home}/${entry}"
-              if [[ -e "$entry_path" ]]; then
-                if ! quarantine_item "$entry_path" >/dev/null; then
-                  error "Failed to quarantine ${entry_path}. Aborting to prevent data loss."
-                  exit 1
-                fi
-              fi
-            done < "$manifest_to_use"
-          fi
-          local count
-          count=$(remove_legacy_from_manifest "$agent_home" "$manifest_to_use")
-          total_removed=$((total_removed + count))
-          processed_manifests[$agent_home]=1
-        fi
       fi
 
       # Exact-path removal for the candidate itself
@@ -1275,6 +1269,7 @@ main() {
   local ALLOW_CONFLICTS=false
   local REMOVE_LEGACY=false
   local REPLACE_LEGACY=false
+  local SELECT_ALL=false
   local -a SELECTED_AGENTS=()
   local -a ORIGINAL_ARGS=("$@")
 
@@ -1304,13 +1299,13 @@ main() {
             codex)    SELECTED_AGENTS+=(codex);    INTERACTIVE=false ;;
             gemini)   SELECTED_AGENTS+=(gemini);   INTERACTIVE=false ;;
             pi)       SELECTED_AGENTS+=(pi);       INTERACTIVE=false ;;
-            all)      INTERACTIVE=false ;;
+            all)      SELECT_ALL=true; INTERACTIVE=false ;;
             *)        error "Unknown host: $h"; usage >&2; exit 1 ;;
           esac
         done
         shift
         ;;
-      --all)        INTERACTIVE=false; shift ;;  # handled after detection
+      --all)        SELECT_ALL=true; INTERACTIVE=false; shift ;;  # handled after detection
       --uninstall)  MODE="uninstall"; shift ;;
       --status)     MODE="status"; shift ;;
       --symlink)    USE_SYMLINKS=true; shift ;;
@@ -1379,11 +1374,13 @@ main() {
 
   # Pi delegation: TypeScript installer handles Pi install only
   local has_pi=false
+  local pi_delegated=false
   for agent in "${SELECTED_AGENTS[@]}"; do
     [[ "$agent" == "pi" ]] && has_pi=true
   done
 
   if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
+    pi_delegated=true
     if ! command -v bun &>/dev/null; then
       error "Pi installation requires Bun. Install Bun first: https://bun.sh"
       exit 1
@@ -1423,13 +1420,23 @@ main() {
   fi
 
   # --- Resolve selected agents ---
-  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]]; then
+  if [[ ${#SELECTED_AGENTS[@]} -eq 0 ]] || [[ "$SELECT_ALL" == true ]]; then
     # --all or interactive: select all detected
+    local -a resolved_agents=()
     for agent in "${AGENT_ORDER[@]}"; do
       if [[ -n "${AGENT_PATHS[$agent]:-}" ]]; then
-        SELECTED_AGENTS+=("$agent")
+        resolved_agents+=("$agent")
       fi
     done
+    # Merge explicitly-selected agents (e.g. --hosts all,pi) without duplicates
+    for agent in "${SELECTED_AGENTS[@]}"; do
+      local already_in=false
+      for r in "${resolved_agents[@]}"; do
+        [[ "$r" == "$agent" ]] && already_in=true && break
+      done
+      [[ "$already_in" != true ]] && resolved_agents+=("$agent")
+    done
+    SELECTED_AGENTS=("${resolved_agents[@]}")
   fi
 
   # No agents at all?
@@ -1530,8 +1537,8 @@ main() {
   # FAILED_AGENTS declared earlier during Pi delegation
 
   for agent in "${SELECTED_AGENTS[@]}"; do
-    # Pi install is handled by TypeScript delegation above
-    if [[ "$agent" == "pi" && "$MODE" == "install" ]]; then
+    # Pi install is handled by TypeScript delegation above (only if it was actually delegated)
+    if [[ "$agent" == "pi" && "$MODE" == "install" && "$pi_delegated" == true ]]; then
       continue
     fi
     local label="${AGENT_LABELS[$agent]}"
