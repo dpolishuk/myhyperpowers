@@ -1035,6 +1035,8 @@ uninstall_gemini() {
 uninstall_pi() {
   local home="${AGENT_PATHS[pi]:-${HOME}/.pi/agent}"
   local ext_dir="${home}/extensions/xpowers"
+
+  # Remove extension directory (includes skills, commands, node_modules, dist)
   if [[ -d "$ext_dir" ]]; then
     if [[ "$DRY_RUN" == true ]]; then
       echo "  Would remove: ${ext_dir}/"
@@ -1042,6 +1044,34 @@ uninstall_pi() {
       rm -rf "$ext_dir"
     fi
   fi
+
+  # Remove XPowers section from AGENTS.md (preserve user content)
+  local agents_md="${home}/AGENTS.md"
+  if [[ -f "$agents_md" ]] && grep -q "BEGIN XPowers AGENTS" "$agents_md"; then
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "  Would clean XPowers section from: ${agents_md}"
+    else
+      local tmp_md="${agents_md}.tmp"
+      sed '/<!-- BEGIN XPowers AGENTS -->/,/<!-- END XPowers AGENTS -->/d' "$agents_md" > "$tmp_md"
+      # If file is now empty or only whitespace, remove it; otherwise replace
+      if [[ ! -s "$tmp_md" ]] || ! grep -q '[^[:space:]]' "$tmp_md"; then
+        rm -f "$agents_md" "$tmp_md"
+      else
+        mv "$tmp_md" "$agents_md"
+      fi
+    fi
+  fi
+
+  # Remove version and manifest markers
+  for marker in .xpowers-version .xpowers-manifest; do
+    if [[ -f "${home}/${marker}" ]]; then
+      if [[ "$DRY_RUN" == true ]]; then
+        echo "  Would remove: ${home}/${marker}"
+      else
+        rm -f "${home}/${marker}"
+      fi
+    fi
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -1380,6 +1410,10 @@ main() {
   done
 
   if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+      error "--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
+      exit 1
+    fi
     pi_delegated=true
     if ! command -v bun &>/dev/null; then
       error "Pi installation requires Bun. Install Bun first: https://bun.sh"
