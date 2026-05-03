@@ -344,7 +344,7 @@ declare -A AGENT_LABELS=(
 )
 AGENT_ORDER=(claude opencode kimi codex gemini pi)
 
-detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude"; }
+detect_claude()  { [[ -d "${HOME}/.claude" ]] && AGENT_PATHS[claude]="${HOME}/.claude" || true; }
 detect_opencode(){ [[ -d "${XDG_CFG}/opencode" ]] && AGENT_PATHS[opencode]="${XDG_CFG}/opencode" || true; }
 detect_kimi()    {
   if [[ -d "${XDG_CFG}/agents" ]]; then
@@ -1057,17 +1057,23 @@ uninstall_pi() {
 
   # Remove XPowers section from AGENTS.md (preserve user content)
   local agents_md="${home}/AGENTS.md"
-  if [[ -f "$agents_md" ]] && grep -q "BEGIN XPowers AGENTS" "$agents_md"; then
-    if [[ "$DRY_RUN" == true ]]; then
-      echo "  Would clean XPowers section from: ${agents_md}"
-    else
-      local tmp_md="${agents_md}.tmp"
-      sed '/<!-- BEGIN XPowers AGENTS -->/,/<!-- END XPowers AGENTS -->/d' "$agents_md" > "$tmp_md"
-      # If file is now empty or only whitespace, remove it; otherwise replace
-      if [[ ! -s "$tmp_md" ]] || ! grep -q '[^[:space:]]' "$tmp_md"; then
-        rm -f "$agents_md" "$tmp_md"
+  if [[ -f "$agents_md" ]]; then
+    local has_xpowers_section=false
+    grep -q "BEGIN XPOWERS PI" "$agents_md" && has_xpowers_section=true
+    grep -q "BEGIN HYPERPOWERS PI" "$agents_md" && has_xpowers_section=true
+    if [[ "$has_xpowers_section" == true ]]; then
+      if [[ "$DRY_RUN" == true ]]; then
+        echo "  Would clean XPowers section from: ${agents_md}"
       else
-        mv "$tmp_md" "$agents_md"
+        local tmp_md="${agents_md}.tmp"
+        sed '/<!-- BEGIN XPOWERS PI -->/,/<!-- END XPOWERS PI -->/d' "$agents_md" > "$tmp_md"
+        sed -i '/<!-- BEGIN HYPERPOWERS PI -->/,/<!-- END HYPERPOWERS PI -->/d' "$tmp_md" 2>/dev/null || true
+        # If file is now empty or only whitespace, remove it; otherwise replace
+        if [[ ! -s "$tmp_md" ]] || ! grep -q '[^[:space:]]' "$tmp_md"; then
+          rm -f "$agents_md" "$tmp_md"
+        else
+          mv "$tmp_md" "$agents_md"
+        fi
       fi
     fi
   fi
@@ -1410,41 +1416,6 @@ main() {
     fi
   fi
 
-  local -a FAILED_AGENTS=()
-
-  # Pi delegation: TypeScript installer handles Pi install only
-  local has_pi=false
-  local pi_delegated=false
-  for agent in "${SELECTED_AGENTS[@]}"; do
-    [[ "$agent" == "pi" ]] && has_pi=true
-  done
-
-  if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
-    if [[ "$DRY_RUN" == true ]]; then
-      error "--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
-      exit 1
-    fi
-    pi_delegated=true
-    if ! command -v bun &>/dev/null; then
-      error "Pi installation requires Bun. Install Bun first: https://bun.sh"
-      exit 1
-    fi
-    # Build filtered args for install.ts (only flags it understands)
-    local -a PI_ARGS=("--hosts" "pi")
-    [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
-    [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
-    if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
-      # Pi is the only host — exec for efficiency
-      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
-    else
-      # Pi is one of multiple — run without exec, capture exit code, then continue
-      cd "${REPO_ROOT}"
-      if ! bun scripts/install.ts "${PI_ARGS[@]}"; then
-        FAILED_AGENTS+=("pi")
-      fi
-    fi
-  fi
-
   # Detect agents
   detect_all
 
@@ -1481,6 +1452,42 @@ main() {
       [[ "$already_in" != true ]] && resolved_agents+=("$agent")
     done
     SELECTED_AGENTS=("${resolved_agents[@]}")
+  fi
+
+  local -a FAILED_AGENTS=()
+
+  # Pi delegation: TypeScript installer handles Pi install only
+  # (run AFTER resolution so --all auto-detected Pi is included)
+  local has_pi=false
+  local pi_delegated=false
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    [[ "$agent" == "pi" ]] && has_pi=true
+  done
+
+  if [[ "$has_pi" == true && "$MODE" == "install" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+      error "--dry-run is not supported for Pi installation. Install Pi separately without --dry-run."
+      exit 1
+    fi
+    pi_delegated=true
+    if ! command -v bun &>/dev/null; then
+      error "Pi installation requires Bun. Install Bun first: https://bun.sh"
+      exit 1
+    fi
+    # Build filtered args for install.ts (only flags it understands)
+    local -a PI_ARGS=("--hosts" "pi")
+    [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
+    [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
+    if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
+      # Pi is the only host — exec for efficiency
+      cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+    else
+      # Pi is one of multiple — run without exec, capture exit code, then continue
+      cd "${REPO_ROOT}"
+      if ! bun scripts/install.ts "${PI_ARGS[@]}"; then
+        FAILED_AGENTS+=("pi")
+      fi
+    fi
   fi
 
   # No agents at all?

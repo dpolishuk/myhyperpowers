@@ -160,6 +160,38 @@ test("install.sh --hosts pi delegates through the Bun installer entrypoint", { t
   assert.doesNotMatch(output, /setup-pi\.sh/)
 })
 
+test("install.sh mixed claude+pi install reports both agents in summary", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-summary-home-"))
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-summary-bin-"))
+  const bunShim = path.join(binDir, "bun")
+  fs.writeFileSync(
+    bunShim,
+    [
+      "#!/usr/bin/env bash",
+      "exit 0",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  fs.chmodSync(bunShim, 0o755)
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude,pi", "--yes", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /2 agent\(s\)/)
+  assert.match(output, /Claude Code/)
+  assert.match(output, /Pi Agent/)
+})
+
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
