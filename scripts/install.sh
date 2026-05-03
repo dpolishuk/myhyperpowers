@@ -262,9 +262,7 @@ remove_legacy() {
 
   for name in "${CONFLICT_NAMES[@]}"; do
     while IFS= read -r candidate; do
-      [[ -e "$candidate" ]] || continue
-
-      # Determine agent home for manifest lookup
+      # Determine agent home for manifest lookup (regardless of candidate existence)
       local agent_home=""
       case "$candidate" in
         "${HOME}/.claude"*) agent_home="${HOME}/.claude" ;;
@@ -1066,8 +1064,10 @@ uninstall_pi() {
         echo "  Would clean XPowers section from: ${agents_md}"
       else
         local tmp_md="${agents_md}.tmp"
-        sed '/<!-- BEGIN XPOWERS PI -->/,/<!-- END XPOWERS PI -->/d' "$agents_md" > "$tmp_md"
-        sed -i '/<!-- BEGIN HYPERPOWERS PI -->/,/<!-- END HYPERPOWERS PI -->/d' "$tmp_md" 2>/dev/null || true
+        sed \
+          -e '/<!-- BEGIN XPOWERS PI -->/,/<!-- END XPOWERS PI -->/d' \
+          -e '/<!-- BEGIN HYPERPOWERS PI -->/,/<!-- END HYPERPOWERS PI -->/d' \
+          "$agents_md" > "$tmp_md"
         # If file is now empty or only whitespace, remove it; otherwise replace
         if [[ ! -s "$tmp_md" ]] || ! grep -q '[^[:space:]]' "$tmp_md"; then
           rm -f "$agents_md" "$tmp_md"
@@ -1401,6 +1401,10 @@ main() {
   fi
 
   # --- Legacy removal (before any installation) ---
+  if [[ "$MODE" != "install" ]] && { [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; }; then
+    error "--remove-legacy and --replace-legacy can only be used with install mode"
+    exit 1
+  fi
   if [[ "$REMOVE_LEGACY" == true ]] || [[ "$REPLACE_LEGACY" == true ]]; then
     if [[ "$PURGE" == true ]]; then
       error "--purge cannot be used with --remove-legacy or --replace-legacy"
@@ -1483,8 +1487,7 @@ main() {
       cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
     else
       # Pi is one of multiple — run without exec, capture exit code, then continue
-      cd "${REPO_ROOT}"
-      if ! bun scripts/install.ts "${PI_ARGS[@]}"; then
+      if ! (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
         FAILED_AGENTS+=("pi")
       fi
     fi

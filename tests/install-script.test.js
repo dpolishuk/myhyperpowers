@@ -1025,7 +1025,6 @@ test("install.sh marker-driven purge removes exact files without manifest", { ti
   fs.mkdirSync(path.join(claudeHome, "skills", "unrelated-skill"), { recursive: true })
   fs.writeFileSync(path.join(claudeHome, "skills", "unrelated-skill", "SKILL.md"), "keep me", "utf8")
   fs.writeFileSync(path.join(claudeHome, ".xpowers-version"), "1.0.0", "utf8")
-  fs.writeFileSync(path.join(claudeHome, ".xpowers-manifest"), "# test\n", "utf8")
   fs.mkdirSync(path.join(claudeHome, ".xpowers-backups"), { recursive: true })
   fs.writeFileSync(path.join(claudeHome, ".xpowers-backups", "backup.txt"), "backup", "utf8")
 
