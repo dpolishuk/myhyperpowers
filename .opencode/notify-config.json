@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled": true,
+  "onAgentIdle": true,
+  "onTaskComplete": true,
+  "onTaskError": true,
+  "onSessionCompact": false,
+  "backends": ["osc777", "osc99", "osascript", "notify-send"],
+  "durationMs": 4000,
+  "titlePrefix": "XPowers"
+}
