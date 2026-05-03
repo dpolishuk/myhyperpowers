@@ -361,7 +361,13 @@ detect_codex()   {
   fi
 }
 detect_gemini()  { command -v gemini &>/dev/null && AGENT_PATHS[gemini]="$(command -v gemini)" || true; }
-detect_pi()      { [[ -d "${HOME}/.pi" ]] && AGENT_PATHS[pi]="${HOME}/.pi/agent" || true; }
+detect_pi()      {
+  if [[ -d "${HOME}/.pi" ]]; then
+    AGENT_PATHS[pi]="${HOME}/.pi/agent"
+  elif command -v pi &>/dev/null; then
+    AGENT_PATHS[pi]="${HOME}/.pi/agent"
+  fi
+}
 
 detect_all() {
   detect_claude

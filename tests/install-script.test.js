@@ -192,6 +192,31 @@ test("install.sh mixed claude+pi install reports both agents in summary", { time
   assert.match(output, /Pi Agent/)
 })
 
+test("install.sh --all detects Pi when pi executable is in PATH even without ~/.pi", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-detect-exec-home-"))
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-detect-exec-bin-"))
+  const piShim = path.join(binDir, "pi")
+  fs.writeFileSync(piShim, "#!/bin/sh\nexit 0\n", "utf8")
+  fs.chmodSync(piShim, 0o755)
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--all", "--dry-run", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  // Pi is detected but fails because --dry-run is not supported for Pi;
+  // other detected agents skip install in dry-run mode.
+  assert.notEqual(result.status, 0, output)
+  assert.match(output, /Pi Agent/)
+  assert.match(output, /dry-run/)
+})
+
 test("install.sh mixed claude+pi skips Pi when Bun is missing and continues with Claude", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-no-bun-home-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
