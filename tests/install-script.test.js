@@ -1065,6 +1065,50 @@ test("install.sh marker-driven purge removes exact files without manifest", { ti
   assert.equal(fs.existsSync(path.join(claudeHome, "skills", "unrelated-skill", "SKILL.md")), true)
 })
 
+test("install.sh --replace-legacy --dry-run exits before installing and does not write files", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-replace-legacy-dry-run-test-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+  fs.writeFileSync(path.join(claudeHome, ".xpowers-version"), "1.0.0", "utf8")
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--replace-legacy", "--dry-run", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /Dry run/)
+  // .xpowers-version should NOT be overwritten by install
+  assert.equal(fs.readFileSync(path.join(claudeHome, ".xpowers-version"), "utf8"), "1.0.0")
+})
+
+test("install.sh --hosts claude --dry-run does not write any files", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-dry-run-test-"))
+  const claudeHome = path.join(home, ".claude")
+  fs.mkdirSync(claudeHome, { recursive: true })
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude", "--dry-run", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 60000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /dry-run/)
+  // No manifest or version file should be written
+  assert.equal(fs.existsSync(path.join(claudeHome, ".xpowers-manifest")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, ".xpowers-version")), false)
+  // No skills/agents/commands/hooks should be copied
+  assert.equal(fs.existsSync(path.join(claudeHome, "skills")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "agents")), false)
+  assert.equal(fs.existsSync(path.join(claudeHome, "commands")), false)
+})
+
 test("setup-pi.sh shim rejects piped execution with helpful error", { timeout: 60000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "setup-pi-pipe-test-"))
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "setup-pi-pipe-cwd-"))

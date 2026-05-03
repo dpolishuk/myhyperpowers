@@ -1418,6 +1418,10 @@ main() {
     if [[ "$REMOVE_LEGACY" == true ]]; then
       exit 0
     fi
+    if [[ "$DRY_RUN" == true ]]; then
+      info "Dry run: legacy removal preview complete. Exiting before install."
+      exit 0
+    fi
   fi
 
   # Detect agents
@@ -1611,6 +1615,8 @@ main() {
         echo -e "${RED}✗${RESET}"
         FAILED_AGENTS+=("$agent")
       fi
+    elif [[ "$DRY_RUN" == true ]]; then
+      echo -e "  ${DIM}Would install to ${BOLD}${label}${RESET}${DIM} (dry-run)${RESET}"
     else
       printf "  Installing to ${BOLD}%-16s${RESET} " "$label..."
       if "install_${agent}" 2>/dev/null; then
