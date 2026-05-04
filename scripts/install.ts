@@ -77,7 +77,7 @@ const throwOnSpawnFailure = (result: { exitCode: number, stdout: Uint8Array, std
 
 const THIRD_PARTY_SKIP_ENV = "XPOWERS_SKIP_THIRD_PARTY_FEATURES"
 const THIRD_PARTY_FEATURES = new Set(["br", "bv", "graphify", "claude-mem"])
-const HOST_INDEPENDENT_FEATURES = new Set(["tm-cli", ...THIRD_PARTY_FEATURES])
+const HOST_INDEPENDENT_FEATURES = new Set(["tm-cli", "br", "bv", "graphify"])
 
 const skipThirdPartyFeatures = () => {
   const value = process.env[THIRD_PARTY_SKIP_ENV]?.toLowerCase()
@@ -165,7 +165,7 @@ const HOSTS: HostConfig[] = [
       commands: { from: "commands" },
       hooks: { from: "hooks" },
     },
-    availableFeatures: ["memsearch", "statusline"],
+    availableFeatures: ["memsearch", "statusline", "claude-mem"],
     postInstall: async (targetDir) => {
       // Copy statusline script
       const src = join(REPO_ROOT, "scripts", "xpowers-statusline.sh")
@@ -186,7 +186,7 @@ const HOSTS: HostConfig[] = [
       plugins: { from: ".opencode/plugins" },
       scripts: { from: ".opencode/scripts" },
     },
-    availableFeatures: ["memsearch", "supermemory", "routing-wizard"],
+    availableFeatures: ["memsearch", "supermemory", "routing-wizard", "claude-mem"],
     postInstall: async (targetDir) => {
       // Copy package.json and run bun install
       const pkgSrc = join(REPO_ROOT, ".opencode", "package.json")
@@ -260,7 +260,7 @@ const HOSTS: HostConfig[] = [
     detect: () => commandExists("gemini"),
     targetDir: () => join(REPO_ROOT, ".gemini-extension"),
     sources: {},
-    availableFeatures: [],
+    availableFeatures: ["claude-mem"],
     postInstall: async () => {
       if (!commandExists("gemini")) {
         throw new Error("gemini CLI not found — cannot install extension")
@@ -535,7 +535,6 @@ const FEATURES: FeatureConfig[] = [
     hint: "persistent memory plugin for Claude Code, OpenCode, and Gemini CLI",
     install: async (hosts) => {
       if (skipThirdPartyFeatures()) return thirdPartySkipMessage()
-      if (!commandExists("npx")) return "npx not found — install manually: npx --yes claude-mem install"
 
       const targets: Array<{ label: string, args: string[] }> = []
       if (hosts.includes("claude")) targets.push({ label: "Claude Code", args: ["npx", "--yes", "claude-mem", "install"] })
@@ -543,6 +542,7 @@ const FEATURES: FeatureConfig[] = [
       if (hosts.includes("gemini")) targets.push({ label: "Gemini CLI", args: ["npx", "--yes", "claude-mem", "install", "--ide", "gemini-cli"] })
 
       if (targets.length === 0) return "skipped (Claude Code, OpenCode, or Gemini CLI not selected)"
+      if (!commandExists("npx")) return "npx not found — install manually: npx --yes claude-mem install"
 
       const installed: string[] = []
       for (const target of targets) {
@@ -1075,6 +1075,11 @@ Options:
     } else {
       selectedFeatureIds = []
     }
+  }
+
+  const selectedThirdPartyFeatureIds = selectedFeatureIds.filter((id) => THIRD_PARTY_FEATURES.has(id))
+  if (selectedThirdPartyFeatureIds.length > 0 && !skipThirdPartyFeatures() && !args.json) {
+    p.log.warn(`Third-party features run upstream installers/packages: ${selectedThirdPartyFeatureIds.join(", ")}`)
   }
 
   // Phase 4: Install hosts

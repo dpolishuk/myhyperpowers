@@ -265,7 +265,7 @@ test("bun installer --yes includes third-party tool features by default", { time
   const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "claude", "--yes", "--json", "--allow-conflicts"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: installEnv(home, { PATH: tmpBinDir }),
+    env: installEnv(home, { PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}` }),
     timeout: 120000,
   })
 
@@ -275,6 +275,46 @@ test("bun installer --yes includes third-party tool features by default", { time
   for (const feature of ["br", "bv", "graphify", "claude-mem"]) {
     assert.equal(Object.hasOwn(payload.features, feature), true, `${feature} should be part of the default feature set`)
   }
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
+test("bun installer omits claude-mem for unsupported hosts by default", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-unsupported-claude-mem-"))
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "kimi", "--yes", "--json", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(Object.hasOwn(payload.features, "claude-mem"), false, "claude-mem should not be selected for Kimi-only installs")
+})
+
+test("bun installer reports claude-mem skipped before requiring npx for unsupported hosts", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-skip-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-skip-bin-"))
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  fs.mkdirSync(path.join(home, ".config", "agents"), { recursive: true })
+  fs.symlinkSync("/bin/bash", path.join(tmpBinDir, "bash"))
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "kimi", "--features", "claude-mem", "--yes", "--json", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, { PATH: tmpBinDir, XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0" }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  const manifest = JSON.parse(fs.readFileSync(path.join(home, ".xpowers", "manifest.json"), "utf8"))
+  assert.equal(manifest.features["claude-mem"].metadata.lastResult, "skipped (Claude Code, OpenCode, or Gemini CLI not selected)")
 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
@@ -293,6 +333,41 @@ test("install.sh skips third-party tool bundle when requested by environment", {
   const output = combinedOutput(result)
   assert.equal(result.status, 0, output)
   assert.match(output, /Skipping third-party tool bundle/)
+})
+
+test("install.sh does not run third-party tool bundle without --yes", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-no-force-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-no-force-bin-"))
+  const markerPath = path.join(home, "third-party-called")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.writeFileSync(path.join(home, ".claude", "settings.json"), JSON.stringify({ statusline: "existing" }) + "\n", "utf8")
+  for (const name of ["curl", "npx"]) {
+    fs.writeFileSync(
+      path.join(tmpBinDir, name),
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$0 $*" >> "$THIRD_PARTY_MARKER"\nexit 0\n`,
+      "utf8",
+    )
+    fs.chmodSync(path.join(tmpBinDir, name), 0o755)
+  }
+  fs.writeFileSync(path.join(tmpBinDir, "python3"), "#!/usr/bin/env bash\nexit 1\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "python3"), 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--claude", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}`,
+      THIRD_PARTY_MARKER: markerPath,
+      XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.equal(fs.existsSync(markerPath), false, "third-party installer shims should not run without --yes")
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {

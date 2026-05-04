@@ -1280,6 +1280,7 @@ install_third_party_tools() {
   fi
 
   info "Installing third-party tool bundle: br, bv, graphify, claude-mem"
+  warn "Third-party tool bundle runs upstream installers/packages. Set ${THIRD_PARTY_SKIP_ENV}=1 to skip."
 
   if command -v curl >/dev/null 2>&1; then
     if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)" | bash -s -- --skip-skills --quiet --no-gum >/dev/null 2>&1; then
@@ -1752,7 +1753,7 @@ main() {
     fi
   done
 
-  if [[ "$MODE" == "install" ]]; then
+  if [[ "$MODE" == "install" && "$FORCE" == true ]]; then
     install_third_party_tools "${SELECTED_AGENTS[@]}"
   fi
 
