@@ -1260,6 +1260,27 @@ uninstall_tm_cli() {
 
 THIRD_PARTY_SKIP_ENV="XPOWERS_SKIP_THIRD_PARTY_FEATURES"
 
+third_party_state_file() {
+  printf "%s\n" "${HOME}/.xpowers/third-party-tools"
+}
+
+third_party_mark_installed() {
+  local tool="$1"
+  local state_file
+  state_file="$(third_party_state_file)"
+  mkdir -p "$(dirname "$state_file")"
+  if [[ ! -f "$state_file" ]] || ! grep -qxF "$tool" "$state_file"; then
+    printf "%s\n" "$tool" >> "$state_file"
+  fi
+}
+
+third_party_was_installed() {
+  local tool="$1"
+  local state_file
+  state_file="$(third_party_state_file)"
+  [[ -f "$state_file" ]] && grep -qxF "$tool" "$state_file"
+}
+
 third_party_features_skipped() {
   local value="${XPOWERS_SKIP_THIRD_PARTY_FEATURES:-}"
   case "${value,,}" in
@@ -1301,12 +1322,14 @@ install_third_party_tools() {
     if command -v curl >/dev/null 2>&1; then
       if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)" | bash -s -- --skip-skills --quiet --no-gum >/dev/null 2>&1; then
         success "br installed"
+        third_party_mark_installed "br"
       else
         warn "br install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
       fi
 
       if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash >/dev/null 2>&1; then
         success "bv installed"
+        third_party_mark_installed "bv"
       else
         warn "bv install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
       fi
@@ -1318,6 +1341,7 @@ install_third_party_tools() {
       if python3 -m pip install --user graphifyy --quiet >/dev/null 2>&1 \
         && PATH="${HOME}/.local/bin:${PATH}" graphify install >/dev/null 2>&1; then
         success "graphify installed"
+        third_party_mark_installed "graphify"
       else
         warn "graphify install failed — try: python3 -m pip install --user graphifyy && graphify install"
       fi
@@ -1338,6 +1362,7 @@ install_third_party_tools() {
       claude)
         if npx --yes claude-mem install >/dev/null 2>&1; then
           installed_cmem+=("Claude Code")
+          third_party_mark_installed "claude-mem"
         else
           warn "claude-mem install failed for Claude Code — try: npx --yes claude-mem install"
         fi
@@ -1345,6 +1370,7 @@ install_third_party_tools() {
       opencode)
         if npx --yes claude-mem install --ide opencode >/dev/null 2>&1; then
           installed_cmem+=("OpenCode")
+          third_party_mark_installed "claude-mem"
         else
           warn "claude-mem install failed for OpenCode — try: npx --yes claude-mem install --ide opencode"
         fi
@@ -1352,6 +1378,7 @@ install_third_party_tools() {
       gemini)
         if npx --yes claude-mem install --ide gemini-cli >/dev/null 2>&1; then
           installed_cmem+=("Gemini CLI")
+          third_party_mark_installed "claude-mem"
         else
           warn "claude-mem install failed for Gemini CLI — try: npx --yes claude-mem install --ide gemini-cli"
         fi
@@ -1367,6 +1394,51 @@ install_third_party_tools() {
     done
     success "claude-mem installed for ${joined}"
   fi
+}
+
+uninstall_third_party_tools() {
+  local state_file
+  state_file="$(third_party_state_file)"
+  [[ -f "$state_file" ]] || return 0
+
+  info "Removing tracked third-party tool bundle"
+
+  if third_party_was_installed "br"; then
+    rm -f "${HOME}/.local/bin/br" "${HOME}/.local/bin/br.exe"
+    success "br removed"
+  fi
+
+  if third_party_was_installed "bv"; then
+    rm -f "${HOME}/.local/bin/bv" "${HOME}/.local/bin/bv.exe"
+    success "bv removed"
+  fi
+
+  if third_party_was_installed "graphify"; then
+    if command -v python3 >/dev/null 2>&1; then
+      if python3 -m pip uninstall -y graphifyy >/dev/null 2>&1; then
+        success "graphify removed"
+      else
+        warn "graphify uninstall failed — try: python3 -m pip uninstall -y graphifyy"
+      fi
+    else
+      warn "python3 not found — skipping graphify uninstall"
+    fi
+  fi
+
+  if third_party_was_installed "claude-mem"; then
+    if command -v npx >/dev/null 2>&1; then
+      if npx --yes claude-mem uninstall >/dev/null 2>&1; then
+        success "claude-mem removed"
+      else
+        warn "claude-mem uninstall failed — try: npx --yes claude-mem uninstall"
+      fi
+    else
+      warn "npx not found — skipping claude-mem uninstall"
+    fi
+  fi
+
+  rm -f "$state_file"
+  rmdir "$(dirname "$state_file")" 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
@@ -1606,7 +1678,7 @@ main() {
   # (run AFTER resolution so --all auto-detected Pi is included)
   local has_pi=false
   local pi_delegated=false
-  local pi_delegation_succeeded=false
+  local pi_host_independent_features_succeeded=false
   for agent in "${SELECTED_AGENTS[@]}"; do
     [[ "$agent" == "pi" ]] && has_pi=true
   done
@@ -1636,8 +1708,14 @@ main() {
         cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
       else
         # Pi is one of multiple — run without exec, capture exit code, then continue
-        if (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
-          pi_delegation_succeeded=true
+        local pi_output=""
+        if pi_output="$(cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}" --json)"; then
+          if [[ "$pi_output" == *'"br":true'* && "$pi_output" == *'"bv":true'* && "$pi_output" == *'"graphify":true'* ]]; then
+            pi_host_independent_features_succeeded=true
+            third_party_mark_installed "br"
+            third_party_mark_installed "bv"
+            third_party_mark_installed "graphify"
+          fi
         else
           FAILED_AGENTS+=("pi")
         fi
@@ -1774,7 +1852,7 @@ main() {
   done
 
   if [[ "$MODE" == "install" && "$FORCE" == true ]]; then
-    if [[ "$pi_delegation_succeeded" == true ]]; then
+    if [[ "$pi_host_independent_features_succeeded" == true ]]; then
       install_third_party_tools --skip-host-independent "${SELECTED_AGENTS[@]}"
     else
       install_third_party_tools "${SELECTED_AGENTS[@]}"
@@ -1789,8 +1867,11 @@ main() {
   [[ "$MODE" == "uninstall" ]] && action_past="Uninstalled"
 
   if [[ ${#FAILED_AGENTS[@]} -eq 0 ]]; then
-    if [[ "$MODE" == "uninstall" ]] && [[ ${#SELECTED_AGENTS[@]} -eq $total_detected_agents ]]; then
-      uninstall_tm_cli
+    if [[ "$MODE" == "uninstall" ]]; then
+      uninstall_third_party_tools
+      if [[ ${#SELECTED_AGENTS[@]} -eq $total_detected_agents ]]; then
+        uninstall_tm_cli
+      fi
     fi
     success "${action_past} to ${ok_count} agent(s): ${agent_list}"
   else
