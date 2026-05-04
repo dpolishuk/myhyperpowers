@@ -561,7 +561,16 @@ const FEATURES: FeatureConfig[] = [
       }
       return `claude-mem installed for ${installed.join(", ")}`
     },
-    uninstall: async () => { /* third-party plugin owns its uninstall state */ },
+    uninstall: async () => {
+      if (!commandExists("npx")) {
+        p.log.warn("npx not found — skipping claude-mem uninstall")
+        return
+      }
+      const result = Bun.spawnSync(["npx", "--yes", "claude-mem", "uninstall"], { stdout: "pipe", stderr: "pipe" })
+      if (result.exitCode !== 0) {
+        p.log.warn("claude-mem uninstall failed — try: npx --yes claude-mem uninstall")
+      }
+    },
   },
   {
     id: "supermemory",

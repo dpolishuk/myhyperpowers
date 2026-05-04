@@ -604,6 +604,46 @@ test("install.sh uninstall removes tracked third-party tools", { timeout: 120000
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
+test("install.sh dry-run uninstall preserves tracked third-party tools", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-dry-run-uninstall-home-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-dry-run-uninstall-bin-"))
+  const pipLog = path.join(home, "pip-uninstall")
+  const npxLog = path.join(home, "npx-uninstall")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".xpowers"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true })
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# .xpowers-manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".xpowers", "third-party-tools"), "br\nbv\ngraphify\nclaude-mem\n", "utf8")
+  fs.writeFileSync(path.join(home, ".local", "bin", "br"), "br\n", "utf8")
+  fs.writeFileSync(path.join(home, ".local", "bin", "bv"), "bv\n", "utf8")
+  fs.writeFileSync(path.join(tmpBinDir, "python3"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$PIP_LOG\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "python3"), 0o755)
+  fs.writeFileSync(path.join(tmpBinDir, "npx"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$NPX_LOG\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "npx"), 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude", "--uninstall", "--dry-run", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}`,
+      PIP_LOG: pipLog,
+      NPX_LOG: npxLog,
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /Would remove tracked third-party tool bundle/)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "br")), true)
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "bv")), true)
+  assert.equal(fs.existsSync(pipLog), false)
+  assert.equal(fs.existsSync(npxLog), false)
+  assert.equal(fs.existsSync(path.join(home, ".xpowers", "third-party-tools")), true)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-conflict-test-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
@@ -918,6 +958,43 @@ test("bun installer uninstall reads legacy manifest location", { timeout: 60000 
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.equal(fs.existsSync(legacyFile), false)
   assert.equal(fs.existsSync(path.join(legacyManifestDir, "manifest.json")), false)
+})
+
+test("bun installer uninstall runs claude-mem cleanup", { timeout: 60000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-uninstall-test-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-uninstall-bin-"))
+  const manifestDir = path.join(home, ".xpowers")
+  const npxLog = path.join(home, "npx-uninstall")
+
+  fs.mkdirSync(manifestDir, { recursive: true })
+  fs.writeFileSync(
+    path.join(manifestDir, "manifest.json"),
+    JSON.stringify({
+      version: "test",
+      installedAt: "2026-01-01T00:00:00Z",
+      hosts: {},
+      features: { "claude-mem": { installed: true } },
+    }, null, 2) + "\n",
+    "utf8",
+  )
+  fs.writeFileSync(path.join(tmpBinDir, "npx"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$NPX_LOG\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "npx"), 0o755)
+
+  const result = spawnSync("bun", ["scripts/install.ts", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}`,
+      NPX_LOG: npxLog,
+    }),
+    timeout: 120000,
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.match(fs.readFileSync(npxLog, "utf8"), /claude-mem uninstall/)
+  assert.equal(fs.existsSync(path.join(manifestDir, "manifest.json")), false)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
 test("bun installer statusline uninstall removes legacy statusline path", { timeout: 60000 }, () => {

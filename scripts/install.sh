@@ -1401,6 +1401,25 @@ uninstall_third_party_tools() {
   state_file="$(third_party_state_file)"
   [[ -f "$state_file" ]] || return 0
 
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Would remove tracked third-party tool bundle"
+    if third_party_was_installed "br"; then
+      echo "  Would remove: ${HOME}/.local/bin/br"
+      echo "  Would remove: ${HOME}/.local/bin/br.exe"
+    fi
+    if third_party_was_installed "bv"; then
+      echo "  Would remove: ${HOME}/.local/bin/bv"
+      echo "  Would remove: ${HOME}/.local/bin/bv.exe"
+    fi
+    if third_party_was_installed "graphify"; then
+      echo "  Would run: python3 -m pip uninstall -y graphifyy"
+    fi
+    if third_party_was_installed "claude-mem"; then
+      echo "  Would run: npx --yes claude-mem uninstall"
+    fi
+    return 0
+  fi
+
   info "Removing tracked third-party tool bundle"
 
   if third_party_was_installed "br"; then
