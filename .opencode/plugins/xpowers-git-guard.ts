@@ -42,6 +42,7 @@ type SessionState = {
   commitMade: boolean
   warnedOnIdle: boolean
   createdAt: number
+  pendingCommitStagedFiles: string[]  // staged files captured before git commit
 }
 
 const DEFAULT_CONFIG: Required<GitGuardConfig> = {
@@ -181,12 +182,15 @@ const getGitDiffStat = async ($: any, cwd: string): Promise<{ files: number; ins
   const lastLine = output.split("\n").filter((l) => l.trim()).pop() ?? ""
 
   // Parse: " 5 files changed, 23 insertions(+), 10 deletions(-)"
-  const match = lastLine.match(/(\d+)\s+files?\s+changed.*?(\d+)\s+insertions?.*?(\d+)\s+deletions?/)
-  if (match) {
+  // Note: insertions or deletions may be absent in partial output
+  const filesMatch = lastLine.match(/(\d+)\s+files?\s+changed/)
+  if (filesMatch) {
+    const insertionsMatch = lastLine.match(/(\d+)\s+insertions?/)
+    const deletionsMatch = lastLine.match(/(\d+)\s+deletions?/)
     return {
-      files: parseInt(match[1], 10),
-      insertions: parseInt(match[2], 10),
-      deletions: parseInt(match[3], 10),
+      files: parseInt(filesMatch[1], 10),
+      insertions: insertionsMatch ? parseInt(insertionsMatch[1], 10) : 0,
+      deletions: deletionsMatch ? parseInt(deletionsMatch[1], 10) : 0,
     }
   }
 
@@ -260,7 +264,7 @@ const sessions = new Map<string, SessionState>()
 const getSessionState = (sessionId: string): SessionState => {
   let state = sessions.get(sessionId)
   if (!state) {
-    state = { filesModified: new Set(), filesCommitted: new Set(), commitMade: false, warnedOnIdle: false, createdAt: Date.now() }
+    state = { filesModified: new Set(), filesCommitted: new Set(), commitMade: false, warnedOnIdle: false, createdAt: Date.now(), pendingCommitStagedFiles: [] }
     sessions.set(sessionId, state)
   }
   return state
@@ -285,6 +289,20 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
   }
 
   return {
+    // ── Pre-commit: capture staged files before git commit runs ───────────
+    "tool.execute.before": async (input, output) => {
+      if (input.tool !== "bash") return
+      const command = String((output.args as any)?.command ?? "")
+      if (!/git\s+commit/.test(command)) return
+
+      const sessionId = (input as any).sessionID ?? "unknown"
+      const state = getSessionState(sessionId)
+
+      // Capture staged files BEFORE the commit executes
+      const status = await getGitStatus(ctx.$, ctx.directory)
+      state.pendingCommitStagedFiles = [...status.stagedFiles]
+    },
+
     // ── Track file modifications and git commits ──────────────────────────
     "tool.execute.after": async (input, output) => {
       const sessionId = (input as any).sessionID ?? "unknown"
@@ -317,12 +335,12 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
         if (/git\s+commit/.test(command)) {
           state.commitMade = true
 
-          // Try to extract committed files from the command or check git status
-          const status = await getGitStatus(ctx.$, ctx.directory)
-          for (const file of status.stagedFiles) {
+          // Use staged files captured BEFORE the commit (post-commit staged list is empty)
+          for (const file of state.pendingCommitStagedFiles) {
             state.filesCommitted.add(file)
             state.filesModified.delete(file)
           }
+          state.pendingCommitStagedFiles = []
 
           await showToast(
             ctx.client,
@@ -348,6 +366,7 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
           commitMade: false,
           warnedOnIdle: false,
           createdAt: Date.now(),
+          pendingCommitStagedFiles: [],
         })
         return
       }

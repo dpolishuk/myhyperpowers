@@ -38,7 +38,8 @@ const DEFAULT_CONFIG: Required<NotifyConfig> = {
   onTaskComplete: true,
   onTaskError: true,
   onSessionCompact: false,
-  backends: ["osc777", "osc99", "osascript", "notify-send"],
+  // Prefer native OS notifications; OSC terminals are fallbacks
+  backends: ["osascript", "notify-send", "growlnotify", "osc777", "osc99"],
   durationMs: 4000,
   titlePrefix: "XPowers",
 }
@@ -228,7 +229,11 @@ const xpowersNotifyPlugin: Plugin = async (ctx) => {
   const notify = async (title: string, message: string, variant: NotifyVariant) => {
     const backend = await getBackend()
     if (backend) {
-      await sendDesktopNotification(ctx.$, backend, title, message)
+      const ok = await sendDesktopNotification(ctx.$, backend, title, message)
+      // If OSC backend failed, invalidate cache so fallback is tried next time
+      if (!ok && (backend === "osc777" || backend === "osc99")) {
+        cachedBackend = null
+      }
     }
     await showToast(ctx.client, title, message, variant, config.durationMs)
   }
@@ -236,16 +241,15 @@ const xpowersNotifyPlugin: Plugin = async (ctx) => {
   return {
     // When the AI agent finishes responding and goes idle
     event: async ({ event }) => {
-      if (!config.onAgentIdle) return
-
       if (event.type === "session.idle") {
+        if (!config.onAgentIdle) return
         const title = `${config.titlePrefix}`
         const message = "Agent finished responding"
         await notify(title, message, "info")
         return
       }
 
-      if (config.onSessionCompact && event.type === "session.compacted") {
+      if (event.type === "session.compacted" && config.onSessionCompact) {
         const title = `${config.titlePrefix}`
         const message = "Session compacted"
         await notify(title, message, "info")
@@ -272,11 +276,15 @@ const xpowersNotifyPlugin: Plugin = async (ctx) => {
         const title = `${config.titlePrefix} · ${agentName}${modelSuffix}`
         const message = `Task ${statusText}`
 
-        if (variant === "error" && config.onTaskError) {
-          await notify(title, message, variant)
+        // Error notifications: honor onTaskError config
+        if (variant === "error") {
+          if (config.onTaskError) {
+            await notify(title, message, variant)
+          }
           return
         }
 
+        // Non-error completions: honor onTaskComplete config
         if (config.onTaskComplete) {
           await notify(title, message, variant)
         }
