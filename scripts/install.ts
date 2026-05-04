@@ -75,6 +75,17 @@ const throwOnSpawnFailure = (result: { exitCode: number, stdout: Uint8Array, std
   throw new Error(`${label}${stderr || stdout ? `: ${stderr || stdout}` : ""}`)
 }
 
+const THIRD_PARTY_SKIP_ENV = "XPOWERS_SKIP_THIRD_PARTY_FEATURES"
+const THIRD_PARTY_FEATURES = new Set(["br", "bv", "graphify", "claude-mem"])
+const HOST_INDEPENDENT_FEATURES = new Set(["tm-cli", "br", "bv", "graphify"])
+
+const skipThirdPartyFeatures = () => {
+  const value = process.env[THIRD_PARTY_SKIP_ENV]?.toLowerCase()
+  return value === "1" || value === "true" || value === "yes"
+}
+
+const thirdPartySkipMessage = () => `skipped (${THIRD_PARTY_SKIP_ENV}=1)`
+
 const copyDir = async (src: string, dest: string) => {
   await mkdir(dest, { recursive: true })
   await cp(src, dest, { recursive: true })
@@ -154,7 +165,7 @@ const HOSTS: HostConfig[] = [
       commands: { from: "commands" },
       hooks: { from: "hooks" },
     },
-    availableFeatures: ["memsearch", "statusline"],
+    availableFeatures: ["memsearch", "statusline", "claude-mem"],
     postInstall: async (targetDir) => {
       // Copy statusline script
       const src = join(REPO_ROOT, "scripts", "xpowers-statusline.sh")
@@ -175,7 +186,7 @@ const HOSTS: HostConfig[] = [
       plugins: { from: ".opencode/plugins" },
       scripts: { from: ".opencode/scripts" },
     },
-    availableFeatures: ["memsearch", "supermemory", "routing-wizard"],
+    availableFeatures: ["memsearch", "supermemory", "routing-wizard", "claude-mem"],
     postInstall: async (targetDir) => {
       // Copy package.json and run bun install
       const pkgSrc = join(REPO_ROOT, ".opencode", "package.json")
@@ -249,7 +260,7 @@ const HOSTS: HostConfig[] = [
     detect: () => commandExists("gemini"),
     targetDir: () => join(REPO_ROOT, ".gemini-extension"),
     sources: {},
-    availableFeatures: [],
+    availableFeatures: ["claude-mem"],
     postInstall: async () => {
       if (!commandExists("gemini")) {
         throw new Error("gemini CLI not found — cannot install extension")
@@ -445,6 +456,119 @@ const FEATURES: FeatureConfig[] = [
     uninstall: async () => {
       if (commandExists("python3")) {
         Bun.spawnSync(["python3", "-m", "pip", "uninstall", "-y", "memsearch"], { stdout: "pipe", stderr: "pipe" })
+      }
+    },
+  },
+  {
+    id: "br",
+    name: "Beads Rust (br)",
+    hint: "classic beads-compatible Rust task CLI",
+    install: async () => {
+      if (skipThirdPartyFeatures()) return thirdPartySkipMessage()
+      if (!commandExists("curl")) {
+        return "curl not found — install manually: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
+      }
+      const result = Bun.spawnSync([
+        "bash",
+        "-lc",
+        "curl -fsSL \"https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)\" | bash -s -- --skip-skills --quiet --no-gum",
+      ], { stdout: "pipe", stderr: "pipe" })
+      return result.exitCode === 0
+        ? "br installed"
+        : "br install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
+    },
+    uninstall: async () => {
+      await unlink(join(homedir(), ".local", "bin", "br")).catch(() => {})
+      await unlink(join(homedir(), ".local", "bin", "br.exe")).catch(() => {})
+    },
+  },
+  {
+    id: "bv",
+    name: "Beads Viewer (bv)",
+    hint: "graph-aware Beads TUI and robot-mode triage sidecar",
+    install: async () => {
+      if (skipThirdPartyFeatures()) return thirdPartySkipMessage()
+      if (!commandExists("curl")) {
+        return "curl not found — install manually: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
+      }
+      const result = Bun.spawnSync([
+        "bash",
+        "-lc",
+        "curl -fsSL \"https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)\" | bash",
+      ], { stdout: "pipe", stderr: "pipe" })
+      return result.exitCode === 0
+        ? "bv installed"
+        : "bv install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
+    },
+    uninstall: async () => {
+      await unlink(join(homedir(), ".local", "bin", "bv")).catch(() => {})
+      await unlink(join(homedir(), ".local", "bin", "bv.exe")).catch(() => {})
+    },
+  },
+  {
+    id: "graphify",
+    name: "graphify knowledge graph",
+    hint: "code/docs/media knowledge graph skill and CLI",
+    install: async () => {
+      if (skipThirdPartyFeatures()) return thirdPartySkipMessage()
+      if (!commandExists("python3")) {
+        return "python3 not found — install manually: python3 -m pip install --user graphifyy && graphify install"
+      }
+      const result = Bun.spawnSync([
+        "bash",
+        "-lc",
+        "python3 -m pip install --user graphifyy --quiet && PATH=\"$HOME/.local/bin:$PATH\" graphify install",
+      ], { stdout: "pipe", stderr: "pipe" })
+      return result.exitCode === 0
+        ? "graphify installed"
+        : "graphify install failed — try: python3 -m pip install --user graphifyy && graphify install"
+    },
+    uninstall: async () => {
+      if (commandExists("python3")) {
+        Bun.spawnSync(["python3", "-m", "pip", "uninstall", "-y", "graphifyy"], { stdout: "pipe", stderr: "pipe" })
+      }
+    },
+  },
+  {
+    id: "claude-mem",
+    name: "Claude-Mem",
+    hint: "persistent memory plugin for Claude Code, OpenCode, and Gemini CLI",
+    install: async (hosts) => {
+      if (skipThirdPartyFeatures()) return thirdPartySkipMessage()
+
+      const targets: Array<{ label: string, args: string[] }> = []
+      if (hosts.includes("claude")) targets.push({ label: "Claude Code", args: ["npx", "--yes", "claude-mem", "install"] })
+      if (hosts.includes("opencode")) targets.push({ label: "OpenCode", args: ["npx", "--yes", "claude-mem", "install", "--ide", "opencode"] })
+      if (hosts.includes("gemini")) targets.push({ label: "Gemini CLI", args: ["npx", "--yes", "claude-mem", "install", "--ide", "gemini-cli"] })
+
+      if (targets.length === 0) return "skipped (Claude Code, OpenCode, or Gemini CLI not selected)"
+      if (!commandExists("npx")) return "npx not found — install manually: npx --yes claude-mem install"
+
+      const installed: string[] = []
+      const failed: string[] = []
+      for (const target of targets) {
+        const result = Bun.spawnSync(target.args, { stdout: "pipe", stderr: "pipe" })
+        if (result.exitCode !== 0) {
+          failed.push(`${target.label} (exit ${result.exitCode}; try: ${target.args.join(" ")})`)
+          continue
+        }
+        installed.push(target.label)
+      }
+      if (failed.length > 0) {
+        return installed.length > 0
+          ? `claude-mem installed for ${installed.join(", ")}; could not install for ${failed.join(", ")}`
+          : `claude-mem install failed for ${failed.join(", ")}`
+      }
+      return `claude-mem installed for ${installed.join(", ")}`
+    },
+    uninstall: async () => {
+      if (!commandExists("npx")) {
+        p.log.warn("npx not found — skipping claude-mem uninstall")
+        return
+      }
+      const result = Bun.spawnSync(["npx", "--yes", "claude-mem", "uninstall"], { stdout: "pipe", stderr: "pipe" })
+      if (result.exitCode !== 0) {
+        p.log.warn("claude-mem uninstall failed — try: npx --yes claude-mem uninstall")
       }
     },
   },
@@ -820,7 +944,7 @@ Options:
   --json, -j         Output structured JSON (implies --yes, for AI agents)
   --uninstall        Remove all installed files and features
   --hosts <list>     Comma-separated host IDs: claude,opencode,kimi,gemini,pi
-  --features <list>  Comma-separated feature IDs: memsearch,supermemory,statusline,routing-wizard,tm-cli
+  --features <list>  Comma-separated feature IDs: memsearch,br,bv,graphify,claude-mem,supermemory,statusline,routing-wizard,tm-cli
   --allow-conflicts  Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
   --help, -h         Show this help
 `)
@@ -895,7 +1019,7 @@ Options:
 
   if (detected.length === 0 && args.hosts.length === 0 && args.features.length === 0) {
     p.log.error("No supported hosts detected. Install Claude Code, OpenCode, or another supported tool first.")
-    p.log.info("You can still install host-independent features: bun scripts/install.ts --features tm-cli")
+    p.log.info("You can still install host-independent features: bun scripts/install.ts --features tm-cli,br,bv,graphify")
     p.outro("Nothing to install.")
     return
   }
@@ -947,7 +1071,7 @@ Options:
 
   // Phase 3: Select features
   const availableFeatures = FEATURES.filter((f) =>
-    f.id === "tm-cli" || selectedHostIds.some((hid) => HOSTS.find((h) => h.id === hid)?.availableFeatures.includes(f.id)),
+    HOST_INDEPENDENT_FEATURES.has(f.id) || selectedHostIds.some((hid) => HOSTS.find((h) => h.id === hid)?.availableFeatures.includes(f.id)),
   )
 
   let selectedFeatureIds: string[]
@@ -980,6 +1104,7 @@ Options:
   }
 
   let hostInstallFailed = false
+  const successfulHostIds: string[] = []
 
   for (const hostId of selectedHostIds) {
     const host = HOSTS.find((h) => h.id === hostId)
@@ -993,6 +1118,7 @@ Options:
     try {
       const files = await installHost(host)
       manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
+      successfulHostIds.push(hostId)
       s.stop(`${host.name}: ${files.length} items installed`)
     } catch (err) {
       hostInstallFailed = true
@@ -1001,7 +1127,20 @@ Options:
   }
 
   // Phase 5: Install features
-  for (const featureId of selectedFeatureIds) {
+  const featuresWereExplicitlyRequested = args.features.length > 0
+  const shouldInstallFeatures = featuresWereExplicitlyRequested || successfulHostIds.length > 0
+  const featureHostIds = featuresWereExplicitlyRequested ? selectedHostIds : successfulHostIds
+
+  if (!shouldInstallFeatures && selectedFeatureIds.length > 0) {
+    p.log.warn("Skipping default feature setup because no selected hosts installed successfully.")
+  }
+
+  const selectedThirdPartyFeatureIds = selectedFeatureIds.filter((id) => THIRD_PARTY_FEATURES.has(id))
+  if (shouldInstallFeatures && selectedThirdPartyFeatureIds.length > 0 && !skipThirdPartyFeatures() && !args.json) {
+    p.log.warn(`Third-party features run upstream installers/packages: ${selectedThirdPartyFeatureIds.join(", ")}`)
+  }
+
+  for (const featureId of shouldInstallFeatures ? selectedFeatureIds : []) {
     const feature = FEATURES.find((f) => f.id === featureId)
     if (!feature) {
       p.log.warn(`Unknown feature "${featureId}" — skipping. Supported: ${FEATURES.map((f) => f.id).join(", ")}`)
@@ -1009,9 +1148,13 @@ Options:
     }
 
     s.start(`Setting up ${feature.name}...`)
-    const result = await feature.install(selectedHostIds, REPO_ROOT)
+    const result = await feature.install(featureHostIds, REPO_ROOT)
     const success = !result.includes("failed") && !result.includes("not found") && !result.includes("skipped")
-    manifest.features[featureId] = { installed: success, metadata: { lastResult: result } }
+    const existingFeature = manifest.features[featureId]
+    manifest.features[featureId] = {
+      installed: success || existingFeature?.installed === true,
+      metadata: { ...(existingFeature?.metadata ?? {}), lastResult: result },
+    }
     s.stop(result)
   }
 
