@@ -41,6 +41,7 @@ type SessionState = {
   filesCommitted: Set<string>
   commitMade: boolean
   warnedOnIdle: boolean
+  createdAt: number
 }
 
 const DEFAULT_CONFIG: Required<GitGuardConfig> = {
@@ -259,10 +260,19 @@ const sessions = new Map<string, SessionState>()
 const getSessionState = (sessionId: string): SessionState => {
   let state = sessions.get(sessionId)
   if (!state) {
-    state = { filesModified: new Set(), filesCommitted: new Set(), commitMade: false, warnedOnIdle: false }
+    state = { filesModified: new Set(), filesCommitted: new Set(), commitMade: false, warnedOnIdle: false, createdAt: Date.now() }
     sessions.set(sessionId, state)
   }
   return state
+}
+
+const cleanupOldGitGuardSessions = (ttlMs: number = 86400000) => {
+  const cutoff = Date.now() - ttlMs
+  for (const [id, s] of sessions) {
+    if (s.createdAt < cutoff) {
+      sessions.delete(id)
+    }
+  }
 }
 
 // ── Plugin ──────────────────────────────────────────────────────────────────
@@ -337,6 +347,7 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
           filesCommitted: new Set(),
           commitMade: false,
           warnedOnIdle: false,
+          createdAt: Date.now(),
         })
         return
       }
@@ -367,12 +378,7 @@ const xpowersGitGuardPlugin: Plugin = async (ctx) => {
         }
         sessions.delete(sessionId)
         // Cleanup orphaned sessions older than 24 hours
-        const cutoff = Date.now() - 86400000
-        for (const [id, s] of sessions) {
-          if (!s) {
-            sessions.delete(id)
-          }
-        }
+        cleanupOldGitGuardSessions()
         return
       }
 

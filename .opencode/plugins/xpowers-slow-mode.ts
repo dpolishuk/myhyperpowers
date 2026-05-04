@@ -87,16 +87,20 @@ const showToast = async (
 
 // ── Path Matching ───────────────────────────────────────────────────────────
 
+const escapeRegex = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
 const matchGlob = (pattern: string, path: string): boolean => {
   const normalizedPath = path.replace(/\\/g, "/")
   const normalizedPattern = pattern.replace(/\\/g, "/")
 
   // Simple glob matching: ** (any depth), * (any chars within segment)
-  const regexPattern = normalizedPattern
-    .replace(/\*\*/g, "\u0000")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\u0000/g, ".*")
-    .replace(/\?/g, ".")
+  // Escape regex special chars in the pattern first, then restore glob wildcards
+  const regexPattern = escapeRegex(normalizedPattern)
+    .replace(/\\\*\\\*/g, "\u0000")   // restore **
+    .replace(/\\\*/g, "[^/]*")         // restore *
+    .replace(/\u0000/g, ".*")           // ** = any depth
+    .replace(/\\\?/g, ".")             // restore ?
 
   const regex = new RegExp(`^(.*/)?${regexPattern}$`, "i")
   return regex.test(normalizedPath)
@@ -230,18 +234,30 @@ const xpowersSlowModePlugin: Plugin = async (ctx) => {
   }
 
   // Per-session state tracking
-  const sessions = new Map<string, {
+  type SlowModeSession = {
     changes: FileChange[]
     pendingOriginals: Map<string, string | null>  // filePath -> original content
-  }>()
+    createdAt: number
+  }
 
-  const getSessionState = (sessionId: string) => {
+  const sessions = new Map<string, SlowModeSession>()
+
+  const getSessionState = (sessionId: string): SlowModeSession => {
     let state = sessions.get(sessionId)
     if (!state) {
-      state = { changes: [], pendingOriginals: new Map() }
+      state = { changes: [], pendingOriginals: new Map(), createdAt: Date.now() }
       sessions.set(sessionId, state)
     }
     return state
+  }
+
+  const cleanupOldSessions = (ttlMs: number = 86400000) => {
+    const cutoff = Date.now() - ttlMs
+    for (const [id, s] of sessions) {
+      if (s.createdAt < cutoff) {
+        sessions.delete(id)
+      }
+    }
   }
 
   const logDir = join(ctx.directory, config.logDir)
@@ -378,6 +394,8 @@ const xpowersSlowModePlugin: Plugin = async (ctx) => {
           await logSessionSummary(logDir, sessionId, state.changes)
           sessions.delete(sessionId)
         }
+        // Cleanup orphaned sessions older than 24 hours
+        cleanupOldSessions()
         return
       }
 

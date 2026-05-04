@@ -147,15 +147,21 @@ const resolveModelLimit = (
   // Try exact match first
   if (limits[modelId]) return limits[modelId]
 
-  // Try normalized match
+  // Try normalized exact match
   if (limits[normalized]) return limits[normalized]
 
-  // Try partial match on model family
+  // Try partial match: model ID must contain the key as a prefix segment
+  // e.g., "gpt-4.1-mini" contains "gpt-4.1" → match
+  // but "gpt-4" does NOT contain "gpt-4.1" → no match
   for (const [key, limit] of Object.entries(limits)) {
     const normalizedKey = key.toLowerCase().replace(/[^a-z0-9.-]/g, "")
+    if (!normalizedKey || normalizedKey === "default") continue
+
+    // Key must be a prefix of the model ID, followed by a separator or end
     if (
-      normalized.includes(normalizedKey) ||
-      normalizedKey.includes(normalized)
+      normalized === normalizedKey ||
+      normalized.startsWith(normalizedKey + "-") ||
+      normalized.startsWith(normalizedKey + ".")
     ) {
       return limit
     }
@@ -173,6 +179,8 @@ type GaugeState = {
   modelId: string | null
   contextLimit: number
   compactSuggested: boolean
+  createdAt: number
+  seenMessageIds: Set<string>  // deduplicate token counting on streaming updates
 }
 
 const sessions = new Map<string, GaugeState>()
@@ -187,10 +195,21 @@ const getState = (sessionId: string): GaugeState => {
       modelId: null,
       contextLimit: DEFAULT_CONFIG.defaultLimit,
       compactSuggested: false,
+      createdAt: Date.now(),
+      seenMessageIds: new Set(),
     }
     sessions.set(sessionId, state)
   }
   return state
+}
+
+const cleanupOldGaugeSessions = (ttlMs: number = 86400000) => {
+  const cutoff = Date.now() - ttlMs
+  for (const [id, s] of sessions) {
+    if (s.createdAt < cutoff) {
+      sessions.delete(id)
+    }
+  }
 }
 
 // ── Plugin ──────────────────────────────────────────────────────────────────
@@ -218,6 +237,8 @@ const xpowersContextGaugePlugin: Plugin = async (ctx) => {
           modelId: null,
           contextLimit: config.defaultLimit,
           compactSuggested: false,
+          createdAt: Date.now(),
+          seenMessageIds: new Set(),
         })
         return
       }
@@ -241,12 +262,23 @@ const xpowersContextGaugePlugin: Plugin = async (ctx) => {
 
       if (event.type === "session.deleted" && sessionId) {
         sessions.delete(sessionId)
+        // Cleanup orphaned sessions older than 24 hours
+        cleanupOldGaugeSessions()
         return
       }
 
       if (event.type === "message.updated") {
         const message = (event as any).properties?.message
         if (!message) return
+
+        // Deduplicate: don't double-count the same message on streaming updates
+        const messageId = message.id ?? (event as any).properties?.messageId
+        if (messageId && state.seenMessageIds.has(String(messageId))) {
+          return
+        }
+        if (messageId) {
+          state.seenMessageIds.add(String(messageId))
+        }
 
         // Try to extract content from message
         let content = ""
