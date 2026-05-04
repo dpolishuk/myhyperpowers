@@ -488,6 +488,45 @@ test("bun installer omits claude-mem for unsupported hosts by default", { timeou
   assert.equal(Object.hasOwn(payload.features, "claude-mem"), false, "claude-mem should not be selected for Kimi-only installs")
 })
 
+test("bun installer skips default features when selected hosts are invalid", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-invalid-host-default-features-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-invalid-host-default-features-bin-"))
+  const markerPath = path.join(home, "feature-tool-called")
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+
+  for (const name of ["curl", "python3", "npx", "npm"]) {
+    fs.writeFileSync(
+      path.join(tmpBinDir, name),
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"${0##*/} $*\" >> \"$FEATURE_TOOL_MARKER\"\nexit 0\n",
+      "utf8",
+    )
+    fs.chmodSync(path.join(tmpBinDir, name), 0o755)
+  }
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "not-a-host", "--yes", "--json", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      FEATURE_TOOL_MARKER: markerPath,
+      PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}`,
+      XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 1, output)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(payload.ok, false)
+  assert.deepEqual(payload.hosts, [])
+  assert.deepEqual(payload.features, {})
+  assert.equal(fs.existsSync(markerPath), false, "default feature installers should not run after invalid host selection")
+  const manifest = JSON.parse(fs.readFileSync(path.join(home, ".xpowers", "manifest.json"), "utf8"))
+  assert.deepEqual(manifest.features, {})
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
 test("bun installer reports claude-mem skipped before requiring npx for unsupported hosts", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-skip-"))
   const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-skip-bin-"))

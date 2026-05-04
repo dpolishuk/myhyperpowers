@@ -1093,11 +1093,6 @@ Options:
     }
   }
 
-  const selectedThirdPartyFeatureIds = selectedFeatureIds.filter((id) => THIRD_PARTY_FEATURES.has(id))
-  if (selectedThirdPartyFeatureIds.length > 0 && !skipThirdPartyFeatures() && !args.json) {
-    p.log.warn(`Third-party features run upstream installers/packages: ${selectedThirdPartyFeatureIds.join(", ")}`)
-  }
-
   // Phase 4: Install hosts
   const s = p.spinner()
   const existingManifest = await readManifest()
@@ -1109,6 +1104,7 @@ Options:
   }
 
   let hostInstallFailed = false
+  const successfulHostIds: string[] = []
 
   for (const hostId of selectedHostIds) {
     const host = HOSTS.find((h) => h.id === hostId)
@@ -1122,6 +1118,7 @@ Options:
     try {
       const files = await installHost(host)
       manifest.hosts[hostId] = { targetDir: host.targetDir(), files }
+      successfulHostIds.push(hostId)
       s.stop(`${host.name}: ${files.length} items installed`)
     } catch (err) {
       hostInstallFailed = true
@@ -1130,7 +1127,20 @@ Options:
   }
 
   // Phase 5: Install features
-  for (const featureId of selectedFeatureIds) {
+  const featuresWereExplicitlyRequested = args.features.length > 0
+  const shouldInstallFeatures = featuresWereExplicitlyRequested || successfulHostIds.length > 0
+  const featureHostIds = featuresWereExplicitlyRequested ? selectedHostIds : successfulHostIds
+
+  if (!shouldInstallFeatures && selectedFeatureIds.length > 0) {
+    p.log.warn("Skipping default feature setup because no selected hosts installed successfully.")
+  }
+
+  const selectedThirdPartyFeatureIds = selectedFeatureIds.filter((id) => THIRD_PARTY_FEATURES.has(id))
+  if (shouldInstallFeatures && selectedThirdPartyFeatureIds.length > 0 && !skipThirdPartyFeatures() && !args.json) {
+    p.log.warn(`Third-party features run upstream installers/packages: ${selectedThirdPartyFeatureIds.join(", ")}`)
+  }
+
+  for (const featureId of shouldInstallFeatures ? selectedFeatureIds : []) {
     const feature = FEATURES.find((f) => f.id === featureId)
     if (!feature) {
       p.log.warn(`Unknown feature "${featureId}" — skipping. Supported: ${FEATURES.map((f) => f.id).join(", ")}`)
@@ -1138,7 +1148,7 @@ Options:
     }
 
     s.start(`Setting up ${feature.name}...`)
-    const result = await feature.install(selectedHostIds, REPO_ROOT)
+    const result = await feature.install(featureHostIds, REPO_ROOT)
     const success = !result.includes("failed") && !result.includes("not found") && !result.includes("skipped")
     const existingFeature = manifest.features[featureId]
     manifest.features[featureId] = {
