@@ -1269,8 +1269,18 @@ third_party_features_skipped() {
 }
 
 install_third_party_tools() {
+  local skip_host_independent=false
+  if [[ "${1:-}" == "--skip-host-independent" ]]; then
+    skip_host_independent=true
+    shift
+  fi
+
   if [[ "$DRY_RUN" == true ]]; then
-    info "Would install third-party tool bundle: br, bv, graphify, claude-mem"
+    if [[ "$skip_host_independent" == true ]]; then
+      info "Would install third-party tool bundle: claude-mem"
+    else
+      info "Would install third-party tool bundle: br, bv, graphify, claude-mem"
+    fi
     return 0
   fi
 
@@ -1279,34 +1289,41 @@ install_third_party_tools() {
     return 0
   fi
 
-  info "Installing third-party tool bundle: br, bv, graphify, claude-mem"
+  if [[ "$skip_host_independent" == true ]]; then
+    info "Installing third-party tool bundle: claude-mem"
+    info "Skipping br, bv, and graphify; Pi delegation already handled host-independent tools"
+  else
+    info "Installing third-party tool bundle: br, bv, graphify, claude-mem"
+  fi
   warn "Third-party tool bundle runs upstream installers/packages. Set ${THIRD_PARTY_SKIP_ENV}=1 to skip."
 
-  if command -v curl >/dev/null 2>&1; then
-    if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)" | bash -s -- --skip-skills --quiet --no-gum >/dev/null 2>&1; then
-      success "br installed"
+  if [[ "$skip_host_independent" != true ]]; then
+    if command -v curl >/dev/null 2>&1; then
+      if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)" | bash -s -- --skip-skills --quiet --no-gum >/dev/null 2>&1; then
+        success "br installed"
+      else
+        warn "br install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
+      fi
+
+      if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash >/dev/null 2>&1; then
+        success "bv installed"
+      else
+        warn "bv install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
+      fi
     else
-      warn "br install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
+      warn "curl not found — skipping br and bv installers"
     fi
 
-    if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash >/dev/null 2>&1; then
-      success "bv installed"
+    if command -v python3 >/dev/null 2>&1; then
+      if python3 -m pip install --user graphifyy --quiet >/dev/null 2>&1 \
+        && PATH="${HOME}/.local/bin:${PATH}" graphify install >/dev/null 2>&1; then
+        success "graphify installed"
+      else
+        warn "graphify install failed — try: python3 -m pip install --user graphifyy && graphify install"
+      fi
     else
-      warn "bv install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
+      warn "python3 not found — skipping graphify"
     fi
-  else
-    warn "curl not found — skipping br and bv installers"
-  fi
-
-  if command -v python3 >/dev/null 2>&1; then
-    if python3 -m pip install --user graphifyy --quiet >/dev/null 2>&1 \
-      && PATH="${HOME}/.local/bin:${PATH}" graphify install >/dev/null 2>&1; then
-      success "graphify installed"
-    else
-      warn "graphify install failed — try: python3 -m pip install --user graphifyy && graphify install"
-    fi
-  else
-    warn "python3 not found — skipping graphify"
   fi
 
   if ! command -v npx >/dev/null 2>&1; then
@@ -1589,6 +1606,7 @@ main() {
   # (run AFTER resolution so --all auto-detected Pi is included)
   local has_pi=false
   local pi_delegated=false
+  local pi_delegation_succeeded=false
   for agent in "${SELECTED_AGENTS[@]}"; do
     [[ "$agent" == "pi" ]] && has_pi=true
   done
@@ -1618,7 +1636,9 @@ main() {
         cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
       else
         # Pi is one of multiple — run without exec, capture exit code, then continue
-        if ! (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
+        if (cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}"); then
+          pi_delegation_succeeded=true
+        else
           FAILED_AGENTS+=("pi")
         fi
       fi
@@ -1754,7 +1774,11 @@ main() {
   done
 
   if [[ "$MODE" == "install" && "$FORCE" == true ]]; then
-    install_third_party_tools "${SELECTED_AGENTS[@]}"
+    if [[ "$pi_delegation_succeeded" == true ]]; then
+      install_third_party_tools --skip-host-independent "${SELECTED_AGENTS[@]}"
+    else
+      install_third_party_tools "${SELECTED_AGENTS[@]}"
+    fi
   fi
 
   echo

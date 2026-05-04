@@ -193,6 +193,54 @@ test("install.sh mixed claude+pi install reports both agents in summary", { time
   assert.match(output, /Pi Agent/)
 })
 
+test("install.sh mixed claude+pi install does not replay host-independent third-party tools", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-third-party-home-"))
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-third-party-bin-"))
+  const hostIndependentMarker = path.join(home, "host-independent-third-party-called")
+  const npxMarker = path.join(home, "npx-called")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  fs.writeFileSync(path.join(binDir, "bun"), "#!/usr/bin/env bash\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(binDir, "bun"), 0o755)
+
+  fs.writeFileSync(path.join(binDir, "curl"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$0 $*\" >> \"$HOST_INDEPENDENT_MARKER\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(binDir, "curl"), 0o755)
+  fs.writeFileSync(
+    path.join(binDir, "python3"),
+    [
+      "#!/usr/bin/env bash",
+      "case \"$*\" in",
+      "  *'pip install --user graphifyy'*) printf '%s\\n' \"$0 $*\" >> \"$HOST_INDEPENDENT_MARKER\" ;;",
+      "esac",
+      "exit 0",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  fs.chmodSync(path.join(binDir, "python3"), 0o755)
+  fs.writeFileSync(path.join(binDir, "npx"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$NPX_MARKER\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(binDir, "npx"), 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude,pi", "--yes", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      HOST_INDEPENDENT_MARKER: hostIndependentMarker,
+      NPX_MARKER: npxMarker,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+      XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.equal(fs.existsSync(hostIndependentMarker), false, "Pi delegation should own br/bv/graphify for mixed installs")
+  assert.match(fs.readFileSync(npxMarker, "utf8"), /claude-mem install/)
+
+  fs.rmSync(binDir, { recursive: true, force: true })
+})
+
 test("install.sh --all detects Pi when pi executable is in PATH even without ~/.pi", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-detect-exec-home-"))
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-detect-exec-bin-"))
@@ -315,6 +363,51 @@ test("bun installer reports claude-mem skipped before requiring npx for unsuppor
   assert.equal(result.status, 0, output)
   const manifest = JSON.parse(fs.readFileSync(path.join(home, ".xpowers", "manifest.json"), "utf8"))
   assert.equal(manifest.features["claude-mem"].metadata.lastResult, "skipped (Claude Code, OpenCode, or Gemini CLI not selected)")
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
+test("bun installer attempts all claude-mem targets before reporting failures", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-all-targets-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-claude-mem-all-targets-bin-"))
+  const npxLog = path.join(home, "npx-calls")
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.writeFileSync(
+    path.join(tmpBinDir, "npx"),
+    [
+      "#!/usr/bin/env bash",
+      "printf '%s\\n' \"$*\" >> \"$NPX_LOG\"",
+      "case \"$*\" in",
+      "  *'--ide opencode'*) exit 0 ;;",
+      "  *) exit 7 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  fs.chmodSync(path.join(tmpBinDir, "npx"), 0o755)
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "claude,opencode", "--features", "claude-mem", "--yes", "--json", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      NPX_LOG: npxLog,
+      PATH: `${tmpBinDir}${path.delimiter}${process.env.PATH || ""}`,
+      XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  const calls = fs.readFileSync(npxLog, "utf8").trim().split("\n")
+  assert.equal(calls.length, 2)
+  assert.match(calls[0], /claude-mem install$/)
+  assert.match(calls[1], /claude-mem install --ide opencode$/)
+  const manifest = JSON.parse(fs.readFileSync(path.join(home, ".xpowers", "manifest.json"), "utf8"))
+  assert.match(manifest.features["claude-mem"].metadata.lastResult, /installed for OpenCode/)
+  assert.match(manifest.features["claude-mem"].metadata.lastResult, /Claude Code/)
 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })

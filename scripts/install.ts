@@ -545,12 +545,19 @@ const FEATURES: FeatureConfig[] = [
       if (!commandExists("npx")) return "npx not found — install manually: npx --yes claude-mem install"
 
       const installed: string[] = []
+      const failed: string[] = []
       for (const target of targets) {
         const result = Bun.spawnSync(target.args, { stdout: "pipe", stderr: "pipe" })
         if (result.exitCode !== 0) {
-          return `claude-mem install failed for ${target.label} — try: ${target.args.join(" ")}`
+          failed.push(`${target.label} (exit ${result.exitCode}; try: ${target.args.join(" ")})`)
+          continue
         }
         installed.push(target.label)
+      }
+      if (failed.length > 0) {
+        return installed.length > 0
+          ? `claude-mem installed for ${installed.join(", ")}; could not install for ${failed.join(", ")}`
+          : `claude-mem install failed for ${failed.join(", ")}`
       }
       return `claude-mem installed for ${installed.join(", ")}`
     },
