@@ -1124,7 +1124,11 @@ Options:
     s.start(`Setting up ${feature.name}...`)
     const result = await feature.install(selectedHostIds, REPO_ROOT)
     const success = !result.includes("failed") && !result.includes("not found") && !result.includes("skipped")
-    manifest.features[featureId] = { installed: success, metadata: { lastResult: result } }
+    const existingFeature = manifest.features[featureId]
+    manifest.features[featureId] = {
+      installed: success || existingFeature?.installed === true,
+      metadata: { ...(existingFeature?.metadata ?? {}), lastResult: result },
+    }
     s.stop(result)
   }
 

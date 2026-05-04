@@ -319,6 +319,40 @@ test("bun installer reports claude-mem skipped before requiring npx for unsuppor
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
 
+test("bun installer preserves installed state when third-party features are skipped", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-third-party-preserve-"))
+  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".xpowers"), { recursive: true })
+  fs.writeFileSync(
+    path.join(home, ".xpowers", "manifest.json"),
+    JSON.stringify({
+      version: "test",
+      installedAt: "2026-05-04T00:00:00.000Z",
+      hosts: {},
+      features: {
+        br: { installed: true, metadata: { lastResult: "br installed" } },
+      },
+    }) + "\n",
+    "utf8",
+  )
+
+  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "claude", "--features", "br", "--yes", "--json", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(payload.features.br, true)
+  const manifest = JSON.parse(fs.readFileSync(path.join(home, ".xpowers", "manifest.json"), "utf8"))
+  assert.equal(manifest.features.br.installed, true)
+  assert.equal(manifest.features.br.metadata.lastResult, "skipped (XPOWERS_SKIP_THIRD_PARTY_FEATURES=1)")
+})
+
 test("install.sh skips third-party tool bundle when requested by environment", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-skip-"))
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
