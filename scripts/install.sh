@@ -1281,6 +1281,17 @@ third_party_was_installed() {
   [[ -f "$state_file" ]] && grep -qxF "$tool" "$state_file"
 }
 
+record_pi_host_independent_third_party_state() {
+  local pi_output="$1"
+  if [[ "$pi_output" == *'"br":true'* && "$pi_output" == *'"bv":true'* && "$pi_output" == *'"graphify":true'* ]]; then
+    third_party_mark_installed "br"
+    third_party_mark_installed "bv"
+    third_party_mark_installed "graphify"
+    return 0
+  fi
+  return 1
+}
+
 third_party_features_skipped() {
   local value="${XPOWERS_SKIP_THIRD_PARTY_FEATURES:-}"
   case "${value,,}" in
@@ -1723,17 +1734,27 @@ main() {
       [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
       [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
       if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
-        # Pi is the only host — exec for efficiency
-        cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+        if [[ "$FORCE" == true ]]; then
+          # Pi is the only host in non-interactive mode — capture JSON so the
+          # shell wrapper can keep third-party uninstall ownership in sync.
+          local pi_output=""
+          if pi_output="$(cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}" --json)"; then
+            if record_pi_host_independent_third_party_state "$pi_output"; then
+              pi_host_independent_features_succeeded=true
+            fi
+          else
+            FAILED_AGENTS+=("pi")
+          fi
+        else
+          # Pi is the only interactive host — exec for efficiency.
+          cd "${REPO_ROOT}" && exec bun scripts/install.ts "${PI_ARGS[@]}"
+        fi
       else
         # Pi is one of multiple — run without exec, capture exit code, then continue
         local pi_output=""
         if pi_output="$(cd "${REPO_ROOT}" && bun scripts/install.ts "${PI_ARGS[@]}" --json)"; then
-          if [[ "$pi_output" == *'"br":true'* && "$pi_output" == *'"bv":true'* && "$pi_output" == *'"graphify":true'* ]]; then
+          if record_pi_host_independent_third_party_state "$pi_output"; then
             pi_host_independent_features_succeeded=true
-            third_party_mark_installed "br"
-            third_party_mark_installed "bv"
-            third_party_mark_installed "graphify"
           fi
         else
           FAILED_AGENTS+=("pi")
@@ -1887,8 +1908,8 @@ main() {
 
   if [[ ${#FAILED_AGENTS[@]} -eq 0 ]]; then
     if [[ "$MODE" == "uninstall" ]]; then
-      uninstall_third_party_tools
       if [[ ${#SELECTED_AGENTS[@]} -eq $total_detected_agents ]]; then
+        uninstall_third_party_tools
         uninstall_tm_cli
       fi
     fi
