@@ -1255,6 +1255,103 @@ uninstall_tm_cli() {
 }
 
 # ---------------------------------------------------------------------------
+# Third-party tool bundle
+# ---------------------------------------------------------------------------
+
+THIRD_PARTY_SKIP_ENV="XPOWERS_SKIP_THIRD_PARTY_FEATURES"
+
+third_party_features_skipped() {
+  local value="${XPOWERS_SKIP_THIRD_PARTY_FEATURES:-}"
+  case "${value,,}" in
+    1|true|yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+install_third_party_tools() {
+  if [[ "$DRY_RUN" == true ]]; then
+    info "Would install third-party tool bundle: br, bv, graphify, claude-mem"
+    return 0
+  fi
+
+  if third_party_features_skipped; then
+    info "Skipping third-party tool bundle (${THIRD_PARTY_SKIP_ENV}=1)"
+    return 0
+  fi
+
+  info "Installing third-party tool bundle: br, bv, graphify, claude-mem"
+
+  if command -v curl >/dev/null 2>&1; then
+    if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh?$(date +%s)" | bash -s -- --skip-skills --quiet --no-gum >/dev/null 2>&1; then
+      success "br installed"
+    else
+      warn "br install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_rust/main/install.sh | bash -s -- --skip-skills"
+    fi
+
+    if curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash >/dev/null 2>&1; then
+      success "bv installed"
+    else
+      warn "bv install failed — try: curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh | bash"
+    fi
+  else
+    warn "curl not found — skipping br and bv installers"
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    if python3 -m pip install --user graphifyy --quiet >/dev/null 2>&1 \
+      && PATH="${HOME}/.local/bin:${PATH}" graphify install >/dev/null 2>&1; then
+      success "graphify installed"
+    else
+      warn "graphify install failed — try: python3 -m pip install --user graphifyy && graphify install"
+    fi
+  else
+    warn "python3 not found — skipping graphify"
+  fi
+
+  if ! command -v npx >/dev/null 2>&1; then
+    warn "npx not found — skipping claude-mem"
+    return 0
+  fi
+
+  local installed_cmem=()
+  local agent
+  for agent in "$@"; do
+    case "$agent" in
+      claude)
+        if npx --yes claude-mem install >/dev/null 2>&1; then
+          installed_cmem+=("Claude Code")
+        else
+          warn "claude-mem install failed for Claude Code — try: npx --yes claude-mem install"
+        fi
+        ;;
+      opencode)
+        if npx --yes claude-mem install --ide opencode >/dev/null 2>&1; then
+          installed_cmem+=("OpenCode")
+        else
+          warn "claude-mem install failed for OpenCode — try: npx --yes claude-mem install --ide opencode"
+        fi
+        ;;
+      gemini)
+        if npx --yes claude-mem install --ide gemini-cli >/dev/null 2>&1; then
+          installed_cmem+=("Gemini CLI")
+        else
+          warn "claude-mem install failed for Gemini CLI — try: npx --yes claude-mem install --ide gemini-cli"
+        fi
+        ;;
+    esac
+  done
+
+  if [[ ${#installed_cmem[@]} -gt 0 ]]; then
+    local joined=""
+    for agent in "${installed_cmem[@]}"; do
+      [[ -n "$joined" ]] && joined+=", "
+      joined+="$agent"
+    done
+    success "claude-mem installed for ${joined}"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # CLI usage
 # ---------------------------------------------------------------------------
 
@@ -1284,6 +1381,10 @@ MODES:
     --allow-conflicts   Advanced: continue despite detected hyperpowers/myhyperpowers/superpowers installs
     --remove-legacy     Detect and remove legacy installs (hyperpowers, myhyperpowers, superpowers)
     --replace-legacy    Remove legacy installs, then proceed with XPowers install
+
+FEATURES:
+    --yes installs third-party tools: br, bv, graphify, claude-mem
+    Set XPOWERS_SKIP_THIRD_PARTY_FEATURES=1 to skip external tool installers
 
 GENERAL:
     -h, --help          Show this help
@@ -1650,6 +1751,10 @@ main() {
       fi
     fi
   done
+
+  if [[ "$MODE" == "install" ]]; then
+    install_third_party_tools "${SELECTED_AGENTS[@]}"
+  fi
 
   echo
 

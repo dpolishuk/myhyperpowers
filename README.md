@@ -246,7 +246,9 @@ bun scripts/install.ts --uninstall
 ```
 
 Available hosts: `claude`, `opencode`, `kimi`, `gemini`, `pi`
-Available features: `memsearch`, `supermemory`, `statusline`, `routing-wizard`, `tm-cli`
+Available features: `memsearch`, `br`, `bv`, `graphify`, `claude-mem`, `supermemory`, `statusline`, `routing-wizard`, `tm-cli`
+
+`--yes` includes third-party tool installers. Set `XPOWERS_SKIP_THIRD_PARTY_FEATURES=1` when you need a host-only install without external downloads.
 
 ### For Humans (interactive TUI)
 
