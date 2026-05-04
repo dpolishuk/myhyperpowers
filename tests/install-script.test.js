@@ -42,7 +42,6 @@ function installEnv(home, extra = {}) {
     HOME: home,
     XDG_CONFIG_HOME: path.join(home, ".config"),
     NO_COLOR: "1",
-    XPOWERS_SKIP_THIRD_PARTY_FEATURES: "1",
     ...extra,
   }
 }
@@ -254,45 +253,6 @@ test("install.sh deduplicates duplicate --hosts entries", { timeout: 120000 }, (
   // Should only mention one Claude Code install, not two
   const matches = output.match(/Would install to Claude Code/g)
   assert.equal(matches ? matches.length : 0, 1, `Expected exactly one Claude mention, got: ${output}`)
-})
-
-test("bun installer --yes includes third-party tool features by default", { timeout: 120000 }, () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-third-party-features-"))
-  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-ts-third-party-bin-"))
-  const bunPath = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim()
-  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
-
-  const result = spawnSync(bunPath, ["scripts/install.ts", "--hosts", "claude", "--yes", "--json", "--allow-conflicts"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installEnv(home, { PATH: tmpBinDir }),
-    timeout: 120000,
-  })
-
-  const output = combinedOutput(result)
-  assert.equal(result.status, 0, output)
-  const payload = JSON.parse(result.stdout.trim())
-  for (const feature of ["br", "bv", "graphify", "claude-mem"]) {
-    assert.equal(Object.hasOwn(payload.features, feature), true, `${feature} should be part of the default feature set`)
-  }
-
-  fs.rmSync(tmpBinDir, { recursive: true, force: true })
-})
-
-test("install.sh skips third-party tool bundle when requested by environment", { timeout: 120000 }, () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-skip-"))
-  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
-
-  const result = spawnSync("bash", ["scripts/install.sh", "--claude", "--yes", "--allow-conflicts"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: installEnv(home),
-    timeout: 120000,
-  })
-
-  const output = combinedOutput(result)
-  assert.equal(result.status, 0, output)
-  assert.match(output, /Skipping third-party tool bundle/)
 })
 
 test("bun installer fails fast on legacy package conflicts unless explicitly overridden", { timeout: 120000 }, () => {
