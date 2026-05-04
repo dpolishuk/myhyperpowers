@@ -310,6 +310,49 @@ test("install.sh mixed claude+pi install retries host-independent tools when Pi 
   fs.rmSync(binDir, { recursive: true, force: true })
 })
 
+test("install.sh mixed claude+pi install records partial Pi third-party success before retry", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-third-party-partial-home-"))
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-mixed-pi-third-party-partial-bin-"))
+  const npxMarker = path.join(home, "npx-called")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+
+  fs.writeFileSync(
+    path.join(binDir, "bun"),
+    "#!/usr/bin/env bash\nprintf '%s\\n' '{\"features\":{\"br\":true,\"bv\":true,\"graphify\":false}}'\nexit 0\n",
+    "utf8",
+  )
+  fs.chmodSync(path.join(binDir, "bun"), 0o755)
+  fs.writeFileSync(path.join(binDir, "curl"), "#!/usr/bin/env bash\nexit 9\n", "utf8")
+  fs.chmodSync(path.join(binDir, "curl"), 0o755)
+  fs.writeFileSync(path.join(binDir, "python3"), "#!/usr/bin/env bash\nexit 9\n", "utf8")
+  fs.chmodSync(path.join(binDir, "python3"), 0o755)
+  fs.writeFileSync(path.join(binDir, "npx"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$NPX_MARKER\"\nexit 0\n", "utf8")
+  fs.chmodSync(path.join(binDir, "npx"), 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude,pi", "--yes", "--allow-conflicts"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      NPX_MARKER: npxMarker,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+      XPOWERS_SKIP_THIRD_PARTY_FEATURES: "0",
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(output, /br install failed/)
+  assert.match(output, /bv install failed/)
+  assert.equal(
+    fs.readFileSync(path.join(home, ".xpowers", "third-party-tools"), "utf8"),
+    "br\nbv\nclaude-mem\n",
+  )
+  assert.match(fs.readFileSync(npxMarker, "utf8"), /claude-mem install/)
+
+  fs.rmSync(binDir, { recursive: true, force: true })
+})
+
 test("install.sh pi-only install records delegated third-party ownership", { timeout: 120000 }, () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-only-third-party-state-home-"))
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-pi-only-third-party-state-bin-"))

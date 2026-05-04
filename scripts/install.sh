@@ -1283,13 +1283,23 @@ third_party_was_installed() {
 
 record_pi_host_independent_third_party_state() {
   local pi_output="$1"
-  if [[ "$pi_output" == *'"br":true'* && "$pi_output" == *'"bv":true'* && "$pi_output" == *'"graphify":true'* ]]; then
+  local all_succeeded=true
+  if [[ "$pi_output" == *'"br":true'* ]]; then
     third_party_mark_installed "br"
-    third_party_mark_installed "bv"
-    third_party_mark_installed "graphify"
-    return 0
+  else
+    all_succeeded=false
   fi
-  return 1
+  if [[ "$pi_output" == *'"bv":true'* ]]; then
+    third_party_mark_installed "bv"
+  else
+    all_succeeded=false
+  fi
+  if [[ "$pi_output" == *'"graphify":true'* ]]; then
+    third_party_mark_installed "graphify"
+  else
+    all_succeeded=false
+  fi
+  [[ "$all_succeeded" == true ]]
 }
 
 third_party_features_skipped() {
