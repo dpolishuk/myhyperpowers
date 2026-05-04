@@ -1432,6 +1432,7 @@ uninstall_third_party_tools() {
   fi
 
   info "Removing tracked third-party tool bundle"
+  local failed=false
 
   if third_party_was_installed "br"; then
     rm -f "${HOME}/.local/bin/br" "${HOME}/.local/bin/br.exe"
@@ -1449,9 +1450,11 @@ uninstall_third_party_tools() {
         success "graphify removed"
       else
         warn "graphify uninstall failed — try: python3 -m pip uninstall -y graphifyy"
+        failed=true
       fi
     else
       warn "python3 not found — skipping graphify uninstall"
+      failed=true
     fi
   fi
 
@@ -1461,14 +1464,20 @@ uninstall_third_party_tools() {
         success "claude-mem removed"
       else
         warn "claude-mem uninstall failed — try: npx --yes claude-mem uninstall"
+        failed=true
       fi
     else
       warn "npx not found — skipping claude-mem uninstall"
+      failed=true
     fi
   fi
 
-  rm -f "$state_file"
-  rmdir "$(dirname "$state_file")" 2>/dev/null || true
+  if [[ "$failed" == true ]]; then
+    warn "Keeping third-party state file for retry: ${state_file}"
+  else
+    rm -f "$state_file"
+    rmdir "$(dirname "$state_file")" 2>/dev/null || true
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -1731,7 +1740,11 @@ main() {
     else
       # Build filtered args for install.ts (only flags it understands)
       local -a PI_ARGS=("--hosts" "pi")
-      [[ "$FORCE" == true ]] && PI_ARGS+=("--yes")
+      if [[ "$FORCE" == true ]]; then
+        PI_ARGS+=("--yes")
+      else
+        PI_ARGS+=("--features" "tm-cli")
+      fi
       [[ "$ALLOW_CONFLICTS" == true ]] && PI_ARGS+=("--allow-conflicts")
       if [[ ${#SELECTED_AGENTS[@]} -eq 1 ]]; then
         if [[ "$FORCE" == true ]]; then

@@ -155,6 +155,8 @@ test("install.sh --hosts pi delegates through the Bun installer entrypoint", { t
     "scripts/install.ts",
     "--hosts",
     "pi",
+    "--features",
+    "tm-cli",
     "--allow-conflicts",
   ])
   assert.doesNotMatch(output, /setup-pi\.sh/)
@@ -630,6 +632,36 @@ test("install.sh uninstall removes tracked third-party tools", { timeout: 120000
   assert.match(fs.readFileSync(pipLog, "utf8"), /pip uninstall -y graphifyy/)
   assert.match(fs.readFileSync(npxLog, "utf8"), /claude-mem uninstall/)
   assert.equal(fs.existsSync(path.join(home, ".xpowers", "third-party-tools")), false)
+
+  fs.rmSync(tmpBinDir, { recursive: true, force: true })
+})
+
+test("install.sh uninstall preserves third-party state when cleanup fails", { timeout: 120000 }, () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-uninstall-fail-home-"))
+  const tmpBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "install-sh-third-party-uninstall-fail-bin-"))
+  const pipLog = path.join(home, "pip-uninstall")
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true })
+  fs.mkdirSync(path.join(home, ".xpowers"), { recursive: true })
+  fs.writeFileSync(path.join(home, ".claude", ".xpowers-manifest"), "# .xpowers-manifest\n", "utf8")
+  fs.writeFileSync(path.join(home, ".xpowers", "third-party-tools"), "graphify\n", "utf8")
+  fs.writeFileSync(path.join(tmpBinDir, "python3"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$PIP_LOG\"\nexit 9\n", "utf8")
+  fs.chmodSync(path.join(tmpBinDir, "python3"), 0o755)
+
+  const result = spawnSync("bash", ["scripts/install.sh", "--hosts", "claude", "--uninstall", "--yes"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: installEnv(home, {
+      PATH: `${tmpBinDir}${path.delimiter}/usr/bin:/bin`,
+      PIP_LOG: pipLog,
+    }),
+    timeout: 120000,
+  })
+
+  const output = combinedOutput(result)
+  assert.equal(result.status, 0, output)
+  assert.match(fs.readFileSync(pipLog, "utf8"), /pip uninstall -y graphifyy/)
+  assert.equal(fs.readFileSync(path.join(home, ".xpowers", "third-party-tools"), "utf8"), "graphify\n")
+  assert.match(output, /Keeping third-party state file for retry/)
 
   fs.rmSync(tmpBinDir, { recursive: true, force: true })
 })
